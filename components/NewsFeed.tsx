@@ -1,8 +1,12 @@
-
 import React, { useEffect, useState } from 'react';
-import { NexusAgent } from '../services/openaiService';
 import { NewsArticle } from '../types';
 import { ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
+
+const FALLBACK_TOPICS: NewsArticle[] = [
+  { title: "India economy growth 2025", summary: "Search for latest economic outlook.", url: "#", category: "Economy" },
+  { title: "Viksit Bharat 2047 vision", summary: "Explore long-term national vision.", url: "#", category: "Policy" },
+  { title: "Indian space missions Chandrayaan", summary: "Latest in space exploration.", url: "#", category: "Science" },
+];
 
 interface NewsFeedProps {
   onArticleClick: (title: string) => void;
@@ -11,12 +15,21 @@ interface NewsFeedProps {
 const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [noConfig, setNoConfig] = useState(false);
 
   const fetchNews = async () => {
     setLoading(true);
-    const agent = new NexusAgent();
-    const data = await agent.fetchTrendingNews();
-    setArticles(data);
+    setNoConfig(false);
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/news`);
+      const data = await res.json();
+      const list = Array.isArray(data.articles) ? data.articles : [];
+      setArticles(list.length > 0 ? list : FALLBACK_TOPICS);
+      if (list.length === 0 && data.message) setNoConfig(true);
+    } catch {
+      setArticles(FALLBACK_TOPICS);
+    }
     setLoading(false);
   };
 
@@ -39,7 +52,9 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
         <TrendingUp className="text-blue-500" />
         <h2 className="text-xl sm:text-2xl font-bold">Discover Live</h2>
       </div>
-      
+      {noConfig && (
+        <p className="text-sm text-gray-500 mb-4">Configure SERPER_API_KEY in Vercel for live news. Showing suggested topics to explore.</p>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {articles.map((article, idx) => (
           <div 

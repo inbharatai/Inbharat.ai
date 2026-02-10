@@ -118,7 +118,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           setStatus('idle');
           return;
         }
-        const text = await agentRef.current.transcribe(blob);
+        const text = await agentRef.current.transcribe(blob, currentLanguage);
         setUserText(text);
         if (!text.trim()) {
           setStatus('idle');
@@ -225,18 +225,18 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
     <div className="fixed inset-0 z-[600] bg-[#050505] flex flex-col items-center justify-center p-4 sm:p-6 safe-top safe-bottom animate-in fade-in duration-500 overflow-auto">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(234,88,12,0.06),transparent_70%)] pointer-events-none" />
 
-      <button onClick={onClose} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-full text-gray-500 hover:text-white transition-all z-[610] shadow-lg touch-manual" aria-label="Close">
-        <X size={20} />
+      <button onClick={onClose} className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2.5 min-h-[40px] min-w-[40px] bg-[#161b22] border border-[#30363d] rounded-full text-gray-500 hover:text-white transition-all z-[610] shadow-lg touch-manual flex items-center justify-center" aria-label="Close">
+        <X size={18} />
       </button>
 
-      <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-[620]">
+      <div className="absolute top-4 left-4 sm:top-8 sm:left-8 z-[620] flex items-center gap-3">
         <button
           onClick={() => setShowLangMenu(!showLangMenu)}
-          className="flex items-center gap-2 sm:gap-3 px-4 sm:px-5 py-2.5 min-h-[44px] bg-[#161b22] border border-[#30363d] rounded-xl sm:rounded-2xl text-white hover:border-[#FF9933]/50 transition-all shadow-xl group touch-manual"
+          className="flex items-center gap-2 px-3 sm:px-4 py-2 min-h-[40px] bg-[#161b22] border border-[#30363d] rounded-xl text-white hover:border-[#FF9933]/50 transition-all shadow-lg touch-manual"
         >
-          <Languages size={18} className="text-[#FF9933] flex-shrink-0" />
-          <span className="text-[10px] sm:text-xs font-black tracking-widest truncate max-w-[120px] sm:max-w-none">{languageMetadata[currentLanguage].native}</span>
-          <ChevronDown size={14} className={`text-gray-500 transition-transform flex-shrink-0 ${showLangMenu ? 'rotate-180' : ''}`} />
+          <Languages size={16} className="text-[#FF9933] flex-shrink-0" />
+          <span className="text-xs font-semibold tracking-wide truncate max-w-[100px] sm:max-w-[140px]">{languageMetadata[currentLanguage].native}</span>
+          <ChevronDown size={12} className={`text-gray-500 transition-transform flex-shrink-0 ${showLangMenu ? 'rotate-180' : ''}`} />
         </button>
         {showLangMenu && (
           <div className="absolute top-full mt-2 left-0 w-64 max-h-[60vh] overflow-y-auto bg-[#161b22] border border-[#30363d] rounded-xl sm:rounded-2xl shadow-2xl no-scrollbar animate-in zoom-in-95 duration-200">
@@ -254,75 +254,77 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
         )}
       </div>
 
-      <div className="flex flex-col items-center gap-6 sm:gap-12 w-full max-w-xl relative flex-1 justify-center min-h-0 py-4">
-        <div className="relative w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 flex items-center justify-center flex-shrink-0">
-          <canvas ref={canvasRef} width={600} height={600} className="absolute inset-0 w-full h-full opacity-70" />
-          <div className={`relative w-32 h-32 sm:w-40 sm:h-40 md:w-44 md:h-44 bg-[#0a0a0a] border-4 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${status === 'recording' ? 'border-[#FF9933] shadow-[#FF9933]/30' : status === 'speaking' ? 'border-[#138808] shadow-[#138808]/30 scale-105' : 'border-[#30363d]'}`}>
-            <TricolourStar size={72} className={`w-14 h-14 sm:w-16 sm:h-16 md:w-[72px] md:h-[72px] ${status === 'recording' ? 'animate-pulse' : ''}`} />
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 sm:top-8 z-[615] pointer-events-none">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#161b22]/90 border border-[#30363d] rounded-full">
+          <Sparkles size={12} className="text-[#FF9933] flex-shrink-0" />
+          <span className="text-[10px] sm:text-xs font-semibold tracking-wide text-white/90">
+            {languageMetadata[currentLanguage].name} Voice
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-4 sm:gap-6 w-full max-w-xl relative flex-1 justify-center min-h-0 py-4 pt-14 sm:pt-16">
+        <div className="relative w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center flex-shrink-0">
+          <canvas ref={canvasRef} width={600} height={600} className="absolute inset-0 w-full h-full opacity-60" />
+          <div className={`relative w-28 h-28 sm:w-32 sm:h-32 bg-[#0a0a0a] border-2 sm:border-[3px] rounded-full flex items-center justify-center shadow-xl transition-all duration-300 ${status === 'recording' ? 'border-[#FF9933] shadow-[#FF9933]/25' : status === 'speaking' ? 'border-[#138808] shadow-[#138808]/25 scale-105' : 'border-[#30363d]'}`}>
+            <TricolourStar size={56} className={`w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0 ${status === 'recording' ? 'animate-pulse' : ''}`} />
           </div>
         </div>
 
-        <div className="text-center space-y-4 sm:space-y-6 w-full px-2">
-          <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2 sm:py-2.5 bg-[#FF9933]/10 border border-[#FF9933]/40 rounded-full animate-in zoom-in-95">
-            <Sparkles size={16} className="text-[#FF9933] animate-pulse flex-shrink-0" />
-            <span className="text-[11px] sm:text-[13px] font-black tracking-[0.3em] sm:tracking-[0.4em] text-white">
-              {languageMetadata[currentLanguage].name} Voice • OpenAI
-            </span>
-          </div>
-
-          <div className="min-h-[5rem] sm:min-h-[7rem] px-4 sm:px-10">
+        <div className="text-center space-y-3 w-full px-3 max-w-md mx-auto">
+          <div className="min-h-[4rem] sm:min-h-[5rem] px-2 flex flex-col justify-center">
             {status === 'error' ? (
-              <div className="flex flex-col items-center gap-4">
-                <AlertCircle className="text-red-500" size={44} />
-                <p className="text-red-500 font-black text-xl uppercase tracking-widest">Something went wrong</p>
+              <div className="flex flex-col items-center gap-3">
+                <AlertCircle className="text-red-500" size={36} />
+                <p className="text-red-500 font-bold text-sm uppercase tracking-wider">Something went wrong</p>
                 {errorMessage && (
-                  <p className="text-gray-400 text-sm max-w-md px-4">{errorMessage}</p>
+                  <p className="text-gray-400 text-xs max-w-sm px-2">{errorMessage}</p>
                 )}
                 <button
                   onClick={async () => { setErrorMessage(''); setStatus('idle'); await requestMic(); }}
-                  className="mt-2 px-6 py-3 min-h-[44px] bg-[#FF9933] hover:bg-[#e88a2b] text-white font-bold rounded-xl transition-colors touch-manual"
+                  className="mt-1 px-5 py-2.5 min-h-[40px] bg-[#FF9933] hover:bg-[#e88a2b] text-white text-sm font-semibold rounded-xl transition-colors touch-manual"
                 >
                   Try again
                 </button>
               </div>
             ) : status === 'processing' ? (
-              <div className="flex items-center justify-center gap-3">
-                <Loader2 size={32} className="animate-spin text-[#FF9933]" />
-                <span className="text-xl font-bold text-white">Thinking...</span>
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 size={24} className="animate-spin text-[#FF9933]" />
+                <span className="text-base font-semibold text-white">Thinking...</span>
               </div>
             ) : (
-              <h2 className={`text-2xl sm:text-4xl md:text-5xl font-black leading-tight animate-in fade-in duration-500 break-words ${status === 'recording' ? 'text-[#FF9933]' : status === 'speaking' ? 'text-[#138808]' : 'text-white'}`}>
+              <p className={`text-base sm:text-lg md:text-xl font-semibold leading-snug animate-in fade-in duration-500 break-words ${status === 'recording' ? 'text-[#FF9933]' : status === 'speaking' ? 'text-[#138808]' : 'text-white'}`}>
                 {aiText || userText || statusLabel}
-              </h2>
+              </p>
             )}
           </div>
 
-          <div className="flex justify-center min-h-[3rem] sm:h-12">
+          <div className="flex justify-center min-h-[2.5rem]">
             {userText && (
-              <p className="text-sm sm:text-lg font-bold text-white/80 italic animate-in slide-in-from-bottom-4 duration-500 px-2 break-words">
+              <p className="text-xs sm:text-sm font-medium text-white/70 italic animate-in slide-in-from-bottom-4 duration-500 px-2 break-words">
                 &quot;{userText}&quot;
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-8 sm:gap-12 mt-2 sm:mt-4 pb-4 sm:pb-8">
+        <div className="flex items-center gap-6 sm:gap-8 mt-2 pb-4 sm:pb-6">
           <button
             onClick={() => setIsOutputMuted(!isOutputMuted)}
-            className={`w-14 h-14 sm:w-16 sm:h-16 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center border transition-all shadow-2xl touch-manual ${isOutputMuted ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-[#161b22] border-[#30363d] text-gray-400 hover:text-white'}`}
+            className={`w-12 h-12 sm:w-14 sm:h-14 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center border transition-all shadow-lg touch-manual ${isOutputMuted ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-[#161b22] border-[#30363d] text-gray-400 hover:text-white'}`}
           >
-            {isOutputMuted ? <VolumeX size={28} className="sm:w-8 sm:h-8" /> : <Volume2 size={28} className="sm:w-8 sm:h-8" />}
+            {isOutputMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
           </button>
 
           <button
             onClick={handleMicClick}
             disabled={status === 'processing'}
-            className={`w-24 h-24 sm:w-28 sm:h-28 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center transition-all duration-200 shadow-2xl touch-manual ${status === 'recording' ? 'bg-[#FF9933] text-white animate-pulse' : status === 'processing' ? 'bg-[#161b22] border-2 border-[#30363d] text-gray-500 cursor-not-allowed' : 'bg-[#161b22] border-2 border-[#30363d] text-gray-400 hover:border-[#FF9933] hover:text-white'}`}
+            className={`w-20 h-20 sm:w-24 sm:h-24 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center transition-all duration-200 shadow-xl touch-manual ${status === 'recording' ? 'bg-[#FF9933] text-white animate-pulse' : status === 'processing' ? 'bg-[#161b22] border-2 border-[#30363d] text-gray-500 cursor-not-allowed' : 'bg-[#161b22] border-2 border-[#30363d] text-gray-400 hover:border-[#FF9933] hover:text-white'}`}
           >
-            {status === 'processing' ? <Loader2 size={40} className="animate-spin sm:w-11 sm:h-11" /> : status === 'recording' ? <MicOff size={40} className="sm:w-11 sm:h-11" /> : <Mic size={40} className="sm:w-11 sm:h-11" />}
+            {status === 'processing' ? <Loader2 size={32} className="animate-spin" /> : status === 'recording' ? <MicOff size={32} /> : <Mic size={32} />}
           </button>
         </div>
-        <p className="text-[10px] sm:text-xs text-gray-500 -mt-2 sm:-mt-4">Tap mic to start, tap again to send</p>
+        <p className="text-[10px] text-gray-500 -mt-1">Tap mic to start, tap again to send</p>
       </div>
     </div>
   );

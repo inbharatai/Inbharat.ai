@@ -13,15 +13,24 @@ This document is for maintainers and contributors: architecture, configuration, 
 
 ---
 
+## API routes (serverless)
+
+- **`/api/search`** — Serper web search proxy. `POST` with body `{ q: string }`. Reads `SERPER_API_KEY` from server env; returns `{ organic, ... }` or 401 if key is missing. Used by Research mode and web search in chat.
+- **`/api/news`** — Serper news proxy. `GET` (or `POST`) returns `{ articles: [{ title, summary, url, category }] }`. Uses `SERPER_API_KEY`; on missing key or error returns 200 with `articles: []` and optional `message`. Used by the Discover / News feed.
+
+Both run only on the server; the API key is never exposed to the client.
+
+---
+
 ## Environment variables (reference)
 
 | Variable | Where used | Notes |
 |----------|------------|--------|
 | `VITE_OPENAI_API_KEY` | Browser (Vite exposes `VITE_*`) | Chat, TTS, STT, image. Required for core AI. |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Browser | Clerk publishable key. Required for sign-in/sign-up. |
-| `SERPER_API_KEY` | Backend / server* | If you add a small proxy for Serper, use server-side only. |
+| `SERPER_API_KEY` | Server only (Vercel env) | **Do not** use `VITE_SERPER_API_KEY`. Set in Vercel → Project → Settings → Environment Variables (Production and Preview). Required for `/api/search` and `/api/news` to return live results. |
 
-\* Current code may use Serper from client; keep keys safe and consider a server proxy for production.
+For local dev with search and news, use **`vercel dev`** so `/api/search` and `/api/news` run locally with your env.
 
 ---
 

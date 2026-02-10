@@ -57,7 +57,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
 
   return (
     <div className="space-y-8 sm:space-y-10 max-w-3xl mx-auto">
-      {messages.map((msg) => (
+      {messages.map((msg, msgIdx) => (
         <div key={msg.id} className="animate-in fade-in slide-in-from-bottom-3 duration-500">
           {/* ——— User message card ——— */}
           {msg.role === 'user' && (
@@ -137,6 +137,9 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
                       ))}
                     </div>
                   </div>
+                )}
+                {msg.role === 'assistant' && (!msg.sources || msg.sources.length === 0) && msgIdx === messages.length - 1 && msgIdx > 0 && messages[msgIdx - 1].role === 'user' && (
+                  <p className="text-xs text-gray-500 mt-1">Add SERPER_API_KEY in Vercel to get live links and verified sources.</p>
                 )}
 
                 {/* Answer body */}

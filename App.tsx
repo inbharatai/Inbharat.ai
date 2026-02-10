@@ -173,7 +173,13 @@ const App: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
         sessions={filteredSessions}
         currentSessionId={currentSessionId}
-        onSessionSelect={(id) => { setCurrentSessionId(id); setViewMode(ViewMode.HOME); setIsSidebarOpen(false); }}
+        onSessionSelect={(id) => {
+          const session = sessions.find(s => s.id === id);
+          setCurrentSessionId(id);
+          if (session) setActiveMode(session.activeMode);
+          setViewMode(ViewMode.HOME);
+          setIsSidebarOpen(false);
+        }}
         onNewChat={startNewChat}
         onDiscovery={handleDiscovery}
         searchQuery={sidebarSearch}
@@ -308,7 +314,7 @@ const App: React.FC = () => {
             <Omnibox 
               onSearch={handleSearch} 
               onLiveClick={() => setViewMode(ViewMode.LIVE)} 
-              onSpeakToType={async (blob) => (await agentRef.current?.transcribe(blob)) ?? ''}
+              onSpeakToType={async (blob) => (await agentRef.current?.transcribe(blob, appLanguage)) ?? ''}
               isLoading={isLoading} 
               language={appLanguage} 
               setLanguage={setAppLanguage}

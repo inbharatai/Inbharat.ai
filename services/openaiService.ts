@@ -34,6 +34,15 @@ const languageToVoice: Record<string, "alloy" | "echo" | "fable" | "onyx" | "nov
   "AS": "nova", "SA": "onyx"
 };
 
+// Whisper ISO 639-1 language codes for better STT accuracy
+const languageToWhisperCode: Record<string, string> = {
+  "EN": "en", "HI": "hi", "BN": "bn", "TA": "ta", "TE": "te", "MR": "mr",
+  "GU": "gu", "KN": "kn", "ML": "ml", "PA": "pa", "OR": "or", "UR": "ur",
+  "AS": "as", "SA": "sa"
+};
+// OpenAI Whisper API supports a subset of ISO 639-1; unsupported codes (e.g. as, sa) must be omitted so Whisper auto-detects
+const whisperApiSupported = new Set<string>(["en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or", "ur"]);
+
 function getOpenAIKey(): string {
   return (
     (typeof process !== "undefined" && process.env?.OPENAI_API_KEY) ||
@@ -52,19 +61,76 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true });
 }
 
-async function webSearch(query: string): Promise<{ results: { title: string; link: string; snippet?: string }[]; sources: Source[] }> {
-  const key = (typeof process !== "undefined" && process.env?.SERPER_API_KEY) || "";
-  if (!key) return { results: [], sources: [] };
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const SEARCH_CACHE_STORAGE_KEY = "inbharat_serper_cache";
+const SEARCH_CACHE_MAX_ENTRIES = 100;
+
+type SearchCacheEntry = { results: { title: string; link: string; snippet?: string }[]; sources: Source[]; ts: number };
+const searchCache = new Map<string, SearchCacheEntry>();
+
+function normalizeSearchKey(q: string): string {
+  return q.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function loadSearchCacheFromStorage(): void {
+  if (typeof window === "undefined") return;
   try {
-    const res = await fetch("https://google.serper.dev/search", {
+    const raw = localStorage.getItem(SEARCH_CACHE_STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as [string, SearchCacheEntry][];
+    const now = Date.now();
+    for (const [k, v] of parsed) {
+      if (now - v.ts < SEARCH_CACHE_TTL_MS && searchCache.size < SEARCH_CACHE_MAX_ENTRIES)
+        searchCache.set(k, v);
+    }
+  } catch {
+    // ignore invalid stored cache
+  }
+}
+
+function saveSearchCacheToStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const entries = Array.from(searchCache.entries()).slice(-SEARCH_CACHE_MAX_ENTRIES);
+    localStorage.setItem(SEARCH_CACHE_STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // ignore quota or serialization errors
+  }
+}
+
+if (typeof window !== "undefined") loadSearchCacheFromStorage();
+
+async function webSearch(query: string): Promise<{ results: { title: string; link: string; snippet?: string }[]; sources: Source[] }> {
+  const key = normalizeSearchKey(query);
+  if (!key) return { results: [], sources: [] };
+
+  if (typeof window !== "undefined") {
+    const cached = searchCache.get(key);
+    if (cached && Date.now() - cached.ts < SEARCH_CACHE_TTL_MS)
+      return { results: cached.results, sources: cached.sources };
+  }
+
+  try {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/search`, {
       method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 8 })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query })
     });
     const data = await res.json();
+    if (!res.ok) return { results: [], sources: [] };
     const results = (data.organic || []).slice(0, 8);
     const sources: Source[] = results.map((r: any) => ({ title: r.title || "Source", uri: r.link || "" }));
-    return { results: results.map((r: any) => ({ title: r.title, link: r.link, snippet: r.snippet })), sources };
+    const payload = { results: results.map((r: any) => ({ title: r.title, link: r.link, snippet: r.snippet })), sources };
+    if (typeof window !== "undefined" && results.length > 0) {
+      searchCache.set(key, { ...payload, ts: Date.now() });
+      if (searchCache.size > SEARCH_CACHE_MAX_ENTRIES) {
+        const oldest = searchCache.keys().next().value;
+        if (oldest) searchCache.delete(oldest);
+      }
+      saveSearchCacheToStorage();
+    }
+    return payload;
   } catch {
     return { results: [], sources: [] };
   }
@@ -113,7 +179,27 @@ export class NexusAgent {
       ? "\n\nRecent web search results (use to ground your answer):\n" + searchResults.map((r: any) => `[${r.title}](${r.link})\n${r.snippet || ""}`).join("\n\n")
       : "";
 
+    const recencyKeywords = /\b(current|latest|today|recent|now|this week|this month|breaking|live|update|newest|2025|right now|as of today|recently|just announced)\b/i;
+    const wantsLiveInfo = recencyKeywords.test(query);
+
+    const researchHint = mode === AgentMode.RESEARCH
+      ? "Prioritize recent, cited information. Include inline [Title](url) from the provided search results when available. "
+      : "";
+    const citationRule = searchContext
+      ? "Use the search results above to ground your answer. Cite sources inline with [Title](url) where relevant. Do not invent URLs; use only the links from the search results. "
+      : "";
+    const liveOnlyRule = searchContext && wantsLiveInfo
+      ? "The user is asking for current or recent information. Base your answer ONLY on the search results provided; do not mix in facts from your training data for dates, numbers, or recent events. "
+      : "";
+    const noSearchRule = !searchContext
+      ? (wantsLiveInfo
+          ? "The user is asking for current or live information. You do NOT have real-time web results. Do not give specific statistics, dates, or 'current' facts from your training—they may be outdated. Say clearly that you don't have live access here, and suggest enabling web search (SERPER_API_KEY in Vercel) or using Research mode for up-to-date answers. Keep your reply short and helpful. "
+          : "You do not have live web results for this query. Answer from your knowledge. If the user needs real-time or verified links, briefly say they can try Research mode or ensure web search is enabled for live links. Do not claim you are incapable. ")
+      : "";
+
+    const accuracyRule = "Be precise: only state facts you can support from the context above or clearly label as general knowledge. Do not invent statistics, dates, or URLs. ";
     const systemContent = `You are InBharat Ai (Desh Ka AI), a sovereign intelligence node for Bharat. You provide accurate, culturally nuanced insights and prefer a Bharat-first lens for policy, economy, and culture. Respond ONLY in ${lang.native} (${lang.name}). Output clean Markdown.
+${researchHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}
 Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its own line, prefixed with FOLLOW_UP: .${searchContext}`;
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -329,12 +415,15 @@ How may I serve you today?`;
     }
   }
 
-  async transcribe(audioBlob: Blob): Promise<string> {
+  async transcribe(audioBlob: Blob, language?: string): Promise<string> {
     const openai = getClient();
     const file = new File([audioBlob], "audio.webm", { type: audioBlob.type || "audio/webm" });
+    const langCode = language && languageToWhisperCode[language] ? languageToWhisperCode[language] : undefined;
+    const supported = langCode && whisperApiSupported.has(langCode) ? langCode : undefined;
     const transcription = await openai.audio.transcriptions.create({
       file,
-      model: "whisper-1"
+      model: "whisper-1",
+      ...(supported && { language: supported })
     });
     return transcription.text?.trim() || "";
   }
@@ -347,11 +436,11 @@ How may I serve you today?`;
       messages: [
         {
           role: "system",
-          content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm.`
+          content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
         },
         { role: "user", content: userText }
       ],
-      max_tokens: 150
+      max_tokens: 220
     });
     const text = completion.choices[0]?.message?.content?.trim() || "";
     const audioBase64 = await this.textToSpeech(text, language);

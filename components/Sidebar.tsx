@@ -2,7 +2,7 @@
 import React from 'react';
 import {
   Plus, Search, MessageSquare, Compass, Settings,
-  Terminal, Palette, Globe, User, Hash
+  Terminal, Palette, Globe, User, Hash, History
 } from 'lucide-react';
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
@@ -94,14 +94,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
 
-          {/* History */}
+          {/* Chat History */}
           <div className="space-y-1">
             <p className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
-              <div className="w-1 h-1 bg-gray-600 rounded-full" />
-              Recent Threads
+              <History size={10} className="text-gray-600" />
+              Chat History
             </p>
             {sessions.length === 0 ? (
-              <p className="px-4 text-[11px] text-gray-800 italic font-medium">No history found.</p>
+              <p className="px-4 text-[11px] text-gray-800 italic font-medium">No chats yet. Start a new chat above.</p>
             ) : (
               sessions.map(s => (
                 <button 
