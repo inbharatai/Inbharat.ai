@@ -1,0 +1,28 @@
+/* Base styles - Tailwind is loaded via CDN in index.html */
+/* Add any app-specific overrides here */
+
+/* Product cards: equal height, clamped text, aligned CTAs */
+.product-card-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.6;
+  min-height: calc(1.6em * 3);
+}
+@media (max-width: 640px) {
+  .product-card-desc {
+    -webkit-line-clamp: 4;
+    min-height: calc(1.6em * 4);
+  }
+}
+.product-card-list {
+  min-height: 120px;
+}
+.product-card-bullet-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.45;
+}

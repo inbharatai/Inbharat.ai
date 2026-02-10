@@ -1,0 +1,8 @@
+{
+  "name": "InBharat Ai Search",
+  "description": "A world-class Agentic RAG search engine with specialized agents for coding, education, research, and creative generation, specifically tailored for Bharat and the world.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
