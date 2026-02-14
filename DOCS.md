@@ -51,6 +51,31 @@ For local dev with search and news, use **`vercel dev`** so `/api/search` and `/
 
 Without these, sign-in may fail on localhost or production.
 
+### Fixing 500 / "Serverless Function has crashed" on email sign-in
+
+If users see **500: INTERNAL_SERVER_ERROR** or "This Serverless Function has crashed" on `*.accounts.dev` when signing in with **email**, the failure is in **Clerk’s** infrastructure. Fix it in the Clerk Dashboard:
+
+1. **Configure Email (required for email sign-in)**  
+   - Go to [Clerk Dashboard](https://dashboard.clerk.com) → your application.  
+   - **User & Authentication → Email, Phone, Username** → ensure **Email** is enabled.  
+   - **Email** → set up delivery:
+     - **Development:** Clerk’s built-in email often works; confirm it’s enabled.  
+     - **Production:** Add a custom **SMTP** provider or use Clerk’s production email (if available for your plan). Without a valid sender, magic links / verification can fail and Clerk may return 500.
+
+2. **Domains and redirects**  
+   - **Paths / Domains** (or **Allowed redirect URLs**): include your live site, e.g. `https://inbharat.ai` and `https://www.inbharat.ai`, plus `https://inbharat.ai/app` if users land there.  
+   - Mismatched or missing production URLs can cause redirect or backend errors.
+
+3. **Key environment**  
+   - Use the **Production** publishable key (`pk_live_...`) in Vercel env for `https://inbharat.ai`.  
+   - If you use a **Development** key (`pk_test_...`) in production, switch to the production key and redeploy.
+
+4. **Clerk status and logs**  
+   - Check [status.clerk.com](https://status.clerk.com) for incidents.  
+   - In the Dashboard, open **Logs** (or **Activity**) and retry sign-in to see the exact error for the 500.
+
+After changing Clerk settings, wait a minute and try again; no app redeploy is needed for Dashboard-only changes.
+
 ---
 
 ## Register prompt (anonymous → account)

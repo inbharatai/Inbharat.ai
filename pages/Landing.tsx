@@ -5,7 +5,7 @@ import TricolourStar from '../components/TricolourStar';
 import {
   Sparkles, Mic, Search, Globe, ArrowRight, ExternalLink, Check, BookOpen,
   GraduationCap, FileCheck, MapPin, Wallet, Briefcase, Heart, MessageCircle,
-  Zap, Shield, Terminal, ShoppingBag
+  Zap, Shield, Terminal, ShoppingBag, Wrench, Box, Key, FileCode, Bot, Send, ListChecks
 } from 'lucide-react';
 
 const copy: Record<string, string> = {
@@ -125,6 +125,42 @@ const copy: Record<string, string> = {
     unibotWho: 'Perfect for students (Class 9–PG), parents, schools, and counsellors',
     unibotTrust: 'Not a general chatbot. A focused education companion.',
     unibotCta: 'Start learning with UniBot',
+    openClawFixTagline: 'OpenClawFix',
+    openClawFixSubline: 'ONE-CLICK OPENCLAW INSTALLER',
+    openClawFixCardIntro: 'The easiest way to install OpenClaw on your system. Automated Docker setup, gateway token config, and AI provider guidance—get running in 3–5 minutes.',
+    openClawFixBullet1: 'One-click installation with auto gateway token configuration',
+    openClawFixBullet2: 'Docker setup, clone, config files, and platform pairing in one flow',
+    openClawFixBullet3: 'First 500 users FREE; then one-time $3.99. PayPal & Razorpay (UPI)',
+    visitOpenClawFix: 'Start Setup',
+    openClawFixUrl: 'https://www.openclawfix.pro',
+    openClawFixFullTagline: 'The easiest way to install OpenClaw',
+    openClawFixFullIntro: 'OpenClawFix automates the full OpenClaw setup—Docker, clone from GitHub, gateway token, config files, and AI provider (OpenAI/Anthropic/Gemini). Get your personal AI assistant on WhatsApp, Telegram, Discord, or Slack in 3–5 minutes instead of hours.',
+    openClawFixWhatTitle: 'What OpenClawFix does',
+    openClawFixWhat1: 'Docker setup — checks Docker, installs if needed, starts daemon',
+    openClawFixWhat2: 'Clone OpenClaw — downloads from GitHub, handles updates',
+    openClawFixWhat3: 'Gateway token — auto-generates and configures secure token',
+    openClawFixWhat4: 'Config files — creates openclaw.json with proper settings',
+    openClawFixWhat5: 'AI provider — guides through OpenAI/Anthropic/Gemini setup',
+    openClawFixWhat6: 'Docker build — runs docker-setup.sh or docker-compose',
+    openClawFixWhat7: 'Platform pairing — shows how to connect WhatsApp/Telegram/Discord',
+    openClawFixWhat8: 'Next steps — provides dashboard URL with token included',
+    openClawFixVsTitle: 'OpenClawFix vs manual installation',
+    openClawFixVsSub: 'Save hours of frustration with our automated installer',
+    openClawFixVsFeature: 'Feature',
+    openClawFixVsOpenClawFix: 'OpenClawFix',
+    openClawFixVsManual: 'Manual',
+    openClawFixVsTime: 'Installation time',
+    openClawFixVsTimeVal: '3–5 minutes',
+    openClawFixVsTimeManual: '2–4 hours',
+    openClawFixVsDocker: 'Docker setup',
+    openClawFixVsToken: 'Gateway token',
+    openClawFixVsError: 'Error handling',
+    openClawFixVsPlatform: 'Platform support',
+    openClawFixVsUpdates: 'Updates',
+    openClawFixVsSupport: 'Support',
+    openClawFixPrice: '$3.99 one-time',
+    openClawFixCtaFull: 'Start Installation',
+    footerOpenClawFix: 'OpenClawFix',
     partial: 'Partial',
     basic: 'Basic',
     limited: 'Limited',
@@ -317,7 +353,7 @@ const Landing: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-10 sm:mb-12">
             {t.ourProducts}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {/* Desh Ka AI */}
             <div className="h-full flex flex-col bg-[#161b22] border border-[#FF9933]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#FF9933]/20">
               <div className="flex items-center gap-3 mb-3.5">
@@ -409,6 +445,39 @@ const Landing: React.FC = () => {
                   className="flex items-center justify-center gap-2 w-full h-[54px] rounded-xl bg-[#3b82f6] hover:bg-[#2563eb] text-white font-bold transition-all"
                 >
                   {t.chatUniBot}
+                  <ExternalLink size={18} />
+                </a>
+              </div>
+            </div>
+
+            {/* OpenClawFix */}
+            <div className="h-full flex flex-col bg-[#161b22] border border-[#14b8a6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#14b8a6]/20">
+              <div className="flex items-center gap-3 mb-3.5">
+                <div className="w-12 h-12 rounded-xl bg-[#0d1117] border border-[#14b8a6]/50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                  <img src="/openclawfix-logo.png" alt="OpenClawFix" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                  <span className="hidden absolute inset-0 flex items-center justify-center text-[#14b8a6]"><Wrench size={28} /></span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white leading-tight">{t.openClawFixTagline}</h3>
+                  <p className="text-[9px] sm:text-xs font-bold uppercase tracking-widest text-gray-500 mt-0.5">{t.openClawFixSubline}</p>
+                </div>
+              </div>
+              <p className="product-card-desc text-gray-400 text-sm sm:text-base mt-4 opacity-90">
+                {t.openClawFixCardIntro}
+              </p>
+              <ul className="product-card-list mt-4 flex flex-col gap-2.5 text-gray-500 text-xs sm:text-sm">
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#14b8a6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.openClawFixBullet1}</span></li>
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#14b8a6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.openClawFixBullet2}</span></li>
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#14b8a6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.openClawFixBullet3}</span></li>
+              </ul>
+              <div className="mt-auto pt-5">
+                <a
+                  href={t.openClawFixUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-[54px] rounded-xl bg-[#14b8a6] hover:bg-[#0d9488] text-white font-bold transition-all"
+                >
+                  {t.visitOpenClawFix}
                   <ExternalLink size={18} />
                 </a>
               </div>
@@ -789,6 +858,115 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* ——— OpenClawFix full section ——— */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 rounded-2xl bg-[#0d1117] border border-[#14b8a6]/40 flex items-center justify-center overflow-hidden relative">
+                <img src="/openclawfix-logo.png" alt="OpenClawFix" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                <span className="hidden absolute inset-0 flex items-center justify-center text-[#14b8a6]"><Wrench size={32} /></span>
+              </div>
+            </div>
+            <p className="text-[#14b8a6] text-xs font-black uppercase tracking-[0.35em] mb-2">OpenClawFix</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">
+              {t.openClawFixFullTagline}
+            </h2>
+            <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+              {t.openClawFixFullIntro}
+            </p>
+            <a
+              href={t.openClawFixUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#14b8a6] hover:bg-[#0d9488] text-white font-black rounded-2xl transition-all shadow-lg"
+            >
+              {t.openClawFixCtaFull}
+              <ExternalLink size={20} />
+            </a>
+          </div>
+
+          {/* What OpenClawFix does */}
+          <div className="mb-16 sm:mb-20">
+            <h3 className="text-xl sm:text-2xl font-black text-white text-center mb-8">{t.openClawFixWhatTitle}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              {[
+                { icon: Box, key: 'openClawFixWhat1' },
+                { icon: FileCode, key: 'openClawFixWhat2' },
+                { icon: Key, key: 'openClawFixWhat3' },
+                { icon: FileCode, key: 'openClawFixWhat4' },
+                { icon: Bot, key: 'openClawFixWhat5' },
+                { icon: Terminal, key: 'openClawFixWhat6' },
+                { icon: Send, key: 'openClawFixWhat7' },
+                { icon: ListChecks, key: 'openClawFixWhat8' },
+              ].map(({ icon: Icon, key }) => (
+                <a
+                  key={key}
+                  href={t.openClawFixUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-start gap-3 p-4 sm:p-5 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#14b8a6]/40 transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#14b8a6] group-hover:scale-110 transition-transform flex-shrink-0">
+                    <Icon size={20} />
+                  </div>
+                  <p className="text-gray-400 text-sm leading-relaxed">{t[key]}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* OpenClawFix vs Manual */}
+          <div className="mb-16 sm:mb-20">
+            <h3 className="text-xl sm:text-2xl font-black text-white text-center mb-4">{t.openClawFixVsTitle}</h3>
+            <p className="text-gray-500 text-sm text-center mb-8">{t.openClawFixVsSub}</p>
+            <div className="overflow-x-auto rounded-2xl border border-[#30363d] bg-[#161b22]">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[#30363d]">
+                    <th className="p-4 font-black text-white uppercase tracking-wider">{t.openClawFixVsFeature}</th>
+                    <th className="p-4 text-[#14b8a6] font-bold">{t.openClawFixVsOpenClawFix}</th>
+                    <th className="p-4 text-gray-500 font-bold">{t.openClawFixVsManual}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    [t.openClawFixVsTime, t.openClawFixVsTimeVal, t.openClawFixVsTimeManual],
+                    [t.openClawFixVsDocker, '✅ Automatic', '❌ Manual'],
+                    [t.openClawFixVsToken, '✅ Auto-generated', '❌ Manual config'],
+                    [t.openClawFixVsError, '✅ Auto-fix', '❌ Debug yourself'],
+                    [t.openClawFixVsPlatform, '✅ Win/Mac/Linux', '⚠️ Complex steps'],
+                    [t.openClawFixVsUpdates, '✅ One command', '❌ Manual git pull'],
+                    [t.openClawFixVsSupport, 'Community', 'Community'],
+                  ].map(([feat, openClaw, manual], i) => (
+                    <tr key={i} className="border-b border-[#30363d]/50 last:border-0">
+                      <td className="p-4 text-gray-300 font-medium">{feat}</td>
+                      <td className="p-4 text-[#14b8a6] font-semibold">{openClaw}</td>
+                      <td className="p-4 text-gray-500">{manual}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-center text-gray-500 text-sm mt-4">
+              {t.openClawFixPrice} · <a href={t.openClawFixUrl} target="_blank" rel="noopener noreferrer" className="text-[#14b8a6] hover:underline font-semibold">{t.openClawFixCtaFull}</a>
+            </p>
+          </div>
+
+          <div className="text-center">
+            <a
+              href={t.openClawFixUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#14b8a6] hover:bg-[#0d9488] text-white font-black rounded-2xl transition-all shadow-lg"
+            >
+              {t.visitOpenClawFix}
+              <ExternalLink size={20} />
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Built for India */}
       <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30 bg-[#0d1117]/50">
         <div className="max-w-4xl mx-auto">
@@ -831,6 +1009,10 @@ const Landing: React.FC = () => {
             </a>
             <a href={t.unibotWhatsAppUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               {t.footerUniBot}
+            </a>
+            <a href={t.openClawFixUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors">
+              <img src="/openclawfix-logo.png" alt="" className="w-5 h-5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              {t.footerOpenClawFix}
             </a>
           </div>
         </div>
