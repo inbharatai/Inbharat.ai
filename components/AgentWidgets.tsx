@@ -158,6 +158,8 @@ export const PresentationWidget: React.FC<{ ppt: Presentation }> = ({ ppt }) => 
   );
 };
 
+const SHOPPING_DISCLAIMER = "Suggestions based on your query. For current prices and availability, check the retailer.";
+
 export const ShoppingWidget: React.FC<{ items: ProductItem[] }> = ({ items }) => {
   return (
     <div className="w-full my-4">
@@ -165,6 +167,7 @@ export const ShoppingWidget: React.FC<{ items: ProductItem[] }> = ({ items }) =>
         <ShoppingBag size={16} className="text-green-400" />
         <span className="text-xs font-black uppercase tracking-widest text-gray-500">Global Market</span>
       </div>
+      <p className="text-[10px] text-gray-500 mb-4 px-1">{SHOPPING_DISCLAIMER}</p>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {items.map((item, idx) => (
           <div key={idx} className="bg-[#161b22] border border-[#30363d] rounded-xl overflow-hidden group hover:border-green-500/50 transition-all">

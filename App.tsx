@@ -140,7 +140,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentSessionId, appLanguage]);
+  }, [currentSessionId, appLanguage, isSignedIn]);
 
   const currentSession = sessions.find(s => s.id === currentSessionId);
   const filteredSessions = sessions.filter(s => 

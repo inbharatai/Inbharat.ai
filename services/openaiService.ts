@@ -183,7 +183,16 @@ export class NexusAgent {
     const wantsLiveInfo = recencyKeywords.test(query);
 
     const researchHint = mode === AgentMode.RESEARCH
-      ? "Prioritize recent, cited information. Include inline [Title](url) from the provided search results when available. "
+      ? "Prioritize recent, cited information. Include inline [Title](url) from the provided search results when available. Prefer recent, verifiable sources; if search results are provided, use them as the primary basis for your answer. "
+      : "";
+    const coderHint = mode === AgentMode.CODER
+      ? "You are in Coder mode. Provide clear step-by-step instructions (numbered steps) and complete, runnable code in fenced code blocks. Specify language (e.g. python, javascript). If the request is ambiguous, ask one clarifying question or assume a minimal example. Do not invent APIs or package names; prefer standard library or well-known libraries. If you are not sure about a library or API, say so and give a minimal, safe example. End with FOLLOW_UP: lines for related coding follow-ups (e.g. Explain this, Add error handling, Port to another language). "
+      : "";
+    const educatorHint = mode === AgentMode.EDUCATOR
+      ? "You are in Educator mode. Explain step-by-step, define terms when needed, and include a short example or analogy. Structure with clear headings. End with FOLLOW_UP: lines for practice or deeper questions. "
+      : "";
+    const browserHint = mode === AgentMode.BROWSER
+      ? "You are in Browser mode. Prioritize current, live information. Base your answer on the search results provided; cite with [Title](url). Do not rely on training data for recent events or stats. "
       : "";
     const citationRule = searchContext
       ? "Use the search results above to ground your answer. Cite sources inline with [Title](url) where relevant. Do not invent URLs; use only the links from the search results. "
@@ -199,7 +208,7 @@ export class NexusAgent {
 
     const accuracyRule = "Be precise: only state facts you can support from the context above or clearly label as general knowledge. Do not invent statistics, dates, or URLs. ";
     const systemContent = `You are InBharat Ai (Desh Ka AI), a sovereign intelligence node for Bharat. You provide accurate, culturally nuanced insights and prefer a Bharat-first lens for policy, economy, and culture. Respond ONLY in ${lang.native} (${lang.name}). Output clean Markdown.
-${researchHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}
+${researchHint}${coderHint}${educatorHint}${browserHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}
 Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its own line, prefixed with FOLLOW_UP: .${searchContext}`;
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -356,8 +365,9 @@ How may I serve you today?`;
       ...i,
       imageUrl: i.imageUrl || "https://placehold.co/400x400/161b22/FFF?text=" + encodeURIComponent(i.name || "Product")
     }));
+    const disclaimer = " Suggestions based on your query. For current prices and availability, check the retailer.";
     return {
-      text: data.summary || "I found these top-rated items for you.",
+      text: (data.summary || "I found these top-rated items for you.") + disclaimer,
       sources: [],
       followUps: ["Filter by price", "Compare top two", "Check delivery"],
       widget: { type: "SHOPPING", data: fixedItems }
@@ -393,14 +403,20 @@ How may I serve you today?`;
     });
   }
 
+  /** Indian-voice instruction for InBharat TTS (used with gpt-4o-mini-tts which supports accent control). */
+  private static readonly TTS_INDIAN_VOICE_INSTRUCTIONS =
+    "Speak with a clear, warm Indian English accent. Sound natural and conversational for listeners in India.";
+
   async textToSpeech(text: string, language: string): Promise<string | undefined> {
     const openai = getClient();
     const voice = languageToVoice[language] || "nova";
+    const input = text.slice(0, 4096);
     try {
       const response = await openai.audio.speech.create({
-        model: "tts-1-hd",
+        model: "gpt-4o-mini-tts",
         voice,
-        input: text.slice(0, 4096)
+        input,
+        instructions: NexusAgent.TTS_INDIAN_VOICE_INSTRUCTIONS
       });
       const buffer = await response.arrayBuffer();
       const bytes = new Uint8Array(buffer);
@@ -411,7 +427,23 @@ How may I serve you today?`;
       }
       return btoa(binary);
     } catch {
-      return undefined;
+      try {
+        const response = await openai.audio.speech.create({
+          model: "tts-1-hd",
+          voice,
+          input
+        });
+        const buffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const chunk = 8192;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        return btoa(binary);
+      } catch {
+        return undefined;
+      }
     }
   }
 

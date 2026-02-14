@@ -2,12 +2,19 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Message } from '../types';
+import { Message, AgentMode } from '../types';
 import SourceCard from './SourceCard';
 import TricolourStar from './TricolourStar';
 import { AgentWidgetRenderer } from './AgentWidgets';
+import CoderResponsePanel from './CoderResponsePanel';
 import { Layers, Sparkles, MessageSquare, Volume2, Loader2 } from 'lucide-react';
 import { NexusAgent } from '../services/openaiService';
+
+/** Strip fenced code blocks so prose can be shown without duplicating the code panel. */
+function stripCodeBlocks(content: string): string {
+  const withPlaceholder = content.replace(/```[\w]*\n?[\s\S]*?```/g, '\n*Code shown in the panel above.*\n');
+  return withPlaceholder.replace(/(\*Code shown in the panel above\.\*\s*\n)(\s*\*Code shown in the panel above\.\*\s*\n)+/g, '$1').trim();
+}
 
 interface ChatViewProps {
   messages: Message[];
@@ -149,9 +156,12 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
                       <AgentWidgetRenderer data={msg.widget} />
                     </div>
                   )}
+                  {msg.role === 'assistant' && msg.mode === AgentMode.CODER && (
+                    <CoderResponsePanel content={msg.content} />
+                  )}
                   <div className="prose prose-invert prose-orange max-w-none text-[#e6edf3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#FF9933]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.content}
+                      {msg.role === 'assistant' && msg.mode === AgentMode.CODER ? stripCodeBlocks(msg.content) : msg.content}
                     </ReactMarkdown>
                   </div>
                   {msg.imageUrl && (
