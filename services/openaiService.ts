@@ -100,7 +100,19 @@ function saveSearchCacheToStorage(): void {
 
 if (typeof window !== "undefined") loadSearchCacheFromStorage();
 
-async function webSearch(query: string): Promise<{ results: { title: string; link: string; snippet?: string }[]; sources: Source[] }> {
+/** Clear in-memory and localStorage search cache. Call after changing search/API behaviour. */
+export function clearSearchCache(): void {
+  searchCache.clear();
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(SEARCH_CACHE_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function webSearch(query: string, signal?: AbortSignal): Promise<{ results: { title: string; link: string; snippet?: string }[]; sources: Source[] }> {
   const key = normalizeSearchKey(query);
   if (!key) return { results: [], sources: [] };
 
@@ -115,7 +127,8 @@ async function webSearch(query: string): Promise<{ results: { title: string; lin
     const res = await fetch(`${base}/api/search`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query })
+      body: JSON.stringify({ q: query }),
+      signal
     });
     const data = await res.json();
     if (!res.ok) return { results: [], sources: [] };
@@ -141,7 +154,8 @@ export class NexusAgent {
     query: string,
     mode: AgentMode,
     language: string = "EN",
-    imageData?: string
+    imageData?: string,
+    signal?: AbortSignal
   ): Promise<QueryResult> {
     const openai = getClient();
     const lang = languageDetails[language] || languageDetails["EN"];
@@ -154,19 +168,8 @@ export class NexusAgent {
         return this.handleCalendarAgent(openai, query, lang.name);
     }
 
-    if ((mode === AgentMode.CREATIVE || mode === AgentMode.STANDARD) && (qLower.includes("presentation") || qLower.includes("slides") || qLower.includes("pptx") || qLower.includes("deck")))
-      return this.handlePresentationAgent(openai, query, lang.name);
-
     if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money"))))
       return this.handleShoppingAgent(openai, query, lang.name);
-
-    const imageKeywords = ["draw", "generate image", "create a picture", "paint", "show me a photo of"];
-    if ((mode === AgentMode.CREATIVE || mode === AgentMode.STANDARD) && imageKeywords.some(k => qLower.includes(k)) && !imageData)
-      return this.handleImageGen(openai, query);
-
-    const videoKeywords = ["generate video", "create video", "make a video", "animate"];
-    if (mode === AgentMode.CREATIVE && videoKeywords.some(k => qLower.includes(k)))
-      return this.handleVideoFallback();
 
     // Greeting: return sovereign welcome without web search (no LLM call for "Hi")
     const trimmed = query.trim();
@@ -174,7 +177,7 @@ export class NexusAgent {
     if (isGreeting)
       return this.handleGreeting(language);
 
-    const { results: searchResults, sources } = await webSearch(query);
+    const { results: searchResults, sources } = await webSearch(query, signal);
     const searchContext = searchResults.length
       ? "\n\nRecent web search results (use to ground your answer):\n" + searchResults.map((r: any) => `[${r.title}](${r.link})\n${r.snippet || ""}`).join("\n\n")
       : "";
@@ -219,11 +222,14 @@ Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its 
       ] : query }
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages,
-      response_format: { type: "text" }
-    });
+    const completion = await openai.chat.completions.create(
+      {
+        model: "gpt-4o",
+        messages,
+        response_format: { type: "text" }
+      },
+      signal ? { signal } : undefined
+    );
 
     const responseText = completion.choices[0]?.message?.content || "";
     const followUps: string[] = [];
@@ -333,24 +339,6 @@ How may I serve you today?`;
     };
   }
 
-  private async handlePresentationAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: `Create a 4-slide presentation outline. Return valid JSON only: { "topic", "introText", "slides": [ { "title", "content": [] } ] }. Language: ${langName}.` },
-        { role: "user", content: query }
-      ],
-      response_format: { type: "json_object" }
-    });
-    const data = JSON.parse(completion.choices[0]?.message?.content || "{}");
-    return {
-      text: data.introText || "Here is the presentation outline generated.",
-      sources: [],
-      followUps: ["Add a slide", "Export to PDF", "Change theme"],
-      widget: { type: "PPTX", data: { topic: data.topic, slides: data.slides || [] } }
-    };
-  }
-
   private async handleShoppingAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -372,35 +360,6 @@ How may I serve you today?`;
       followUps: ["Filter by price", "Compare top two", "Check delivery"],
       widget: { type: "SHOPPING", data: fixedItems }
     };
-  }
-
-  private async handleImageGen(openai: OpenAI, query: string): Promise<QueryResult> {
-    const res = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: query,
-      n: 1,
-      size: "1792x1024",
-      response_format: "b64_json",
-      quality: "standard"
-    });
-    const b64 = res.data?.[0]?.b64_json;
-    if (b64) {
-      return {
-        text: "Visual synthesis complete.",
-        sources: [],
-        followUps: ["Make it brighter", "Change style"],
-        imageUrl: `data:image/png;base64,${b64}`
-      };
-    }
-    return { text: "Image generation failed.", sources: [], followUps: [] };
-  }
-
-  private handleVideoFallback(): Promise<QueryResult> {
-    return Promise.resolve({
-      text: "Video generation is not available in this version. Try **image generation** instead (e.g. “Draw a sunset over the ocean”).",
-      sources: [],
-      followUps: ["Generate an image instead", "Tell me about video AI"]
-    });
   }
 
   /** Indian-voice instruction for InBharat TTS (used with gpt-4o-mini-tts which supports accent control). */

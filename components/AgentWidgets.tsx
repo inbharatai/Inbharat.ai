@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Calendar, Clock, Users, Mail, Send, ShoppingBag, Star, CheckCircle2, PlaySquare, Download, Share2 } from 'lucide-react';
+import { Calendar, Clock, Users, Mail, Send, ShoppingBag, Star, CheckCircle2, PlaySquare, Share2 } from 'lucide-react';
 import { CalendarEvent, EmailDraft, Presentation, ProductItem, WidgetData } from '../types';
 
 export const CalendarWidget: React.FC<{ event: CalendarEvent }> = ({ event }) => {
@@ -112,9 +112,6 @@ export const PresentationWidget: React.FC<{ ppt: Presentation }> = ({ ppt }) => 
           <PlaySquare size={16} className="text-pink-500" />
           <span className="text-xs font-bold text-white truncate max-w-[200px]">{ppt.topic}.pptx</span>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#161b22] border border-[#30363d] rounded-lg text-[10px] font-bold text-gray-400 hover:text-white hover:border-pink-500/50 transition-all">
-          <Download size={12} /> Export
-        </button>
       </div>
 
       <div className="flex h-[300px]">

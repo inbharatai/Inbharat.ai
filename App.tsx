@@ -9,8 +9,9 @@ import LiveConversation from './components/LiveConversation';
 import Sidebar from './components/Sidebar';
 import NewsFeed from './components/NewsFeed';
 import TricolourStar from './components/TricolourStar';
+import SettingsPanel from './components/SettingsPanel';
 import {
-  Menu, Share2, MoreHorizontal, Hash, Palette, Terminal, Globe, BookOpen, Sparkles, Briefcase, ShoppingBag, X
+  Menu, Share2, MoreHorizontal, Hash, Terminal, Globe, BookOpen, Sparkles, Briefcase, ShoppingBag, X, Settings
 } from 'lucide-react';
 
 const STORAGE_KEY = 'inbharat_v8_pro_v2_final';
@@ -29,10 +30,13 @@ const App: React.FC = () => {
   const [activeMode, setActiveMode] = useState<AgentMode>(AgentMode.STANDARD);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const agentRef = useRef<NexusAgent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const wasLoadingRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +52,18 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }, [sessions]);
+
+  useEffect(() => {
+    const onOffline = () => setIsOffline(true);
+    const onOnline = () => setIsOffline(false);
+    setIsOffline(!navigator.onLine);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
+    };
+  }, []);
 
   // Auto-scroll to bottom only when a response just finished (user can scroll up without being pulled back)
   useEffect(() => {
@@ -74,12 +90,20 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
+  const handleStop = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+  }, []);
+
   const handleSearch = useCallback(async (query: string, mode: AgentMode, language: string, imageData?: string) => {
     if (!agentRef.current || (!query.trim() && !imageData)) return;
-    
+    abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
     setIsLoading(true);
     setViewMode(ViewMode.HOME);
-    
+
     const userMsg: Message = { 
       id: Date.now().toString(), 
       role: 'user', 
@@ -115,7 +139,8 @@ const App: React.FC = () => {
     }
 
     try {
-      const result = await agentRef.current.executeQuery(query, mode, language || appLanguage, imageData);
+      const result = await agentRef.current.executeQuery(query, mode, language || appLanguage, imageData, signal);
+      if (signal.aborted) return;
       const assistantMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -128,19 +153,25 @@ const App: React.FC = () => {
         mode
       };
       setSessions(prev => prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s));
-    } catch (error: any) {
-      console.error('InBharat AI request failed:', error?.message || error);
+    } catch (error: unknown) {
+      if ((error as { name?: string })?.name === "AbortError") return;
+      console.error("InBharat AI request failed:", (error as Error)?.message ?? error);
       const errMsg: Message = {
         id: (Date.now() + 2).toString(),
-        role: 'assistant',
+        role: "assistant",
         content: "We're experiencing heavy neural traffic. Reasoning nodes are rebooting. Please try again in a moment.",
         mode: AgentMode.RESEARCH
       };
       setSessions(prev => prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, errMsg] } : s));
     } finally {
+      abortRef.current = null;
       setIsLoading(false);
     }
   }, [currentSessionId, appLanguage, isSignedIn]);
+
+  const handleRegenerate = useCallback((query: string, mode: AgentMode, language: string, imageUrl?: string) => {
+    if (!isLoading) handleSearch(query, mode, language, imageUrl);
+  }, [isLoading, handleSearch]);
 
   const currentSession = sessions.find(s => s.id === currentSessionId);
   const filteredSessions = sessions.filter(s => 
@@ -151,7 +182,6 @@ const App: React.FC = () => {
     switch (mode) {
       case AgentMode.STANDARD: return { label: 'Nexus', icon: Sparkles, color: 'text-white', bg: 'bg-white/5', border: 'border-white/10' };
       case AgentMode.RESEARCH: return { label: 'Research', icon: Hash, color: 'text-[#FF9933]', bg: 'bg-[#FF9933]/10', border: 'border-[#FF9933]/30' };
-      case AgentMode.CREATIVE: return { label: 'Creative', icon: Palette, color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/30' };
       case AgentMode.CODER: return { label: 'Coder', icon: Terminal, color: 'text-[#138808]', bg: 'bg-[#138808]/10', border: 'border-[#138808]/30' };
       case AgentMode.BROWSER: return { label: 'Browser', icon: Globe, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' };
       case AgentMode.EDUCATOR: return { label: 'Educator', icon: BookOpen, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
@@ -200,6 +230,12 @@ const App: React.FC = () => {
             </SignInButton>
           </div>
         )}
+        {isOffline && (
+          <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/40 px-4 py-2 flex items-center justify-center gap-2 text-amber-200 text-sm">
+            <span className="font-medium">You are offline.</span>
+            <span className="text-amber-200/80">History and drafts are available; connect to the internet for search and AI.</span>
+          </div>
+        )}
         {!hasOpenAIKey() && (
           <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/40 px-4 py-2.5 flex items-center justify-center gap-2 text-amber-200 text-sm">
             <span className="font-medium">OpenAI API key is missing.</span>
@@ -223,7 +259,15 @@ const App: React.FC = () => {
                 <activeModeInfo.icon size={12} className={activeModeInfo.color} />
                 <span className={`text-[10px] font-black tracking-widest ${activeModeInfo.color}`}>{activeModeInfo.label} Unit Online</span>
              </div>
-             <button 
+             <button
+                onClick={() => setShowSettings(true)}
+                className="w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all touch-manual"
+                aria-label="Settings"
+                data-testid="settings-button"
+              >
+                <Settings size={20} />
+              </button>
+             <button
                 onClick={() => setViewMode(ViewMode.LIVE)}
                 className="w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all shadow-lg overflow-hidden group touch-manual"
                 aria-label="Voice mode"
@@ -281,27 +325,42 @@ const App: React.FC = () => {
             </div>
           ) : (
             <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-10 pb-44 sm:pb-52">
-               <ChatView 
-                 messages={currentSession?.messages || []} 
+               <ChatView
+                 messages={currentSession?.messages || []}
                  onFollowUpClick={(q) => handleSearch(q, activeMode, appLanguage)}
                  appLanguage={appLanguage}
+                 activeMode={activeMode}
+                 isLoading={isLoading}
+                 onStop={handleStop}
+                 onRegenerate={handleRegenerate}
+                 lastUserMessage={currentSession?.messages?.filter(m => m.role === "user").pop()}
                />
                {isLoading && (
-                 <div className="mt-16 flex gap-8 animate-pulse ml-0 md:ml-14">
-                   <div className="w-10 h-10 rounded-2xl bg-[#FF9933]/10 border border-[#FF9933]/20 flex items-center justify-center flex-shrink-0">
-                     <TricolourStar size={20} className="opacity-40" />
-                   </div>
-                   <div className="flex-1 space-y-8 py-2">
-                     <div className="h-4 bg-[#161b22] rounded-full w-2/3"></div>
-                     <div className="space-y-4">
-                       <div className="grid grid-cols-3 gap-4">
-                         <div className="h-3 bg-[#161b22] rounded-full col-span-2"></div>
-                         <div className="h-3 bg-[#161b22] rounded-full col-span-1"></div>
+                 <div className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-8 ml-0 md:ml-14">
+                   <div className="flex gap-4 sm:gap-8 flex-1">
+                     <div className="w-10 h-10 rounded-2xl bg-[#FF9933]/10 border border-[#FF9933]/20 flex items-center justify-center flex-shrink-0">
+                       <TricolourStar size={20} className="opacity-40" />
+                     </div>
+                     <div className="flex-1 space-y-8 py-2">
+                       <div className="h-4 bg-[#161b22] rounded-full w-2/3"></div>
+                       <div className="space-y-4">
+                         <div className="grid grid-cols-3 gap-4">
+                           <div className="h-3 bg-[#161b22] rounded-full col-span-2"></div>
+                           <div className="h-3 bg-[#161b22] rounded-full col-span-1"></div>
+                         </div>
+                         <div className="h-3 bg-[#161b22] rounded-full w-4/5"></div>
+                         <div className="h-3 bg-[#161b22] rounded-full w-1/2"></div>
                        </div>
-                       <div className="h-3 bg-[#161b22] rounded-full w-4/5"></div>
-                       <div className="h-3 bg-[#161b22] rounded-full w-1/2"></div>
                      </div>
                    </div>
+                   <button
+                     type="button"
+                     onClick={handleStop}
+                     className="sm:self-center px-4 py-2.5 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm font-semibold touch-manual min-h-[44px]"
+                     aria-label="Stop generating"
+                   >
+                     Stop
+                   </button>
                  </div>
                )}
             </div>
@@ -323,7 +382,27 @@ const App: React.FC = () => {
             />
           </div>
           <div className="w-full max-w-2xl mx-auto flex items-center justify-between px-4 sm:px-8 pb-2 opacity-30 hover:opacity-100 transition-all">
-             <button className="p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual"><Share2 size={18} /></button>
+             <button
+               type="button"
+               onClick={() => {
+                 if (!currentSession) return;
+                 const text = currentSession.messages
+                   .map((m) => `${m.role === "user" ? "You" : "InBharat"}: ${m.content}`)
+                   .join("\n\n");
+                 const blob = new Blob([text], { type: "text/plain" });
+                 const url = URL.createObjectURL(blob);
+                 const a = document.createElement("a");
+                 a.href = url;
+                 a.download = `inbharat-chat-${currentSession.id.slice(0, 8)}.txt`;
+                 a.click();
+                 URL.revokeObjectURL(url);
+               }}
+               disabled={!currentSession || currentSession.messages.length === 0}
+               className="p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual disabled:opacity-50"
+               aria-label="Export chat"
+             >
+               <Share2 size={18} />
+             </button>
              <div className="flex items-center gap-3">
                <div className="h-1 w-2 bg-[#FF9933] rounded-full" />
                <div className="h-1 w-12 bg-white/30 rounded-full" />
@@ -333,6 +412,8 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+
+      <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       {/* Register prompt modal — after a few chats, ask to create account */}
       {showRegisterPrompt && (

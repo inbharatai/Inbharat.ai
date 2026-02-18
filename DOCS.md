@@ -15,10 +15,11 @@ This document is for maintainers and contributors: architecture, configuration, 
 
 ## API routes (serverless)
 
-- **`/api/search`** — Serper web search proxy. `POST` with body `{ q: string }`. Reads `SERPER_API_KEY` from server env; returns `{ organic, ... }` or 401 if key is missing. Used by Research mode and web search in chat.
-- **`/api/news`** — Serper news proxy. `GET` (or `POST`) returns `{ articles: [{ title, summary, url, category }] }`. Uses `SERPER_API_KEY`; on missing key or error returns 200 with `articles: []` and optional `message`. Used by the Discover / News feed.
+- **`/api/search`** — Serper web search proxy. `POST` with body `{ q: string }` (zod-validated). Uses `SERPER_API_KEY`; returns `{ organic, ... }` or 503 if key missing; 429 if rate limited; 502 on upstream failure (with retries). Request ID and structured logging. Never exposes keys.
+- **`/api/news`** — Serper news proxy. `GET`/`POST` with optional `q`. Same env and rate limit; returns `{ articles }` or 200 with empty articles on error.
+- **`/api/health`** — `GET` only. Returns `{ ok, version, env: { SERPER, OPENAI }, openaiReachable? }`. Use for observability; does not leak secrets.
 
-Both run only on the server; the API key is never exposed to the client.
+All API routes run on Node (Vercel serverless); keys stay server-side.
 
 ---
 
@@ -96,9 +97,20 @@ After changing Clerk settings, wait a minute and try again; no app redeploy is n
 
 ---
 
-## Linting
+## Linting and tests
 
-- ESLint + TypeScript + React. Run: `npm run lint`. CI should enforce zero warnings.
+- **Lint:** `npm run lint`. ESLint + TypeScript + React; zero warnings.
+- **E2E:** `npm run test:e2e`. Playwright: home + favicon, static assets (no 401), chat page load (mocked API), settings panel. Run `npx playwright install chromium` once before first test.
+
+---
+
+## Production hardening (summary)
+
+- **Static assets:** `vercel.json` rewrites only `/` and `/app` to `index.html`; favicon, `robots.txt`, `*.png`, etc. are served from `dist/` and never hit auth. Root `middleware.ts` matcher excludes all real routes so middleware never runs (no 401 on static).
+- **Health:** `GET /api/health` for uptime checks; optional OpenAI reachability check.
+- **APIs:** Zod validation, timeouts, retries (search), IP rate limit, request IDs, no secrets in responses.
+- **UI:** Copy / Regenerate / Retry / Stop, offline banner, export chat as `.txt`, voice settings (speech rate, auto-read, push-to-talk), TTS Stop speaking.
+- **Security:** CSP and safe headers in `vercel.json`; no secrets in client (use server env only for API keys).
 
 ---
 

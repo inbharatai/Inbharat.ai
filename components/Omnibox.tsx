@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Send, Languages, Mic, MicOff, Zap, Camera, Image as ImageIcon, 
-  Paperclip, Terminal, BookOpen, Palette, Globe, X, Sparkles, Hash, MessageSquare, Briefcase, ShoppingBag
+  Paperclip, Terminal, BookOpen, Globe, X, Sparkles, Hash, MessageSquare, Briefcase, ShoppingBag
 } from 'lucide-react';
 import { AgentMode } from '../types';
 
@@ -126,7 +126,6 @@ const Omnibox: React.FC<OmniboxProps> = ({
   const agents = [
     { mode: AgentMode.STANDARD, label: 'Standard', icon: MessageSquare, color: 'text-white', desc: 'General Chat' },
     { mode: AgentMode.RESEARCH, label: 'Research', icon: Hash, color: 'text-[#FF9933]', desc: 'Reasoning' },
-    { mode: AgentMode.CREATIVE, label: 'Creative', icon: Palette, color: 'text-pink-400', desc: 'Gen Art' },
     { mode: AgentMode.CODER, label: 'Coder', icon: Terminal, color: 'text-[#138808]', desc: 'Logic' },
     { mode: AgentMode.EDUCATOR, label: 'Educator', icon: BookOpen, color: 'text-purple-400', desc: 'Learning' },
     { mode: AgentMode.BROWSER, label: 'Browser', icon: Globe, color: 'text-blue-400', desc: 'Real-time' },
@@ -244,6 +243,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
             placeholder={initialMode === AgentMode.STANDARD ? "Ask InBharat..." : `Ask ${currentAgent.label}...`}
             className="flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px]"
+            data-testid="chat-input"
           />
           {onSpeakToType && (
             <button type="button" onClick={isSpeaking ? stopSpeakToType : startSpeakToType} disabled={isLoading} className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center touch-manual ${isSpeaking ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white'}`} title={isSpeaking ? 'Stop' : 'Speak'}>

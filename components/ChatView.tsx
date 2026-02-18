@@ -1,14 +1,16 @@
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { Message, AgentMode } from "../types";
+import SourceCard from "./SourceCard";
+import TricolourStar from "./TricolourStar";
+import { AgentWidgetRenderer } from "./AgentWidgets";
+import CoderResponsePanel from "./CoderResponsePanel";
+import { Layers, Sparkles, MessageSquare, Volume2, VolumeX, Loader2, Copy, RefreshCw, RotateCcw } from "lucide-react";
+import { NexusAgent } from "../services/openaiService";
+import { getVoiceSettings } from "../lib/settings";
 
-import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Message, AgentMode } from '../types';
-import SourceCard from './SourceCard';
-import TricolourStar from './TricolourStar';
-import { AgentWidgetRenderer } from './AgentWidgets';
-import CoderResponsePanel from './CoderResponsePanel';
-import { Layers, Sparkles, MessageSquare, Volume2, Loader2 } from 'lucide-react';
-import { NexusAgent } from '../services/openaiService';
+const ERROR_MESSAGE_MARKER = "We're experiencing heavy neural traffic";
 
 /** Strip fenced code blocks so prose can be shown without duplicating the code panel. */
 function stripCodeBlocks(content: string): string {
@@ -20,15 +22,73 @@ interface ChatViewProps {
   messages: Message[];
   onFollowUpClick?: (query: string) => void;
   appLanguage?: string;
+  activeMode?: AgentMode;
+  isLoading?: boolean;
+  onStop?: () => void;
+  onRegenerate?: (query: string, mode: AgentMode, language: string, imageUrl?: string) => void;
+  lastUserMessage?: Message | null;
 }
 
-const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLanguage = "EN" }) => {
+const ChatView: React.FC<ChatViewProps> = ({
+  messages,
+  onFollowUpClick,
+  appLanguage = "EN",
+  activeMode = AgentMode.STANDARD,
+  isLoading = false,
+  onStop: _onStop,
+  onRegenerate,
+  lastUserMessage,
+}) => {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [audioErrorId, setAudioErrorId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => () => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+  }, []);
+
+  const handleStopSpeaking = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+      setPlayingId(null);
+    }
+  }, []);
+
+  const handleCopy = useCallback(async (msg: Message) => {
+    try {
+      await navigator.clipboard.writeText(msg.content);
+      setCopiedId(msg.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const isLastAssistant = (msgIdx: number) =>
+    msgIdx === messages.length - 1 && messages[messages.length - 1]?.role === "assistant";
+  const isErrorMessage = (content: string) => content.includes(ERROR_MESSAGE_MARKER);
+
+  const lastPlayedAutoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!getVoiceSettings().autoRead || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last?.role !== "assistant" || last.id === lastPlayedAutoRef.current) return;
+    lastPlayedAutoRef.current = last.id;
+    void handlePlayAudio(last);
+    // Intentionally only depend on messages; handlePlayAudio is current by closure
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
 
   const handlePlayAudio = async (message: Message) => {
     if (loadingAudioId || playingId === message.id) return;
+    handleStopSpeaking();
     setAudioErrorId(null);
     setLoadingAudioId(message.id);
     const agent = new NexusAgent();
@@ -41,14 +101,19 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
+        const rate = getVoiceSettings().speechRate;
+        if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
         audio.onended = () => {
           URL.revokeObjectURL(url);
+          currentAudioRef.current = null;
           setPlayingId(null);
         };
         audio.onerror = () => {
           setPlayingId(null);
           setAudioErrorId(message.id);
+          currentAudioRef.current = null;
         };
+        currentAudioRef.current = audio;
         setPlayingId(message.id);
         await audio.play();
       } else {
@@ -94,7 +159,7 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
               </div>
 
               <div className="flex-1 min-w-0 space-y-6">
-                {/* Voice: Listen — prominent at top */}
+                {/* Actions: Copy, Regenerate, Retry + Voice */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
                     <Volume2 size={12} className="text-[#FF9933]/90" />
@@ -108,26 +173,69 @@ const ChatView: React.FC<ChatViewProps> = ({ messages, onFollowUpClick, appLangu
                       inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border min-h-[44px] touch-manual
                       transition-all duration-200 font-semibold text-xs uppercase tracking-wider
                       ${loadingAudioId === msg.id
-                        ? 'bg-[#FF9933]/20 border-[#FF9933]/40 text-[#FF9933] cursor-wait'
+                        ? "bg-[#FF9933]/20 border-[#FF9933]/40 text-[#FF9933] cursor-wait"
                         : playingId === msg.id
-                          ? 'bg-[#FF9933]/25 border-[#FF9933]/50 text-[#FF9933] shadow-sm'
+                          ? "bg-[#FF9933]/25 border-[#FF9933]/50 text-[#FF9933] shadow-sm"
                           : audioErrorId === msg.id
-                            ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20'
-                            : 'bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white hover:border-[#FF9933]/40 hover:bg-[#161b22]'
+                            ? "bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20"
+                            : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white hover:border-[#FF9933]/40 hover:bg-[#161b22]"
                       }
                     `}
                   >
                     {loadingAudioId === msg.id ? (
                       <Loader2 size={14} className="animate-spin flex-shrink-0" />
                     ) : (
-                      <Volume2 size={14} className={playingId === msg.id ? 'animate-pulse flex-shrink-0' : ''} />
+                      <Volume2 size={14} className={playingId === msg.id ? "animate-pulse flex-shrink-0" : ""} />
                     )}
                     <span>
-                      {loadingAudioId === msg.id ? 'Loading…' : playingId === msg.id ? 'Playing' : audioErrorId === msg.id ? 'Try again' : 'Listen'}
+                      {loadingAudioId === msg.id ? "Loading…" : playingId === msg.id ? "Playing" : audioErrorId === msg.id ? "Try again" : "Listen"}
                     </span>
                   </button>
+                  {playingId === msg.id && (
+                    <button
+                      type="button"
+                      onClick={handleStopSpeaking}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 min-h-[44px] touch-manual text-xs font-semibold"
+                      aria-label="Stop speaking"
+                    >
+                      <VolumeX size={14} />
+                      Stop
+                    </button>
+                  )}
                   {audioErrorId === msg.id && (
                     <span className="text-[10px] text-red-400/90">Check API key or connection</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(msg)}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white hover:border-[#FF9933]/40 min-h-[44px] touch-manual text-xs font-semibold"
+                    aria-label="Copy"
+                  >
+                    <Copy size={14} />
+                    {copiedId === msg.id ? "Copied" : "Copy"}
+                  </button>
+                  {isLastAssistant(msgIdx) && !isLoading && lastUserMessage && onRegenerate && (
+                    isErrorMessage(msg.content) ? (
+                      <button
+                        type="button"
+                        onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FF9933]/50 bg-[#FF9933]/10 text-[#FF9933] hover:bg-[#FF9933]/20 min-h-[44px] touch-manual text-xs font-semibold"
+                        aria-label="Retry"
+                      >
+                        <RotateCcw size={14} />
+                        Retry
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white hover:border-[#FF9933]/40 min-h-[44px] touch-manual text-xs font-semibold"
+                        aria-label="Regenerate"
+                      >
+                        <RefreshCw size={14} />
+                        Regenerate
+                      </button>
+                    )
                   )}
                 </div>
 

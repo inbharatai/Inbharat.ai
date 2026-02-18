@@ -2,7 +2,7 @@
 import React from 'react';
 import {
   Plus, Search, MessageSquare, Compass, Settings,
-  Terminal, Palette, Globe, User, Hash, History
+  Terminal, Globe, User, Hash, History
 } from 'lucide-react';
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
@@ -26,7 +26,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const agents = [
     { mode: AgentMode.RESEARCH, label: 'Research Unit', icon: Hash, color: 'text-[#FF9933]' },
-    { mode: AgentMode.CREATIVE, label: 'Creative Forge', icon: Palette, color: 'text-pink-400' },
     { mode: AgentMode.CODER, label: 'Code Terminal', icon: Terminal, color: 'text-[#138808]' },
     { mode: AgentMode.BROWSER, label: 'Global Browser', icon: Globe, color: 'text-blue-400' },
   ];
