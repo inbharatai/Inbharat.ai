@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { AgentMode, Source, NewsArticle, WidgetData } from "../types";
 
 /** Sanitized error codes never expose raw upstream messages. */
-export type OpenAISanitizedCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR";
+export type OpenAISanitizedCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR" | "AUTH_ERROR";
 
 export class OpenAISanitizedError extends Error {
   readonly code: OpenAISanitizedCode;
@@ -23,7 +23,15 @@ const CLIENT_PER_ATTEMPT_TIMEOUT_MS = 25_000;
 const RETRY_AFTER_CAP_SEC = 10;
 
 function getStatusFromError(err: unknown): number | undefined {
-  return typeof (err as { status?: number })?.status === "number" ? (err as { status: number }).status : undefined;
+  const e = err as { status?: number; cause?: { status?: number } };
+  if (typeof e?.status === "number") return e.status;
+  if (typeof e?.cause?.status === "number") return e.cause.status;
+  const msg = (err as { message?: string })?.message;
+  if (typeof msg === "string") {
+    const m = msg.match(/\b(401|429|500|502|503)\b/);
+    if (m) return parseInt(m[1], 10);
+  }
+  return undefined;
 }
 
 function getRetryAfterFromError(err: unknown): number | undefined {
@@ -48,6 +56,7 @@ function isRetriable(err: unknown): boolean {
 function toSanitizedError(err: unknown): OpenAISanitizedError {
   const status = getStatusFromError(err);
   const retryAfter = getRetryAfterFromError(err) ?? 60;
+  if (status === 401) return new OpenAISanitizedError("AUTH_ERROR");
   if (status === 429) return new OpenAISanitizedError("RATE_LIMIT", retryAfter);
   if (status === 503 || status === 502 || status === 500)
     return new OpenAISanitizedError("UPSTREAM_OVERLOADED", retryAfter);
@@ -58,15 +67,24 @@ function clientJitter(ms: number): number {
   return Math.floor(ms * (0.5 + Math.random() * 0.5));
 }
 
-/** Run an async fn with client-side retries (no logging of prompts/keys). */
-async function withClientRetry<T>(fn: (attempt: number) => Promise<T>): Promise<T> {
+/** Merge two AbortSignals so the returned signal aborts when either aborts. */
+function mergeAbortSignals(signalA: AbortSignal | undefined, signalB: AbortSignal): AbortSignal {
+  if (!signalA) return signalB;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signalA.addEventListener("abort", abort);
+  signalB.addEventListener("abort", abort);
+  return controller.signal;
+}
+
+/** Run an async fn with client-side retries; fn receives timeout signal so the request can abort. */
+async function withClientRetry<T>(fn: (attempt: number, timeoutSignal: AbortSignal) => Promise<T>): Promise<T> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= CLIENT_MAX_ATTEMPTS; attempt++) {
-    const start = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CLIENT_PER_ATTEMPT_TIMEOUT_MS);
     try {
-      const result = await fn(attempt);
+      const result = await fn(attempt, controller.signal);
       clearTimeout(timeoutId);
       return result;
     } catch (err: unknown) {
@@ -139,7 +157,11 @@ export function hasOpenAIKey(): boolean {
 function getClient(): OpenAI {
   const key = getOpenAIKey();
   if (!key) throw new Error("OPENAI_API_KEY is not set. Add VITE_OPENAI_API_KEY to .env for the app.");
-  return new OpenAI({ apiKey: key, dangerouslyAllowBrowser: true });
+  return new OpenAI({
+    apiKey: key,
+    dangerouslyAllowBrowser: true,
+    baseURL: "/openai-proxy/v1",
+  });
 }
 
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -243,14 +265,23 @@ export class NexusAgent {
     const qLower = query.toLowerCase();
 
     if (mode === AgentMode.EXECUTIVE || mode === AgentMode.STANDARD) {
-      if (qLower.includes("email") || qLower.includes("write to") || qLower.includes("draft a mail"))
-        return this.handleEmailAgent(openai, query, lang.name);
-      if (qLower.includes("schedule") || qLower.includes("calendar") || qLower.includes("meeting"))
-        return this.handleCalendarAgent(openai, query, lang.name);
+      try {
+        if (qLower.includes("email") || qLower.includes("write to") || qLower.includes("draft a mail"))
+          return await this.handleEmailAgent(openai, query, lang.name);
+        if (qLower.includes("schedule") || qLower.includes("calendar") || qLower.includes("meeting"))
+          return await this.handleCalendarAgent(openai, query, lang.name);
+      } catch (err: unknown) {
+        throw toSanitizedError(err);
+      }
     }
 
-    if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money"))))
-      return this.handleShoppingAgent(openai, query, lang.name);
+    if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money")))) {
+      try {
+        return await this.handleShoppingAgent(openai, query, lang.name);
+      } catch (err: unknown) {
+        throw toSanitizedError(err);
+      }
+    }
 
     // Greeting: return sovereign welcome without web search (no LLM call for "Hi")
     const trimmed = query.trim();
@@ -303,32 +334,22 @@ Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its 
       ] : query }
     ];
 
-    const createOptions = signal ? { signal } : undefined;
+    const model = "gpt-4o-mini";
     let completion: OpenAI.Chat.ChatCompletion;
     try {
-      completion = await withClientRetry(() =>
-        openai.chat.completions.create(
+      completion = await withClientRetry((_attempt, timeoutSignal) => {
+        const mergedSignal = mergeAbortSignals(signal, timeoutSignal);
+        return openai.chat.completions.create(
           {
-            model: "gpt-4o",
+            model,
             messages,
             response_format: { type: "text" }
           },
-          createOptions
-        )
-      );
-    } catch (primaryErr: unknown) {
-      try {
-        completion = await openai.chat.completions.create(
-          {
-            model: "gpt-4o-mini",
-            messages,
-            response_format: { type: "text" }
-          },
-          createOptions
+          { signal: mergedSignal }
         );
-      } catch {
-        throw toSanitizedError(primaryErr);
-      }
+      });
+    } catch (primaryErr: unknown) {
+      throw toSanitizedError(primaryErr);
     }
 
     const responseText = completion.choices[0]?.message?.content || "";
@@ -395,7 +416,7 @@ How may I serve you today?`;
 
   private async handleEmailAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: `Extract email details. Return valid JSON only: { "to": "", "subject": "", "body": "", "confirmationText": "" }. Language: ${langName}.` },
         { role: "user", content: query }
@@ -413,7 +434,7 @@ How may I serve you today?`;
 
   private async handleCalendarAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: `Extract event details. Return valid JSON only: { "title", "date", "time", "duration", "participants": [], "description", "replyText" }. Language: ${langName}. If date/time missing, assume tomorrow 10am.` },
         { role: "user", content: query }
@@ -441,7 +462,7 @@ How may I serve you today?`;
 
   private async handleShoppingAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: `Suggest 4 products for the query. Return valid JSON only: { "summary": "", "items": [ { "name", "price", "rating", "source", "imageUrl", "link" } ] }. Use placeholder imageUrl like "https://placehold.co/400x400/161b22/FFF?text=Product" if needed. Language: ${langName}.` },
         { role: "user", content: query }
@@ -525,7 +546,7 @@ How may I serve you today?`;
     let completion: OpenAI.Chat.ChatCompletion;
     try {
       completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -547,7 +568,7 @@ How may I serve you today?`;
     const openai = getClient();
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "List 6 trending news stories in India. Return a JSON array of objects with keys: title, summary, url, category. Only valid JSON, no markdown." },
           { role: "user", content: "List 6 trending news stories in India." }

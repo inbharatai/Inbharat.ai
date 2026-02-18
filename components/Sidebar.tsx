@@ -70,10 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto no-scrollbar px-3 pb-8">
           {/* Intelligence Units */}
           <div className="space-y-1 mb-8">
-            <p className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
-              <div className="w-1 h-1 bg-[#FF9933] rounded-full" />
+            <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
+              <span className="w-1 h-1 bg-[#FF9933] rounded-full inline-block" />
               Intelligence Units
-            </p>
+            </div>
             {agents.map((agent) => (
                 <button 
                   key={agent.mode}
@@ -95,10 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Chat History */}
           <div className="space-y-1">
-            <p className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
+            <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
               <History size={10} className="text-gray-600" />
               Chat History
-            </p>
+            </div>
             {sessions.length === 0 ? (
               <p className="px-4 text-[11px] text-gray-800 italic font-medium">No chats yet. Start a new chat above.</p>
             ) : (

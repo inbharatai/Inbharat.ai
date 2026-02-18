@@ -155,14 +155,37 @@ const App: React.FC = () => {
       setSessions(prev => prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s));
     } catch (error: unknown) {
       if ((error as { name?: string })?.name === "AbortError") return;
-      console.error("InBharat AI request failed:", (error as Error)?.message ?? error);
+      const errMsgText = (error as Error)?.message ?? String(error);
+      const errAny = error as { status?: number; cause?: { status?: number }; response?: { status?: number } };
+      const errStatus = errAny?.status ?? errAny?.cause?.status ?? errAny?.response?.status;
+      console.error("InBharat AI request failed:", errMsgText, errStatus != null ? `(status ${errStatus})` : "");
       const sanitized = error instanceof OpenAISanitizedError ? error : null;
-      const content =
-        sanitized?.code === "UPSTREAM_OVERLOADED"
-          ? "Service is busy right now. Tap Retry in a few seconds."
-          : sanitized?.code === "RATE_LIMIT"
-            ? "Too many requests. Tap Retry in a few seconds."
-            : "Something went wrong. Please try again.";
+      let content: string;
+      if (sanitized?.code === "UPSTREAM_OVERLOADED") {
+        content = "Service is busy right now. Tap Retry in a few seconds.";
+      } else if (sanitized?.code === "RATE_LIMIT") {
+        content = "Too many requests. Tap Retry in a few seconds.";
+      } else if (
+        sanitized?.code === "AUTH_ERROR" ||
+        errStatus === 401 ||
+        /OPENAI_API_KEY|api key|not set|VITE_OPENAI|unauthorized|incorrect api key|401/i.test(errMsgText)
+      ) {
+        content = "OpenAI API key is missing or invalid. Add VITE_OPENAI_API_KEY to your .env file and restart the dev server.";
+      } else if (
+        errStatus === 429 ||
+        /429|rate limit|too many requests/i.test(errMsgText)
+      ) {
+        content = "Too many requests. Tap Retry in a few seconds.";
+      } else if (
+        errStatus === 503 || errStatus === 502 || errStatus === 500 ||
+        /503|502|500|overload|capacity|heavy traffic|try again later/i.test(errMsgText)
+      ) {
+        content = "Service is busy right now. Tap Retry in a few seconds.";
+      } else if (/fetch|NetworkError|Failed to fetch|ERR_NETWORK/i.test(errMsgText)) {
+        content = "Network error. Check your connection and try again.";
+      } else {
+        content = "The request failed. Check your API key and connection, then tap Retry.";
+      }
       const errMsg: Message = {
         id: (Date.now() + 2).toString(),
         role: "assistant",

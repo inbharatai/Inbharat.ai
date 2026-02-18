@@ -66,7 +66,7 @@ export type WidgetData =
 
 // ---------------------------
 
-export type MessageErrorCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR";
+export type MessageErrorCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR" | "AUTH_ERROR";
 
 export interface Message {
   id: string;
