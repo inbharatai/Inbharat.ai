@@ -90,6 +90,12 @@ Open the URL shown (e.g. `http://localhost:3003`). Use the app without signing i
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint (zero warnings required) |
 
+### Quick check (Production & Preview)
+
+After deploying to Vercel, confirm static assets are public:
+
+- **`/favicon.png`** (or `/favicon.ico`) should return **200** on both your production domain (e.g. `https://inbharat.ai`) and the preview domain (e.g. `https://inbharat-xxx.vercel.app`). If you see 401, ensure Deployment Protection is disabled for Preview (Vercel → Project → Settings → Deployment Protection).
+
 ---
 
 ## Environment variables
