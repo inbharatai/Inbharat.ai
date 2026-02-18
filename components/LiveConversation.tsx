@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, MicOff, Volume2, VolumeX, Sparkles, AlertCircle, ChevronDown, Languages, Loader2 } from 'lucide-react';
 import TricolourStar from './TricolourStar';
-import { NexusAgent } from '../services/openaiService';
+import { NexusAgent, OpenAISanitizedError } from '../services/openaiService';
 
 interface LiveConversationProps {
   onClose: () => void;
@@ -141,15 +141,25 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
         } else {
           setStatus('idle');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Live conversation error:', err);
-        const msg = err?.message || err?.error?.message || '';
-        if (msg.includes('OPENAI_API_KEY') || msg.includes('api_key') || msg.includes('Incorrect API key')) {
-          setErrorMessage('Invalid or missing OpenAI API key. Check your .env file.');
-        } else if (msg.includes('rate') || msg.includes('quota')) {
-          setErrorMessage('API rate limit reached. Please try again in a moment.');
+        if (err instanceof OpenAISanitizedError) {
+          if (err.code === 'UPSTREAM_OVERLOADED') {
+            setErrorMessage('Service is busy right now. Try again in a few seconds.');
+          } else if (err.code === 'RATE_LIMIT') {
+            setErrorMessage('Too many requests. Try again in a moment.');
+          } else {
+            setErrorMessage('Something went wrong. Please try again.');
+          }
         } else {
-          setErrorMessage(msg.slice(0, 120) || 'Voice request failed. Check connection and try again.');
+          const msg = String((err as { message?: string })?.message ?? (err as { error?: { message?: string } })?.error?.message ?? '');
+          if (msg.includes('OPENAI_API_KEY') || msg.includes('api_key') || msg.includes('Incorrect API key')) {
+            setErrorMessage('Invalid or missing OpenAI API key. Check your .env file.');
+          } else if (msg.includes('rate') || msg.includes('quota')) {
+            setErrorMessage('API rate limit reached. Please try again in a moment.');
+          } else {
+            setErrorMessage(msg.slice(0, 120) || 'Voice request failed. Check connection and try again.');
+          }
         }
         setStatus('error');
       }

@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import { Message, AgentMode, ChatSession, ViewMode } from './types';
-import { NexusAgent, hasOpenAIKey } from './services/openaiService';
+import { NexusAgent, hasOpenAIKey, OpenAISanitizedError } from './services/openaiService';
 import Omnibox from './components/Omnibox';
 import ChatView from './components/ChatView';
 import LiveConversation from './components/LiveConversation';
@@ -156,11 +156,23 @@ const App: React.FC = () => {
     } catch (error: unknown) {
       if ((error as { name?: string })?.name === "AbortError") return;
       console.error("InBharat AI request failed:", (error as Error)?.message ?? error);
+      const sanitized = error instanceof OpenAISanitizedError ? error : null;
+      const content =
+        sanitized?.code === "UPSTREAM_OVERLOADED"
+          ? "Service is busy right now. Tap Retry in a few seconds."
+          : sanitized?.code === "RATE_LIMIT"
+            ? "Too many requests. Tap Retry in a few seconds."
+            : "Something went wrong. Please try again.";
       const errMsg: Message = {
         id: (Date.now() + 2).toString(),
         role: "assistant",
-        content: "We're experiencing heavy neural traffic. Reasoning nodes are rebooting. Please try again in a moment.",
-        mode: AgentMode.RESEARCH
+        content,
+        mode: AgentMode.RESEARCH,
+        ...(sanitized && {
+          errorCode: sanitized.code,
+          retryAfterSeconds: sanitized.retryAfterSeconds,
+          errorShownAt: Date.now(),
+        }),
       };
       setSessions(prev => prev.map(s => s.id === targetSessionId ? { ...s, messages: [...s.messages, errMsg] } : s));
     } finally {

@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { runWithRetry } from "./lib/openaiRetry";
 
 /**
  * GET /api/health — observability. Never leaks secrets.
- * Returns ok: true, VERCEL_GIT_COMMIT_SHA, and confirms OPENAI_API_KEY exists (boolean only).
+ * Returns ok: true/false; optional openaiReachable from a minimal OpenAI call with retries.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -23,19 +24,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
   };
 
-  // Optional: verify OpenAI is reachable (server-side key only; do not use client key)
   if (hasOpenAI) {
+    const requestId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `health-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     try {
       const OpenAI = (await import("openai")).default;
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      await Promise.race([
-        openai.models.list(),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000)),
-      ]);
+      await runWithRetry(
+        { requestId, model: "openai-list" },
+        () => openai.models.list()
+      );
       (meta as Record<string, unknown>).openaiReachable = true;
-    } catch (err) {
+    } catch {
       (meta as Record<string, unknown>).openaiReachable = false;
-      (meta as Record<string, unknown>).openaiError = String((err as Error).message ?? err).replace(/sk-[^\s]+/gi, "[REDACTED]");
     }
   }
 

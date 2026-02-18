@@ -66,6 +66,8 @@ export type WidgetData =
 
 // ---------------------------
 
+export type MessageErrorCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR";
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -76,6 +78,11 @@ export interface Message {
   mode?: AgentMode;
   followUps?: string[];
   widget?: WidgetData; // New field for actionable UI
+  /** When set, this is a sanitized error message; Retry enabled after retryAfterSeconds from errorShownAt. */
+  errorCode?: MessageErrorCode;
+  retryAfterSeconds?: number;
+  /** Timestamp when this error was shown (for cooldown). */
+  errorShownAt?: number;
 }
 
 export interface ChatSession {

@@ -95,6 +95,11 @@ After changing Clerk settings, wait a minute and try again; no app redeploy is n
 - **Clerk:** Add your production URL to Clerk’s allowed origins and redirect URLs.
 - **Google:** Add production origin and redirect URI in the OAuth client.
 
+### Vercel: 500 on /api/search or 401 on /favicon.png
+
+- **500 “Cannot find module api/_lib/requestId”:** The app no longer uses `api/_lib`; requestId and rate limit are inlined in `api/search.ts` and `api/news.ts`. Ensure the **latest commit** is deployed (Vercel → Deployments → trigger redeploy from latest commit if needed).
+- **401 on /favicon.png (preview):** The app has no middleware. If preview URLs still return 401 for static assets, turn off **Deployment Protection** for Preview: Vercel → Project → **Settings** → **Deployment Protection** → set “Vercel Authentication” / “Password Protection” for **Preview** to **Disabled** (or allow public access for the preview URL).
+
 ---
 
 ## Linting and tests

@@ -12,6 +12,15 @@ import { getVoiceSettings } from "../lib/settings";
 
 const ERROR_MESSAGE_MARKER = "We're experiencing heavy neural traffic";
 
+function isErrorContent(content: string): boolean {
+  return (
+    content.includes(ERROR_MESSAGE_MARKER) ||
+    content.includes("Service is busy right now") ||
+    content.includes("Too many requests") ||
+    content.includes("Something went wrong")
+  );
+}
+
 /** Strip fenced code blocks so prose can be shown without duplicating the code panel. */
 function stripCodeBlocks(content: string): string {
   const withPlaceholder = content.replace(/```[\w]*\n?[\s\S]*?```/g, '\n*Code shown in the panel above.*\n');
@@ -73,13 +82,28 @@ const ChatView: React.FC<ChatViewProps> = ({
 
   const isLastAssistant = (msgIdx: number) =>
     msgIdx === messages.length - 1 && messages[messages.length - 1]?.role === "assistant";
-  const isErrorMessage = (content: string) => content.includes(ERROR_MESSAGE_MARKER);
+  const isErrorMessage = (msg: Message) => !!msg.errorCode || isErrorContent(msg.content);
+
+  const [cooldownTick, setCooldownTick] = useState(0);
+  const lastAssistant = messages.length > 0 && messages[messages.length - 1]?.role === "assistant" ? messages[messages.length - 1] : null;
+  const retryCooldownMs =
+    lastAssistant?.errorCode && lastAssistant.retryAfterSeconds != null && lastAssistant.errorShownAt != null
+      ? Math.max(0, lastAssistant.errorShownAt + lastAssistant.retryAfterSeconds * 1000 - Date.now())
+      : 0;
+  const retryDisabled = retryCooldownMs > 0;
+
+  useEffect(() => {
+    if (retryCooldownMs <= 0) return;
+    const interval = setInterval(() => setCooldownTick((c) => c + 1), 1000);
+    return () => clearInterval(interval);
+  }, [retryCooldownMs, lastAssistant?.id, lastAssistant?.errorShownAt, lastAssistant?.retryAfterSeconds]);
 
   const lastPlayedAutoRef = useRef<string | null>(null);
   useEffect(() => {
     if (!getVoiceSettings().autoRead || messages.length === 0) return;
     const last = messages[messages.length - 1];
     if (last?.role !== "assistant" || last.id === lastPlayedAutoRef.current) return;
+    if (last.errorCode || isErrorContent(last.content)) return;
     lastPlayedAutoRef.current = last.id;
     void handlePlayAudio(last);
     // Intentionally only depend on messages; handlePlayAudio is current by closure
@@ -88,6 +112,7 @@ const ChatView: React.FC<ChatViewProps> = ({
 
   const handlePlayAudio = async (message: Message) => {
     if (loadingAudioId || playingId === message.id) return;
+    if (message.errorCode || isErrorContent(message.content)) return;
     handleStopSpeaking();
     setAudioErrorId(null);
     setLoadingAudioId(message.id);
@@ -215,15 +240,16 @@ const ChatView: React.FC<ChatViewProps> = ({
                     {copiedId === msg.id ? "Copied" : "Copy"}
                   </button>
                   {isLastAssistant(msgIdx) && !isLoading && lastUserMessage && onRegenerate && (
-                    isErrorMessage(msg.content) ? (
+                    isErrorMessage(msg) ? (
                       <button
                         type="button"
                         onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FF9933]/50 bg-[#FF9933]/10 text-[#FF9933] hover:bg-[#FF9933]/20 min-h-[44px] touch-manual text-xs font-semibold"
+                        disabled={retryDisabled}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FF9933]/50 bg-[#FF9933]/10 text-[#FF9933] hover:bg-[#FF9933]/20 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manual text-xs font-semibold"
                         aria-label="Retry"
                       >
                         <RotateCcw size={14} />
-                        Retry
+                        {retryDisabled ? `Retry in ${Math.ceil(retryCooldownMs / 1000)}s` : "Retry"}
                       </button>
                     ) : (
                       <button

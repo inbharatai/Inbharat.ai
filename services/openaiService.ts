@@ -1,6 +1,87 @@
 import OpenAI from "openai";
 import { AgentMode, Source, NewsArticle, WidgetData } from "../types";
 
+/** Sanitized error codes never expose raw upstream messages. */
+export type OpenAISanitizedCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR";
+
+export class OpenAISanitizedError extends Error {
+  readonly code: OpenAISanitizedCode;
+  readonly retryAfterSeconds?: number;
+
+  constructor(code: OpenAISanitizedCode, retryAfterSeconds?: number) {
+    super(code);
+    this.name = "OpenAISanitizedError";
+    this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+const RETRIABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const CLIENT_ATTEMPT_DELAYS_MS = [250, 750, 1750, 3250];
+const CLIENT_MAX_ATTEMPTS = 4;
+const CLIENT_PER_ATTEMPT_TIMEOUT_MS = 25_000;
+const RETRY_AFTER_CAP_SEC = 10;
+
+function getStatusFromError(err: unknown): number | undefined {
+  return typeof (err as { status?: number })?.status === "number" ? (err as { status: number }).status : undefined;
+}
+
+function getRetryAfterFromError(err: unknown): number | undefined {
+  const headers = (err as { headers?: Headers | Record<string, string> })?.headers;
+  if (!headers) return undefined;
+  const raw =
+    headers instanceof Headers ? headers.get("retry-after") : (headers as Record<string, string>)["retry-after"] ?? (headers as Record<string, string>)["Retry-After"];
+  if (typeof raw !== "string") return undefined;
+  const parsed = parseInt(raw.trim(), 10);
+  return Number.isNaN(parsed) || parsed <= 0 ? undefined : Math.min(parsed, RETRY_AFTER_CAP_SEC);
+}
+
+function isRetriable(err: unknown): boolean {
+  const status = getStatusFromError(err);
+  if (status !== undefined && RETRIABLE_STATUS.has(status)) return true;
+  const any = err as { code?: string; message?: string };
+  if (any?.code === "ETIMEDOUT" || any?.code === "ECONNRESET" || any?.code === "ECONNREFUSED") return true;
+  if (typeof any?.message === "string" && /timeout|overloaded|capacity/i.test(any.message)) return true;
+  return false;
+}
+
+function toSanitizedError(err: unknown): OpenAISanitizedError {
+  const status = getStatusFromError(err);
+  const retryAfter = getRetryAfterFromError(err) ?? 60;
+  if (status === 429) return new OpenAISanitizedError("RATE_LIMIT", retryAfter);
+  if (status === 503 || status === 502 || status === 500)
+    return new OpenAISanitizedError("UPSTREAM_OVERLOADED", retryAfter);
+  return new OpenAISanitizedError("SERVER_ERROR");
+}
+
+function clientJitter(ms: number): number {
+  return Math.floor(ms * (0.5 + Math.random() * 0.5));
+}
+
+/** Run an async fn with client-side retries (no logging of prompts/keys). */
+async function withClientRetry<T>(fn: (attempt: number) => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= CLIENT_MAX_ATTEMPTS; attempt++) {
+    const start = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CLIENT_PER_ATTEMPT_TIMEOUT_MS);
+    try {
+      const result = await fn(attempt);
+      clearTimeout(timeoutId);
+      return result;
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      lastError = err;
+      if (attempt === CLIENT_MAX_ATTEMPTS || !isRetriable(err)) throw err;
+      const retryAfterSec = getRetryAfterFromError(err);
+      const delayMs =
+        retryAfterSec != null ? retryAfterSec * 1000 : clientJitter(CLIENT_ATTEMPT_DELAYS_MS[attempt - 1] ?? 3250);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastError;
+}
+
 export interface QueryResult {
   text: string;
   sources: Source[];
@@ -222,14 +303,33 @@ Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its 
       ] : query }
     ];
 
-    const completion = await openai.chat.completions.create(
-      {
-        model: "gpt-4o",
-        messages,
-        response_format: { type: "text" }
-      },
-      signal ? { signal } : undefined
-    );
+    const createOptions = signal ? { signal } : undefined;
+    let completion: OpenAI.Chat.ChatCompletion;
+    try {
+      completion = await withClientRetry(() =>
+        openai.chat.completions.create(
+          {
+            model: "gpt-4o",
+            messages,
+            response_format: { type: "text" }
+          },
+          createOptions
+        )
+      );
+    } catch (primaryErr: unknown) {
+      try {
+        completion = await openai.chat.completions.create(
+          {
+            model: "gpt-4o-mini",
+            messages,
+            response_format: { type: "text" }
+          },
+          createOptions
+        );
+      } catch {
+        throw toSanitizedError(primaryErr);
+      }
+    }
 
     const responseText = completion.choices[0]?.message?.content || "";
     const followUps: string[] = [];
@@ -422,17 +522,22 @@ How may I serve you today?`;
   async liveReply(userText: string, language: string): Promise<{ text: string; audioBase64?: string }> {
     const openai = getClient();
     const lang = languageDetails[language] || languageDetails["EN"];
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
-        },
-        { role: "user", content: userText }
-      ],
-      max_tokens: 220
-    });
+    let completion: OpenAI.Chat.ChatCompletion;
+    try {
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
+          },
+          { role: "user", content: userText }
+        ],
+        max_tokens: 220
+      });
+    } catch (err: unknown) {
+      throw toSanitizedError(err);
+    }
     const text = completion.choices[0]?.message?.content?.trim() || "";
     const audioBase64 = await this.textToSpeech(text, language);
     return { text, audioBase64 };
