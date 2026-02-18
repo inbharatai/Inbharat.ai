@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import TricolourStar from '../components/TricolourStar';
@@ -240,44 +240,12 @@ const inBharatCapabilitiesList: { key: string; icon: React.ElementType }[] = [
   { key: 'inBharatShopper', icon: ShoppingBag },
 ];
 
-declare global {
-  interface Window {
-    google?: {
-      translate: {
-        TranslateElement: (new (options: unknown, id: string) => void) & { InlineLayout: { SIMPLE: number } };
-      };
-    };
-    googleTranslateElementInit?: () => void;
-  }
-}
-
 const Landing: React.FC = () => {
   const t = copy;
 
-  useEffect(() => {
-    if (document.getElementById('google-translate-script')) return;
-    window.googleTranslateElementInit = () => {
-      if (window.google?.translate?.TranslateElement && document.getElementById('google_translate_element')) {
-        new window.google.translate.TranslateElement(
-          {
-            pageLanguage: 'en',
-            includedLanguages: 'en,hi,ta,te,ml,kn,bn,mr,gu,pa,or,as,ur',
-            layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-          },
-          'google_translate_element'
-        );
-      }
-    };
-    const script = document.createElement('script');
-    script.id = 'google-translate-script';
-    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
-
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden">
-      {/* Top bar: Google Translate for any Indian language */}
+      {/* Top bar */}
       <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 bg-[#0d1117]/90 backdrop-blur-md border-b border-[#30363d]/30">
         <div className="flex items-center gap-3">
           <SignedIn>
@@ -290,10 +258,6 @@ const Landing: React.FC = () => {
               </button>
             </SignInButton>
           </SignedOut>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mr-2">Translate / भाषा</span>
-          <div id="google_translate_element" className="[&_.goog-te-banner]:!hidden [&_.skiptranslate]:!hidden" />
         </div>
       </div>
       {/* Tricolor strip — desi */}

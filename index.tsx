@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
 import App from './App.tsx';
 import Landing from './pages/Landing.tsx';
+import './index.css';
 
 const publishableKey = (import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY;
 if (!publishableKey) {

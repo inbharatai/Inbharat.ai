@@ -84,7 +84,7 @@ const ChatView: React.FC<ChatViewProps> = ({
     msgIdx === messages.length - 1 && messages[messages.length - 1]?.role === "assistant";
   const isErrorMessage = (msg: Message) => !!msg.errorCode || isErrorContent(msg.content);
 
-  const [cooldownTick, setCooldownTick] = useState(0);
+  const [, setCooldownTick] = useState(0);
   const lastAssistant = messages.length > 0 && messages[messages.length - 1]?.role === "assistant" ? messages[messages.length - 1] : null;
   const retryCooldownMs =
     lastAssistant?.errorCode && lastAssistant.retryAfterSeconds != null && lastAssistant.errorShownAt != null

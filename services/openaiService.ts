@@ -1,4 +1,3 @@
-import OpenAI from "openai";
 import { AgentMode, Source, NewsArticle, WidgetData } from "../types";
 
 /** Sanitized error codes never expose raw upstream messages. */
@@ -16,88 +15,42 @@ export class OpenAISanitizedError extends Error {
   }
 }
 
-const RETRIABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
-const CLIENT_ATTEMPT_DELAYS_MS = [250, 750, 1750, 3250];
-const CLIENT_MAX_ATTEMPTS = 4;
-const CLIENT_PER_ATTEMPT_TIMEOUT_MS = 25_000;
 const RETRY_AFTER_CAP_SEC = 10;
 
-function getStatusFromError(err: unknown): number | undefined {
-  const e = err as { status?: number; cause?: { status?: number } };
-  if (typeof e?.status === "number") return e.status;
-  if (typeof e?.cause?.status === "number") return e.cause.status;
-  const msg = (err as { message?: string })?.message;
-  if (typeof msg === "string") {
-    const m = msg.match(/\b(401|429|500|502|503)\b/);
-    if (m) return parseInt(m[1], 10);
-  }
-  return undefined;
+type ChatApiOk = { ok: true; text: string; model?: string; requestId?: string };
+type ChatApiErr =
+  | { ok: false; code: "RATE_LIMIT"; retryAfter: number }
+  | { ok: false; code: "UPSTREAM_OVERLOADED"; retryAfterSeconds: number }
+  | { ok: false; code: "SERVER_ERROR" };
+
+async function postJson<T>(url: string, body: unknown, signal?: AbortSignal): Promise<{ status: number; json: T }> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  const json = (await res.json().catch(() => ({}))) as T;
+  return { status: res.status, json };
 }
 
-function getRetryAfterFromError(err: unknown): number | undefined {
-  const headers = (err as { headers?: Headers | Record<string, string> })?.headers;
-  if (!headers) return undefined;
-  const raw =
-    headers instanceof Headers ? headers.get("retry-after") : (headers as Record<string, string>)["retry-after"] ?? (headers as Record<string, string>)["Retry-After"];
-  if (typeof raw !== "string") return undefined;
-  const parsed = parseInt(raw.trim(), 10);
-  return Number.isNaN(parsed) || parsed <= 0 ? undefined : Math.min(parsed, RETRY_AFTER_CAP_SEC);
-}
-
-function isRetriable(err: unknown): boolean {
-  const status = getStatusFromError(err);
-  if (status !== undefined && RETRIABLE_STATUS.has(status)) return true;
-  const any = err as { code?: string; message?: string };
-  if (any?.code === "ETIMEDOUT" || any?.code === "ECONNRESET" || any?.code === "ECONNREFUSED") return true;
-  if (typeof any?.message === "string" && /timeout|overloaded|capacity/i.test(any.message)) return true;
-  return false;
-}
-
-function toSanitizedError(err: unknown): OpenAISanitizedError {
-  const status = getStatusFromError(err);
-  const retryAfter = getRetryAfterFromError(err) ?? 60;
+function toSanitizedFromApi(status: number, payload: unknown): OpenAISanitizedError {
+  const p = payload as Partial<ChatApiErr> & { retryAfter?: number; retryAfterSeconds?: number };
+  if (status === 429 && p.code === "RATE_LIMIT") return new OpenAISanitizedError("RATE_LIMIT", p.retryAfter ?? RETRY_AFTER_CAP_SEC);
+  if (status === 503 && p.code === "UPSTREAM_OVERLOADED") return new OpenAISanitizedError("UPSTREAM_OVERLOADED", p.retryAfterSeconds ?? RETRY_AFTER_CAP_SEC);
   if (status === 401) return new OpenAISanitizedError("AUTH_ERROR");
-  if (status === 429) return new OpenAISanitizedError("RATE_LIMIT", retryAfter);
-  if (status === 503 || status === 502 || status === 500)
-    return new OpenAISanitizedError("UPSTREAM_OVERLOADED", retryAfter);
   return new OpenAISanitizedError("SERVER_ERROR");
 }
 
-function clientJitter(ms: number): number {
-  return Math.floor(ms * (0.5 + Math.random() * 0.5));
-}
-
-/** Merge two AbortSignals so the returned signal aborts when either aborts. */
-function mergeAbortSignals(signalA: AbortSignal | undefined, signalB: AbortSignal): AbortSignal {
-  if (!signalA) return signalB;
-  const controller = new AbortController();
-  const abort = () => controller.abort();
-  signalA.addEventListener("abort", abort);
-  signalB.addEventListener("abort", abort);
-  return controller.signal;
-}
-
-/** Run an async fn with client-side retries; fn receives timeout signal so the request can abort. */
-async function withClientRetry<T>(fn: (attempt: number, timeoutSignal: AbortSignal) => Promise<T>): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= CLIENT_MAX_ATTEMPTS; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), CLIENT_PER_ATTEMPT_TIMEOUT_MS);
-    try {
-      const result = await fn(attempt, controller.signal);
-      clearTimeout(timeoutId);
-      return result;
-    } catch (err: unknown) {
-      clearTimeout(timeoutId);
-      lastError = err;
-      if (attempt === CLIENT_MAX_ATTEMPTS || !isRetriable(err)) throw err;
-      const retryAfterSec = getRetryAfterFromError(err);
-      const delayMs =
-        retryAfterSec != null ? retryAfterSec * 1000 : clientJitter(CLIENT_ATTEMPT_DELAYS_MS[attempt - 1] ?? 3250);
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
+async function callChat(messages: unknown[], signal?: AbortSignal): Promise<string> {
+  try {
+    const { status, json } = await postJson<ChatApiOk | ChatApiErr>("/api/chat", { messages }, signal);
+    if (status >= 200 && status < 300 && (json as ChatApiOk).ok === true) return (json as ChatApiOk).text || "";
+    throw toSanitizedFromApi(status, json);
+  } catch (err: unknown) {
+    if (err instanceof OpenAISanitizedError) throw err;
+    throw new OpenAISanitizedError("SERVER_ERROR");
   }
-  throw lastError;
 }
 
 export interface QueryResult {
@@ -142,26 +95,9 @@ const languageToWhisperCode: Record<string, string> = {
 // OpenAI Whisper API supports a subset of ISO 639-1; unsupported codes (e.g. as, sa) must be omitted so Whisper auto-detects
 const whisperApiSupported = new Set<string>(["en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or", "ur"]);
 
-function getOpenAIKey(): string {
-  return (
-    (typeof process !== "undefined" && process.env?.OPENAI_API_KEY) ||
-    (typeof import.meta !== "undefined" && (import.meta as { env?: { VITE_OPENAI_API_KEY?: string } }).env?.VITE_OPENAI_API_KEY) ||
-    ""
-  );
-}
-
+// OpenAI is server-side only. Client never reads OPENAI_API_KEY.
 export function hasOpenAIKey(): boolean {
-  return !!getOpenAIKey();
-}
-
-function getClient(): OpenAI {
-  const key = getOpenAIKey();
-  if (!key) throw new Error("OPENAI_API_KEY is not set. Add VITE_OPENAI_API_KEY to .env for the app.");
-  return new OpenAI({
-    apiKey: key,
-    dangerouslyAllowBrowser: true,
-    baseURL: "/openai-proxy/v1",
-  });
+  return true;
 }
 
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -260,28 +196,18 @@ export class NexusAgent {
     imageData?: string,
     signal?: AbortSignal
   ): Promise<QueryResult> {
-    const openai = getClient();
     const lang = languageDetails[language] || languageDetails["EN"];
     const qLower = query.toLowerCase();
 
     if (mode === AgentMode.EXECUTIVE || mode === AgentMode.STANDARD) {
-      try {
-        if (qLower.includes("email") || qLower.includes("write to") || qLower.includes("draft a mail"))
-          return await this.handleEmailAgent(openai, query, lang.name);
-        if (qLower.includes("schedule") || qLower.includes("calendar") || qLower.includes("meeting"))
-          return await this.handleCalendarAgent(openai, query, lang.name);
-      } catch (err: unknown) {
-        throw toSanitizedError(err);
-      }
+      if (qLower.includes("email") || qLower.includes("write to") || qLower.includes("draft a mail"))
+        return await this.handleEmailAgent(query, lang.name, signal);
+      if (qLower.includes("schedule") || qLower.includes("calendar") || qLower.includes("meeting"))
+        return await this.handleCalendarAgent(query, lang.name, signal);
     }
 
-    if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money")))) {
-      try {
-        return await this.handleShoppingAgent(openai, query, lang.name);
-      } catch (err: unknown) {
-        throw toSanitizedError(err);
-      }
-    }
+    if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money"))))
+      return await this.handleShoppingAgent(query, lang.name, signal);
 
     // Greeting: return sovereign welcome without web search (no LLM call for "Hi")
     const trimmed = query.trim();
@@ -326,7 +252,7 @@ export class NexusAgent {
 ${researchHint}${coderHint}${educatorHint}${browserHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}
 Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its own line, prefixed with FOLLOW_UP: .${searchContext}`;
 
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    const messages = [
       { role: "system", content: systemContent },
       { role: "user", content: imageData ? [
         { type: "text", text: query },
@@ -334,25 +260,7 @@ Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its 
       ] : query }
     ];
 
-    const model = "gpt-4o-mini";
-    let completion: OpenAI.Chat.ChatCompletion;
-    try {
-      completion = await withClientRetry((_attempt, timeoutSignal) => {
-        const mergedSignal = mergeAbortSignals(signal, timeoutSignal);
-        return openai.chat.completions.create(
-          {
-            model,
-            messages,
-            response_format: { type: "text" }
-          },
-          { signal: mergedSignal }
-        );
-      });
-    } catch (primaryErr: unknown) {
-      throw toSanitizedError(primaryErr);
-    }
-
-    const responseText = completion.choices[0]?.message?.content || "";
+    const responseText = await callChat(messages, signal);
     const followUps: string[] = [];
     const lines = responseText.split("\n");
     const mainText = lines.filter(line => {
@@ -414,16 +322,15 @@ How may I serve you today?`;
     return { text, sources: [], followUps };
   }
 
-  private async handleEmailAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+  private async handleEmailAgent(query: string, langName: string, signal?: AbortSignal): Promise<QueryResult> {
+    const raw = await callChat(
+      [
         { role: "system", content: `Extract email details. Return valid JSON only: { "to": "", "subject": "", "body": "", "confirmationText": "" }. Language: ${langName}.` },
         { role: "user", content: query }
       ],
-      response_format: { type: "json_object" }
-    });
-    const data = JSON.parse(completion.choices[0]?.message?.content || "{}");
+      signal
+    );
+    const data = JSON.parse(raw || "{}");
     return {
       text: data.confirmationText || "I've drafted that email for you.",
       sources: [],
@@ -432,16 +339,15 @@ How may I serve you today?`;
     };
   }
 
-  private async handleCalendarAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+  private async handleCalendarAgent(query: string, langName: string, signal?: AbortSignal): Promise<QueryResult> {
+    const raw = await callChat(
+      [
         { role: "system", content: `Extract event details. Return valid JSON only: { "title", "date", "time", "duration", "participants": [], "description", "replyText" }. Language: ${langName}. If date/time missing, assume tomorrow 10am.` },
         { role: "user", content: query }
       ],
-      response_format: { type: "json_object" }
-    });
-    const data = JSON.parse(completion.choices[0]?.message?.content || "{}");
+      signal
+    );
+    const data = JSON.parse(raw || "{}");
     return {
       text: data.replyText || "I've set up this event.",
       sources: [],
@@ -460,16 +366,15 @@ How may I serve you today?`;
     };
   }
 
-  private async handleShoppingAgent(openai: OpenAI, query: string, langName: string): Promise<QueryResult> {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+  private async handleShoppingAgent(query: string, langName: string, signal?: AbortSignal): Promise<QueryResult> {
+    const raw = await callChat(
+      [
         { role: "system", content: `Suggest 4 products for the query. Return valid JSON only: { "summary": "", "items": [ { "name", "price", "rating", "source", "imageUrl", "link" } ] }. Use placeholder imageUrl like "https://placehold.co/400x400/161b22/FFF?text=Product" if needed. Language: ${langName}.` },
         { role: "user", content: query }
       ],
-      response_format: { type: "json_object" }
-    });
-    const data = JSON.parse(completion.choices[0]?.message?.content || "{}");
+      signal
+    );
+    const data = JSON.parse(raw || "{}");
     const fixedItems = (data.items || []).map((i: any) => ({
       ...i,
       imageUrl: i.imageUrl || "https://placehold.co/400x400/161b22/FFF?text=" + encodeURIComponent(i.name || "Product")
@@ -488,94 +393,61 @@ How may I serve you today?`;
     "Speak with a clear, warm Indian English accent. Sound natural and conversational for listeners in India.";
 
   async textToSpeech(text: string, language: string): Promise<string | undefined> {
-    const openai = getClient();
     const voice = languageToVoice[language] || "nova";
     const input = text.slice(0, 4096);
     try {
-      const response = await openai.audio.speech.create({
-        model: "gpt-4o-mini-tts",
-        voice,
-        input,
-        instructions: NexusAgent.TTS_INDIAN_VOICE_INSTRUCTIONS
-      });
-      const buffer = await response.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      const chunk = 8192;
-      for (let i = 0; i < bytes.length; i += chunk) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-      }
-      return btoa(binary);
+      const { status, json } = await postJson<{ ok: true; audioBase64: string } | ChatApiErr>(
+        "/api/tts",
+        { text: input, voice }
+      );
+      if (status >= 200 && status < 300 && (json as any).ok === true) return String((json as any).audioBase64 || "");
+      return undefined;
     } catch {
-      try {
-        const response = await openai.audio.speech.create({
-          model: "tts-1-hd",
-          voice,
-          input
-        });
-        const buffer = await response.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-        let binary = "";
-        const chunk = 8192;
-        for (let i = 0; i < bytes.length; i += chunk) {
-          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-        }
-        return btoa(binary);
-      } catch {
-        return undefined;
-      }
+      return undefined;
     }
   }
 
   async transcribe(audioBlob: Blob, language?: string): Promise<string> {
-    const openai = getClient();
-    const file = new File([audioBlob], "audio.webm", { type: audioBlob.type || "audio/webm" });
     const langCode = language && languageToWhisperCode[language] ? languageToWhisperCode[language] : undefined;
     const supported = langCode && whisperApiSupported.has(langCode) ? langCode : undefined;
-    const transcription = await openai.audio.transcriptions.create({
-      file,
-      model: "whisper-1",
-      ...(supported && { language: supported })
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("read_error"));
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        const idx = dataUrl.indexOf("base64,");
+        resolve(idx >= 0 ? dataUrl.slice(idx + 7) : "");
+      };
+      reader.readAsDataURL(audioBlob);
     });
-    return transcription.text?.trim() || "";
+    const { status, json } = await postJson<{ ok: true; text: string } | ChatApiErr>("/api/transcribe", {
+      audioBase64: base64,
+      mimeType: audioBlob.type || "audio/webm",
+      ...(supported ? { language: supported } : {}),
+    });
+    if (status >= 200 && status < 300 && (json as any).ok === true) return String((json as any).text || "").trim();
+    throw toSanitizedFromApi(status, json);
   }
 
   async liveReply(userText: string, language: string): Promise<{ text: string; audioBase64?: string }> {
-    const openai = getClient();
     const lang = languageDetails[language] || languageDetails["EN"];
-    let completion: OpenAI.Chat.ChatCompletion;
-    try {
-      completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
-          },
-          { role: "user", content: userText }
-        ],
-        max_tokens: 220
-      });
-    } catch (err: unknown) {
-      throw toSanitizedError(err);
-    }
-    const text = completion.choices[0]?.message?.content?.trim() || "";
+    const text = (await callChat([
+      {
+        role: "system",
+        content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
+      },
+      { role: "user", content: userText }
+    ])).trim();
     const audioBase64 = await this.textToSpeech(text, language);
     return { text, audioBase64 };
   }
 
   async fetchTrendingNews(): Promise<NewsArticle[]> {
-    const openai = getClient();
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "List 6 trending news stories in India. Return a JSON array of objects with keys: title, summary, url, category. Only valid JSON, no markdown." },
-          { role: "user", content: "List 6 trending news stories in India." }
-        ],
-        response_format: { type: "json_object" }
-      });
-      const content = completion.choices[0]?.message?.content || "{}";
+      const content = await callChat([
+        { role: "system", content: "List 6 trending news stories in India. Return a JSON array of objects with keys: title, summary, url, category. Only valid JSON, no markdown." },
+        { role: "user", content: "List 6 trending news stories in India." }
+      ]);
       const parsed = JSON.parse(content);
       const arr = Array.isArray(parsed) ? parsed : parsed.articles || parsed.items || parsed.stories || [];
       return arr.slice(0, 6).map((a: any) => ({

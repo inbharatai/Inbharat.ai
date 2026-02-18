@@ -27,7 +27,7 @@ All API routes run on Node (Vercel serverless); keys stay server-side.
 
 | Variable | Where used | Notes |
 |----------|------------|--------|
-| `VITE_OPENAI_API_KEY` | Browser (Vite exposes `VITE_*`) | Chat, TTS, STT, image. Required for core AI. |
+| `OPENAI_API_KEY` | Server (Vercel `/api/*`) | Chat, TTS, STT. Do not expose in browser. |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Browser | Clerk publishable key. Required for sign-in/sign-up. |
 | `SERPER_API_KEY` | Server only (Vercel env) | **Do not** use `VITE_SERPER_API_KEY`. Set in Vercel → Project → Settings → Environment Variables (Production and Preview). Required for `/api/search` and `/api/news` to return live results. |
 
@@ -91,7 +91,7 @@ After changing Clerk settings, wait a minute and try again; no app redeploy is n
 ## Build & deploy
 
 - **Build:** `npm run build` → `dist/`. Serve `dist/` with any static host (Vercel, Netlify, GitHub Pages, etc.).
-- **Env in production:** Set `VITE_OPENAI_API_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` in the host’s environment so they are baked into the client bundle at build time.
+- **Env in production:** Set `OPENAI_API_KEY` (server-side) and `VITE_CLERK_PUBLISHABLE_KEY` in the host’s environment and redeploy.
 - **Clerk:** Add your production URL to Clerk’s allowed origins and redirect URLs.
 - **Google:** Add production origin and redirect URI in the OAuth client.
 

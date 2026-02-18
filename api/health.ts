@@ -34,7 +34,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       await runWithRetry(
         { requestId, model: "openai-list" },
-        () => openai.models.list()
+        (signal) => openai.models.list({ signal })
       );
       (meta as Record<string, unknown>).openaiReachable = true;
     } catch {

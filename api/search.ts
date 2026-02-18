@@ -60,7 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader("Retry-After", String(retryAfter));
     return res.status(429).json({
       ok: false,
+      code: "RATE_LIMIT",
       retryAfter,
+      // Never expose upstream messages
       error: "Too many requests. Please try again later.",
       organic: [],
       requestId,
@@ -71,6 +73,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!key) {
     console.log(JSON.stringify({ requestId, message: "search: SERPER_API_KEY not configured" }));
     return res.status(503).json({
+      ok: false,
+      code: "UPSTREAM_OVERLOADED",
+      retryAfterSeconds: 60,
       error: "Search service not configured",
       organic: [],
       requestId,
@@ -83,14 +88,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     parsed = bodySchema.parse({ q: typeof raw?.q === "string" ? raw.q.trim() : "" });
   } catch {
     return res.status(400).json({
-      error: "Invalid request: body must be JSON with a non-empty string 'q'",
+      ok: false,
+      code: "SERVER_ERROR",
+      error: "Invalid request",
       organic: [],
       requestId,
     });
   }
 
   const { q } = parsed;
-  let lastErr: unknown;
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     try {
       const controller = new AbortController();
@@ -106,11 +112,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const organic = Array.isArray(data.organic) ? data.organic : [];
       return res.status(200).json({ organic, ...data, requestId });
     } catch (err) {
-      lastErr = err;
+      void err;
     }
   }
 
-  return res.status(502).json({
+  return res.status(503).json({
+    ok: false,
+    code: "UPSTREAM_OVERLOADED",
+    retryAfterSeconds: 10,
     error: "Search service temporarily unavailable. Please try again.",
     organic: [],
     requestId,

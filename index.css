@@ -1,4 +1,9 @@
-/* Base styles - Tailwind is loaded via CDN in index.html */
+@import "tailwindcss";
+
+/* Tailwind v4 content sources */
+@source "./index.html";
+@source "./**/*.{ts,tsx}";
+
 /* Add any app-specific overrides here */
 
 /* Product cards: equal height, clamped text, aligned CTAs */

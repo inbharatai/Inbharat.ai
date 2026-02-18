@@ -44,7 +44,7 @@ export type OpenAIRetryOptions = {
  */
 export async function runWithRetry<T>(
   options: OpenAIRetryOptions,
-  fn: () => Promise<T>
+  fn: (signal: AbortSignal) => Promise<T>
 ): Promise<T> {
   const { requestId, model } = options;
   let lastError: unknown;
@@ -53,7 +53,7 @@ export async function runWithRetry<T>(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), PER_ATTEMPT_TIMEOUT_MS);
     try {
-      const result = await fn();
+      const result = await fn(controller.signal);
       clearTimeout(timeoutId);
       return result;
     } catch (err: unknown) {

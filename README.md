@@ -61,8 +61,8 @@ npm install
 Create a `.env` file in the project root (see [Environment variables](#environment-variables) for details):
 
 ```env
-# Required for chat, voice, and image generation
-VITE_OPENAI_API_KEY=sk-...
+# Required for chat + voice (server-side only; do not expose in browser)
+OPENAI_API_KEY=sk-...
 
 # Required for optional sign-in (Email / Google)
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
@@ -85,7 +85,8 @@ Open the URL shown (e.g. `http://localhost:3003`). Use the app without signing i
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start dev server (Vite; port may vary if in use) |
+| `npm run dev` | Start local dev using `vercel dev` (runs `/api/*` too) |
+| `npm run dev:vite` | Start Vite only (UI only; `/api/*` will 404) |
 | `npm run build` | Production build (`dist/`) |
 | `npm run preview` | Preview production build locally |
 | `npm run lint` | Run ESLint (zero warnings required) |
@@ -102,7 +103,7 @@ After deploying to Vercel, confirm static assets are public:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VITE_OPENAI_API_KEY` | Yes* | OpenAI API key for chat, TTS, STT, and image generation. Get one at [platform.openai.com](https://platform.openai.com/api-keys). |
+| `OPENAI_API_KEY` | Yes* | OpenAI API key (server-side) for chat, TTS, and STT. Set in Vercel env (do not expose in browser). |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Yes* | Clerk publishable key for sign-in/sign-up. From [dashboard.clerk.com](https://dashboard.clerk.com). |
 | `SERPER_API_KEY` | No | [Serper](https://serper.dev) for web search in Research mode. |
 

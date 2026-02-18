@@ -10,7 +10,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="512x512" href="/favicon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -87,16 +86,12 @@
             html { -webkit-text-size-adjust: 100%; }
         }
         .touch-manual { touch-action: manipulation; }
-        .goog-te-banner-frame { display: none !important; }
-        body { top: 0 !important; }
-        #google_translate_element .goog-te-gadget { font-family: inherit; font-size: 12px; }
-        #google_translate_element select { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 8px; padding: 4px 8px; }
         @supports (padding: env(safe-area-inset-bottom)) {
             .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
             .safe-top { padding-top: env(safe-area-inset-top); }
         }
     </style>
-<link rel="stylesheet" href="/index.css">
+    <!-- Tailwind CSS is built via PostCSS (no CDN). -->
 </head>
 <body>
     <div id="root"></div>

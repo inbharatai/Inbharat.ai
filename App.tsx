@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import { Message, AgentMode, ChatSession, ViewMode } from './types';
-import { NexusAgent, hasOpenAIKey, OpenAISanitizedError } from './services/openaiService';
+import { NexusAgent, OpenAISanitizedError } from './services/openaiService';
 import Omnibox from './components/Omnibox';
 import ChatView from './components/ChatView';
 import LiveConversation from './components/LiveConversation';
@@ -168,9 +168,9 @@ const App: React.FC = () => {
       } else if (
         sanitized?.code === "AUTH_ERROR" ||
         errStatus === 401 ||
-        /OPENAI_API_KEY|api key|not set|VITE_OPENAI|unauthorized|incorrect api key|401/i.test(errMsgText)
+        /OPENAI_API_KEY|api key|not set|unauthorized|incorrect api key|401/i.test(errMsgText)
       ) {
-        content = "OpenAI API key is missing or invalid. Add VITE_OPENAI_API_KEY to your .env file and restart the dev server.";
+        content = "AI service is not configured. Set OPENAI_API_KEY in the server environment (Vercel) and redeploy.";
       } else if (
         errStatus === 429 ||
         /429|rate limit|too many requests/i.test(errMsgText)
@@ -271,12 +271,7 @@ const App: React.FC = () => {
             <span className="text-amber-200/80">History and drafts are available; connect to the internet for search and AI.</span>
           </div>
         )}
-        {!hasOpenAIKey() && (
-          <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/40 px-4 py-2.5 flex items-center justify-center gap-2 text-amber-200 text-sm">
-            <span className="font-medium">OpenAI API key is missing.</span>
-            <span className="text-amber-200/80">Add VITE_OPENAI_API_KEY to your .env file and restart the dev server to use chat and voice.</span>
-          </div>
-        )}
+      {/* OpenAI runs server-side; no client key banner */}
         {/* Header */}
         <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 safe-top z-[100] sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl border-b border-[#30363d]/30 shrink-0">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">

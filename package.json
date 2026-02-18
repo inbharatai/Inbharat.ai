@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vercel dev",
+    "dev:vite": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
+    "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22.14.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
@@ -35,8 +37,11 @@
     "eslint-plugin-react": "^7.34.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "png-to-ico": "^3.0.1",
+    "postcss": "^8.5.6",
     "sharp": "^0.34.5",
+    "tailwindcss": "^4.2.0",
     "typescript": "~5.8.2",
+    "vercel": "^50.18.2",
     "vite": "^6.2.0"
   }
 }
