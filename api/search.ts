@@ -1,13 +1,50 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { getRequestId, log } from "./_lib/requestId";
-import { checkRateLimit } from "./_lib/rateLimit";
 
 const SERPER_URL = "https://google.serper.dev/search";
 const TIMEOUT_MS = 15000;
 const RETRIES = 2;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 60;
 
 const bodySchema = z.object({ q: z.string().min(1).max(500) });
+
+function getRequestId(req: VercelRequest): string {
+  const id = req.headers?.["x-vercel-id"] ?? req.headers?.["x-request-id"];
+  if (typeof id === "string") return id;
+  if (Array.isArray(id) && id[0]) return String(id[0]);
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function getClientIp(req: VercelRequest): string {
+  const forwarded = req.headers?.["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  if (Array.isArray(forwarded) && forwarded[0]) return String(forwarded[0]).split(",")[0].trim();
+  const realIp = req.headers?.["x-real-ip"];
+  if (typeof realIp === "string") return realIp;
+  return "unknown";
+}
+
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
+type RateLimitResult = { ok: true } | { ok: false; retryAfter: number };
+
+function checkRateLimit(req: VercelRequest): RateLimitResult {
+  const ip = getClientIp(req);
+  const now = Date.now();
+  let entry = rateLimitStore.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    entry = { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
+    rateLimitStore.set(ip, entry);
+    return { ok: true };
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) {
+    return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  return { ok: true };
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);
@@ -32,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const key = process.env.SERPER_API_KEY;
   if (!key) {
-    log(requestId, "search: SERPER_API_KEY not configured");
+    console.log(JSON.stringify({ requestId, message: "search: SERPER_API_KEY not configured" }));
     return res.status(503).json({
       error: "Search service not configured",
       organic: [],
@@ -67,15 +104,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clearTimeout(timeoutId);
       const data = (await response.json()) as { organic?: unknown[]; [k: string]: unknown };
       const organic = Array.isArray(data.organic) ? data.organic : [];
-      log(requestId, "search: success", { qLength: q.length, organicCount: organic.length });
       return res.status(200).json({ organic, ...data, requestId });
     } catch (err) {
       lastErr = err;
-      log(requestId, "search: attempt failed", { attempt: attempt + 1, error: (err as Error).message });
     }
   }
 
-  log(requestId, "search: all retries failed", { error: (lastErr as Error).message });
   return res.status(502).json({
     error: "Search service temporarily unavailable. Please try again.",
     organic: [],

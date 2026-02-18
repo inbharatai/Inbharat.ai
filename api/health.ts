@@ -1,10 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const HEALTH_VERSION = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "dev";
-
 /**
  * GET /api/health — observability. Never leaks secrets.
- * Checks: required envs exist, OpenAI reachable (minimal models list call with gpt-4o-mini).
+ * Returns ok: true, VERCEL_GIT_COMMIT_SHA, and confirms OPENAI_API_KEY exists (boolean only).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -14,9 +12,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const hasSerper = !!process.env.SERPER_API_KEY;
   const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const version = process.env.VERCEL_GIT_COMMIT_SHA ?? null;
 
   const meta: Record<string, unknown> = {
-    version: HEALTH_VERSION,
+    version: version ? version.slice(0, 7) : "dev",
+    VERCEL_GIT_COMMIT_SHA: version,
     env: {
       SERPER: hasSerper,
       OPENAI: hasOpenAI,
@@ -39,11 +39,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const ok = hasSerper || hasOpenAI;
+  const healthy = hasSerper || hasOpenAI;
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json({
-    ok,
-    ...(ok ? {} : { where: "env", status: 503, message: "Missing required env (SERPER_API_KEY or OPENAI_API_KEY)" }),
+    ok: healthy,
+    ...(healthy ? {} : { where: "env", status: 503, message: "Missing required env (SERPER_API_KEY or OPENAI_API_KEY)" }),
     ...meta,
   });
 }
