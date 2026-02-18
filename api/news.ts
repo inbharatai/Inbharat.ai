@@ -17,9 +17,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const limit = checkRateLimit(req);
-  if (!limit.ok) {
-    res.setHeader("Retry-After", String(limit.retryAfter));
+  if (limit.ok === false) {
+    const retryAfter = limit.retryAfter;
+    res.setHeader("Retry-After", String(retryAfter));
     return res.status(429).json({
+      ok: false,
+      retryAfter,
       error: "Too many requests. Please try again later.",
       articles: [],
       requestId,

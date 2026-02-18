@@ -242,7 +242,11 @@ const inBharatCapabilitiesList: { key: string; icon: React.ElementType }[] = [
 
 declare global {
   interface Window {
-    google?: { translate: { TranslateElement: new (options: unknown, id: string) => void; TranslateElement: { InlineLayout: { SIMPLE: number } } } };
+    google?: {
+      translate: {
+        TranslateElement: (new (options: unknown, id: string) => void) & { InlineLayout: { SIMPLE: number } };
+      };
+    };
     googleTranslateElementInit?: () => void;
   }
 }

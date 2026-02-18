@@ -2,6 +2,9 @@
  * Simple in-memory IP rate limit (per serverless instance). Resets on cold start.
  * Max 60 requests per IP per minute for API routes.
  */
+
+export type RateLimitResult = { ok: true } | { ok: false; retryAfter: number };
+
 const WINDOW_MS = 60 * 1000;
 const MAX_PER_WINDOW = 60;
 
@@ -16,7 +19,7 @@ function getClientIp(req: { headers?: Record<string, string | string[] | undefin
   return "unknown";
 }
 
-export function checkRateLimit(req: { headers?: Record<string, string | string[] | undefined> }): { ok: true } | { ok: false; retryAfter: number } {
+export function checkRateLimit(req: { headers?: Record<string, string | string[] | undefined> }): RateLimitResult {
   const ip = getClientIp(req);
   const now = Date.now();
   let entry = store.get(ip);
