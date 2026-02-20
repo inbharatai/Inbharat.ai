@@ -61,26 +61,6 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
     }
   }
 
-  async function onGoogle() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/app` : undefined,
-        },
-      });
-      if (error) throw error;
-    } catch (err: unknown) {
-      const text =
-        (err as { message?: string })?.message ||
-        "Google sign-in failed. Check Supabase OAuth settings.";
-      setMessage(text);
-      setBusy(false);
-    }
-  }
-
   const isModal = !!onSuccess;
   return (
     <div className={`flex items-center justify-center px-4 py-6 ${isModal ? "min-h-0 py-4" : "min-h-[70vh] py-10"}`}>
@@ -168,20 +148,6 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
             {busy ? "Please wait..." : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset email"}
           </button>
         </form>
-
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={onGoogle}
-            disabled={busy}
-            className="w-full py-3 rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-[#FF9933]/40 text-gray-300 hover:text-white font-bold transition-all"
-          >
-            Continue with Google
-          </button>
-          <p className="mt-2 text-[11px] text-gray-600">
-            Google OAuth requires enabling Google provider in Supabase Auth settings.
-          </p>
-        </div>
 
         {message && (
           <div className="mt-5 text-sm text-gray-300 bg-black/30 border border-[#30363d] rounded-xl p-3">
