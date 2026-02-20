@@ -13,6 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const hasSerper = !!process.env.SERPER_API_KEY;
   const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasSupabaseAdmin = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
   const version = process.env.VERCEL_GIT_COMMIT_SHA ?? null;
 
   const meta: Record<string, unknown> = {
@@ -21,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     env: {
       SERPER: hasSerper,
       OPENAI: hasOpenAI,
+      SUPABASE_ADMIN: hasSupabaseAdmin,
     },
   };
 
@@ -42,11 +44,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  const healthy = hasSerper || hasOpenAI;
+  const healthy = hasSupabaseAdmin && (hasSerper || hasOpenAI);
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json({
     ok: healthy,
-    ...(healthy ? {} : { where: "env", status: 503, message: "Missing required env (SERPER_API_KEY or OPENAI_API_KEY)" }),
+    ...(healthy
+      ? {}
+      : {
+          where: "env",
+          status: 503,
+          message:
+            "Missing required env (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY and at least one of SERPER_API_KEY or OPENAI_API_KEY)",
+        }),
     ...meta,
   });
 }

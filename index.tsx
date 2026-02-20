@@ -1,15 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkProvider } from '@clerk/clerk-react';
 import App from './App.tsx';
 import Landing from './pages/Landing.tsx';
 import './index.css';
-
-const publishableKey = (import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY;
-if (!publishableKey) {
-  console.warn('Missing VITE_CLERK_PUBLISHABLE_KEY. Add it to .env for auth.');
-}
+import { AuthProvider } from './lib/auth.tsx';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,14 +14,14 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ClerkProvider publishableKey={publishableKey || ''}>
-      <BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/app" element={<App />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-    </ClerkProvider>
+    </AuthProvider>
   </React.StrictMode>
 );

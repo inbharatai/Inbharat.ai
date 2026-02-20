@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
+import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser";
 
 const SERPER_URL = "https://google.serper.dev/search";
 const TIMEOUT_MS = 15000;
@@ -51,7 +52,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed", organic: [], requestId });
+    return res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed", organic: [], requestId });
+  }
+
+  const verified = await verifySupabaseUserOptional(req);
+  if (isVerifyErr(verified)) {
+    return res.status(verified.status).json({ ...verified.body, organic: [], requestId });
   }
 
   const limit = checkRateLimit(req);
@@ -110,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clearTimeout(timeoutId);
       const data = (await response.json()) as { organic?: unknown[]; [k: string]: unknown };
       const organic = Array.isArray(data.organic) ? data.organic : [];
-      return res.status(200).json({ organic, ...data, requestId });
+      return res.status(200).json({ ok: true, organic, ...data, requestId });
     } catch (err) {
       void err;
     }

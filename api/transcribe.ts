@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { runWithRetry } from "./lib/openaiRetry";
+import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser";
 
 const bodySchema = z.object({
   audioBase64: z.string().min(1),
@@ -28,6 +29,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, code: "SERVER_ERROR" });
+  }
+
+  const verified = await verifySupabaseUser(req);
+  if (isVerifyErr(verified)) {
+    return res.status(verified.status).json({ ...verified.body, requestId });
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

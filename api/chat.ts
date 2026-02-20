@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { runWithRetry } from "./lib/openaiRetry";
+import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser";
 
 const bodySchema = z.object({
   // We accept messages from the client; do not log them.
@@ -40,10 +41,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, code: "SERVER_ERROR" });
   }
 
+  const verified = await verifySupabaseUserOptional(req);
+  if (isVerifyErr(verified)) {
+    return res.status(verified.status).json({ ...verified.body, requestId });
+  }
+
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    // No secrets in responses.
-    return res.status(500).json({ ok: false, code: "SERVER_ERROR" });
+    return res.status(503).json({ ok: false, code: "CONFIG_ERROR" });
   }
 
   let parsed: z.infer<typeof bodySchema>;

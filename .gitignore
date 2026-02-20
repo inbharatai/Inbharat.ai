@@ -15,6 +15,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Cursor / local dev debug
+.cursor/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

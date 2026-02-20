@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
+import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser";
 
 const SERPER_NEWS_URL = "https://google.serper.dev/news";
 const TIMEOUT_MS = 15000;
@@ -50,7 +51,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== "GET" && req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
-    return res.status(405).json({ error: "Method not allowed", articles: [], requestId });
+    return res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed", articles: [], requestId });
+  }
+
+  const verified = await verifySupabaseUser(req);
+  if (isVerifyErr(verified)) {
+    return res.status(verified.status).json({ ...verified.body, articles: [], requestId });
   }
 
   const limit = checkRateLimit(req);
@@ -59,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader("Retry-After", String(retryAfter));
     return res.status(429).json({
       ok: false,
+      code: "RATE_LIMIT",
       retryAfter,
       error: "Too many requests. Please try again later.",
       articles: [],
@@ -68,9 +75,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const key = process.env.SERPER_API_KEY;
   if (!key) {
-    return res.status(200).json({
+    return res.status(503).json({
+      ok: false,
+      code: "UPSTREAM_OVERLOADED",
+      retryAfterSeconds: 60,
       articles: [],
-      message: "SERPER_API_KEY not configured",
+      error: "News service not configured",
       requestId,
     });
   }
@@ -98,11 +108,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       url: n.link ?? "#",
       category: n.source ?? "General",
     }));
-    return res.status(200).json({ articles, requestId });
+    return res.status(200).json({ ok: true, articles, requestId });
   } catch {
-    return res.status(200).json({
+    return res.status(503).json({
+      ok: false,
+      code: "UPSTREAM_OVERLOADED",
+      retryAfterSeconds: 10,
       articles: [],
-      message: "News temporarily unavailable",
+      error: "News temporarily unavailable",
       requestId,
     });
   }

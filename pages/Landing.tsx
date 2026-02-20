@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { useAuth } from '../lib/auth';
 import TricolourStar from '../components/TricolourStar';
 import {
   Sparkles, Mic, Search, Globe, ArrowRight, ExternalLink, Check, BookOpen,
@@ -242,22 +242,35 @@ const inBharatCapabilitiesList: { key: string; icon: React.ElementType }[] = [
 
 const Landing: React.FC = () => {
   const t = copy;
+  const { isSignedIn, user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden">
       {/* Top bar */}
       <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 bg-[#0d1117]/90 backdrop-blur-md border-b border-[#30363d]/30">
         <div className="flex items-center gap-3">
-          <SignedIn>
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all">
-                Sign in
+          {isSignedIn ? (
+            <>
+              <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-sm font-semibold">
+                <span className="text-gray-500">Signed in:</span>
+                <span className="truncate max-w-[180px]">{user?.email ?? "user"}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+              >
+                Sign out
               </button>
-            </SignInButton>
-          </SignedOut>
+            </>
+          ) : (
+            <Link
+              to="/app"
+              className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </div>
       {/* Tricolor strip — desi */}

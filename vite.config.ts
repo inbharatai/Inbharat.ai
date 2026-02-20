@@ -3,10 +3,21 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
+  const apiProxyTarget = process.env.VITE_PROXY_API_TARGET || process.env.API_PROXY_TARGET;
   return {
     server: {
-      port: 3001,
+      port: 5173,
+      strictPort: false,
       host: '0.0.0.0',
+      proxy: apiProxyTarget
+        ? {
+            '/api': {
+              target: apiProxyTarget,
+              changeOrigin: true,
+              secure: true,
+            },
+          }
+        : undefined,
     },
     plugins: [react()],
     resolve: {
@@ -20,7 +31,6 @@ export default defineConfig(({ mode }) => {
           manualChunks: (id) => {
             if (id.includes('node_modules')) {
               if (id.includes('react-dom') || id.includes('react/')) return 'react';
-              if (id.includes('@clerk/')) return 'clerk';
               if (id.includes('lucide-react')) return 'lucide';
               if (id.includes('openai')) return 'openai';
               if (id.includes('react-router') || id.includes('@remix-run')) return 'router';

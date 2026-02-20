@@ -1,7 +1,14 @@
 import { AgentMode, Source, NewsArticle, WidgetData } from "../types";
+import { supabase } from "../lib/supabaseClient";
 
 /** Sanitized error codes never expose raw upstream messages. */
-export type OpenAISanitizedCode = "RATE_LIMIT" | "UPSTREAM_OVERLOADED" | "SERVER_ERROR" | "AUTH_ERROR";
+export type OpenAISanitizedCode =
+  | "RATE_LIMIT"
+  | "UPSTREAM_OVERLOADED"
+  | "SERVER_ERROR"
+  | "AUTH_ERROR"
+  | "UNAUTHORIZED"
+  | "CONFIG_ERROR";
 
 export class OpenAISanitizedError extends Error {
   readonly code: OpenAISanitizedCode;
@@ -21,12 +28,30 @@ type ChatApiOk = { ok: true; text: string; model?: string; requestId?: string };
 type ChatApiErr =
   | { ok: false; code: "RATE_LIMIT"; retryAfter: number }
   | { ok: false; code: "UPSTREAM_OVERLOADED"; retryAfterSeconds: number }
-  | { ok: false; code: "SERVER_ERROR" };
+  | { ok: false; code: "SERVER_ERROR" }
+  | { ok: false; code: "UNAUTHORIZED" };
 
-async function postJson<T>(url: string, body: unknown, signal?: AbortSignal): Promise<{ status: number; json: T }> {
+async function getAccessToken(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function postJson<T>(
+  url: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<{ status: number; json: T }> {
+  const token = await getAccessToken();
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(body),
     signal,
   });
@@ -38,6 +63,7 @@ function toSanitizedFromApi(status: number, payload: unknown): OpenAISanitizedEr
   const p = payload as Partial<ChatApiErr> & { retryAfter?: number; retryAfterSeconds?: number };
   if (status === 429 && p.code === "RATE_LIMIT") return new OpenAISanitizedError("RATE_LIMIT", p.retryAfter ?? RETRY_AFTER_CAP_SEC);
   if (status === 503 && p.code === "UPSTREAM_OVERLOADED") return new OpenAISanitizedError("UPSTREAM_OVERLOADED", p.retryAfterSeconds ?? RETRY_AFTER_CAP_SEC);
+  if (status === 401 && p.code === "UNAUTHORIZED") return new OpenAISanitizedError("UNAUTHORIZED");
   if (status === 401) return new OpenAISanitizedError("AUTH_ERROR");
   return new OpenAISanitizedError("SERVER_ERROR");
 }
@@ -163,13 +189,18 @@ async function webSearch(query: string, signal?: AbortSignal): Promise<{ results
 
   try {
     const base = typeof window !== "undefined" ? window.location.origin : "";
+    const token = await getAccessToken();
     const res = await fetch(`${base}/api/search`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ q: query }),
       signal
     });
     const data = await res.json();
+    if (res.status === 401) throw new OpenAISanitizedError("UNAUTHORIZED");
     if (!res.ok) return { results: [], sources: [] };
     const results = (data.organic || []).slice(0, 8);
     const sources: Source[] = results.map((r: any) => ({ title: r.title || "Source", uri: r.link || "" }));
@@ -183,7 +214,8 @@ async function webSearch(query: string, signal?: AbortSignal): Promise<{ results
       saveSearchCacheToStorage();
     }
     return payload;
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof OpenAISanitizedError) throw err;
     return { results: [], sources: [] };
   }
 }

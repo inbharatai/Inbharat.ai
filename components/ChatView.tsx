@@ -244,12 +244,16 @@ const ChatView: React.FC<ChatViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
-                        disabled={retryDisabled}
+                        disabled={retryDisabled || msg.errorCode === "UNAUTHORIZED"}
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FF9933]/50 bg-[#FF9933]/10 text-[#FF9933] hover:bg-[#FF9933]/20 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manual text-xs font-semibold"
                         aria-label="Retry"
                       >
                         <RotateCcw size={14} />
-                        {retryDisabled ? `Retry in ${Math.ceil(retryCooldownMs / 1000)}s` : "Retry"}
+                        {msg.errorCode === "UNAUTHORIZED"
+                          ? "Sign in"
+                          : retryDisabled
+                            ? `Retry in ${Math.ceil(retryCooldownMs / 1000)}s`
+                            : "Retry"}
                       </button>
                     ) : (
                       <button

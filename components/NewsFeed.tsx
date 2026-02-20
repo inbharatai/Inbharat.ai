@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NewsArticle } from '../types';
 import { ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
+import { useAuth } from '../lib/auth';
 
 const FALLBACK_TOPICS: NewsArticle[] = [
   { title: "India economy growth 2025", summary: "Search for latest economic outlook.", url: "#", category: "Economy" },
@@ -13,29 +14,33 @@ interface NewsFeedProps {
 }
 
 const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
+  const { accessToken } = useAuth();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [noConfig, setNoConfig] = useState(false);
 
-  const fetchNews = async () => {
+  const fetchNews = useCallback(async () => {
     setLoading(true);
     setNoConfig(false);
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
-      const res = await fetch(`${base}/api/news`);
+      const res = await fetch(`${base}/api/news`, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
       const data = await res.json();
       const list = Array.isArray(data.articles) ? data.articles : [];
       setArticles(list.length > 0 ? list : FALLBACK_TOPICS);
-      if (list.length === 0 && data.message) setNoConfig(true);
+      if (!res.ok && res.status === 503 && typeof data?.error === "string" && /not configured/i.test(data.error))
+        setNoConfig(true);
     } catch {
       setArticles(FALLBACK_TOPICS);
     }
     setLoading(false);
-  };
+  }, [accessToken]);
 
   useEffect(() => {
-    fetchNews();
-  }, []);
+    void fetchNews();
+  }, [fetchNews]);
 
   if (loading) {
     return (

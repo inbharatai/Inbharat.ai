@@ -10,6 +10,7 @@ interface OmniboxProps {
   onLiveClick: () => void;
   onSpeakToType?: (audioBlob: Blob) => Promise<string>;
   isLoading: boolean;
+  disabled?: boolean;
   language: string;
   setLanguage: (lang: string) => void;
   initialMode: AgentMode;
@@ -34,7 +35,7 @@ const indianLanguages = [
 ];
 
 const Omnibox: React.FC<OmniboxProps> = ({ 
-  onSearch, onLiveClick, onSpeakToType, isLoading, language, setLanguage, initialMode, onModeChange 
+  onSearch, onLiveClick, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange 
 }) => {
   const [query, setQuery] = useState('');
   const [_isFocused, setIsFocused] = useState(false);
@@ -64,7 +65,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
   };
 
   const startSpeakToType = async () => {
-    if (!onSpeakToType || isSpeaking) return;
+    if (disabled || !onSpeakToType || isSpeaking) return;
     setSpeakError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -108,6 +109,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
 
   const handleSubmit = (e?: React.MouseEvent | React.FormEvent) => {
     e?.preventDefault();
+    if (disabled) return;
     if ((query.trim() || attachedImage) && !isLoading) {
       onSearch(query, initialMode, language, attachedImage || undefined);
       setQuery('');
@@ -228,7 +230,14 @@ const Omnibox: React.FC<OmniboxProps> = ({
         <div className="flex items-center gap-2 px-2 sm:px-3 py-2 min-h-0">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 border rounded-lg flex items-center justify-center transition-all active:scale-90 touch-manual ${isMenuOpen ? 'bg-[#FF9933] border-[#FF9933] text-white' : 'bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white'}`}
+            disabled={disabled}
+            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 border rounded-lg flex items-center justify-center transition-all active:scale-90 touch-manual ${
+              disabled
+                ? "bg-[#0d1117] border-[#30363d] text-gray-700 opacity-60 cursor-not-allowed"
+                : isMenuOpen
+                  ? "bg-[#FF9933] border-[#FF9933] text-white"
+                  : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
+            }`}
             title="Modes & attach"
           >
             {isMenuOpen ? <X size={16} /> : <currentAgent.icon size={16} className={currentAgent.color} />}
@@ -240,29 +249,65 @@ const Omnibox: React.FC<OmniboxProps> = ({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-            placeholder={initialMode === AgentMode.STANDARD ? "Ask InBharat..." : `Ask ${currentAgent.label}...`}
-            className="flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px]"
+            disabled={disabled}
+            onKeyDown={(e) => !disabled && e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
+            placeholder={disabled ? "Sign in to start chatting..." : (initialMode === AgentMode.STANDARD ? "Ask InBharat..." : `Ask ${currentAgent.label}...`)}
+            className={`flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px] ${
+              disabled ? "opacity-60 cursor-not-allowed" : ""
+            }`}
             data-testid="chat-input"
           />
           {onSpeakToType && (
-            <button type="button" onClick={isSpeaking ? stopSpeakToType : startSpeakToType} disabled={isLoading} className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center touch-manual ${isSpeaking ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white'}`} title={isSpeaking ? 'Stop' : 'Speak'}>
+            <button
+              type="button"
+              onClick={isSpeaking ? stopSpeakToType : startSpeakToType}
+              disabled={isLoading || disabled}
+              className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center touch-manual ${
+                disabled
+                  ? "bg-[#0d1117] border-[#30363d] text-gray-700 opacity-60 cursor-not-allowed"
+                  : isSpeaking
+                    ? "bg-red-500/20 border-red-500/50 text-red-400"
+                    : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
+              }`}
+              title={isSpeaking ? 'Stop' : 'Speak'}
+            >
               {isSpeaking ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
           )}
-          <button onClick={onLiveClick} className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#0d1117] border border-[#30363d] text-[#FF9933] flex items-center justify-center hover:bg-[#FF9933] hover:text-white transition-all touch-manual" title="Live">
+          <button
+            onClick={onLiveClick}
+            disabled={disabled}
+            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center transition-all touch-manual ${
+              disabled
+                ? "bg-[#0d1117] border-[#30363d] text-gray-700 opacity-60 cursor-not-allowed"
+                : "bg-[#0d1117] border-[#30363d] text-[#FF9933] hover:bg-[#FF9933] hover:text-white"
+            }`}
+            title="Live"
+          >
             <Mic size={14} />
           </button>
-          <div className="flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#0d1117] border border-[#30363d] flex items-center justify-center relative group">
+          <div className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#0d1117] border border-[#30363d] flex items-center justify-center relative group ${disabled ? "opacity-60" : ""}`}>
             <Languages size={12} className="text-[#FF9933]" />
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Language">
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              disabled={disabled}
+              className={`absolute inset-0 w-full h-full opacity-0 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+              aria-label="Language"
+            >
               {indianLanguages.map(l => <option key={l.code} value={l.code}>{l.code}</option>)}
             </select>
           </div>
           <button 
             onClick={handleSubmit} 
-            disabled={(!query.trim() && !attachedImage) || isLoading}
-            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center touch-manual ${ (query.trim() || attachedImage) && !isLoading ? 'bg-[#FF9933] text-white' : 'bg-[#0d1117] border border-[#30363d] text-gray-600'}`}
+            disabled={disabled || (!query.trim() && !attachedImage) || isLoading}
+            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center touch-manual ${
+              disabled
+                ? "bg-[#0d1117] border border-[#30363d] text-gray-700 opacity-60 cursor-not-allowed"
+                : (query.trim() || attachedImage) && !isLoading
+                  ? "bg-[#FF9933] text-white"
+                  : "bg-[#0d1117] border border-[#30363d] text-gray-600"
+            }`}
           >
             {isLoading ? <Zap size={14} className="animate-spin text-[#FF9933]" /> : <Send size={14} />}
           </button>

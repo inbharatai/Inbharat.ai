@@ -6,11 +6,13 @@ import {
 } from 'lucide-react';
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
+import { useAuth } from '../lib/auth';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
   sessions: ChatSession[];
+  sessionsLoading?: boolean;
   currentSessionId: string | null;
   onSessionSelect: (id: string) => void;
   onNewChat: (mode: AgentMode) => void;
@@ -21,9 +23,11 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
-  isOpen, onClose, sessions, currentSessionId, onSessionSelect, 
+  isOpen, onClose, sessions, sessionsLoading = false, currentSessionId, onSessionSelect, 
   onNewChat, onDiscovery, searchQuery, onSearchChange, activeLanguage: _activeLanguage 
 }) => {
+  const { isSignedIn, user, signOut } = useAuth();
+  const actionsDisabled = !isSignedIn;
   const agents = [
     { mode: AgentMode.RESEARCH, label: 'Research Unit', icon: Hash, color: 'text-[#FF9933]' },
     { mode: AgentMode.CODER, label: 'Code Terminal', icon: Terminal, color: 'text-[#138808]' },
@@ -55,8 +59,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <button 
-            onClick={() => onNewChat(AgentMode.RESEARCH)}
-            className="w-full min-h-[44px] h-11 flex items-center justify-between px-4 bg-white text-black rounded-xl font-black text-xs hover:bg-gray-200 transition-all active:scale-[0.98] shadow-lg group touch-manual"
+            onClick={() => !actionsDisabled && onNewChat(AgentMode.RESEARCH)}
+            disabled={actionsDisabled}
+            className={`w-full min-h-[44px] h-11 flex items-center justify-between px-4 rounded-xl font-black text-xs transition-all shadow-lg group touch-manual ${
+              actionsDisabled
+                ? "bg-white/10 text-gray-500 border border-[#30363d] cursor-not-allowed"
+                : "bg-white text-black hover:bg-gray-200 active:scale-[0.98]"
+            }`}
           >
             <div className="flex items-center gap-2">
               <Plus size={16} strokeWidth={3} />
@@ -77,16 +86,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             {agents.map((agent) => (
                 <button 
                   key={agent.mode}
-                  onClick={() => onNewChat(agent.mode)}
-                  className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl hover:bg-[#161b22] transition-all group touch-manual text-left"
+                  onClick={() => !actionsDisabled && onNewChat(agent.mode)}
+                  disabled={actionsDisabled}
+                  className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl transition-all group touch-manual text-left ${
+                    actionsDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#161b22]"
+                  }`}
                 >
                 <agent.icon size={16} className={`${agent.color} opacity-60 group-hover:opacity-100`} />
                 <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">{agent.label}</span>
               </button>
             ))}
             <button 
-              onClick={onDiscovery}
-              className="w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl hover:bg-[#161b22] transition-all group touch-manual text-left"
+              onClick={() => !actionsDisabled && onDiscovery()}
+              disabled={actionsDisabled}
+              className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl transition-all group touch-manual text-left ${
+                actionsDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#161b22]"
+              }`}
             >
               <Compass size={16} className="text-[#FF9933] opacity-60 group-hover:opacity-100" />
               <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">Discover Live</span>
@@ -99,7 +114,9 @@ const Sidebar: React.FC<SidebarProps> = ({
               <History size={10} className="text-gray-600" />
               Chat History
             </div>
-            {sessions.length === 0 ? (
+            {sessionsLoading ? (
+              <p className="px-4 text-[11px] text-gray-500 italic font-medium">Loading chats...</p>
+            ) : sessions.length === 0 ? (
               <p className="px-4 text-[11px] text-gray-800 italic font-medium">No chats yet. Start a new chat above.</p>
             ) : (
               sessions.map(s => (
@@ -120,15 +137,27 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer: User Profile */}
         <div className="p-4 border-t border-[#30363d]/30 bg-[#0d1117]">
-          <button className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-[#161b22] transition-all group">
+          <button
+            type="button"
+            className="w-full flex items-center justify-between p-3 rounded-2xl hover:bg-[#161b22] transition-all group"
+            onClick={() => {
+              if (!isSignedIn) return;
+              void signOut();
+            }}
+            title={isSignedIn ? "Sign out" : "Sign in to enable chat"}
+          >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 bg-gradient-to-br from-[#FF9933] to-[#138808] rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
                 <User size={18} />
               </div>
               <div className="flex flex-col text-left min-w-0">
-                <span className="text-[11px] font-black text-white truncate uppercase tracking-widest leading-none mb-1">Guest User</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[8px] font-black text-[#FF9933] uppercase tracking-widest">Pro Member</span>
+                <span className="text-[11px] font-black text-white truncate uppercase tracking-widest leading-none mb-1">
+                  {isSignedIn ? "Signed in" : "Guest"}
+                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[10px] font-semibold text-gray-500 truncate">
+                    {isSignedIn ? (user?.email ?? "user") : "Sign in to enable chat"}
+                  </span>
                   <TricolourStar size={10} />
                 </div>
               </div>
