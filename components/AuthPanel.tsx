@@ -37,13 +37,18 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
         setMessage("Signed in.");
         onSuccess?.();
       } else if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
         });
         if (error) throw error;
-        setMessage("Account created. If email confirmation is enabled, check your inbox.");
+        if (data.session) {
+          setMessage("Account created. You're signed in.");
+          onSuccess?.();
+        } else {
+          setMessage("Account created. Please check your email and click the verification link to activate your account. Then sign in above.");
+        }
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: redirectTo || undefined,

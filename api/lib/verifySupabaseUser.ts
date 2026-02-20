@@ -35,7 +35,7 @@ export async function verifySupabaseUser(req: VercelRequest): Promise<VerifyOk |
   return { ok: true, userId: data.user.id };
 }
 
-/** Optional auth: valid user, or guest (no token). When Supabase is not configured, treat as guest. */
+/** Optional auth: valid user, or guest (no token or verification failure). When Supabase is not configured, treat as guest. */
 export async function verifySupabaseUserOptional(
   req: VercelRequest
 ): Promise<VerifyOk | VerifyGuest | VerifyErr> {
@@ -50,7 +50,8 @@ export async function verifySupabaseUserOptional(
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data?.user?.id) {
-    return { ok: false, status: 401, body: { ok: false, code: "UNAUTHORIZED" } };
+    // Fallback to guest so chat still works when server env is wrong or Supabase is unreachable
+    return { ok: true, userId: null };
   }
 
   return { ok: true, userId: data.user.id };
