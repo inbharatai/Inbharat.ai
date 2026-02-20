@@ -102,7 +102,8 @@ Supabase is now configured for auth and chat storage. No DNS or custom domain is
 **D2. Environment variables**
 
 - In the Vercel project, go to **Settings** → **Environment Variables**.
-- Add each variable. Apply to **Production** (and **Preview** if you want preview deploys to work the same).
+- Add each variable below. Apply to **Production** (and **Preview** if you want preview deploys to work the same).
+- **Do not** add `VITE_OPENAI_API_KEY`: the OpenAI key must stay server-only. Use only `OPENAI_API_KEY`. If `VITE_OPENAI_API_KEY` exists, remove it.
 
 | Name | Value | Notes |
 |------|--------|--------|

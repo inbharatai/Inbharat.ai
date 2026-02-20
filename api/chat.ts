@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { runWithRetry } from "./lib/openaiRetry";
-import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser";
+import { runWithRetry } from "./lib/openaiRetry.js";
+import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser.js";
 
 const bodySchema = z.object({
   // We accept messages from the client; do not log them.

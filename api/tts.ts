@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { runWithRetry } from "./lib/openaiRetry";
-import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser";
+import { runWithRetry } from "./lib/openaiRetry.js";
+import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser.js";
 
 const bodySchema = z.object({
   text: z.string().min(1).max(4096),

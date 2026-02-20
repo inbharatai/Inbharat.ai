@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser";
+import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser.js";
 
 const SERPER_NEWS_URL = "https://google.serper.dev/news";
 const TIMEOUT_MS = 15000;

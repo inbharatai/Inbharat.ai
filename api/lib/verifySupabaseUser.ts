@@ -1,5 +1,5 @@
 import type { VercelRequest } from "@vercel/node";
-import { supabaseAdmin } from "./supabaseAdmin";
+import { supabaseAdmin } from "./supabaseAdmin.js";
 
 export type VerifyOk = { ok: true; userId: string };
 export type VerifyGuest = { ok: true; userId: null };

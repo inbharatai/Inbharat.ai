@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { runWithRetry } from "./lib/openaiRetry";
+import { runWithRetry } from "./lib/openaiRetry.js";
 
 /**
  * GET /api/health — observability. Never leaks secrets.
