@@ -125,6 +125,27 @@ const copy: Record<string, string> = {
     unibotWho: 'Perfect for students (Class 9–PG), parents, schools, and counsellors',
     unibotTrust: 'Not a general chatbot. A focused education companion.',
     unibotCta: 'Start learning with UniBot',
+    testsprepTagline: 'TestsPrep.in',
+    testsprepSubline: 'AI-Powered Test Preparation',
+    testsprepHero: 'Master your exams with personalized practice, study materials, Daily GK Digest, and never-ending AI-generated content. Built-in IDE for Classes 8–12. Diagnostic, AI Tutor, and real-time performance tracking.',
+    testsprepBullet1: 'Daily GK Digest and exam updates — never miss deadlines or registration dates',
+    testsprepBullet2: 'Never-ending practice and study packs — unlimited AI-generated questions and materials',
+    testsprepBullet3: 'Built-in IDE and Learn AI for Classes 8–12 — code, run, and build projects in the browser',
+    visitTestsprep: 'Start Learning Now',
+    testsprepUrl: 'https://testsprep.in/',
+    footerTestsprep: 'TestsPrep.in',
+    testsprepFeature1: 'Diagnostic',
+    testsprepFeature1Desc: 'Holland/RIASEC, Big Five, work values. Indian-context career fit report.',
+    testsprepFeature2: 'AI Tutor',
+    testsprepFeature2Desc: 'Personalized help, explanations, and conversation-based practice.',
+    testsprepFeature3: 'Track Progress',
+    testsprepFeature3Desc: 'Performance analytics, progress tracking, and personalized insights.',
+    testsprepFeature4: 'Daily GK Digest',
+    testsprepFeature4Desc: 'Daily news, GK questions, exam deadlines, and current affairs.',
+    testsprepFeature5: 'Never-Ending Content',
+    testsprepFeature5Desc: 'Unlimited study materials, questions, and practice tests on demand.',
+    testsprepFeature6: 'School IDE',
+    testsprepFeature6Desc: 'Classes 8–12: Physics, Chemistry, Biology, Learn AI. Code and deploy in-browser.',
     openClawFixTagline: 'OpenClawFix',
     openClawFixSubline: 'ONE-CLICK OPENCLAW INSTALLER',
     openClawFixCardIntro: 'The easiest way to install OpenClaw on your system. Automated Docker setup, gateway token config, and AI provider guidance—get running in 3–5 minutes.',
@@ -240,6 +261,15 @@ const inBharatCapabilitiesList: { key: string; icon: React.ElementType }[] = [
   { key: 'inBharatShopper', icon: ShoppingBag },
 ];
 
+const testsprepFeaturesList: { key: string; icon: React.ElementType }[] = [
+  { key: 'testsprepFeature1', icon: FileCheck },
+  { key: 'testsprepFeature2', icon: BookOpen },
+  { key: 'testsprepFeature3', icon: ListChecks },
+  { key: 'testsprepFeature4', icon: Globe },
+  { key: 'testsprepFeature5', icon: Zap },
+  { key: 'testsprepFeature6', icon: Terminal },
+];
+
 const Landing: React.FC = () => {
   const t = copy;
   const { isSignedIn, user, signOut } = useAuth();
@@ -331,7 +361,7 @@ const Landing: React.FC = () => {
           <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-10 sm:mb-12">
             {t.ourProducts}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-stretch">
             {/* Desh Ka AI */}
             <div className="h-full flex flex-col bg-[#161b22] border border-[#FF9933]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#FF9933]/20">
               <div className="flex items-center gap-3 mb-3.5">
@@ -390,6 +420,39 @@ const Landing: React.FC = () => {
                   className="flex items-center justify-center gap-2 w-full h-[54px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-[#138808]/50 text-gray-300 hover:text-white font-bold transition-all"
                 >
                   {t.visitUniAssist}
+                  <ExternalLink size={18} />
+                </a>
+              </div>
+            </div>
+
+            {/* TestsPrep.in */}
+            <div className="h-full flex flex-col bg-[#161b22] border border-[#8b5cf6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#8b5cf6]/20">
+              <div className="flex items-center gap-3 mb-3.5">
+                <div className="w-12 h-12 rounded-xl bg-[#0d1117] border border-[#8b5cf6]/50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
+                  <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                  <span className="hidden absolute inset-0 flex items-center justify-center text-[#8b5cf6]"><BookOpen size={28} /></span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white leading-tight">{t.testsprepTagline}</h3>
+                  <p className="text-[9px] sm:text-xs font-bold uppercase tracking-widest text-gray-500 mt-0.5">{t.testsprepSubline}</p>
+                </div>
+              </div>
+              <p className="product-card-desc text-gray-400 text-sm sm:text-base mt-4 opacity-90">
+                {t.testsprepHero}
+              </p>
+              <ul className="product-card-list mt-4 flex flex-col gap-2.5 text-gray-500 text-xs sm:text-sm">
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet1}</span></li>
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet2}</span></li>
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet3}</span></li>
+              </ul>
+              <div className="mt-auto pt-5">
+                <a
+                  href={t.testsprepUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-[54px] rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-bold transition-all"
+                >
+                  {t.visitTestsprep}
                   <ExternalLink size={18} />
                 </a>
               </div>
@@ -782,6 +845,68 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* ——— TestsPrep.in full section ——— */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-[#0d1117] border border-[#8b5cf6]/40 flex items-center justify-center overflow-hidden relative">
+                <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                <span className="hidden absolute inset-0 flex items-center justify-center text-[#8b5cf6]"><BookOpen size={32} /></span>
+              </div>
+            </div>
+            <p className="text-[#8b5cf6] text-xs font-black uppercase tracking-[0.35em] mb-2">{t.testsprepTagline}</p>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">
+              Master Your Exams with AI-Powered Learning
+            </h2>
+            <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-6 leading-relaxed">
+              {t.testsprepHero}
+            </p>
+            <p className="text-gray-500 text-sm mb-8">{t.trustedBy}</p>
+            <div className="flex flex-wrap justify-center gap-3 mb-8">
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet1}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet2}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet3}</span>
+            </div>
+            <a
+              href={t.testsprepUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white font-black rounded-2xl transition-all shadow-lg"
+            >
+              {t.visitTestsprep}
+              <ExternalLink size={20} />
+            </a>
+          </div>
+
+          {/* TestsPrep features grid */}
+          <div className="mb-16 sm:mb-20">
+            <h3 className="text-xl sm:text-2xl font-black text-white text-center mb-8">{t.everythingYouNeed}</h3>
+            <p className="text-gray-500 text-sm text-center max-w-xl mx-auto mb-10">{t.everythingSub}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+              {testsprepFeaturesList.map(({ key, icon: Icon }) => (
+                <a
+                  key={key}
+                  href={t.testsprepUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-start gap-4 p-4 sm:p-5 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#8b5cf6]/40 transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#8b5cf6] group-hover:scale-110 transition-transform">
+                    <Icon size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-white font-bold text-sm mb-1">{t[key]}</h4>
+                    <p className="text-gray-500 text-xs leading-relaxed">{t[`${key}Desc`]}</p>
+                    <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider">{t.exploreModule} →</span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ——— UniBot full section ——— */}
       <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
@@ -984,6 +1109,9 @@ const Landing: React.FC = () => {
             </Link>
             <a href="https://www.uniassist.ai" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               {t.footerUniAssist}
+            </a>
+            <a href={t.testsprepUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
+              {t.footerTestsprep}
             </a>
             <a href={t.unibotWhatsAppUrl} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
               {t.footerUniBot}
