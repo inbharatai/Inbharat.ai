@@ -5,7 +5,8 @@ import TricolourStar from '../components/TricolourStar';
 import {
   Sparkles, Mic, Search, Globe, ArrowRight, ExternalLink, Check, BookOpen,
   GraduationCap, FileCheck, MapPin, Wallet, Briefcase, Heart, MessageCircle,
-  Zap, Shield, Terminal, ShoppingBag, Wrench, Box, Key, FileCode, Bot, Send, ListChecks
+  Zap, Shield, Terminal, ShoppingBag, Wrench, Box, Key, FileCode, Bot, Send, ListChecks,
+  FlaskConical
 } from 'lucide-react';
 
 const copy: Record<string, string> = {
@@ -127,25 +128,37 @@ const copy: Record<string, string> = {
     unibotCta: 'Start learning with UniBot',
     testsprepTagline: 'TestsPrep.in',
     testsprepSubline: 'AI-Powered Test Preparation',
-    testsprepHero: 'Master your exams with personalized practice, study materials, Daily GK Digest, and never-ending AI-generated content. Built-in IDE for Classes 8–12. Diagnostic, AI Tutor, and real-time performance tracking.',
-    testsprepBullet1: 'Daily GK Digest and exam updates — never miss deadlines or registration dates',
-    testsprepBullet2: 'Never-ending practice and study packs — unlimited AI-generated questions and materials',
-    testsprepBullet3: 'Built-in IDE and Learn AI for Classes 8–12 — code, run, and build projects in the browser',
+    testsprepSectionTitle: 'Master Your Exams with AI-Powered Learning',
+    testsprepHero: 'Master your exams with personalized practice, Daily GK Digest, and never-ending AI-generated content. Immersive 3D Science Labs (Physics, Chemistry, Biology) and a built-in IDE with MVP Builder and AI Doubt Solver for Classes 8–12. Diagnostic, AI Tutor, and real-time performance tracking.',
+    testsprepBullet1: 'Daily GK Digest and exam updates — never miss deadlines, registration dates, or interesting facts',
+    testsprepBullet2: 'Never-ending practice and study packs — unlimited AI-generated questions, materials, and writing tasks',
+    testsprepBullet3: 'Built-in IDE for Classes 8–12 — code editor, terminal, MVP Builder, Live Preview, AI Doubt Solver; learn Python, ML, and deploy in-browser.',
+    testsprepBullet4: 'Immersive 3D Science Labs — Physics, Chemistry, Biology; click 3D objects to learn; no VR needed; Classes 8–12.',
     visitTestsprep: 'Start Learning Now',
     testsprepUrl: 'https://testsprep.in/',
     footerTestsprep: 'TestsPrep.in',
     testsprepFeature1: 'Diagnostic',
-    testsprepFeature1Desc: 'Holland/RIASEC, Big Five, work values. Indian-context career fit report.',
+    testsprepFeature1Desc: 'Holland/RIASEC, Big Five, work values, cognitive aptitude. Indian-context career fit report.',
     testsprepFeature2: 'AI Tutor',
     testsprepFeature2Desc: 'Personalized help, explanations, and conversation-based practice.',
     testsprepFeature3: 'Track Progress',
     testsprepFeature3Desc: 'Performance analytics, progress tracking, and personalized insights.',
     testsprepFeature4: 'Daily GK Digest',
-    testsprepFeature4Desc: 'Daily news, GK questions, exam deadlines, and current affairs.',
+    testsprepFeature4Desc: 'Exam deadlines, GK questions, news summary, interesting facts. Never miss registration dates.',
     testsprepFeature5: 'Never-Ending Content',
-    testsprepFeature5Desc: 'Unlimited study materials, questions, and practice tests on demand.',
+    testsprepFeature5Desc: 'Unlimited study packs, practice questions, and writing tasks. Generate more anytime.',
     testsprepFeature6: 'School IDE',
-    testsprepFeature6Desc: 'Classes 8–12: Physics, Chemistry, Biology, Learn AI. Code and deploy in-browser.',
+    testsprepFeature6Desc: 'Code editor, terminal, file explorer, MVP Builder. Live Preview, Execution Flowchart, AI Doubt Solver. Learn Python, ML, NLP; deploy in-browser.',
+    testsprepFeature7: '3D Science Labs',
+    testsprepFeature7Desc: 'Immersive Physics, Chemistry, Biology labs. Circuits, molecules, cells; click to learn. No VR required; VR-ready. Classes 8–12.',
+    testsprep3DLabsTitle: 'Immersive 3D Science Labs',
+    testsprep3DLabsSub: 'Click to learn · No VR needed',
+    testsprep3DPhysics: 'Physics Lab',
+    testsprep3DPhysicsDesc: 'Build circuits, trace light rays, visualize forces and motion.',
+    testsprep3DChemistry: 'Chemistry Lab',
+    testsprep3DChemistryDesc: '3D molecules, balance reactions, explore equilibrium.',
+    testsprep3DBiology: 'Biology Lab',
+    testsprep3DBiologyDesc: 'Cell organelles, DNA transcription, food webs.',
     openClawFixTagline: 'OpenClawFix',
     openClawFixSubline: 'ONE-CLICK OPENCLAW INSTALLER',
     openClawFixCardIntro: 'The easiest way to install OpenClaw on your system. Automated Docker setup, gateway token config, and AI provider guidance—get running in 3–5 minutes.',
@@ -268,6 +281,7 @@ const testsprepFeaturesList: { key: string; icon: React.ElementType }[] = [
   { key: 'testsprepFeature4', icon: Globe },
   { key: 'testsprepFeature5', icon: Zap },
   { key: 'testsprepFeature6', icon: Terminal },
+  { key: 'testsprepFeature7', icon: FlaskConical },
 ];
 
 const Landing: React.FC = () => {
@@ -444,6 +458,7 @@ const Landing: React.FC = () => {
                 <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet1}</span></li>
                 <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet2}</span></li>
                 <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet3}</span></li>
+                <li className="flex items-start gap-2.5"><Check size={14} className="text-[#8b5cf6] flex-shrink-0 mt-0.5" /><span className="product-card-bullet-text">{t.testsprepBullet4}</span></li>
               </ul>
               <div className="mt-auto pt-5">
                 <a
@@ -857,7 +872,7 @@ const Landing: React.FC = () => {
             </div>
             <p className="text-[#8b5cf6] text-xs font-black uppercase tracking-[0.35em] mb-2">{t.testsprepTagline}</p>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">
-              Master Your Exams with AI-Powered Learning
+              {t.testsprepSectionTitle}
             </h2>
             <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-6 leading-relaxed">
               {t.testsprepHero}
@@ -867,6 +882,7 @@ const Landing: React.FC = () => {
               <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet1}</span>
               <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet2}</span>
               <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepBullet3}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t.testsprepFeature7}</span>
             </div>
             <a
               href={t.testsprepUrl}
@@ -877,6 +893,53 @@ const Landing: React.FC = () => {
               {t.visitTestsprep}
               <ExternalLink size={20} />
             </a>
+          </div>
+
+          {/* Immersive 3D Science Labs subsection */}
+          <div className="mb-16 sm:mb-20">
+            <h3 className="text-xl sm:text-2xl font-black text-white text-center mb-2">{t.testsprep3DLabsTitle}</h3>
+            <p className="text-gray-500 text-sm text-center mb-8">{t.testsprep3DLabsSub}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <a
+                href={t.testsprepUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col p-5 sm:p-6 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#8b5cf6]/40 transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#8b5cf6] mb-3">
+                  <FlaskConical size={20} />
+                </div>
+                <h4 className="text-white font-bold text-sm mb-1">{t.testsprep3DPhysics}</h4>
+                <p className="text-gray-500 text-xs leading-relaxed">{t.testsprep3DPhysicsDesc}</p>
+                <span className="mt-3 text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider">{t.exploreModule} →</span>
+              </a>
+              <a
+                href={t.testsprepUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col p-5 sm:p-6 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#8b5cf6]/40 transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#8b5cf6] mb-3">
+                  <FlaskConical size={20} />
+                </div>
+                <h4 className="text-white font-bold text-sm mb-1">{t.testsprep3DChemistry}</h4>
+                <p className="text-gray-500 text-xs leading-relaxed">{t.testsprep3DChemistryDesc}</p>
+                <span className="mt-3 text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider">{t.exploreModule} →</span>
+              </a>
+              <a
+                href={t.testsprepUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col p-5 sm:p-6 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#8b5cf6]/40 transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#8b5cf6] mb-3">
+                  <FlaskConical size={20} />
+                </div>
+                <h4 className="text-white font-bold text-sm mb-1">{t.testsprep3DBiology}</h4>
+                <p className="text-gray-500 text-xs leading-relaxed">{t.testsprep3DBiologyDesc}</p>
+                <span className="mt-3 text-[10px] font-bold text-[#8b5cf6] uppercase tracking-wider">{t.exploreModule} →</span>
+              </a>
+            </div>
           </div>
 
           {/* TestsPrep features grid */}
