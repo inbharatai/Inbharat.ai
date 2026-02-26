@@ -135,3 +135,69 @@ So the “connection” to Supabase on the server is: **every protected or optio
 ---
 
 For deployment details (including Supabase project URL, migration, and env vars), see **DEPLOY-STEPS.md** and **DOCS.md**.
+
+---
+
+## 8. Troubleshooting: "I don't receive the password reset email"
+
+If you click **Reset**, enter your email, and see "Password reset email sent" but **no email arrives**, check the following in order.
+
+### 8.1 Redirect URL must be allowlisted in Supabase
+
+Supabase **will not send** the reset email (or may reject the request) if the `redirectTo` URL is not in the allowlist.
+
+- The app sends `redirectTo: window.location.origin + '/app'`.
+- So when you use **https://inbharat.ai**, the redirect URL is **`https://inbharat.ai/app`** (no trailing slash).
+- In Supabase Dashboard: **Authentication** → **URL Configuration** → **Redirect URLs**.
+- Add **`https://inbharat.ai/app`** exactly if it is not there.
+- If you test from a Vercel preview URL (e.g. `https://inbharat-xxx.vercel.app`), add **`https://inbharat-xxx.vercel.app/app`** as well.
+- Save and try the reset again.
+
+Ref: [Redirect URLs (Supabase)](https://supabase.com/docs/guides/auth/redirect-urls).
+
+### 8.2 Check spam / junk and "Promotions"
+
+- Look in **Spam**, **Junk**, and **Promotions** (Gmail).
+- The sender is typically from Supabase (e.g. `noreply@mail.app.supabase.io` or your custom SMTP). Add it to safe senders if needed.
+
+### 8.3 Supabase email delivery (default SMTP)
+
+- On the free tier, Supabase sends auth emails via their own SMTP. There are **rate limits**; too many requests in a short time can block delivery.
+- In **Authentication** → **Email Templates**, ensure the **Reset Password** template exists and is enabled.
+- If emails still do not arrive, configure **custom SMTP**: **Project Settings** → **Auth** → **SMTP Settings**. Use your own SMTP (e.g. SendGrid, Mailgun, or your domain’s SMTP) so delivery is more reliable and less likely to be filtered.
+
+### 8.4 User must already exist
+
+- For security, Supabase returns **success** even when no user exists for that email (to avoid revealing whether an account exists). So the message "Password reset email sent" can appear even if the email is not registered.
+- Confirm you are using an email that has already **signed up** (and, if required, verified) for InBharat. If the account was never created, no email will be sent.
+
+### 8.5 Quick checklist
+
+| Check | Where |
+|-------|--------|
+| `https://inbharat.ai/app` is in Redirect URLs | Supabase → Authentication → URL Configuration |
+| Site URL is `https://inbharat.ai` | Same page |
+| Reset Password email template is present | Authentication → Email Templates |
+| Check spam/junk | Your inbox |
+| Use an email that has already signed up | — |
+| Consider custom SMTP if still failing | Project Settings → Auth → SMTP |
+
+### 8.6 When Supabase is correct but the email still doesn’t arrive
+
+Supabase sends auth emails (reset, confirmation) via **their default SMTP** on the free tier. That service is rate-limited and is often filtered or blocked by providers (Gmail, Outlook, etc.), so emails can be missing even when URL config and templates are correct.
+
+**Fix: use custom SMTP**
+
+1. In Supabase: **Project Settings** (gear) → **Auth** → **SMTP Settings**.
+2. Enable **Custom SMTP** and fill in your SMTP provider (e.g. [Resend](https://resend.com), [SendGrid](https://sendgrid.com), [Mailgun](https://mailgun.com), or your domain’s SMTP).
+3. Save. From then on, Supabase sends auth emails through your SMTP, which usually delivers reliably and avoids spam filters.
+
+**Optional: force the link in the email to match your allowlist**
+
+Set this in Vercel (and in `.env` locally if you want):
+
+- **Name:** `VITE_AUTH_REDIRECT_URL`  
+- **Value:** `https://inbharat.ai/app` (no trailing slash)
+
+The app will use this as the redirect URL for “forgot password” and “email confirmation” links, so the link in the email always matches the URL you added in Supabase Redirect URLs.
+

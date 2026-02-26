@@ -25,8 +25,12 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
     setMessage(null);
 
     try {
+      const baseRedirect =
+        (import.meta as any).env?.VITE_AUTH_REDIRECT_URL as string | undefined;
       const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/app` : undefined;
+        typeof window !== "undefined"
+          ? (baseRedirect && baseRedirect.trim()) || `${window.location.origin}/app`
+          : undefined;
 
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({
