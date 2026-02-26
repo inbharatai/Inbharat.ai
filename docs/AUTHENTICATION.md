@@ -65,7 +65,13 @@ All of these are implemented in **`components/AuthPanel.tsx`**, which can be sho
 
 So “**via link**” here means: **email verification link** and **password reset link**; both redirect to `/app` and the client finishes auth by reading the token from the URL.
 
-### 3.3 Forgot password (reset via link)
+### 3.3 Magic link (passwordless)
+
+- User selects **Magic link**, enters only their **email**, and submits.
+- Code calls `supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } })`.
+- Supabase sends an email with a magic link. When the user clicks it, they are redirected to `/app` and signed in automatically. No password is required. If the email is not yet registered, Supabase can create the user when they click the link (default behavior).
+
+### 3.4 Forgot password (reset via link)
 
 - User switches to “Reset” in AuthPanel, enters email, and submits.
 - Code calls `supabase.auth.resetPasswordForEmail(email, { redirectTo })` with `redirectTo = window.location.origin + '/app'`.
@@ -124,6 +130,7 @@ So the “connection” to Supabase on the server is: **every protected or optio
 |--------------------------|-------------------------------|------------------------|
 | App load                 | `AuthProvider` in `lib/auth.tsx` | `getSession()` + `onAuthStateChange()` |
 | Sign in (email/password) | `AuthPanel.tsx`               | `signInWithPassword()` |
+| Magic link (email only)  | `AuthPanel.tsx`               | `signInWithOtp()` with `emailRedirectTo` |
 | Sign up (email/password) | `AuthPanel.tsx`               | `signUp()` with `emailRedirectTo: origin + '/app'` |
 | Email verification link  | User clicks link → opens `/app` | Client reads hash; session set automatically; redirect URL must be in Supabase redirect list |
 | Forgot password          | `AuthPanel.tsx`               | `resetPasswordForEmail()` with `redirectTo: origin + '/app'` |

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 
-type Mode = "signin" | "signup" | "forgot";
+type Mode = "signin" | "signup" | "magiclink" | "forgot";
 
 type AuthPanelProps = { onSuccess?: () => void };
 
@@ -14,7 +14,7 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
 
   const canSubmit = useMemo(() => {
     if (!email.trim()) return false;
-    if (mode === "forgot") return true;
+    if (mode === "forgot" || mode === "magiclink") return true;
     return password.length >= 6;
   }, [email, password, mode]);
 
@@ -40,6 +40,13 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
         if (error) throw error;
         setMessage("Signed in.");
         onSuccess?.();
+      } else if (mode === "magiclink") {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim(),
+          options: redirectTo ? { emailRedirectTo: redirectTo } : undefined,
+        });
+        if (error) throw error;
+        setMessage("Check your email for the sign-in link. Click it to sign in.");
       } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -104,6 +111,17 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
           </button>
           <button
             type="button"
+            onClick={() => setMode("magiclink")}
+            className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
+              mode === "magiclink"
+                ? "bg-[#FF9933]/15 border-[#FF9933]/40 text-white"
+                : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
+            }`}
+          >
+            Magic link
+          </button>
+          <button
+            type="button"
             onClick={() => setMode("forgot")}
             className={`flex-1 py-2 rounded-xl text-sm font-bold border transition-all ${
               mode === "forgot"
@@ -129,7 +147,7 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
             />
           </label>
 
-          {mode !== "forgot" && (
+          {mode !== "forgot" && mode !== "magiclink" && (
             <label className="block">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-600">
                 Password
@@ -154,7 +172,7 @@ export default function AuthPanel({ onSuccess }: AuthPanelProps) {
             disabled={!canSubmit || busy}
             className="w-full py-3 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] disabled:opacity-50 text-white font-black transition-all"
           >
-            {busy ? "Please wait..." : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset email"}
+            {busy ? "Please wait..." : mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : mode === "magiclink" ? "Send magic link" : "Send reset email"}
           </button>
         </form>
 
