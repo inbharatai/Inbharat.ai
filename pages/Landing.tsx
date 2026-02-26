@@ -443,7 +443,7 @@ const Landing: React.FC = () => {
             <div className="h-full flex flex-col bg-[#161b22] border border-[#8b5cf6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#8b5cf6]/20">
               <div className="flex items-center gap-3 mb-3.5">
                 <div className="w-12 h-12 rounded-xl bg-[#0d1117] border border-[#8b5cf6]/50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
-                  <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                  <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain scale-150" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
                   <span className="hidden absolute inset-0 flex items-center justify-center text-[#8b5cf6]"><BookOpen size={28} /></span>
                 </div>
                 <div>
@@ -866,7 +866,7 @@ const Landing: React.FC = () => {
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-2xl bg-[#0d1117] border border-[#8b5cf6]/40 flex items-center justify-center overflow-hidden relative">
-                <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
+                <img src="/testsprep-logo.png" alt="TestsPrep.in" className="w-full h-full object-contain scale-150" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
                 <span className="hidden absolute inset-0 flex items-center justify-center text-[#8b5cf6]"><BookOpen size={32} /></span>
               </div>
             </div>
