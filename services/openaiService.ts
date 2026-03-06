@@ -587,8 +587,8 @@ How may I serve you today?`;
     };
   }
 
-  /** Fetch a single TTS chunk from the API. */
-  private async fetchTTSChunk(text: string, voice: string, signal?: AbortSignal): Promise<string | undefined> {
+  /** Fetch a single TTS chunk as raw ArrayBuffer. */
+  private async fetchTTSChunkBuffer(text: string, voice: string, signal?: AbortSignal): Promise<ArrayBuffer | undefined> {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/tts", {
@@ -601,12 +601,19 @@ How may I serve you today?`;
         signal,
       });
       if (!res.ok) return undefined;
-      const blob = await res.blob();
-      if (!blob.size) return undefined;
-      return URL.createObjectURL(blob);
+      const buffer = await res.arrayBuffer();
+      if (!buffer.byteLength) return undefined;
+      return buffer;
     } catch {
       return undefined;
     }
+  }
+
+  /** Fetch a single TTS chunk. Returns a blob URL for the audio. */
+  private async fetchTTSChunk(text: string, voice: string, signal?: AbortSignal): Promise<string | undefined> {
+    const buffer = await this.fetchTTSChunkBuffer(text, voice, signal);
+    if (!buffer) return undefined;
+    return URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
   }
 
   /**
@@ -622,13 +629,14 @@ How may I serve you today?`;
   }
 
   /**
-   * Chunked TTS: splits text into ~300‑char chunks, calls onChunkReady for each.
+   * Chunked TTS: splits text, fires ALL fetches in parallel for fastest throughput,
+   * delivers ArrayBuffers in order. Callback is awaited to ensure sequential decode.
    * Returns an AbortController so the caller can cancel remaining fetches.
    */
   textToSpeechChunked(
     text: string,
     language: string,
-    onChunkReady: (url: string, index: number, total: number) => void,
+    onChunkReady: (buffer: ArrayBuffer, index: number, total: number) => void | Promise<void>,
     onDone: () => void,
     onError: () => void
   ): AbortController {
@@ -639,13 +647,19 @@ How may I serve you today?`;
     const chunks = splitForTTS(input, 300);
     const total = chunks.length;
 
+    // Fire ALL fetches in parallel — no waiting between requests
+    const promises = chunks.map(chunk =>
+      this.fetchTTSChunkBuffer(chunk, voice, controller.signal)
+    );
+
+    // Deliver results strictly in order, awaiting callback for sequential decode
     (async () => {
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = 0; i < promises.length; i++) {
         if (controller.signal.aborted) return;
-        const url = await this.fetchTTSChunk(chunks[i], voice, controller.signal);
+        const buffer = await promises[i];
         if (controller.signal.aborted) return;
-        if (url) {
-          onChunkReady(url, i, total);
+        if (buffer) {
+          await onChunkReady(buffer, i, total);
         } else {
           onError();
           return;

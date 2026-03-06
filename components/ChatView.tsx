@@ -55,14 +55,25 @@ const ChatView: React.FC<ChatViewProps> = ({
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCacheRef = useRef<Map<string, string>>(new Map());
   const chunkAbortRef = useRef<AbortController | null>(null);
-  const chunkQueueRef = useRef<string[]>([]);
   const playingMsgIdRef = useRef<string | null>(null);
+  const webAudioRef = useRef<{
+    ctx: AudioContext | null;
+    nextStart: number;
+    sources: AudioBufferSourceNode[];
+    buffers: ArrayBuffer[];
+    scheduled: number;
+    ended: number;
+    allFetched: boolean;
+  }>({ ctx: null, nextStart: 0, sources: [], buffers: [], scheduled: 0, ended: 0, allFetched: false });
 
   useEffect(() => () => {
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
+    const wa = webAudioRef.current;
+    wa.sources.forEach(s => { try { s.stop(); } catch {} });
+    wa.ctx?.close().catch(() => {});
   }, []);
 
   const handleStopSpeaking = useCallback(() => {
@@ -70,14 +81,17 @@ const ChatView: React.FC<ChatViewProps> = ({
       chunkAbortRef.current.abort();
       chunkAbortRef.current = null;
     }
-    chunkQueueRef.current = [];
+    const wa = webAudioRef.current;
+    wa.sources.forEach(s => { try { s.stop(); } catch {} });
+    wa.ctx?.close().catch(() => {});
+    webAudioRef.current = { ctx: null, nextStart: 0, sources: [], buffers: [], scheduled: 0, ended: 0, allFetched: false };
     playingMsgIdRef.current = null;
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
       currentAudioRef.current = null;
-      setPlayingId(null);
     }
+    setPlayingId(null);
   }, []);
 
   const handleCopy = useCallback(async (msg: Message) => {
@@ -119,34 +133,6 @@ const ChatView: React.FC<ChatViewProps> = ({
     // Intentionally only depend on messages; handlePlayAudio is current by closure
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
-
-  const playNextChunk = useCallback((messageId: string) => {
-    const url = chunkQueueRef.current.shift();
-    if (!url || playingMsgIdRef.current !== messageId) {
-      // All chunks done or stopped
-      if (chunkQueueRef.current.length === 0) {
-        setPlayingId(null);
-        playingMsgIdRef.current = null;
-        currentAudioRef.current = null;
-      }
-      return;
-    }
-    const audio = new Audio(url);
-    const rate = getVoiceSettings().speechRate;
-    if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
-    audio.onended = () => playNextChunk(messageId);
-    audio.onerror = () => {
-      setPlayingId(null);
-      setAudioErrorId(messageId);
-      currentAudioRef.current = null;
-      playingMsgIdRef.current = null;
-    };
-    currentAudioRef.current = audio;
-    audio.play().catch(() => {
-      setPlayingId(null);
-      setAudioErrorId(messageId);
-    });
-  }, []);
 
   const handlePlayAudio = async (message: Message) => {
     if (loadingAudioId || playingId === message.id) return;
@@ -199,44 +185,72 @@ const ChatView: React.FC<ChatViewProps> = ({
       return;
     }
 
-    // Multi-chunk: play first chunk ASAP, queue the rest
+    // Multi-chunk: Web Audio API for gapless playback with parallel pre-fetch
     setLoadingAudioId(message.id);
     playingMsgIdRef.current = message.id;
-    chunkQueueRef.current = [];
-    let firstPlayed = false;
+    const wa = webAudioRef.current;
+    wa.buffers = [];
+    wa.sources = [];
+    wa.scheduled = 0;
+    wa.ended = 0;
+    wa.allFetched = false;
+    wa.nextStart = 0;
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    wa.ctx = ctx;
+    let firstScheduled = false;
 
     chunkAbortRef.current = agent.textToSpeechChunked(
       message.content,
       appLanguage,
-      (url, index, _total) => {
-        if (!firstPlayed) {
-          // Play first chunk immediately
-          firstPlayed = true;
+      async (buffer, _index, _total) => {
+        if (playingMsgIdRef.current !== message.id) return;
+        wa.buffers.push(buffer);
+
+        let audioBuffer: AudioBuffer;
+        try {
+          audioBuffer = await ctx.decodeAudioData(buffer.slice(0));
+        } catch {
+          return;
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        const rate = getVoiceSettings().speechRate;
+        if (rate >= 0.5 && rate <= 2) source.playbackRate.value = rate;
+        source.connect(ctx.destination);
+
+        if (!firstScheduled) {
+          firstScheduled = true;
+          wa.nextStart = ctx.currentTime;
           setLoadingAudioId(null);
           setPlayingId(message.id);
-          const audio = new Audio(url);
-          const rate = getVoiceSettings().speechRate;
-          if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
-          audio.onended = () => playNextChunk(message.id);
-          audio.onerror = () => {
-            setPlayingId(null);
-            setAudioErrorId(message.id);
-            currentAudioRef.current = null;
-            playingMsgIdRef.current = null;
-          };
-          currentAudioRef.current = audio;
-          audio.play().catch(() => {
-            setPlayingId(null);
-            setAudioErrorId(message.id);
-          });
-        } else {
-          // Queue subsequent chunks
-          chunkQueueRef.current.push(url);
         }
+
+        const startAt = Math.max(wa.nextStart, ctx.currentTime);
+        source.start(startAt);
+        const effectiveRate = (rate >= 0.5 && rate <= 2) ? rate : 1;
+        wa.nextStart = startAt + audioBuffer.duration / effectiveRate;
+        wa.sources.push(source);
+        wa.scheduled++;
+
+        source.onended = () => {
+          wa.ended++;
+          if (wa.allFetched && wa.ended >= wa.scheduled && playingMsgIdRef.current === message.id) {
+            setPlayingId(null);
+            playingMsgIdRef.current = null;
+            // Cache concatenated MP3 for instant gapless replay
+            if (wa.buffers.length > 0) {
+              const combined = new Blob(wa.buffers, { type: 'audio/mpeg' });
+              audioCacheRef.current.set(message.id, URL.createObjectURL(combined));
+            }
+            ctx.close().catch(() => {});
+            wa.ctx = null;
+          }
+        };
       },
-      () => { /* onDone — all chunks fetched, queue handles playback */ },
+      () => { wa.allFetched = true; },
       () => {
-        if (!firstPlayed) {
+        if (!firstScheduled) {
           setLoadingAudioId(null);
           setAudioErrorId(message.id);
         }
