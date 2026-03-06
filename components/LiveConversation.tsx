@@ -161,7 +161,8 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
             if (audioUrl && !isOutputMutedRef.current) {
               const audio = new Audio(audioUrl);
               audio.onended = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
-              await audio.play();
+              audio.onerror = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
+              try { await audio.play(); } catch { setStatus('idle'); }
             } else {
               setStatus('idle');
             }
@@ -221,7 +222,8 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
             URL.revokeObjectURL(audioUrl);
             setStatus('idle');
           };
-          await audio.play();
+          audio.onerror = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
+          try { await audio.play(); } catch { setStatus('idle'); }
         } else {
           setStatus('idle');
         }
