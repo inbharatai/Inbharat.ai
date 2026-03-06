@@ -16,7 +16,7 @@ const copy: Record<string, string> = {
     builtForIndia: 'Built for India',
     sovereignty: 'SOVEREIGN INTELLIGENCE FOR BHARAT',
     deshKaai: 'DESH KAAI',
-    heroSub: 'We build sovereign AI for India. InBharat AI—agentic search and voice-first intelligence for every Indian. UniAssist.ai—the only education platform built on live data for every Indian Student. UniBot—your WhatsApp education assistant.',
+    heroSub: 'InBharat AI builds sovereign AI tools for India and the world—accessible, multilingual, voice-first solutions designed to solve real problems across education, work, coding, productivity, assistance, and everyday life. Built in India and created for global impact, we are building practical, inclusive, world-class AI products that empower people, strengthen ecosystems, and make advanced technology usable for everyone.',
     inBharatDesc: 'Agentic search and reasoning for Bharat. Voice AI, research and creative modes, multi-language support—sovereign intelligence in one place.',
     useInBharat: 'Use InBharat AI',
     uniAssistTagline: 'Simplifying Education with AI',
