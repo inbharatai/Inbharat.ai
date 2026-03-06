@@ -8,17 +8,20 @@ const bodySchema = z.object({
   messages: z.array(z.any()).min(1),
   // Client may send a model preference; server enforces a safe default.
   model: z.string().optional(),
-  // Mode-based model selection: RESEARCH, CODER, EDUCATOR -> o1-mini; others -> gpt-4o-mini
+  // Mode-based model selection: heavy reasoning → gpt-4.1-mini; lightweight → gpt-4.1-nano
   mode: z.string().optional(),
   // Whether to stream the response (Server-Sent Events)
   stream: z.boolean().optional(),
 });
 
-/** Select model based on agent mode. Reasoning modes use o1-mini, others use gpt-4o-mini. */
+/**
+ * Heavy reasoning modes → gpt-4.1-mini (best quality).
+ * Lightweight / JSON-extraction modes → gpt-4.1-nano (fastest, cheapest).
+ */
 function getModelForMode(mode?: string): string {
-  const reasoningModes = ['RESEARCH', 'CODER', 'EDUCATOR'];
-  if (reasoningModes.includes(mode || '')) return 'o1-mini';
-  return 'gpt-4o-mini';
+  const heavyModes = ['RESEARCH', 'CODER', 'EDUCATOR', 'BROWSER'];
+  if (heavyModes.includes(mode || '')) return 'gpt-4.1-mini';
+  return 'gpt-4.1-nano';
 }
 
 function getRequestId(req: VercelRequest): string {
