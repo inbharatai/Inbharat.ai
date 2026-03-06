@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { runWithRetry } from "./lib/openaiRetry.js";
-import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser.js";
+import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser.js";
 
 const bodySchema = z.object({
   audioBase64: z.string().min(1),
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, code: "SERVER_ERROR" });
   }
 
-  const verified = await verifySupabaseUser(req);
+  const verified = await verifySupabaseUserOptional(req);
   if (isVerifyErr(verified)) {
     return res.status(verified.status).json({ ...verified.body, requestId });
   }

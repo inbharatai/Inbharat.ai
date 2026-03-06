@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, MicOff, Volume2, VolumeX, Sparkles, AlertCircle, ChevronDown, Languages, Loader2 } from 'lucide-react';
 import TricolourStar from './TricolourStar';
-import { NexusAgent, OpenAISanitizedError } from '../services/openaiService';
+import { NexusAgent, OpenAISanitizedError, getSupportedMimeType } from '../services/openaiService';
 
 interface LiveConversationProps {
   onClose: () => void;
@@ -101,11 +101,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
     setErrorMessage('');
     setStatus('recording');
     chunksRef.current = [];
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : '';
+    const mimeType = getSupportedMimeType();
     const options = mimeType ? { mimeType } : {};
     const recorder = new MediaRecorder(streamRef.current, options);
     mediaRecorderRef.current = recorder;
@@ -113,7 +109,8 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
     recorder.onstop = async () => {
       setStatus('processing');
       try {
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: actualMime });
         if (blob.size < 1000) {
           setStatus('idle');
           return;
@@ -124,17 +121,13 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           setStatus('idle');
           return;
         }
-        const { text: aiReply, audioBase64 } = await agentRef.current.liveReply(text, currentLanguage);
+        const { text: aiReply, audioUrl } = await agentRef.current.liveReply(text, currentLanguage);
         setAiText(aiReply);
         setStatus('speaking');
-        if (audioBase64 && !isOutputMutedRef.current) {
-          const binary = atob(audioBase64);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-          const url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
-          const audio = new Audio(url);
+        if (audioUrl && !isOutputMutedRef.current) {
+          const audio = new Audio(audioUrl);
           audio.onended = () => {
-            URL.revokeObjectURL(url);
+            URL.revokeObjectURL(audioUrl);
             setStatus('idle');
           };
           await audio.play();

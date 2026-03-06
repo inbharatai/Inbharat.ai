@@ -291,7 +291,7 @@ const App: React.FC = () => {
   return (
     <div className="flex min-h-screen h-dvh sm:h-screen w-full max-w-[100vw] bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden overflow-y-auto relative touch-manual">
       {/* Live Overlay */}
-      {viewMode === ViewMode.LIVE && isSignedIn && (
+      {viewMode === ViewMode.LIVE && (
         <LiveConversation onClose={() => setViewMode(ViewMode.HOME)} language={appLanguage} />
       )}
 
@@ -484,13 +484,11 @@ const App: React.FC = () => {
             <Omnibox 
               onSearch={handleSearch} 
               onLiveClick={() => {
-                if (!isSignedIn) return;
+
                 setViewMode(ViewMode.LIVE);
               }} 
               onSpeakToType={
-                isSignedIn
-                  ? async (blob) => (await agentRef.current?.transcribe(blob, appLanguage)) ?? ''
-                  : undefined
+                async (blob) => (await agentRef.current?.transcribe(blob, appLanguage)) ?? ''
               }
               isLoading={isLoading} 
               language={appLanguage} 

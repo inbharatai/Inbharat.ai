@@ -167,6 +167,37 @@ const languageToWhisperCode: Record<string, string> = {
 // OpenAI Whisper API supports a subset of ISO 639-1; unsupported codes (e.g. as, sa) must be omitted so Whisper auto-detects
 const whisperApiSupported = new Set<string>(["en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "or", "ur"]);
 
+/** Strip markdown formatting and follow-ups so TTS reads clean prose. */
+function cleanTextForTTS(text: string): string {
+  return text
+    .replace(/```[\w]*\n?[\s\S]*?```/g, '')           // strip code blocks
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')           // [text](url) → text
+    .replace(/^#+\s*/gm, '')                            // strip heading markers
+    .replace(/(\*{1,3}|_{1,3})(.*?)\1/g, '$2')          // strip bold/italic markers
+    .replace(/^FOLLOW_UP:.*$/gm, '')                    // strip follow-ups
+    .replace(/^\s*[-*]\s/gm, '')                        // strip list markers
+    .replace(/`([^`]+)`/g, '$1')                        // strip inline code
+    .replace(/\n{3,}/g, '\n\n')                         // collapse newlines
+    .trim();
+}
+
+/** Detect best supported audio MIME type across all browsers (Chrome, Safari, Firefox, Android, iOS). */
+export function getSupportedMimeType(): string {
+  if (typeof MediaRecorder === 'undefined') return '';
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4',
+    'audio/aac',
+    'audio/wav',
+  ];
+  for (const type of types) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return '';
+}
+
 // OpenAI is server-side only. Client never reads OPENAI_API_KEY.
 export function hasOpenAIKey(): boolean {
   return true;
@@ -484,20 +515,29 @@ How may I serve you today?`;
     };
   }
 
-  /** Indian-voice instruction for InBharat TTS (used with gpt-4o-mini-tts which supports accent control). */
-  private static readonly TTS_INDIAN_VOICE_INSTRUCTIONS =
-    "Speak with a clear, warm Indian English accent. Sound natural and conversational for listeners in India.";
-
+  /**
+   * Convert text to speech. Returns an object URL for the audio blob,
+   * ready to be used directly with `new Audio(url)`. Caller must
+   * `URL.revokeObjectURL(url)` when done.
+   */
   async textToSpeech(text: string, language: string): Promise<string | undefined> {
     const voice = languageToVoice[language] || "nova";
-    const input = text.slice(0, 4096);
+    const input = cleanTextForTTS(text).slice(0, 4096);
+    if (!input) return undefined;
     try {
-      const { status, json } = await postJson<{ ok: true; audioBase64: string } | ChatApiErr>(
-        "/api/tts",
-        { text: input, voice }
-      );
-      if (status >= 200 && status < 300 && (json as any).ok === true) return String((json as any).audioBase64 || "");
-      return undefined;
+      const token = await getAccessToken();
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text: input, voice }),
+      });
+      if (!res.ok) return undefined;
+      const blob = await res.blob();
+      if (!blob.size) return undefined;
+      return URL.createObjectURL(blob);
     } catch {
       return undefined;
     }
@@ -525,7 +565,7 @@ How may I serve you today?`;
     throw toSanitizedFromApi(status, json);
   }
 
-  async liveReply(userText: string, language: string): Promise<{ text: string; audioBase64?: string }> {
+  async liveReply(userText: string, language: string): Promise<{ text: string; audioUrl?: string }> {
     const lang = languageDetails[language] || languageDetails["EN"];
     const text = (await callChat([
       {
@@ -534,8 +574,8 @@ How may I serve you today?`;
       },
       { role: "user", content: userText }
     ], undefined, "STANDARD")).trim();
-    const audioBase64 = await this.textToSpeech(text, language);
-    return { text, audioBase64 };
+    const audioUrl = await this.textToSpeech(text, language);
+    return { text, audioUrl };
   }
 
   async fetchTrendingNews(): Promise<NewsArticle[]> {

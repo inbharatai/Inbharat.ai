@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { runWithRetry } from "./lib/openaiRetry.js";
-import { isVerifyErr, verifySupabaseUser } from "./lib/verifySupabaseUser.js";
+import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser.js";
 
 const bodySchema = z.object({
   text: z.string().min(1).max(4096),
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ ok: false, code: "SERVER_ERROR" });
   }
 
-  const verified = await verifySupabaseUser(req);
+  const verified = await verifySupabaseUserOptional(req);
   if (isVerifyErr(verified)) {
     return res.status(verified.status).json({ ...verified.body, requestId });
   }
@@ -61,15 +61,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             model: modelPrimary,
             voice: voice as any,
             input: parsed.text,
-          },
+            response_format: "mp3",
+            instructions: "Speak with a clear, warm Indian English accent. Sound natural and conversational for listeners in India.",
+          } as any,
           { signal }
         )
     );
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const audioBase64 = buffer.toString("base64");
+    res.setHeader("Content-Type", "audio/mpeg");
     res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({ ok: true, audioBase64, requestId });
+    return res.status(200).send(buffer);
   } catch (err: unknown) {
     const status = getStatusFromError(err);
     if (status === 429) return res.status(429).json({ ok: false, code: "RATE_LIMIT", retryAfter: 10 });

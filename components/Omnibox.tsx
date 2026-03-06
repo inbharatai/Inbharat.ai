@@ -4,6 +4,7 @@ import {
   Paperclip, Terminal, BookOpen, Globe, X, Sparkles, Hash, MessageSquare, Briefcase, ShoppingBag
 } from 'lucide-react';
 import { AgentMode } from '../types';
+import { getSupportedMimeType } from '../services/openaiService';
 
 interface OmniboxProps {
   onSearch: (query: string, mode: AgentMode, language: string, imageData?: string) => void;
@@ -69,13 +70,14 @@ const Omnibox: React.FC<OmniboxProps> = ({
     setSpeakError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
-      const recorder = new MediaRecorder(stream);
+      const mimeType = getSupportedMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+        const actualMime = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: actualMime });
         if (blob.size < 1000) { setIsSpeaking(false); return; }
         try {
           const text = await onSpeakToType(blob);

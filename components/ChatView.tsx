@@ -53,6 +53,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   const [audioErrorId, setAudioErrorId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioCacheRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => () => {
     if (currentAudioRef.current) {
@@ -115,21 +116,31 @@ const ChatView: React.FC<ChatViewProps> = ({
     if (message.errorCode || isErrorContent(message.content)) return;
     handleStopSpeaking();
     setAudioErrorId(null);
+
+    // Check cache first — instant playback on repeat
+    const cached = audioCacheRef.current.get(message.id);
+    if (cached) {
+      const audio = new Audio(cached);
+      const rate = getVoiceSettings().speechRate;
+      if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
+      audio.onended = () => { currentAudioRef.current = null; setPlayingId(null); };
+      audio.onerror = () => { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; };
+      currentAudioRef.current = audio;
+      setPlayingId(message.id);
+      await audio.play();
+      return;
+    }
+
     setLoadingAudioId(message.id);
     const agent = new NexusAgent();
     try {
-      const audioBase64 = await agent.textToSpeech(message.content, appLanguage);
-      if (audioBase64) {
-        const binary = atob(audioBase64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: "audio/mpeg" });
-        const url = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+      const audioUrl = await agent.textToSpeech(message.content, appLanguage);
+      if (audioUrl) {
+        audioCacheRef.current.set(message.id, audioUrl);
+        const audio = new Audio(audioUrl);
         const rate = getVoiceSettings().speechRate;
         if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
         audio.onended = () => {
-          URL.revokeObjectURL(url);
           currentAudioRef.current = null;
           setPlayingId(null);
         };
@@ -228,7 +239,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                     </button>
                   )}
                   {audioErrorId === msg.id && (
-                    <span className="text-[10px] text-red-400/90">Check API key or connection</span>
+                    <span className="text-[10px] text-red-400/90">Voice unavailable. Try again or check connection.</span>
                   )}
                   <button
                     type="button"
