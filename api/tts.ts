@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { runWithRetry } from "./lib/openaiRetry.js";
 import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser.js";
 
 const bodySchema = z.object({
@@ -14,13 +13,6 @@ function getRequestId(req: VercelRequest): string {
   if (Array.isArray(id) && id[0]) return String(id[0]);
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getStatusFromError(err: unknown): number | undefined {
-  const e = err as { status?: number; cause?: { status?: number } };
-  if (typeof e?.status === "number") return e.status;
-  if (typeof e?.cause?.status === "number") return e.cause.status;
-  return undefined;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -46,36 +38,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, code: "SERVER_ERROR" });
   }
 
-  const modelPrimary = "gpt-4o-mini-tts";
   const voice = parsed.voice || "nova";
 
   try {
-    const OpenAI = (await import("openai")).default;
-    const openai = new OpenAI({ apiKey });
+    // Direct OpenAI fetch — streams response body for fastest playback
+    const response = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "tts-1",
+        voice,
+        input: parsed.text,
+        response_format: "mp3",
+      }),
+    });
 
-    const response = await runWithRetry(
-      { requestId, model: modelPrimary },
-      (signal) =>
-        openai.audio.speech.create(
-          {
-            model: modelPrimary,
-            voice: voice as any,
-            input: parsed.text,
-            response_format: "mp3",
-            instructions: "Speak with a clear, warm Indian English accent. Sound natural and conversational for listeners in India.",
-          } as any,
-          { signal }
-        )
-    );
+    if (!response.ok) {
+      const status = response.status;
+      if (status === 429) return res.status(429).json({ ok: false, code: "RATE_LIMIT", retryAfter: 10 });
+      if (status >= 500) return res.status(503).json({ ok: false, code: "UPSTREAM_OVERLOADED", retryAfterSeconds: 10 });
+      return res.status(502).json({ ok: false, code: "SERVER_ERROR" });
+    }
+
+    // Stream audio directly to client
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "public, max-age=3600");
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(buffer);
-  } catch (err: unknown) {
-    const status = getStatusFromError(err);
-    if (status === 429) return res.status(429).json({ ok: false, code: "RATE_LIMIT", retryAfter: 10 });
-    if (status && status >= 500) return res.status(503).json({ ok: false, code: "UPSTREAM_OVERLOADED", retryAfterSeconds: 10 });
+  } catch {
     return res.status(500).json({ ok: false, code: "SERVER_ERROR" });
   }
 }

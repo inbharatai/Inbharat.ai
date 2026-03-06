@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mic, MicOff, Volume2, VolumeX, Sparkles, AlertCircle, ChevronDown, Languages, Loader2 } from 'lucide-react';
 import TricolourStar from './TricolourStar';
-import { NexusAgent, OpenAISanitizedError, getSupportedMimeType } from '../services/openaiService';
+import { NexusAgent, OpenAISanitizedError, getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from '../services/openaiService';
 
 interface LiveConversationProps {
   onClose: () => void;
@@ -38,6 +38,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const nativeSRRef = useRef<SpeechRecognition | null>(null);
   const analyserInRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,19 +92,109 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
     return () => stopRecording();
   }, [isMicMuted, status]);
 
+  const handleLiveError = (err: unknown) => {
+    console.error('Live conversation error:', err);
+    if (err instanceof OpenAISanitizedError) {
+      if (err.code === 'UPSTREAM_OVERLOADED') {
+        setErrorMessage('Service is busy right now. Try again in a few seconds.');
+      } else if (err.code === 'RATE_LIMIT') {
+        setErrorMessage('Too many requests. Try again in a moment.');
+      } else {
+        setErrorMessage('Something went wrong. Please try again.');
+      }
+    } else {
+      const msg = String((err as { message?: string })?.message ?? (err as { error?: { message?: string } })?.error?.message ?? '');
+      if (msg.includes('OPENAI_API_KEY') || msg.includes('api_key') || msg.includes('Incorrect API key')) {
+        setErrorMessage('Invalid or missing OpenAI API key. Check your .env file.');
+      } else if (msg.includes('rate') || msg.includes('quota')) {
+        setErrorMessage('API rate limit reached. Please try again in a moment.');
+      } else {
+        setErrorMessage(msg.slice(0, 120) || 'Voice request failed. Check connection and try again.');
+      }
+    }
+    setStatus('error');
+  };
+
   const startRecording = async () => {
+    setUserText('');
+    setAiText('');
+    setErrorMessage('');
+
+    // Try native SpeechRecognition first (instant, zero-latency)
+    const SRConstructor = getNativeSpeechRecognition();
+    if (SRConstructor) {
+      // Still need mic stream for visualizer
+      if (!streamRef.current) {
+        const ok = await requestMic();
+        if (!ok) return;
+      }
+      try {
+        const sr = new SRConstructor();
+        sr.lang = getBCP47Locale(currentLanguage);
+        sr.interimResults = true;
+        sr.continuous = false;
+        sr.maxAlternatives = 1;
+        nativeSRRef.current = sr;
+        setStatus('recording');
+
+        let finalTranscript = '';
+        sr.onresult = (event: SpeechRecognitionEvent) => {
+          let interim = '';
+          for (let i = 0; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interim += event.results[i][0].transcript;
+            }
+          }
+          setUserText(finalTranscript + interim);
+        };
+        sr.onend = async () => {
+          nativeSRRef.current = null;
+          const text = finalTranscript.trim();
+          if (!text) { setStatus('idle'); return; }
+          setStatus('processing');
+          try {
+            const { text: aiReply, audioUrl } = await agentRef.current.liveReply(text, currentLanguage);
+            setAiText(aiReply);
+            setStatus('speaking');
+            if (audioUrl && !isOutputMutedRef.current) {
+              const audio = new Audio(audioUrl);
+              audio.onended = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
+              await audio.play();
+            } else {
+              setStatus('idle');
+            }
+          } catch (err: unknown) {
+            handleLiveError(err);
+          }
+        };
+        sr.onerror = (event: SpeechRecognitionErrorEvent) => {
+          nativeSRRef.current = null;
+          if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            setErrorMessage('Speech recognition error. Try again.');
+            setStatus('error');
+          } else {
+            setStatus('idle');
+          }
+        };
+        sr.start();
+        return;
+      } catch {
+        // Native failed, fall through to Whisper
+      }
+    }
+
+    // Fallback: MediaRecorder + Whisper API
     if (!streamRef.current) {
       const ok = await requestMic();
       if (!ok) return;
     }
-    setUserText('');
-    setAiText('');
-    setErrorMessage('');
     setStatus('recording');
     chunksRef.current = [];
     const mimeType = getSupportedMimeType();
     const options = mimeType ? { mimeType } : {};
-    const recorder = new MediaRecorder(streamRef.current, options);
+    const recorder = new MediaRecorder(streamRef.current!, options);
     mediaRecorderRef.current = recorder;
     recorder.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
     recorder.onstop = async () => {
@@ -135,32 +226,19 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           setStatus('idle');
         }
       } catch (err: unknown) {
-        console.error('Live conversation error:', err);
-        if (err instanceof OpenAISanitizedError) {
-          if (err.code === 'UPSTREAM_OVERLOADED') {
-            setErrorMessage('Service is busy right now. Try again in a few seconds.');
-          } else if (err.code === 'RATE_LIMIT') {
-            setErrorMessage('Too many requests. Try again in a moment.');
-          } else {
-            setErrorMessage('Something went wrong. Please try again.');
-          }
-        } else {
-          const msg = String((err as { message?: string })?.message ?? (err as { error?: { message?: string } })?.error?.message ?? '');
-          if (msg.includes('OPENAI_API_KEY') || msg.includes('api_key') || msg.includes('Incorrect API key')) {
-            setErrorMessage('Invalid or missing OpenAI API key. Check your .env file.');
-          } else if (msg.includes('rate') || msg.includes('quota')) {
-            setErrorMessage('API rate limit reached. Please try again in a moment.');
-          } else {
-            setErrorMessage(msg.slice(0, 120) || 'Voice request failed. Check connection and try again.');
-          }
-        }
-        setStatus('error');
+        handleLiveError(err);
       }
     };
     recorder.start(200);
   };
 
   const stopRecording = () => {
+    // Stop native SpeechRecognition if active
+    if (nativeSRRef.current) {
+      nativeSRRef.current.stop();
+      nativeSRRef.current = null;
+      return;
+    }
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
     }

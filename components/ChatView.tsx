@@ -7,7 +7,7 @@ import TricolourStar from "./TricolourStar";
 import { AgentWidgetRenderer } from "./AgentWidgets";
 import CoderResponsePanel from "./CoderResponsePanel";
 import { Layers, Sparkles, MessageSquare, Volume2, VolumeX, Loader2, Copy, RefreshCw, RotateCcw } from "lucide-react";
-import { NexusAgent } from "../services/openaiService";
+import { NexusAgent, normalizeForTTS, splitForTTS } from "../services/openaiService";
 import { getVoiceSettings } from "../lib/settings";
 
 const ERROR_MESSAGE_MARKER = "We're experiencing heavy neural traffic";
@@ -54,6 +54,9 @@ const ChatView: React.FC<ChatViewProps> = ({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioCacheRef = useRef<Map<string, string>>(new Map());
+  const chunkAbortRef = useRef<AbortController | null>(null);
+  const chunkQueueRef = useRef<string[]>([]);
+  const playingMsgIdRef = useRef<string | null>(null);
 
   useEffect(() => () => {
     if (currentAudioRef.current) {
@@ -63,6 +66,12 @@ const ChatView: React.FC<ChatViewProps> = ({
   }, []);
 
   const handleStopSpeaking = useCallback(() => {
+    if (chunkAbortRef.current) {
+      chunkAbortRef.current.abort();
+      chunkAbortRef.current = null;
+    }
+    chunkQueueRef.current = [];
+    playingMsgIdRef.current = null;
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current.currentTime = 0;
@@ -111,6 +120,34 @@ const ChatView: React.FC<ChatViewProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
+  const playNextChunk = useCallback((messageId: string) => {
+    const url = chunkQueueRef.current.shift();
+    if (!url || playingMsgIdRef.current !== messageId) {
+      // All chunks done or stopped
+      if (chunkQueueRef.current.length === 0) {
+        setPlayingId(null);
+        playingMsgIdRef.current = null;
+        currentAudioRef.current = null;
+      }
+      return;
+    }
+    const audio = new Audio(url);
+    const rate = getVoiceSettings().speechRate;
+    if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
+    audio.onended = () => playNextChunk(messageId);
+    audio.onerror = () => {
+      setPlayingId(null);
+      setAudioErrorId(messageId);
+      currentAudioRef.current = null;
+      playingMsgIdRef.current = null;
+    };
+    currentAudioRef.current = audio;
+    audio.play().catch(() => {
+      setPlayingId(null);
+      setAudioErrorId(messageId);
+    });
+  }, []);
+
   const handlePlayAudio = async (message: Message) => {
     if (loadingAudioId || playingId === message.id) return;
     if (message.errorCode || isErrorContent(message.content)) return;
@@ -131,36 +168,80 @@ const ChatView: React.FC<ChatViewProps> = ({
       return;
     }
 
-    setLoadingAudioId(message.id);
+    const normalized = normalizeForTTS(message.content);
+    if (!normalized) return;
+    const chunks = splitForTTS(normalized, 300);
     const agent = new NexusAgent();
-    try {
-      const audioUrl = await agent.textToSpeech(message.content, appLanguage);
-      if (audioUrl) {
-        audioCacheRef.current.set(message.id, audioUrl);
-        const audio = new Audio(audioUrl);
-        const rate = getVoiceSettings().speechRate;
-        if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
-        audio.onended = () => {
-          currentAudioRef.current = null;
-          setPlayingId(null);
-        };
-        audio.onerror = () => {
-          setPlayingId(null);
+
+    // Short message: single fetch, simple playback
+    if (chunks.length <= 1) {
+      setLoadingAudioId(message.id);
+      try {
+        const audioUrl = await agent.textToSpeech(message.content, appLanguage);
+        if (audioUrl) {
+          audioCacheRef.current.set(message.id, audioUrl);
+          const audio = new Audio(audioUrl);
+          const rate = getVoiceSettings().speechRate;
+          if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
+          audio.onended = () => { currentAudioRef.current = null; setPlayingId(null); };
+          audio.onerror = () => { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; };
+          currentAudioRef.current = audio;
+          setPlayingId(message.id);
+          await audio.play();
+        } else {
           setAudioErrorId(message.id);
-          currentAudioRef.current = null;
-        };
-        currentAudioRef.current = audio;
-        setPlayingId(message.id);
-        await audio.play();
-      } else {
+        }
+      } catch {
         setAudioErrorId(message.id);
+      } finally {
+        setLoadingAudioId(null);
       }
-    } catch (err) {
-      console.error("Audio playback error:", err);
-      setAudioErrorId(message.id);
-    } finally {
-      setLoadingAudioId(null);
+      return;
     }
+
+    // Multi-chunk: play first chunk ASAP, queue the rest
+    setLoadingAudioId(message.id);
+    playingMsgIdRef.current = message.id;
+    chunkQueueRef.current = [];
+    let firstPlayed = false;
+
+    chunkAbortRef.current = agent.textToSpeechChunked(
+      message.content,
+      appLanguage,
+      (url, index, _total) => {
+        if (!firstPlayed) {
+          // Play first chunk immediately
+          firstPlayed = true;
+          setLoadingAudioId(null);
+          setPlayingId(message.id);
+          const audio = new Audio(url);
+          const rate = getVoiceSettings().speechRate;
+          if (rate >= 0.5 && rate <= 2) audio.playbackRate = rate;
+          audio.onended = () => playNextChunk(message.id);
+          audio.onerror = () => {
+            setPlayingId(null);
+            setAudioErrorId(message.id);
+            currentAudioRef.current = null;
+            playingMsgIdRef.current = null;
+          };
+          currentAudioRef.current = audio;
+          audio.play().catch(() => {
+            setPlayingId(null);
+            setAudioErrorId(message.id);
+          });
+        } else {
+          // Queue subsequent chunks
+          chunkQueueRef.current.push(url);
+        }
+      },
+      () => { /* onDone — all chunks fetched, queue handles playback */ },
+      () => {
+        if (!firstPlayed) {
+          setLoadingAudioId(null);
+          setAudioErrorId(message.id);
+        }
+      }
+    );
   };
 
   return (

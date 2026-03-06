@@ -4,7 +4,7 @@ import {
   Paperclip, Terminal, BookOpen, Globe, X, Sparkles, Hash, MessageSquare, Briefcase, ShoppingBag
 } from 'lucide-react';
 import { AgentMode } from '../types';
-import { getSupportedMimeType } from '../services/openaiService';
+import { getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from '../services/openaiService';
 
 interface OmniboxProps {
   onSearch: (query: string, mode: AgentMode, language: string, imageData?: string) => void;
@@ -51,6 +51,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const nativeSRRef = useRef<SpeechRecognition | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,6 +69,48 @@ const Omnibox: React.FC<OmniboxProps> = ({
   const startSpeakToType = async () => {
     if (disabled || !onSpeakToType || isSpeaking) return;
     setSpeakError(null);
+
+    // Try native SpeechRecognition first (instant, no network)
+    const SRConstructor = getNativeSpeechRecognition();
+    if (SRConstructor) {
+      try {
+        const sr = new SRConstructor();
+        sr.lang = getBCP47Locale(language);
+        sr.interimResults = true;
+        sr.continuous = false;
+        sr.maxAlternatives = 1;
+        nativeSRRef.current = sr;
+        setIsSpeaking(true);
+
+        sr.onresult = (event: SpeechRecognitionEvent) => {
+          let transcript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          if (event.results[event.results.length - 1]?.isFinal && transcript.trim()) {
+            setQuery((q) => (q ? q + ' ' + transcript.trim() : transcript.trim()));
+          }
+        };
+        sr.onerror = (event: SpeechRecognitionErrorEvent) => {
+          // 'no-speech' is not a real error, just silence
+          if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            setSpeakError('Speech recognition error. Try again.');
+          }
+          setIsSpeaking(false);
+          nativeSRRef.current = null;
+        };
+        sr.onend = () => {
+          setIsSpeaking(false);
+          nativeSRRef.current = null;
+        };
+        sr.start();
+        return;
+      } catch {
+        // Native failed, fall through to Whisper
+      }
+    }
+
+    // Fallback: MediaRecorder + Whisper API
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = getSupportedMimeType();
@@ -103,6 +146,13 @@ const Omnibox: React.FC<OmniboxProps> = ({
   };
 
   const stopSpeakToType = () => {
+    // Stop native SpeechRecognition if active
+    if (nativeSRRef.current) {
+      nativeSRRef.current.stop();
+      nativeSRRef.current = null;
+      return;
+    }
+    // Stop MediaRecorder if active
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;

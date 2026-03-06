@@ -181,6 +181,78 @@ function cleanTextForTTS(text: string): string {
     .trim();
 }
 
+/** Normalize text for natural TTS: expand abbreviations, convert symbols, clean for speech. */
+export function normalizeForTTS(text: string): string {
+  let t = cleanTextForTTS(text);
+  // Expand common abbreviations
+  t = t.replace(/\bDr\./g, 'Doctor').replace(/\bMr\./g, 'Mister').replace(/\bMrs\./g, 'Missus');
+  t = t.replace(/\bMs\./g, 'Miss').replace(/\bProf\./g, 'Professor').replace(/\bSt\./g, 'Saint');
+  t = t.replace(/\bvs\./gi, 'versus').replace(/\betc\./gi, 'etcetera').replace(/\bi\.e\./gi, 'that is');
+  t = t.replace(/\be\.g\./gi, 'for example').replace(/\bno\./gi, 'number');
+  // Convert currency symbols
+  t = t.replace(/₹\s?(\d)/g, '$1 rupees').replace(/\$\s?(\d)/g, '$1 dollars').replace(/€\s?(\d)/g, '$1 euros');
+  t = t.replace(/£\s?(\d)/g, '$1 pounds');
+  // Convert common symbols
+  t = t.replace(/&/g, ' and ').replace(/%/g, ' percent ').replace(/\+/g, ' plus ').replace(/=/g, ' equals ');
+  t = t.replace(/@/g, ' at ');
+  // Strip URLs
+  t = t.replace(/https?:\/\/\S+/g, '');
+  // Strip remaining non-speech characters but keep basic punctuation and Indic scripts (\u0900-\u0D7F)
+  t = t.replace(/[^\w\s.,!?;:'"()\u0900-\u0D7F।-]/g, ' ');
+  // Collapse whitespace
+  t = t.replace(/\s{2,}/g, ' ').trim();
+  return t;
+}
+
+/** Split text into TTS-friendly chunks at sentence boundaries. */
+export function splitForTTS(text: string, maxLen = 300): string[] {
+  if (text.length <= maxLen) return [text];
+  // Split at sentence endings: . ! ? । (Hindi/Devanagari full stop)
+  const sentences = text.split(/(?<=[.!?।])\s+/);
+  const chunks: string[] = [];
+  let current = '';
+  for (const sentence of sentences) {
+    if (current.length + sentence.length + 1 > maxLen && current.length > 0) {
+      chunks.push(current.trim());
+      current = '';
+    }
+    // If a single sentence exceeds maxLen, split further at commas/semicolons
+    if (sentence.length > maxLen) {
+      const parts = sentence.split(/(?<=[,;])\s+/);
+      for (const part of parts) {
+        if (current.length + part.length + 1 > maxLen && current.length > 0) {
+          chunks.push(current.trim());
+          current = '';
+        }
+        current += (current ? ' ' : '') + part;
+      }
+    } else {
+      current += (current ? ' ' : '') + sentence;
+    }
+  }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.filter(c => c.length > 0);
+}
+
+// BCP-47 locale codes for native SpeechRecognition (Indian locales for better accent handling)
+const languageToBCP47: Record<string, string> = {
+  "EN": "en-IN", "HI": "hi-IN", "BN": "bn-IN", "TA": "ta-IN", "TE": "te-IN", "MR": "mr-IN",
+  "GU": "gu-IN", "KN": "kn-IN", "ML": "ml-IN", "PA": "pa-IN", "OR": "or-IN", "UR": "ur-IN",
+  "AS": "as-IN", "SA": "sa-IN"
+};
+
+/** Get BCP-47 locale for native SpeechRecognition. */
+export function getBCP47Locale(language: string): string {
+  return languageToBCP47[language] || "en-IN";
+}
+
+/** Get native SpeechRecognition constructor if available. */
+export function getNativeSpeechRecognition(): (new () => SpeechRecognition) | null {
+  if (typeof window === 'undefined') return null;
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  return SR || null;
+}
+
 /** Detect best supported audio MIME type across all browsers (Chrome, Safari, Firefox, Android, iOS). */
 export function getSupportedMimeType(): string {
   if (typeof MediaRecorder === 'undefined') return '';
@@ -515,15 +587,8 @@ How may I serve you today?`;
     };
   }
 
-  /**
-   * Convert text to speech. Returns an object URL for the audio blob,
-   * ready to be used directly with `new Audio(url)`. Caller must
-   * `URL.revokeObjectURL(url)` when done.
-   */
-  async textToSpeech(text: string, language: string): Promise<string | undefined> {
-    const voice = languageToVoice[language] || "nova";
-    const input = cleanTextForTTS(text).slice(0, 4096);
-    if (!input) return undefined;
+  /** Fetch a single TTS chunk from the API. */
+  private async fetchTTSChunk(text: string, voice: string, signal?: AbortSignal): Promise<string | undefined> {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/tts", {
@@ -532,7 +597,8 @@ How may I serve you today?`;
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text: input, voice }),
+        body: JSON.stringify({ text, voice }),
+        signal,
       });
       if (!res.ok) return undefined;
       const blob = await res.blob();
@@ -541,6 +607,54 @@ How may I serve you today?`;
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * Convert text to speech. Returns an object URL for the audio blob.
+   * For short text, fetches a single chunk. Caller must
+   * `URL.revokeObjectURL(url)` when done.
+   */
+  async textToSpeech(text: string, language: string): Promise<string | undefined> {
+    const voice = languageToVoice[language] || "nova";
+    const input = normalizeForTTS(text).slice(0, 4096);
+    if (!input) return undefined;
+    return this.fetchTTSChunk(input, voice);
+  }
+
+  /**
+   * Chunked TTS: splits text into ~300‑char chunks, calls onChunkReady for each.
+   * Returns an AbortController so the caller can cancel remaining fetches.
+   */
+  textToSpeechChunked(
+    text: string,
+    language: string,
+    onChunkReady: (url: string, index: number, total: number) => void,
+    onDone: () => void,
+    onError: () => void
+  ): AbortController {
+    const controller = new AbortController();
+    const voice = languageToVoice[language] || "nova";
+    const input = normalizeForTTS(text).slice(0, 4096);
+    if (!input) { onError(); return controller; }
+    const chunks = splitForTTS(input, 300);
+    const total = chunks.length;
+
+    (async () => {
+      for (let i = 0; i < chunks.length; i++) {
+        if (controller.signal.aborted) return;
+        const url = await this.fetchTTSChunk(chunks[i], voice, controller.signal);
+        if (controller.signal.aborted) return;
+        if (url) {
+          onChunkReady(url, i, total);
+        } else {
+          onError();
+          return;
+        }
+      }
+      onDone();
+    })();
+
+    return controller;
   }
 
   async transcribe(audioBlob: Blob, language?: string): Promise<string> {
