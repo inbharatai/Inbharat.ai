@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from './App.tsx';
 import Landing from './pages/Landing.tsx';
 import './index.css';
+import './lib/i18n';
 import { AuthProvider } from './lib/auth.tsx';
 
 const rootElement = document.getElementById('root');

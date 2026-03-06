@@ -58,11 +58,28 @@ export interface ProductItem {
   link: string;
 }
 
+export interface CodeSnippet {
+  language: string;
+  code: string;
+  explanation: string;
+  filename?: string;
+}
+
+export interface ChartData {
+  title: string;
+  type: 'bar' | 'line' | 'pie' | 'table';
+  labels: string[];
+  datasets: Array<{ label: string; data: number[]; color?: string }>;
+  description?: string;
+}
+
 export type WidgetData = 
   | { type: 'CALENDAR', data: CalendarEvent }
   | { type: 'EMAIL', data: EmailDraft }
   | { type: 'PPTX', data: Presentation }
-  | { type: 'SHOPPING', data: ProductItem[] };
+  | { type: 'SHOPPING', data: ProductItem[] }
+  | { type: 'CODE', data: CodeSnippet }
+  | { type: 'CHART', data: ChartData };
 
 // ---------------------------
 
@@ -71,7 +88,8 @@ export type MessageErrorCode =
   | "UPSTREAM_OVERLOADED"
   | "SERVER_ERROR"
   | "AUTH_ERROR"
-  | "UNAUTHORIZED";
+  | "UNAUTHORIZED"
+  | "CONFIG_ERROR";
 
 export interface Message {
   id: string;
@@ -83,11 +101,14 @@ export interface Message {
   mode?: AgentMode;
   followUps?: string[];
   widget?: WidgetData; // New field for actionable UI
+  model?: string; // Which LLM model was used
   /** When set, this is a sanitized error message; Retry enabled after retryAfterSeconds from errorShownAt. */
   errorCode?: MessageErrorCode;
   retryAfterSeconds?: number;
   /** Timestamp when this error was shown (for cooldown). */
   errorShownAt?: number;
+  /** Whether this message is still being streamed. */
+  isStreaming?: boolean;
 }
 
 export interface ChatSession {

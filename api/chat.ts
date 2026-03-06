@@ -8,7 +8,18 @@ const bodySchema = z.object({
   messages: z.array(z.any()).min(1),
   // Client may send a model preference; server enforces a safe default.
   model: z.string().optional(),
+  // Mode-based model selection: RESEARCH, CODER, EDUCATOR -> o1-mini; others -> gpt-4o-mini
+  mode: z.string().optional(),
+  // Whether to stream the response (Server-Sent Events)
+  stream: z.boolean().optional(),
 });
+
+/** Select model based on agent mode. Reasoning modes use o1-mini, others use gpt-4o-mini. */
+function getModelForMode(mode?: string): string {
+  const reasoningModes = ['RESEARCH', 'CODER', 'EDUCATOR'];
+  if (reasoningModes.includes(mode || '')) return 'o1-mini';
+  return 'gpt-4o-mini';
+}
 
 function getRequestId(req: VercelRequest): string {
   const id = req.headers?.["x-vercel-id"] ?? req.headers?.["x-request-id"];
@@ -59,28 +70,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ ok: false, code: "SERVER_ERROR" });
   }
 
-  const model = "gpt-4o-mini"; // enforced
+  const model = getModelForMode(parsed.mode);
+  const shouldStream = parsed.stream === true;
 
   try {
     const OpenAI = (await import("openai")).default;
     const openai = new OpenAI({ apiKey });
 
-    const completion = await runWithRetry(
-      { requestId, model },
-      (signal) =>
-        openai.chat.completions.create(
-          {
-            model,
-            messages: parsed.messages as any,
-            response_format: { type: "text" },
-          },
-          { signal }
-        )
-    );
+    if (shouldStream) {
+      // Streaming response via Server-Sent Events
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
 
-    const text = completion.choices?.[0]?.message?.content ?? "";
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(200).json({ ok: true, text, model, requestId });
+      try {
+        const stream = await openai.chat.completions.create({
+          model,
+          messages: parsed.messages as any,
+          stream: true,
+        } as any);
+
+        // Send initial token
+        res.write(`data: ${JSON.stringify({ ok: true, model, requestId })}\n\n`);
+
+        for await (const event of stream as any) {
+          const delta = event.choices?.[0]?.delta?.content;
+          if (delta) {
+            res.write(`data: ${JSON.stringify({ chunk: delta })}\n\n`);
+          }
+        }
+
+        // Send completion marker
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+      } catch (streamErr: unknown) {
+        const status = getStatusFromError(streamErr);
+        const retryAfter = getRetryAfterSecondsFromError(streamErr) ?? 10;
+
+        if (status === 429) {
+          res.write(`data: ${JSON.stringify({ ok: false, code: "RATE_LIMIT", retryAfter })}\n\n`);
+        } else if (status === 408 || status === 500 || status === 502 || status === 503 || status === 504) {
+          res.write(`data: ${JSON.stringify({ ok: false, code: "UPSTREAM_OVERLOADED", retryAfterSeconds: retryAfter })}\n\n`);
+        } else {
+          res.write(`data: ${JSON.stringify({ ok: false, code: "SERVER_ERROR" })}\n\n`);
+        }
+        res.end();
+      }
+    } else {
+      // Non-streaming response (standard JSON)
+      const completion = await runWithRetry(
+        { requestId, model },
+        (signal) =>
+          openai.chat.completions.create(
+            {
+              model,
+              messages: parsed.messages as any,
+              response_format: { type: "text" },
+            },
+            { signal }
+          )
+      );
+
+      const text = completion.choices?.[0]?.message?.content ?? "";
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ ok: true, text, model, requestId });
+    }
   } catch (err: unknown) {
     const status = getStatusFromError(err);
     const retryAfter = getRetryAfterSecondsFromError(err) ?? 10;

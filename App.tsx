@@ -189,7 +189,13 @@ const App: React.FC = () => {
     };
 
     try {
-      const result = await agentRef.current.executeQuery(query, mode, language || appLanguage, imageData, signal);
+      const currentSession = isGuest ? guestSession : sessions.find(s => s.id === targetSessionId);
+      // Extract previous assistant messages for context (skip the user message we just added)
+      const previousMessages = (currentSession?.messages || [])
+        .filter(m => m.role !== 'user' || m.id !== userMsg.id)
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+      
+      const result = await agentRef.current.executeQuery(query, mode, language || appLanguage, imageData, signal, previousMessages);
       if (signal.aborted) return;
       const assistantMsg: Message = {
         id: crypto.randomUUID(),

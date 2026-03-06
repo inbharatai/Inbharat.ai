@@ -68,15 +68,61 @@ function toSanitizedFromApi(status: number, payload: unknown): OpenAISanitizedEr
   return new OpenAISanitizedError("SERVER_ERROR");
 }
 
-async function callChat(messages: unknown[], signal?: AbortSignal): Promise<string> {
+async function callChat(messages: unknown[], signal?: AbortSignal, mode?: string, stream?: boolean): Promise<string> {
   try {
-    const { status, json } = await postJson<ChatApiOk | ChatApiErr>("/api/chat", { messages }, signal);
+    const { status, json } = await postJson<ChatApiOk | ChatApiErr>("/api/chat", { messages, mode, stream: stream ?? false }, signal);
     if (status >= 200 && status < 300 && (json as ChatApiOk).ok === true) return (json as ChatApiOk).text || "";
     throw toSanitizedFromApi(status, json);
   } catch (err: unknown) {
     if (err instanceof OpenAISanitizedError) throw err;
     throw new OpenAISanitizedError("SERVER_ERROR");
   }
+}
+
+/** Stream chat response via Server-Sent Events. */
+async function streamChat(messages: unknown[], signal?: AbortSignal, mode?: string): Promise<AsyncIterable<string>> {
+  const token = await getAccessToken();
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ messages, mode, stream: true }),
+    signal,
+  });
+
+  if (!res.ok) throw new OpenAISanitizedError("SERVER_ERROR");
+  if (!res.body) throw new OpenAISanitizedError("SERVER_ERROR");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+
+  return (async function* generate() {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.chunk) yield data.chunk;
+              if (data.done) return;
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  })();
 }
 
 export interface QueryResult {
@@ -221,12 +267,14 @@ async function webSearch(query: string, signal?: AbortSignal): Promise<{ results
 }
 
 export class NexusAgent {
+  /** Execute a query with optional conversation history for context. */
   async executeQuery(
     query: string,
     mode: AgentMode,
     language: string = "EN",
     imageData?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    previousMessages?: Array<{ role: 'user' | 'assistant'; content: string }>
   ): Promise<QueryResult> {
     const lang = languageDetails[language] || languageDetails["EN"];
     const qLower = query.toLowerCase();
@@ -280,19 +328,32 @@ export class NexusAgent {
       : "";
 
     const accuracyRule = "Be precise: only state facts you can support from the context above or clearly label as general knowledge. Do not invent statistics, dates, or URLs. ";
+    const visionRule = imageData
+      ? "The user has provided an image. Analyze it carefully and describe relevant visual elements. If the image contains text, extract and process it. Integrate image insights with your text-based analysis. "
+      : "";
+    
     const systemContent = `You are InBharat Ai (Desh Ka AI), a sovereign intelligence node for Bharat. You provide accurate, culturally nuanced insights and prefer a Bharat-first lens for policy, economy, and culture. Respond ONLY in ${lang.native} (${lang.name}). Output clean Markdown.
-${researchHint}${coderHint}${educatorHint}${browserHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}
+${researchHint}${coderHint}${educatorHint}${browserHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}${visionRule}
 Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its own line, prefixed with FOLLOW_UP: .${searchContext}`;
 
-    const messages = [
+    // Build message history: include previous messages for context, then add system + current query
+    const messages: any[] = [
       { role: "system", content: systemContent },
-      { role: "user", content: imageData ? [
-        { type: "text", text: query },
-        { type: "image_url", image_url: { url: imageData } }
-      ] : query }
+      // Include previous conversation turns for context (user and assistant messages only)
+      ...(previousMessages || []).slice(-10), // Keep last 10 messages for context
+      // Current user query with optional image
+      {
+        role: "user",
+        content: imageData
+          ? [
+              { type: "text", text: query },
+              { type: "image_url", image_url: { url: imageData } }
+            ]
+          : query
+      }
     ];
 
-    const responseText = await callChat(messages, signal);
+    const responseText = await callChat(messages, signal, mode);
     const followUps: string[] = [];
     const lines = responseText.split("\n");
     const mainText = lines.filter(line => {
@@ -360,7 +421,8 @@ How may I serve you today?`;
         { role: "system", content: `Extract email details. Return valid JSON only: { "to": "", "subject": "", "body": "", "confirmationText": "" }. Language: ${langName}.` },
         { role: "user", content: query }
       ],
-      signal
+      signal,
+      "EXECUTIVE"
     );
     const data = JSON.parse(raw || "{}");
     return {
@@ -377,7 +439,8 @@ How may I serve you today?`;
         { role: "system", content: `Extract event details. Return valid JSON only: { "title", "date", "time", "duration", "participants": [], "description", "replyText" }. Language: ${langName}. If date/time missing, assume tomorrow 10am.` },
         { role: "user", content: query }
       ],
-      signal
+      signal,
+      "EXECUTIVE"
     );
     const data = JSON.parse(raw || "{}");
     return {
@@ -404,7 +467,8 @@ How may I serve you today?`;
         { role: "system", content: `Suggest 4 products for the query. Return valid JSON only: { "summary": "", "items": [ { "name", "price", "rating", "source", "imageUrl", "link" } ] }. Use placeholder imageUrl like "https://placehold.co/400x400/161b22/FFF?text=Product" if needed. Language: ${langName}.` },
         { role: "user", content: query }
       ],
-      signal
+      signal,
+      "SHOPPER"
     );
     const data = JSON.parse(raw || "{}");
     const fixedItems = (data.items || []).map((i: any) => ({
@@ -469,7 +533,7 @@ How may I serve you today?`;
         content: `You are InBharat AI. Reply in ${lang.native} only, in 1-3 short sentences. Be conversational and warm. If the user asks for real-time data or something you cannot do in voice mode, briefly say you don't have live access here and suggest using the search bar with Research mode for up-to-date information.`
       },
       { role: "user", content: userText }
-    ])).trim();
+    ], undefined, "STANDARD")).trim();
     const audioBase64 = await this.textToSpeech(text, language);
     return { text, audioBase64 };
   }
@@ -479,7 +543,7 @@ How may I serve you today?`;
       const content = await callChat([
         { role: "system", content: "List 6 trending news stories in India. Return a JSON array of objects with keys: title, summary, url, category. Only valid JSON, no markdown." },
         { role: "user", content: "List 6 trending news stories in India." }
-      ]);
+      ], undefined, "RESEARCH");
       const parsed = JSON.parse(content);
       const arr = Array.isArray(parsed) ? parsed : parsed.articles || parsed.items || parsed.stories || [];
       return arr.slice(0, 6).map((a: any) => ({
