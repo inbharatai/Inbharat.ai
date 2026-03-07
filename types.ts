@@ -12,8 +12,7 @@ export enum AgentMode {
 export enum ViewMode {
   HOME = 'HOME',
   DISCOVER = 'DISCOVER',
-  LIBRARY = 'LIBRARY',
-  LIVE = 'LIVE'
+  LIBRARY = 'LIBRARY'
 }
 
 export interface Source {

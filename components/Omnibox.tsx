@@ -8,7 +8,6 @@ import { getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from
 
 interface OmniboxProps {
   onSearch: (query: string, mode: AgentMode, language: string, imageData?: string) => void;
-  onLiveClick: () => void;
   onSpeakToType?: (audioBlob: Blob) => Promise<string>;
   isLoading: boolean;
   disabled?: boolean;
@@ -20,23 +19,23 @@ interface OmniboxProps {
 
 const indianLanguages = [
   { code: "EN", label: "English" },
-  { code: "HI", label: "Hindi (हिन्दी)" },
-  { code: "BN", label: "Bengali (বাংলা)" },
-  { code: "TA", label: "Tamil (தமிழ்)" },
-  { code: "TE", label: "Telugu (తెలుగు)" },
-  { code: "MR", label: "Marathi (मराठी)" },
-  { code: "GU", label: "Gujarati (ગુજરાતી)" },
-  { code: "KN", label: "Kannada (ಕನ್ನಡ)" },
-  { code: "ML", label: "Malayalam (മലയാളം)" },
-  { code: "PA", label: "Punjabi (ਪੰਜਾਬੀ)" },
-  { code: "OR", label: "Odia (ଓଡ଼ିଆ)" },
-  { code: "UR", label: "Urdu (اردو)" },
-  { code: "AS", label: "Assamese (অসমীয়া)" },
-  { code: "SA", label: "Sanskrit (संस्कृतम्)" }
+  { code: "HI", label: "Hindi (\u0939\u093f\u0928\u094d\u0926\u0940)" },
+  { code: "BN", label: "Bengali (\u09ac\u09be\u0982\u09b2\u09be)" },
+  { code: "TA", label: "Tamil (\u0ba4\u0bae\u0bbf\u0bb4\u0bcd)" },
+  { code: "TE", label: "Telugu (\u0c24\u0c46\u0c32\u0c41\u0c17\u0c41)" },
+  { code: "MR", label: "Marathi (\u092e\u0930\u093e\u0920\u0940)" },
+  { code: "GU", label: "Gujarati (\u0a97\u0ac1\u0a9c\u0ab0\u0abe\u0aa4\u0ac0)" },
+  { code: "KN", label: "Kannada (\u0c95\u0ca8\u0ccd\u0ca8\u0ca1)" },
+  { code: "ML", label: "Malayalam (\u0d2e\u0d32\u0d2f\u0d3e\u0d33\u0d02)" },
+  { code: "PA", label: "Punjabi (\u0a2a\u0a70\u0a1c\u0a3e\u0a2c\u0a40)" },
+  { code: "OR", label: "Odia (\u0b13\u0b21\u0b3c\u0b3f\u0b06)" },
+  { code: "UR", label: "Urdu (\u0627\u0631\u062f\u0648)" },
+  { code: "AS", label: "Assamese (\u0985\u09b8\u09ae\u09c0\u09af\u09bc\u09be)" },
+  { code: "SA", label: "Sanskrit (\u0938\u0902\u0938\u094d\u0915\u0943\u0924\u092e\u094d)" }
 ];
 
 const Omnibox: React.FC<OmniboxProps> = ({ 
-  onSearch, onLiveClick, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange 
+  onSearch, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange 
 }) => {
   const [query, setQuery] = useState('');
   const [_isFocused, setIsFocused] = useState(false);
@@ -277,7 +276,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
         </div>
       )}
 
-      {/* Compact bar — Cursor-style: one slim row + optional voice row */}
+      {/* Compact bar Ã¢â‚¬â€ Cursor-style: one slim row + optional voice row */}
       <div className="rounded-xl sm:rounded-2xl border border-[#FF9933]/40 overflow-hidden bg-[#161b22] shadow-lg">
         <div className="flex items-center gap-2 px-2 sm:px-3 py-2 min-h-0">
           <button 
@@ -326,18 +325,6 @@ const Omnibox: React.FC<OmniboxProps> = ({
               {isSpeaking ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
           )}
-          <button
-            onClick={onLiveClick}
-            disabled={disabled}
-            className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg border flex items-center justify-center transition-all touch-manual ${
-              disabled
-                ? "bg-[#0d1117] border-[#30363d] text-gray-700 opacity-60 cursor-not-allowed"
-                : "bg-[#0d1117] border-[#30363d] text-[#FF9933] hover:bg-[#FF9933] hover:text-white"
-            }`}
-            title="Live"
-          >
-            <Mic size={14} />
-          </button>
           <div className={`flex-shrink-0 w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-[#0d1117] border border-[#30363d] flex items-center justify-center relative group ${disabled ? "opacity-60" : ""}`}>
             <Languages size={12} className="text-[#FF9933]" />
             <select
@@ -364,6 +351,17 @@ const Omnibox: React.FC<OmniboxProps> = ({
             {isLoading ? <Zap size={14} className="animate-spin text-[#FF9933]" /> : <Send size={14} />}
           </button>
         </div>
+        {isSpeaking && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#0d1117] border-t border-[#30363d]">
+            <Globe size={12} className="text-[#FF9933] flex-shrink-0" />
+            <span className="text-[9px] font-bold text-gray-300">Listening...</span>
+            <div className="flex items-center gap-1">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="w-1 h-2 bg-[#FF9933] rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        )}
         {(speakError) && <p className="text-[10px] text-red-400/90 px-3 pb-1">{speakError}</p>}
       </div>
     </div>
