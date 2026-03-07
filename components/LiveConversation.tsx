@@ -189,7 +189,7 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
               const audio = new Audio(audioUrl);
               currentAudioRef.current = audio;
               audio.onended = () => { URL.revokeObjectURL(audioUrl); currentAudioRef.current = null; setStatus('idle'); };
-              audio.onerror = () => { URL.revokeObjectURL(audioUrl); currentAudioRef.current = null; setStatus('idle'); setTtsErrorMessage('Speech playback failed. Tap play to retry.'); updatePendingAudioUrl(audioUrl); };
+              audio.onerror = () => { currentAudioRef.current = null; setStatus('idle'); setTtsErrorMessage('Speech playback failed. Tap play to retry.'); updatePendingAudioUrl(audioUrl); };
               try {
                 await audio.play();
               } catch {
@@ -265,7 +265,6 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
             setStatus('idle');
           };
           audio.onerror = () => {
-            URL.revokeObjectURL(audioUrl);
             currentAudioRef.current = null;
             setStatus('idle');
             setTtsErrorMessage('Speech playback failed. Tap play to retry.');
