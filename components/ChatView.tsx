@@ -290,6 +290,59 @@ const ChatView: React.FC<ChatViewProps> = ({
               </div>
 
               <div className="flex-1 min-w-0 space-y-6">
+                {/* Sources */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="rounded-2xl border border-[#30363d]/50 bg-[#0d1117]/50 p-4 sm:p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Layers size={12} className="text-[#FF9933]/80 flex-shrink-0" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Verified sources</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {msg.sources.map((s, idx) => (
+                        <SourceCard key={idx} source={s} index={idx} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {msg.role === 'assistant' && (!msg.sources || msg.sources.length === 0) && msgIdx === messages.length - 1 && msgIdx > 0 && messages[msgIdx - 1].role === 'user' && (
+                  <p className="text-xs text-gray-500 mt-1">Add SERPER_API_KEY in Vercel to get live links and verified sources.</p>
+                )}
+
+                {/* Answer body */}
+                <div className="rounded-2xl border border-[#30363d]/40 bg-[#161b22]/60 px-4 sm:px-6 py-4 sm:py-5 shadow-sm">
+                  {msg.widget && (
+                    <div className="mb-5 animate-in slide-in-from-left-3 duration-400">
+                      <AgentWidgetRenderer data={msg.widget} />
+                    </div>
+                  )}
+                  {msg.role === 'assistant' && msg.mode === AgentMode.CODER && (
+                    <CoderResponsePanel content={msg.content} />
+                  )}
+                  <div className="prose prose-invert prose-orange max-w-none text-[#e6edf3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#FF9933]">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.role === 'assistant' && msg.mode === AgentMode.CODER ? stripCodeBlocks(msg.content) : msg.content}
+                    </ReactMarkdown>
+                  </div>
+                  {msg.imageUrl && (
+                    <div className="mt-6 rounded-2xl overflow-hidden border border-[#30363d] bg-[#0d1117] shadow-lg">
+                      <img src={msg.imageUrl} alt="Generation" className="w-full h-auto" />
+                      <div className="px-3 py-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-t border-[#30363d]/50">
+                        <TricolourStar size={12} />
+                        Neural Render
+                      </div>
+                    </div>
+                  )}
+                  {msg.videoUrl && (
+                    <div className="mt-6 rounded-2xl overflow-hidden border border-[#30363d] bg-black aspect-video relative">
+                      <video src={msg.videoUrl} controls autoPlay loop muted className="w-full h-full object-cover" />
+                      <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                        Video
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Actions: Copy, Regenerate, Retry + Voice */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
@@ -372,59 +425,6 @@ const ChatView: React.FC<ChatViewProps> = ({
                         Regenerate
                       </button>
                     )
-                  )}
-                </div>
-
-                {/* Sources */}
-                {msg.sources && msg.sources.length > 0 && (
-                  <div className="rounded-2xl border border-[#30363d]/50 bg-[#0d1117]/50 p-4 sm:p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Layers size={12} className="text-[#FF9933]/80 flex-shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Verified sources</span>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {msg.sources.map((s, idx) => (
-                        <SourceCard key={idx} source={s} index={idx} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {msg.role === 'assistant' && (!msg.sources || msg.sources.length === 0) && msgIdx === messages.length - 1 && msgIdx > 0 && messages[msgIdx - 1].role === 'user' && (
-                  <p className="text-xs text-gray-500 mt-1">Add SERPER_API_KEY in Vercel to get live links and verified sources.</p>
-                )}
-
-                {/* Answer body */}
-                <div className="rounded-2xl border border-[#30363d]/40 bg-[#161b22]/60 px-4 sm:px-6 py-4 sm:py-5 shadow-sm">
-                  {msg.widget && (
-                    <div className="mb-5 animate-in slide-in-from-left-3 duration-400">
-                      <AgentWidgetRenderer data={msg.widget} />
-                    </div>
-                  )}
-                  {msg.role === 'assistant' && msg.mode === AgentMode.CODER && (
-                    <CoderResponsePanel content={msg.content} />
-                  )}
-                  <div className="prose prose-invert prose-orange max-w-none text-[#e6edf3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#FF9933]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.role === 'assistant' && msg.mode === AgentMode.CODER ? stripCodeBlocks(msg.content) : msg.content}
-                    </ReactMarkdown>
-                  </div>
-                  {msg.imageUrl && (
-                    <div className="mt-6 rounded-2xl overflow-hidden border border-[#30363d] bg-[#0d1117] shadow-lg">
-                      <img src={msg.imageUrl} alt="Generation" className="w-full h-auto" />
-                      <div className="px-3 py-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-t border-[#30363d]/50">
-                        <TricolourStar size={12} />
-                        Neural Render
-                      </div>
-                    </div>
-                  )}
-                  {msg.videoUrl && (
-                    <div className="mt-6 rounded-2xl overflow-hidden border border-[#30363d] bg-black aspect-video relative">
-                      <video src={msg.videoUrl} controls autoPlay loop muted className="w-full h-full object-cover" />
-                      <div className="absolute top-3 left-3 px-3 py-1.5 bg-black/60 backdrop-blur rounded-lg text-[10px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
-                        Video
-                      </div>
-                    </div>
                   )}
                 </div>
 
