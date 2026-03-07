@@ -150,7 +150,7 @@ const ChatView: React.FC<ChatViewProps> = ({
       audio.onerror = () => { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; };
       currentAudioRef.current = audio;
       setPlayingId(message.id);
-      await audio.play();
+      try { await audio.play(); } catch { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; }
       return;
     }
 
@@ -173,7 +173,7 @@ const ChatView: React.FC<ChatViewProps> = ({
           audio.onerror = () => { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; };
           currentAudioRef.current = audio;
           setPlayingId(message.id);
-          await audio.play();
+          try { await audio.play(); } catch { setPlayingId(null); setAudioErrorId(message.id); currentAudioRef.current = null; }
         } else {
           setAudioErrorId(message.id);
         }

@@ -34,6 +34,8 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isOutputMuted, setIsOutputMuted] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [ttsErrorMessage, setTtsErrorMessage] = useState('');
+  const [pendingAudioUrl, setPendingAudioUrl] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -46,6 +48,24 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
   const animationIdRef = useRef<number>(0);
   const isOutputMutedRef = useRef(false);
   useEffect(() => { isOutputMutedRef.current = isOutputMuted; }, [isOutputMuted]);
+  const pendingAudioUrlRef = useRef<string | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const updatePendingAudioUrl = (next: string | null) => {
+    const prev = pendingAudioUrlRef.current;
+    if (prev && prev !== next) URL.revokeObjectURL(prev);
+    pendingAudioUrlRef.current = next;
+    setPendingAudioUrl(next);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (pendingAudioUrlRef.current) URL.revokeObjectURL(pendingAudioUrlRef.current);
+      if (currentAudioRef.current) {
+        try { currentAudioRef.current.pause(); } catch { /* ignore */ }
+      }
+    };
+  }, []);
 
   const requestMic = async (): Promise<boolean> => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -119,6 +139,8 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
     setUserText('');
     setAiText('');
     setErrorMessage('');
+    setTtsErrorMessage('');
+    updatePendingAudioUrl(null);
 
     // Try native SpeechRecognition first (instant, zero-latency)
     const SRConstructor = getNativeSpeechRecognition();
@@ -155,15 +177,28 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           if (!text) { setStatus('idle'); return; }
           setStatus('processing');
           try {
-            const { text: aiReply, audioUrl } = await agentRef.current.liveReply(text, currentLanguage);
+            const { text: aiReply, audioUrl, ttsError } = await agentRef.current.liveReply(text, currentLanguage);
             setAiText(aiReply);
-            setStatus('speaking');
+            if (ttsError) {
+              setTtsErrorMessage('Speech unavailable right now. Try again or tap play if shown.');
+              setStatus('idle');
+              return;
+            }
             if (audioUrl && !isOutputMutedRef.current) {
+              setStatus('speaking');
               const audio = new Audio(audioUrl);
-              audio.onended = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
-              audio.onerror = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
-              try { await audio.play(); } catch { setStatus('idle'); }
+              currentAudioRef.current = audio;
+              audio.onended = () => { URL.revokeObjectURL(audioUrl); currentAudioRef.current = null; setStatus('idle'); };
+              audio.onerror = () => { URL.revokeObjectURL(audioUrl); currentAudioRef.current = null; setStatus('idle'); setTtsErrorMessage('Speech playback failed. Tap play to retry.'); updatePendingAudioUrl(audioUrl); };
+              try {
+                await audio.play();
+              } catch {
+                setStatus('idle');
+                setTtsErrorMessage('Tap play to hear the reply.');
+                updatePendingAudioUrl(audioUrl);
+              }
             } else {
+              if (!audioUrl) setTtsErrorMessage('Speech unavailable for this reply.');
               setStatus('idle');
             }
           } catch (err: unknown) {
@@ -213,18 +248,38 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           setStatus('idle');
           return;
         }
-        const { text: aiReply, audioUrl } = await agentRef.current.liveReply(text, currentLanguage);
+        const { text: aiReply, audioUrl, ttsError } = await agentRef.current.liveReply(text, currentLanguage);
         setAiText(aiReply);
-        setStatus('speaking');
+        if (ttsError) {
+          setTtsErrorMessage('Speech unavailable right now. Try again or tap play if shown.');
+          setStatus('idle');
+          return;
+        }
         if (audioUrl && !isOutputMutedRef.current) {
+          setStatus('speaking');
           const audio = new Audio(audioUrl);
+          currentAudioRef.current = audio;
           audio.onended = () => {
             URL.revokeObjectURL(audioUrl);
+            currentAudioRef.current = null;
             setStatus('idle');
           };
-          audio.onerror = () => { URL.revokeObjectURL(audioUrl); setStatus('idle'); };
-          try { await audio.play(); } catch { setStatus('idle'); }
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioUrl);
+            currentAudioRef.current = null;
+            setStatus('idle');
+            setTtsErrorMessage('Speech playback failed. Tap play to retry.');
+            updatePendingAudioUrl(audioUrl);
+          };
+          try {
+            await audio.play();
+          } catch {
+            setStatus('idle');
+            setTtsErrorMessage('Tap play to hear the reply.');
+            updatePendingAudioUrl(audioUrl);
+          }
         } else {
+          if (!audioUrl) setTtsErrorMessage('Speech unavailable for this reply.');
           setStatus('idle');
         }
       } catch (err: unknown) {
@@ -232,6 +287,32 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
       }
     };
     recorder.start(200);
+  };
+
+  const handlePlayPending = async () => {
+    const audioUrl = pendingAudioUrlRef.current;
+    if (!audioUrl) return;
+    setTtsErrorMessage('');
+    setStatus('speaking');
+    const audio = new Audio(audioUrl);
+    currentAudioRef.current = audio;
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      currentAudioRef.current = null;
+      updatePendingAudioUrl(null);
+      setStatus('idle');
+    };
+    audio.onerror = () => {
+      currentAudioRef.current = null;
+      setStatus('idle');
+      setTtsErrorMessage('Speech playback failed. Try again.');
+    };
+    try {
+      await audio.play();
+    } catch {
+      setStatus('idle');
+      setTtsErrorMessage('Tap play to hear the reply.');
+    }
   };
 
   const stopRecording = () => {
@@ -382,6 +463,10 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
             )}
           </div>
 
+          {ttsErrorMessage && status !== 'error' && (
+            <div className="text-xs text-red-400/90">{ttsErrorMessage}</div>
+          )}
+
           <div className="flex justify-center min-h-[2.5rem]">
             {userText && (
               <p className="text-xs sm:text-sm font-medium text-white/70 italic animate-in slide-in-from-bottom-4 duration-500 px-2 break-words">
@@ -398,6 +483,15 @@ const LiveConversation: React.FC<LiveConversationProps> = ({ onClose, language: 
           >
             {isOutputMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
           </button>
+
+          {pendingAudioUrl && !isOutputMuted && (
+            <button
+              onClick={handlePlayPending}
+              className="px-4 py-2 min-h-[44px] rounded-full bg-[#138808]/20 border border-[#138808]/40 text-[#138808] text-xs font-bold uppercase tracking-wider shadow-lg hover:bg-[#138808]/30 touch-manual"
+            >
+              Play reply
+            </button>
+          )}
 
           <button
             onClick={handleMicClick}

@@ -68,6 +68,14 @@ function toSanitizedFromApi(status: number, payload: unknown): OpenAISanitizedEr
   return new OpenAISanitizedError("SERVER_ERROR");
 }
 
+function toSanitizedFromTts(status: number): OpenAISanitizedError {
+  if (status === 429) return new OpenAISanitizedError("RATE_LIMIT", RETRY_AFTER_CAP_SEC);
+  if (status === 503) return new OpenAISanitizedError("UPSTREAM_OVERLOADED", RETRY_AFTER_CAP_SEC);
+  if (status === 401) return new OpenAISanitizedError("UNAUTHORIZED");
+  if (status === 403) return new OpenAISanitizedError("AUTH_ERROR");
+  return new OpenAISanitizedError("SERVER_ERROR");
+}
+
 async function callChat(messages: unknown[], signal?: AbortSignal, mode?: string, stream?: boolean): Promise<string> {
   try {
     const { status, json } = await postJson<ChatApiOk | ChatApiErr>("/api/chat", { messages, mode, stream: stream ?? false }, signal);
@@ -197,8 +205,8 @@ export function normalizeForTTS(text: string): string {
   t = t.replace(/@/g, ' at ');
   // Strip URLs
   t = t.replace(/https?:\/\/\S+/g, '');
-  // Strip remaining non-speech characters but keep basic punctuation and Indic scripts (\u0900-\u0D7F)
-  t = t.replace(/[^\w\s.,!?;:'"()\u0900-\u0D7F।-]/g, ' ');
+  // Strip remaining non-speech characters but keep basic punctuation, Indic scripts, and Urdu/Arabic ranges
+  t = t.replace(/[^\w\s.,!?;:'"()\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0900-\u0D7F۔-]/g, ' ');
   // Collapse whitespace
   t = t.replace(/\s{2,}/g, ' ').trim();
   return t;
@@ -588,31 +596,28 @@ How may I serve you today?`;
   }
 
   /** Fetch a single TTS chunk as raw ArrayBuffer. */
-  private async fetchTTSChunkBuffer(text: string, voice: string, signal?: AbortSignal): Promise<ArrayBuffer | undefined> {
-    try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ text, voice }),
-        signal,
-      });
-      if (!res.ok) return undefined;
-      const buffer = await res.arrayBuffer();
-      if (!buffer.byteLength) return undefined;
-      return buffer;
-    } catch {
-      return undefined;
-    }
+  private async fetchTTSChunkBuffer(text: string, voice: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+    const token = await getAccessToken();
+    const res = await fetch("/api/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ text, voice }),
+      signal,
+    });
+    if (!res.ok) throw toSanitizedFromTts(res.status);
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("audio/mpeg")) throw new OpenAISanitizedError("SERVER_ERROR");
+    const buffer = await res.arrayBuffer();
+    if (!buffer.byteLength) throw new OpenAISanitizedError("SERVER_ERROR");
+    return buffer;
   }
 
   /** Fetch a single TTS chunk. Returns a blob URL for the audio. */
-  private async fetchTTSChunk(text: string, voice: string, signal?: AbortSignal): Promise<string | undefined> {
+  private async fetchTTSChunk(text: string, voice: string, signal?: AbortSignal): Promise<string> {
     const buffer = await this.fetchTTSChunkBuffer(text, voice, signal);
-    if (!buffer) return undefined;
     return URL.createObjectURL(new Blob([buffer], { type: 'audio/mpeg' }));
   }
 
@@ -638,7 +643,7 @@ How may I serve you today?`;
     language: string,
     onChunkReady: (buffer: ArrayBuffer, index: number, total: number) => void | Promise<void>,
     onDone: () => void,
-    onError: () => void
+    onError: (err?: unknown) => void
   ): AbortController {
     const controller = new AbortController();
     const voice = languageToVoice[language] || "nova";
@@ -648,22 +653,26 @@ How may I serve you today?`;
     const total = chunks.length;
 
     // Fire ALL fetches in parallel — no waiting between requests
-    const promises = chunks.map(chunk =>
-      this.fetchTTSChunkBuffer(chunk, voice, controller.signal)
-    );
+    const promises = chunks.map(async (chunk) => {
+      try {
+        return { buffer: await this.fetchTTSChunkBuffer(chunk, voice, controller.signal) };
+      } catch (err) {
+        return { error: err };
+      }
+    });
 
     // Deliver results strictly in order, awaiting callback for sequential decode
     (async () => {
       for (let i = 0; i < promises.length; i++) {
         if (controller.signal.aborted) return;
-        const buffer = await promises[i];
+        const result = await promises[i];
         if (controller.signal.aborted) return;
-        if (buffer) {
-          await onChunkReady(buffer, i, total);
-        } else {
-          onError();
-          return;
+        if (result && "buffer" in result && result.buffer) {
+          await onChunkReady(result.buffer, i, total);
+          continue;
         }
+        onError((result as { error?: unknown })?.error);
+        return;
       }
       onDone();
     })();
@@ -693,7 +702,7 @@ How may I serve you today?`;
     throw toSanitizedFromApi(status, json);
   }
 
-  async liveReply(userText: string, language: string): Promise<{ text: string; audioUrl?: string }> {
+  async liveReply(userText: string, language: string): Promise<{ text: string; audioUrl?: string; ttsError?: OpenAISanitizedError }> {
     const lang = languageDetails[language] || languageDetails["EN"];
     const text = (await callChat([
       {
@@ -702,8 +711,13 @@ How may I serve you today?`;
       },
       { role: "user", content: userText }
     ], undefined, "STANDARD")).trim();
-    const audioUrl = await this.textToSpeech(text, language);
-    return { text, audioUrl };
+    try {
+      const audioUrl = await this.textToSpeech(text, language);
+      return { text, audioUrl };
+    } catch (err: unknown) {
+      if (err instanceof OpenAISanitizedError) return { text, ttsError: err };
+      return { text, ttsError: new OpenAISanitizedError("SERVER_ERROR") };
+    }
   }
 
   async fetchTrendingNews(): Promise<NewsArticle[]> {
