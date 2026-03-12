@@ -528,7 +528,7 @@ const App: React.FC = () => {
                   <div className="w-20 sm:w-24 h-px bg-gradient-to-r from-[#FF9933] via-white/80 to-[#138808] mb-3 sm:mb-4" />
                   <p className="text-[9px] sm:text-[10px] md:text-xs font-medium uppercase text-[#A0A0A0] max-w-[90vw] sm:max-w-lg px-2 flex flex-col items-center justify-center gap-y-0.5">
                     <span className="tracking-[0.15em] sm:tracking-[0.25em] flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4">
-                      <span>S O V E R E I G N</span>
+                      <span>A I</span>
                       <span>I N T E L L I G E N C E</span>
                     </span>
                     <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>

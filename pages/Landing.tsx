@@ -112,7 +112,7 @@ const Landing: React.FC = () => {
           <div className="w-16 sm:w-20 h-0.5 bg-gradient-to-r from-[#FF9933] via-white/80 to-[#138808] mx-auto mb-3" />
           <p className="text-[9px] sm:text-[10px] font-medium uppercase text-gray-500 max-w-lg mx-auto mb-6 flex flex-col items-center justify-center gap-y-0.5">
             <span className="tracking-[0.15em] sm:tracking-[0.25em] flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4">
-              <span>S O V E R E I G N</span>
+              <span>A I</span>
               <span>I N T E L L I G E N C E</span>
             </span>
             <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
@@ -330,7 +330,7 @@ const Landing: React.FC = () => {
             </h2>
             <p className="text-[9px] sm:text-[10px] font-medium uppercase text-gray-500 mb-4 flex flex-col items-center justify-center gap-y-0.5">
               <span className="tracking-[0.15em] flex flex-wrap items-center justify-center gap-x-3">
-                <span>S O V E R E I G N</span>
+                <span>A I</span>
                 <span>I N T E L L I G E N C E</span>
               </span>
               <span className="tracking-[0.15em]">F O R</span>
