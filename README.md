@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**Sovereign Intelligence for Bharat**
+**AI Intelligence for Bharat**
 
 Agentic search, voice-first interaction, and multilingual AI — built for every Indian.
 

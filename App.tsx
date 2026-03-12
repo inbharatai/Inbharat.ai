@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './lib/auth';
-import { Message, AgentMode, ChatSession, ViewMode } from './types';
+import { Message, AgentMode, ChatSession, ViewMode, Source } from './types';
 import { NexusAgent, OpenAISanitizedError } from './services/openaiService';
+import { orchestrateStream } from './lib/orchestration/client';
 import { loadSessions, createSession, appendMessage } from './lib/chatStorage';
 import Omnibox from './components/Omnibox';
 import ChatView from './components/ChatView';
-import LiveConversation from './components/LiveConversation';
 import Sidebar from './components/Sidebar';
 import NewsFeed from './components/NewsFeed';
 import TricolourStar from './components/TricolourStar';
@@ -188,27 +188,121 @@ const App: React.FC = () => {
       }
     };
 
+    // Declared outside try so catch block can reference them
+    const assistantMsgId = crypto.randomUUID();
+    let streamedText = "";
+    let streamedSources: Source[] = [];
+    let streamedFollowUps: string[] = [];
+    let hasStarted = false;
+
     try {
       const currentSession = isGuest ? guestSession : sessions.find(s => s.id === targetSessionId);
-      // Extract previous assistant messages for context (skip the user message we just added)
+      // Extract previous messages for context — trim to last 20 to avoid oversized payloads
       const previousMessages = (currentSession?.messages || [])
         .filter(m => m.role !== 'user' || m.id !== userMsg.id)
-        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      
-      const result = await agentRef.current.executeQuery(query, mode, language || appLanguage, imageData, signal, previousMessages);
-      if (signal.aborted) return;
-      const assistantMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: result.text,
-        sources: result.sources,
-        followUps: result.followUps,
-        imageUrl: result.imageUrl,
-        videoUrl: result.videoUrl,
-        widget: result.widget,
-        mode,
+        .slice(-20)
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 2000) }));
+
+      // Use streaming orchestration for Perplexity-style UX:
+      // Sources arrive first → text streams in real-time → follow-ups at end
+
+      const updateStreamingMessage = () => {
+        const streamMsg: Message = {
+          id: assistantMsgId,
+          role: "assistant",
+          content: streamedText,
+          sources: streamedSources,
+          followUps: streamedFollowUps,
+          mode,
+          isStreaming: true,
+        };
+        if (isGuest && targetGuestSession) {
+          setGuestSession((prev) => {
+            if (!prev) return null;
+            const msgs = hasStarted
+              ? prev.messages.map(m => m.id === assistantMsgId ? streamMsg : m)
+              : [...prev.messages, streamMsg];
+            return { ...prev, messages: msgs };
+          });
+        } else if (targetSessionId) {
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id !== targetSessionId) return s;
+              const msgs = hasStarted
+                ? s.messages.map(m => m.id === assistantMsgId ? streamMsg : m)
+                : [...s.messages, streamMsg];
+              return { ...s, messages: msgs };
+            })
+          );
+        }
+        hasStarted = true;
       };
-      appendToSession(assistantMsg);
+
+      await new Promise<void>((resolve, reject) => {
+        const streamController = orchestrateStream(
+          query, mode, language || appLanguage,
+          {
+            onSources: (sources) => {
+              // Accumulate sources from multiple workflow steps (deduplicate by URI)
+              const existingUris = new Set(streamedSources.map(s => s.uri));
+              const newSources = sources.filter((s: Source) => !existingUris.has(s.uri));
+              streamedSources = [...streamedSources, ...newSources];
+              updateStreamingMessage();
+            },
+            onChunk: (chunk) => {
+              streamedText += chunk;
+              updateStreamingMessage();
+            },
+            onFollowUps: (followUps) => {
+              streamedFollowUps = followUps;
+              updateStreamingMessage();
+            },
+            onDone: (finalText) => {
+              streamedText = finalText || streamedText;
+              // Final non-streaming message
+              const assistantMsg: Message = {
+                id: assistantMsgId,
+                role: "assistant",
+                content: streamedText,
+                sources: streamedSources,
+                followUps: streamedFollowUps,
+                mode,
+                isStreaming: false,
+              };
+              // Replace the streaming message with the final one
+              if (isGuest && targetGuestSession) {
+                setGuestSession((prev) => {
+                  if (!prev) return null;
+                  return { ...prev, messages: prev.messages.map(m => m.id === assistantMsgId ? assistantMsg : m) };
+                });
+              } else if (targetSessionId) {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    if (s.id !== targetSessionId) return s;
+                    return { ...s, messages: s.messages.map(m => m.id === assistantMsgId ? assistantMsg : m) };
+                  })
+                );
+                appendMessage(targetSessionId, assistantMsg).catch((err) => console.error("Failed to persist message:", err));
+              }
+              resolve();
+            },
+            onError: (err) => {
+              reject(new Error(err));
+            },
+          },
+          {
+            imageData,
+            sessionId: targetSessionId ?? undefined,
+            previousMessages,
+            signal,
+          },
+        );
+
+        // Wire abort
+        if (signal) {
+          signal.addEventListener("abort", () => streamController.abort());
+        }
+      });
     } catch (error: unknown) {
       if ((error as { name?: string })?.name === "AbortError") return;
       const errMsgText = (error as Error)?.message ?? String(error);
@@ -244,18 +338,37 @@ const App: React.FC = () => {
       } else {
         content = "The request failed. Check your API key and connection, then tap Retry.";
       }
+      // Replace the stuck streaming message (if any) instead of appending a new one
       const errMsg: Message = {
-        id: crypto.randomUUID(),
+        id: assistantMsgId,
         role: "assistant",
         content,
-        mode: AgentMode.RESEARCH,
+        mode,
+        isStreaming: false,
         ...(sanitized && {
           errorCode: sanitized.code,
           retryAfterSeconds: sanitized.retryAfterSeconds,
           errorShownAt: Date.now(),
         }),
       };
-      appendToSession(errMsg);
+      if (hasStarted) {
+        // Streaming message exists — replace it with the error
+        if (isGuest && targetGuestSession) {
+          setGuestSession((prev) => {
+            if (!prev) return null;
+            return { ...prev, messages: prev.messages.map(m => m.id === assistantMsgId ? errMsg : m) };
+          });
+        } else if (targetSessionId) {
+          setSessions((prev) =>
+            prev.map((s) => {
+              if (s.id !== targetSessionId) return s;
+              return { ...s, messages: s.messages.map(m => m.id === assistantMsgId ? errMsg : m) };
+            })
+          );
+        }
+      } else {
+        appendToSession(errMsg);
+      }
     } finally {
       abortRef.current = null;
       setIsLoading(false);
@@ -290,10 +403,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen h-dvh sm:h-screen w-full max-w-[100vw] bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden overflow-y-auto relative touch-manual">
-      {/* Live Overlay */}
-      {viewMode === ViewMode.LIVE && (
-        <LiveConversation onClose={() => setViewMode(ViewMode.HOME)} language={appLanguage} />
-      )}
 
       <Sidebar 
         isOpen={isSidebarOpen}
@@ -362,16 +471,10 @@ const App: React.FC = () => {
               >
                 <Settings size={20} />
               </button>
-             <button
-                onClick={() => {
-                  if (!isSignedIn) return;
-                  setViewMode(ViewMode.LIVE);
-                }}
-                className="w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all shadow-lg overflow-hidden group touch-manual"
-                aria-label="Voice mode"
-              >
-                <TricolourStar size={20} className="group-hover:scale-125 transition-transform" />
-              </button>
+             <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#161b22] border border-[#30363d] rounded-xl opacity-50">
+               <Globe size={16} className="text-blue-400 flex-shrink-0" />
+               <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">Voice in Chat</span>
+             </div>
              {isSignedIn ? (
                <div className="flex items-center gap-2">
                  <span className="hidden sm:inline text-xs text-gray-500 max-w-[180px] truncate">
@@ -483,10 +586,7 @@ const App: React.FC = () => {
           <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 py-2 sm:py-3 pointer-events-auto">
             <Omnibox 
               onSearch={handleSearch} 
-              onLiveClick={() => {
 
-                setViewMode(ViewMode.LIVE);
-              }} 
               onSpeakToType={
                 async (blob) => (await agentRef.current?.transcribe(blob, appLanguage)) ?? ''
               }

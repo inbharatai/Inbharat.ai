@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { runWithRetry } from "./lib/openaiRetry.js";
+import { getToolAuditLog, getToolStats } from "../lib/orchestration/toolRouter.js";
 
 /**
  * GET /api/health — observability. Never leaks secrets.
@@ -44,10 +45,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // Tool dispatch stats (from in-memory audit ring buffer)
+  const toolStats = getToolStats();
+  const recentTools = getToolAuditLog(10);
+
   const healthy = hasSupabaseAdmin && (hasSerper || hasOpenAI);
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json({
     ok: healthy,
+    toolStats,
+    recentToolCalls: recentTools,
     ...(healthy
       ? {}
       : {

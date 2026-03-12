@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Volume2, Trash2 } from "lucide-react";
-import { getVoiceSettings, setVoiceSettings, type VoiceSettings } from "../lib/settings";
+import { X, Volume2, Trash2, Mic } from "lucide-react";
+import { getVoiceSettings, setVoiceSettings, VOICE_OPTIONS, type VoiceSettings } from "../lib/settings";
 import { clearSearchCache } from "../services/openaiService";
 
 interface SettingsPanelProps {
@@ -58,6 +58,63 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             />
             <p className="text-xs text-gray-500 mt-1">{settings.speechRate.toFixed(1)}x</p>
           </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+              <Mic size={16} className="text-[#FF9933]" />
+              Voice
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {VOICE_OPTIONS.map((v) => (
+                <button
+                  key={v.value}
+                  type="button"
+                  onClick={() => update({ voice: v.value })}
+                  className={`px-3 py-2.5 rounded-xl border text-left transition-all text-xs ${
+                    settings.voice === v.value
+                      ? "bg-[#FF9933]/15 border-[#FF9933]/50 text-[#FF9933]"
+                      : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:border-[#FF9933]/30 hover:text-gray-200"
+                  }`}
+                >
+                  <span className="font-bold block">{v.label}</span>
+                  <span className="text-[10px] opacity-70">{v.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+              <Volume2 size={16} className="text-[#FF9933]" />
+              TTS quality
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => update({ ttsModel: "tts-1" })}
+                className={`flex-1 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  settings.ttsModel === "tts-1"
+                    ? "bg-[#FF9933]/15 border-[#FF9933]/50 text-[#FF9933]"
+                    : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:border-[#FF9933]/30"
+                }`}
+              >
+                Standard
+              </button>
+              <button
+                type="button"
+                onClick={() => update({ ttsModel: "tts-1-hd" })}
+                className={`flex-1 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  settings.ttsModel === "tts-1-hd"
+                    ? "bg-[#FF9933]/15 border-[#FF9933]/50 text-[#FF9933]"
+                    : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:border-[#FF9933]/30"
+                }`}
+              >
+                HD
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-1">HD provides higher quality but is slower</p>
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-300">Auto-read AI responses</span>
             <button

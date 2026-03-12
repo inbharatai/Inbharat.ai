@@ -1,5 +1,6 @@
 import { AgentMode, Source, NewsArticle, WidgetData } from "../types";
 import { supabase } from "../lib/supabaseClient";
+import { getVoiceSettings } from "../lib/settings";
 
 /** Sanitized error codes never expose raw upstream messages. */
 export type OpenAISanitizedCode =
@@ -400,52 +401,131 @@ export class NexusAgent {
     if ((mode === AgentMode.SHOPPER || mode === AgentMode.STANDARD) && (qLower.includes("buy") || qLower.includes("price") || qLower.includes("shop for") || (qLower.includes("best") && qLower.includes("for money"))))
       return await this.handleShoppingAgent(query, lang.name, signal);
 
-    // Greeting: return sovereign welcome without web search (no LLM call for "Hi")
+    // Greeting: return welcome without web search (no LLM call for "Hi")
     const trimmed = query.trim();
     const isGreeting = trimmed.length <= 50 && /^(hi|hello|hey|namaste|namaskar|hola|greetings?|good\s+(morning|afternoon|evening)|hiya|howdy)\.?!?\s*$/i.test(trimmed.replace(/\s+/g, " "));
     if (isGreeting)
       return this.handleGreeting(language);
 
     const { results: searchResults, sources } = await webSearch(query, signal);
-    const searchContext = searchResults.length
-      ? "\n\nRecent web search results (use to ground your answer):\n" + searchResults.map((r: any) => `[${r.title}](${r.link})\n${r.snippet || ""}`).join("\n\n")
+
+    // Build numbered source context for Perplexity-grade inline citations
+    const hasSources = searchResults.length > 0;
+    const sourceCount = searchResults.length;
+    const sourceContext = hasSources
+      ? "\n\n---\nSEARCH RESULTS:\n" + searchResults.map((r: any, i: number) =>
+          `[${i + 1}] ${r.title}\nURL: ${r.link}\n${r.snippet || ""}`
+        ).join("\n\n") + "\n---"
       : "";
 
-    const recencyKeywords = /\b(current|latest|today|recent|now|this week|this month|breaking|live|update|newest|2025|right now|as of today|recently|just announced)\b/i;
+    const recencyKeywords = /\b(current|latest|today|recent|now|this week|this month|breaking|live|update|newest|2025|2026|right now|as of today|recently|just announced)\b/i;
     const wantsLiveInfo = recencyKeywords.test(query);
 
-    const researchHint = mode === AgentMode.RESEARCH
-      ? "Prioritize recent, cited information. Include inline [Title](url) from the provided search results when available. Prefer recent, verifiable sources; if search results are provided, use them as the primary basis for your answer. "
-      : "";
-    const coderHint = mode === AgentMode.CODER
-      ? "You are in Coder mode. Provide clear step-by-step instructions (numbered steps) and complete, runnable code in fenced code blocks. Specify language (e.g. python, javascript). If the request is ambiguous, ask one clarifying question or assume a minimal example. Do not invent APIs or package names; prefer standard library or well-known libraries. If you are not sure about a library or API, say so and give a minimal, safe example. End with FOLLOW_UP: lines for related coding follow-ups (e.g. Explain this, Add error handling, Port to another language). "
-      : "";
-    const educatorHint = mode === AgentMode.EDUCATOR
-      ? "You are in Educator mode. Explain step-by-step, define terms when needed, and include a short example or analogy. Structure with clear headings. End with FOLLOW_UP: lines for practice or deeper questions. "
-      : "";
-    const browserHint = mode === AgentMode.BROWSER
-      ? "You are in Browser mode. Prioritize current, live information. Base your answer on the search results provided; cite with [Title](url). Do not rely on training data for recent events or stats. "
-      : "";
-    const citationRule = searchContext
-      ? "Use the search results above to ground your answer. Cite sources inline with [Title](url) where relevant. Do not invent URLs; use only the links from the search results. "
-      : "";
-    const liveOnlyRule = searchContext && wantsLiveInfo
-      ? "The user is asking for current or recent information. Base your answer ONLY on the search results provided; do not mix in facts from your training data for dates, numbers, or recent events. "
-      : "";
-    const noSearchRule = !searchContext
-      ? (wantsLiveInfo
-          ? "The user is asking for current or live information. You do NOT have real-time web results. Do not give specific statistics, dates, or 'current' facts from your training—they may be outdated. Say clearly that you don't have live access here, and suggest enabling web search (SERPER_API_KEY in Vercel) or using Research mode for up-to-date answers. Keep your reply short and helpful. "
-          : "You do not have live web results for this query. Answer from your knowledge. If the user needs real-time or verified links, briefly say they can try Research mode or ensure web search is enabled for live links. Do not claim you are incapable. ")
+    // ── Mode-specific expert instructions ──
+    const modeInstructions: Record<string, string> = {
+      [AgentMode.RESEARCH]: `## MODE: Deep Research Agent
+You are a world-class research analyst. Your responses rival Perplexity AI in depth, accuracy, and source attribution.
+- Synthesize information from MULTIPLE sources into a cohesive, authoritative analysis
+- Lead with the key finding or answer, then provide supporting evidence
+- Present conflicting viewpoints when sources disagree — note the disagreement explicitly
+- Distinguish verified facts (from search results) from general knowledge
+- Structure with clear sections: Summary → Analysis → Key Details → Implications
+- Every factual claim from a source MUST include its citation number`,
+
+      [AgentMode.CODER]: `## MODE: Expert Software Engineer
+You are a senior software engineer with deep expertise across all major languages and frameworks.
+- Provide complete, production-ready, runnable code in fenced code blocks with language tags
+- Include proper error handling, input validation, and edge cases
+- Follow current best practices and idiomatic patterns for the language
+- Brief explanation of approach BEFORE the code, then the implementation
+- Note dependencies, setup steps, and prerequisites clearly
+- If multiple approaches exist, recommend the best and briefly explain alternatives
+- Never invent APIs or package names — use standard/well-known libraries only`,
+
+      [AgentMode.EDUCATOR]: `## MODE: Expert Educator
+You are a world-class teacher who makes complex topics intuitive and engaging.
+- Start with a clear, accessible overview before diving into details
+- Use real-world analogies and examples to make concepts tangible
+- Build understanding progressively: intuition → fundamentals → nuances
+- Define technical terms the first time they appear (in parentheses)
+- Include a practical example, exercise, or thought experiment
+- Use visual aids: tables, comparisons, step-by-step breakdowns
+- Adapt complexity to the question's level — don't over-simplify advanced queries`,
+
+      [AgentMode.BROWSER]: `## MODE: Live Web Browser
+You are a real-time information specialist focused on current events and live data.
+- Base your answer EXCLUSIVELY on the provided search results
+- Do NOT mix in training data for dates, statistics, scores, or current events
+- Clearly timestamp information when available ("as of...", "according to...")
+- If search results are insufficient, explicitly say so rather than guessing
+- Prioritize the most recent and authoritative sources`,
+
+      [AgentMode.SHOPPER]: `## MODE: Shopping Advisor
+You are an expert product advisor helping users make informed purchase decisions.
+- Compare products objectively with clear pros and cons
+- Include price ranges, ratings, and key specifications in tables when possible
+- Highlight best-value options AND premium alternatives
+- Note important buying considerations (warranty, compatibility, availability)
+- Add relevant tips specific to the product category`,
+
+      [AgentMode.EXECUTIVE]: `## MODE: Executive Assistant
+You are a highly efficient executive assistant focused on actionable outcomes.
+- Provide structured, actionable output — respect the user's time
+- Use bullet points, numbered lists, and tables for clarity
+- Include clear next steps or action items
+- Be direct and precise — omit filler and pleasantries in the body`,
+
+      [AgentMode.STANDARD]: `## MODE: General Intelligence
+You are InBharat Ai's general intelligence — versatile, accurate, and well-structured.
+- Provide clear, comprehensive responses with good Markdown structure
+- Balance depth with readability — be thorough without being verbose
+- Use appropriate formatting: headers, lists, bold for emphasis
+- If the topic benefits from research, include analysis and context`,
+    };
+
+    const currentModeInstruction = modeInstructions[mode] || modeInstructions[AgentMode.STANDARD];
+
+    // ── Citation and accuracy rules ──
+    const citationRules = hasSources
+      ? `## CITATION RULES (CRITICAL — follow precisely):
+- You have ${sourceCount} search results numbered [1] through [${sourceCount}]
+- Cite inline using numbered references: [1], [2], [3] at the END of the relevant sentence
+- Example: "India's GDP grew 8.2% in Q1 FY2026 [1]."
+- Group multiple citations when a claim draws from several sources: "This was confirmed by multiple analysts [1][3]."
+- ONLY cite source numbers from the search results above — NEVER fabricate URLs or citation numbers
+- Every factual claim derived from a search result MUST include its citation number
+- If stating general knowledge not from search results, do NOT add a citation — just state it naturally` + (wantsLiveInfo
+        ? `\n- The user wants CURRENT information — base your answer primarily on search results, not training data for recent facts`
+        : "")
+      : (wantsLiveInfo
+        ? `## NOTE ON LIVE DATA:
+No search results are available. Do NOT provide specific current statistics, dates, scores, or "latest" data from training — it may be outdated. State clearly you don't have real-time access and recommend trying Research or Browser mode for live information.`
+        : `## NOTE:
+No search results available for this query. Answer from your training knowledge. Clearly distinguish well-established facts from information that may need verification. Do not fabricate URLs.`);
+
+    const visionRule = imageData
+      ? `\n## IMAGE ANALYSIS:
+The user provided an image. Analyze it thoroughly — extract any text, identify visual elements, describe relevant details, and integrate insights with your text response.`
       : "";
 
-    const accuracyRule = "Be precise: only state facts you can support from the context above or clearly label as general knowledge. Do not invent statistics, dates, or URLs. ";
-    const visionRule = imageData
-      ? "The user has provided an image. Analyze it carefully and describe relevant visual elements. If the image contains text, extract and process it. Integrate image insights with your text-based analysis. "
-      : "";
-    
-    const systemContent = `You are InBharat Ai (Desh Ka AI), a sovereign intelligence node for Bharat. You provide accurate, culturally nuanced insights and prefer a Bharat-first lens for policy, economy, and culture. Respond ONLY in ${lang.native} (${lang.name}). Output clean Markdown.
-${researchHint}${coderHint}${educatorHint}${browserHint}${citationRule}${liveOnlyRule}${noSearchRule}${accuracyRule}${visionRule}
-Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its own line, prefixed with FOLLOW_UP: .${searchContext}`;
+    const systemContent = `You are **InBharat Ai** (Desh Ka AI) — a world-class AI platform built for Bharat, combining the analytical depth of a research engine with the precision of a domain expert and the clarity of a great communicator.
+
+**LANGUAGE:** Respond ENTIRELY in ${lang.native} (${lang.name}). All text, headers, citations, and follow-up questions must be in this language.
+
+${currentModeInstruction}
+
+${citationRules}${visionRule}
+
+## RESPONSE FORMAT:
+- Use clean Markdown with **##** headers for major sections
+- Lead with the most important insight or direct answer
+- Be comprehensive but eliminate fluff — every sentence must add value
+- Use bullet points for lists, tables for comparisons, **bold** for key terms
+- Keep paragraphs focused — 2-4 sentences each
+
+## FOLLOW-UP QUESTIONS:
+End with exactly 3 insightful follow-up questions in ${lang.native} that encourage deeper exploration.
+Each on its own line, prefixed with FOLLOW_UP: — make them specific to the topic, not generic.${sourceContext}`;
 
     // Build message history: include previous messages for context, then add system + current query
     const messages: any[] = [
@@ -478,18 +558,18 @@ Provide exactly 3 follow-up questions in ${lang.native} at the end, each on its 
     return { text: mainText, sources, followUps: followUps.slice(0, 3) };
   }
 
-  /** Returns the sovereign welcome for greetings (e.g. "Hi") without search or LLM. */
+  /** Returns the welcome message for greetings (e.g. "Hi") without search or LLM. */
   private handleGreeting(language: string): QueryResult {
     const isHindi = language === "HI";
 
     const welcomeEn = `**Welcome to InBharat Ai**
 
-Namaste! I am **InBharat Ai** (Desh Ka AI), your sovereign intelligence node. I am engineered to provide accurate, deep, and culturally nuanced insights regarding Bharat and the global landscape.
+Namaste! I am **InBharat Ai** (Desh Ka AI), your AI assistant. I am engineered to provide accurate, deep, and culturally nuanced insights regarding Bharat and the global landscape.
 
-As a verified node of sovereign intelligence, I am here to assist you with high-level research, policy analysis, historical context, and real-time updates through a Bharatiya lens.
+As your dedicated AI assistant, I am here to help you with high-level research, policy analysis, historical context, and real-time updates through a Bharatiya lens.
 
 **How I Can Assist You:**
-- **Sovereign Insights:** Deep dives into Bharat's strategic interests, economy, and digital public infrastructure (DPI).
+- **Deep Insights:** Deep dives into Bharat's strategic interests, economy, and digital public infrastructure (DPI).
 - **Cultural Context:** Information synthesized with an understanding of Bharat's diverse heritage and values.
 - **Technical & Global Research:** Authoritative data on global trends, technology, and science.
 
@@ -497,12 +577,12 @@ How may I serve you today?`;
 
     const welcomeHi = `**InBharat Ai में आपका स्वागत है**
 
-नमस्ते! मैं **InBharat Ai** (देश का AI), आपका सॉवरेन इंटेलिजेंस नोड हूँ। मैं भारत और वैश्विक परिदृश्य के बारे में सटीक, गहन और सांस्कृतिक रूप से सूक्ष्म जानकारी प्रदान करने के लिए तैयार हूँ।
+नमस्ते! मैं **InBharat Ai** (देश का AI), आपका AI सहायक हूँ। मैं भारत और वैश्विक परिदृश्य के बारे में सटीक, गहन और सांस्कृतिक रूप से सूक्ष्म जानकारी प्रदान करने के लिए तैयार हूँ।
 
-सॉवरेन इंटेलिजेंस के एक सत्यापित नोड के रूप में, मैं भारतीय परिप्रेक्ष्य के माध्यम से उच्च-स्तरीय अनुसंधान, नीति विश्लेषण, ऐतिहासिक संदर्भ और रीयल-टाइम अपडेट में सहायता के लिए यहाँ हूँ।
+आपके समर्पित AI सहायक के रूप में, मैं भारतीय परिप्रेक्ष्य के माध्यम से उच्च-स्तरीय अनुसंधान, नीति विश्लेषण, ऐतिहासिक संदर्भ और रीयल-टाइम अपडेट में सहायता के लिए यहाँ हूँ।
 
 **मैं आपकी कैसे मदद कर सकता हूँ:**
-- **सॉवरेन इनसाइट्स:** भारत के रणनीतिक हितों, अर्थव्यवस्था और डिजिटल पब्लिक इन्फ्रास्ट्रक्चर (DPI) में गहन जानकारी।
+- **गहन जानकारी:** भारत के रणनीतिक हितों, अर्थव्यवस्था और डिजिटल पब्लिक इन्फ्रास्ट्रक्चर (DPI) में गहन जानकारी।
 - **सांस्कृतिक संदर्भ:** भारत की विविध विरासत और मूल्यों की समझ के साथ जानकारी।
 - **तकनीकी और वैश्विक अनुसंधान:** वैश्विक रुझान, प्रौद्योगिकी और विज्ञान पर प्रामाणिक डेटा।
 
@@ -627,7 +707,12 @@ How may I serve you today?`;
    * `URL.revokeObjectURL(url)` when done.
    */
   async textToSpeech(text: string, language: string): Promise<string | undefined> {
-    const voice = languageToVoice[language] || "nova";
+    // Use user-selected voice if set, otherwise language default
+    let voice: string = languageToVoice[language] || "nova";
+    try {
+      const vs = getVoiceSettings();
+      if (vs.voice) voice = vs.voice;
+    } catch { /* settings not available */ }
     const input = normalizeForTTS(text).slice(0, 4096);
     if (!input) return undefined;
     return this.fetchTTSChunk(input, voice);
@@ -646,7 +731,12 @@ How may I serve you today?`;
     onError: (err?: unknown) => void
   ): AbortController {
     const controller = new AbortController();
-    const voice = languageToVoice[language] || "nova";
+    // Use user-selected voice if set
+    let voice: string = languageToVoice[language] || "nova";
+    try {
+      const settings = getVoiceSettings();
+      if (settings.voice) voice = settings.voice;
+    } catch { /* ok */ }
     const input = normalizeForTTS(text).slice(0, 4096);
     if (!input) { onError(); return controller; }
     const chunks = splitForTTS(input, 300);

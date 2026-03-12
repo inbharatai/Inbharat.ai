@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Message, AgentMode } from "../types";
+import { Message, AgentMode, Source } from "../types";
 import SourceCard from "./SourceCard";
 import TricolourStar from "./TricolourStar";
 import { AgentWidgetRenderer } from "./AgentWidgets";
@@ -25,6 +25,72 @@ function isErrorContent(content: string): boolean {
 function stripCodeBlocks(content: string): string {
   const withPlaceholder = content.replace(/```[\w]*\n?[\s\S]*?```/g, '\n*Code shown in the panel above.*\n');
   return withPlaceholder.replace(/(\*Code shown in the panel above\.\*\s*\n)(\s*\*Code shown in the panel above\.\*\s*\n)+/g, '$1').trim();
+}
+
+/** Regex to detect inline citations like [1], [2], [1][3], etc. */
+const CITATION_RE = /(\[\d+\])/g;
+
+/**
+ * Process a text string into React elements with inline citation badges.
+ * Citations like [1] become clickable badges linking to the corresponding source.
+ */
+function renderCitationsInText(text: string, sources?: Source[]): React.ReactNode {
+  if (!sources?.length || !CITATION_RE.test(text)) return text;
+  CITATION_RE.lastIndex = 0; // reset regex state
+  const parts = text.split(CITATION_RE);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[(\d+)\]$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      const source = sources[num - 1];
+      if (source) {
+        return (
+          <a
+            key={i}
+            href={source.uri}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold rounded-md bg-[#FF9933]/15 text-[#FF9933] hover:bg-[#FF9933]/30 no-underline transition-colors align-super ml-0.5 mr-0.5 cursor-pointer border border-[#FF9933]/20"
+            title={source.title}
+          >
+            {num}
+          </a>
+        );
+      }
+    }
+    return <React.Fragment key={i}>{part}</React.Fragment>;
+  });
+}
+
+/**
+ * Recursively process children to inject citation badges into text nodes.
+ */
+function processChildren(children: React.ReactNode, sources?: Source[]): React.ReactNode {
+  return React.Children.map(children, (child) => {
+    if (typeof child === "string") {
+      return renderCitationsInText(child, sources);
+    }
+    return child;
+  });
+}
+
+/**
+ * Build ReactMarkdown `components` prop that renders inline citations as badges.
+ */
+function buildCitationComponents(sources?: Source[]): Partial<Components> {
+  if (!sources?.length) return {};
+  return {
+    p: ({ children, ...props }) => <p {...props}>{processChildren(children, sources)}</p>,
+    li: ({ children, ...props }) => <li {...props}>{processChildren(children, sources)}</li>,
+    td: ({ children, ...props }) => <td {...props}>{processChildren(children, sources)}</td>,
+    strong: ({ children, ...props }) => <strong {...props}>{processChildren(children, sources)}</strong>,
+    em: ({ children, ...props }) => <em {...props}>{processChildren(children, sources)}</em>,
+    h1: ({ children, ...props }) => <h1 {...props}>{processChildren(children, sources)}</h1>,
+    h2: ({ children, ...props }) => <h2 {...props}>{processChildren(children, sources)}</h2>,
+    h3: ({ children, ...props }) => <h3 {...props}>{processChildren(children, sources)}</h3>,
+    h4: ({ children, ...props }) => <h4 {...props}>{processChildren(children, sources)}</h4>,
+    blockquote: ({ children, ...props }) => <blockquote {...props}>{processChildren(children, sources)}</blockquote>,
+  };
 }
 
 interface ChatViewProps {
@@ -296,6 +362,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                     <div className="flex items-center gap-2">
                       <Layers size={12} className="text-[#FF9933]/80 flex-shrink-0" />
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Verified sources</span>
+                      <span className="text-[9px] font-bold text-gray-600 ml-auto">{msg.sources.length} sources</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {msg.sources.map((s, idx) => (
@@ -319,9 +386,12 @@ const ChatView: React.FC<ChatViewProps> = ({
                     <CoderResponsePanel content={msg.content} />
                   )}
                   <div className="prose prose-invert prose-orange max-w-none text-[#e6edf3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#FF9933]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={buildCitationComponents(msg.sources)}>
                       {msg.role === 'assistant' && msg.mode === AgentMode.CODER ? stripCodeBlocks(msg.content) : msg.content}
                     </ReactMarkdown>
+                    {msg.isStreaming && (
+                      <span className="inline-block w-2 h-5 bg-[#FF9933] rounded-sm animate-pulse ml-0.5 align-text-bottom" />
+                    )}
                   </div>
                   {msg.imageUrl && (
                     <div className="mt-6 rounded-2xl overflow-hidden border border-[#30363d] bg-[#0d1117] shadow-lg">

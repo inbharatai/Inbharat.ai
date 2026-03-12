@@ -5,6 +5,7 @@ import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUse
 const bodySchema = z.object({
   text: z.string().min(1).max(4096),
   voice: z.string().optional(),
+  model: z.enum(["tts-1", "tts-1-hd"]).optional(),
 });
 
 function getRequestId(req: VercelRequest): string {
@@ -39,6 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const voice = parsed.voice || "nova";
+  const ttsModel = parsed.model || "tts-1";
 
   try {
     // Direct OpenAI fetch — streams response body for fastest playback
@@ -49,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "tts-1",
+        model: ttsModel,
         voice,
         input: parsed.text,
         response_format: "mp3",
