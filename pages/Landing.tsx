@@ -52,18 +52,58 @@ const Landing: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden">
       {/* Top bar */}
-      <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 bg-[#0d1117]/90 backdrop-blur-md border-b border-[#30363d]/30">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-2.5 bg-[#0d1117]/95 backdrop-blur-md border-b border-[#30363d]/40">
+        {/* Brand */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-black border border-[#30363d] flex items-center justify-center">
+            <TricolourStar size={16} />
+          </div>
+          <span className="font-black italic text-white text-sm hidden sm:block tracking-tight">InBharat</span>
+        </div>
+
+        {/* Product anchor nav */}
+        <nav className="hidden lg:flex items-center gap-0.5">
+          {[
+            { href: '#inbharat', label: 'InBharat AI', color: '#FF9933' },
+            { href: '#uniassist', label: 'UniAssist', color: '#138808' },
+            { href: '#testsprep', label: 'TestsPrep', color: '#8b5cf6' },
+            { href: '#unibot', label: 'UniBot', color: '#3b82f6' },
+            { href: '#openclawfix', label: 'OpenClawFix', color: '#14b8a6' },
+          ].map(({ href, label }) => (
+            <a
+              key={href}
+              href={href}
+              className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-white rounded-lg hover:bg-[#161b22] transition-all"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        {/* Auth + Language */}
+        <div className="flex items-center gap-2">
+          <select
+            value={i18n.language}
+            onChange={(e) => void i18n.changeLanguage(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-xs font-bold transition-all hover:border-[#FF9933]/50 cursor-pointer appearance-none"
+            aria-label={t('langSwitcher')}
+          >
+            {supportedLanguages.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.native}
+              </option>
+            ))}
+          </select>
           {isSignedIn ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-sm font-semibold">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-xs font-semibold">
                 <span className="text-gray-500">Signed in:</span>
-                <span className="truncate max-w-[180px]">{user?.email ?? "user"}</span>
+                <span className="truncate max-w-[140px]">{user?.email ?? "user"}</span>
               </div>
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+                className="px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-xs font-bold transition-all"
               >
                 Sign out
               </button>
@@ -71,24 +111,12 @@ const Landing: React.FC = () => {
           ) : (
             <Link
               to="/app"
-              className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+              className="px-4 py-1.5 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] text-white text-xs font-bold transition-all"
             >
               Sign in
             </Link>
           )}
         </div>
-        <select
-          value={i18n.language}
-          onChange={(e) => void i18n.changeLanguage(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-sm font-bold transition-all hover:border-[#FF9933]/50 cursor-pointer appearance-none"
-          aria-label={t('langSwitcher')}
-        >
-          {supportedLanguages.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.native}
-            </option>
-          ))}
-        </select>
       </div>
       {/* Tricolor strip — desi */}
       <div className="h-1 flex">
@@ -118,8 +146,8 @@ const Landing: React.FC = () => {
             <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
             <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
           </p>
-          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 leading-relaxed">
-            {t('heroSub')}
+          <p className="text-base sm:text-lg text-gray-400 max-w-xl mx-auto mb-6 leading-relaxed">
+            {t('heroSubShort')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -142,8 +170,25 @@ const Landing: React.FC = () => {
         </div>
       </header>
 
+      {/* Stats bar */}
+      <div className="py-6 px-4 sm:px-6 border-t border-b border-[#30363d]/30 bg-[#161b22]/40">
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-8 sm:gap-16">
+          {[
+            { num: '7', label: t('statsModesLabel') },
+            { num: '14+', label: t('statsLangsLabel') },
+            { num: '5', label: t('statsProductsLabel') },
+            { num: '3', label: t('statsPlatformsLabel') },
+          ].map(({ num, label }) => (
+            <div key={label} className="flex flex-col items-center gap-0.5">
+              <span className="text-2xl sm:text-3xl font-black text-[#FF9933]">{num}</span>
+              <span className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wider">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Products: InBharat + UniAssist + UniBot cards — uniform height, typography, spacing */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
+      <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-10 sm:mb-12">
             {t('ourProducts')}
@@ -316,7 +361,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— InBharat AI full section (like UniAssist) ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e12] to-[#0d1117]">
+      <section id="inbharat" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e12] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -440,24 +485,6 @@ const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* InBharat: 3 steps */}
-          <div className="mb-16">
-            <h3 className="text-xl font-black text-white text-center mb-8">{t('inBharatHowTitle')}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              {[
-                { num: '1', title: t('inBharatStep1Title'), desc: t('inBharatStep1Desc') },
-                { num: '2', title: t('inBharatStep2Title'), desc: t('inBharatStep2Desc') },
-                { num: '3', title: t('inBharatStep3Title'), desc: t('inBharatStep3Desc') },
-              ].map((step) => (
-                <div key={step.num} className="rounded-2xl border border-[#30363d] bg-[#161b22] p-6 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-[#FF9933]/20 border border-[#FF9933]/40 flex items-center justify-center text-[#FF9933] font-black text-xl mx-auto mb-4">{step.num}</div>
-                  <h4 className="text-white font-bold mb-2">{step.title}</h4>
-                  <p className="text-gray-500 text-sm">{step.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* InBharat Security + CTA */}
           <div className="rounded-2xl border border-[#30363d] bg-[#161b22]/80 p-6 sm:p-8 text-center">
             <h3 className="text-lg font-black text-white mb-2">{t('inBharatSecurity')}</h3>
@@ -474,7 +501,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— UniAssist.ai full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="uniassist" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -634,7 +661,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— TestsPrep.in full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="testsprep" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -652,9 +679,9 @@ const Landing: React.FC = () => {
             </p>
             <p className="text-gray-500 text-sm mb-8">{t('trustedBy')}</p>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet1')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet2')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature4')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature5')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature6')}</span>
               <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature7')}</span>
             </div>
             <a
@@ -744,7 +771,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— UniBot full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="unibot" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -762,9 +789,10 @@ const Landing: React.FC = () => {
             </p>
             <p className="text-gray-500 text-sm mb-8">{t('unibotTrust')}</p>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet1')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet2')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill1')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill2')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill4')}</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 text-left">
               <div className="rounded-2xl border border-[#30363d] bg-[#161b22] p-6 sm:p-8">
@@ -798,7 +826,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— OpenClawFix full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="openclawfix" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">

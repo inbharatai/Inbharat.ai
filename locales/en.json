@@ -95,7 +95,7 @@
   "footerInBharat": "InBharat AI",
   "footerUniAssist": "UniAssist.ai",
   "footerUniBot": "UniBot",
-  "copyright": "© 2025 InBharat — AI for Bharat.",
+  "copyright": "© 2026 InBharat — AI for Bharat.",
   "unibotTagline": "UniBot — Your WhatsApp Education Assistant",
   "unibotSubline": "Education-only AI on WhatsApp",
   "unibotHero": "Ask anything about education on WhatsApp. Send voice notes or scan book pages for instant help. Mini diagnostics and multiple languages. A focused education companion, not a general chatbot.",
@@ -238,5 +238,15 @@
   "inBharatSecurity": "Security & privacy",
   "inBharatSecuritySub": "Your conversations stay in your control. We do not train on your data.",
   "tryInBharatCta": "Try InBharat AI",
-  "langSwitcher": "Language"
+  "langSwitcher": "Language",
+  "statsModesLabel": "AI Modes",
+  "statsLangsLabel": "Indian Languages",
+  "statsProductsLabel": "Products Built",
+  "statsPlatformsLabel": "Platforms",
+  "heroSubShort": "Voice-first, multilingual AI built for India — search, create, code, and learn in your language.",
+  "unibotPill1": "Education-only AI",
+  "unibotPill2": "Voice & OCR",
+  "unibotPill3": "Mini Diagnostics",
+  "unibotPill4": "Multilingual",
+  "navProducts": "Products"
 }
