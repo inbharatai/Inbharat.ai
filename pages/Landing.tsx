@@ -245,57 +245,6 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
-      {/* Testimonials */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-[#0d1117]">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-xl sm:text-2xl font-black text-white text-center mb-1">Loved by students &amp; developers across India</h2>
-          <p className="text-gray-500 text-sm text-center mb-10">Real people, real results</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {[
-              {
-                text: "Research mode with Hindi support is a game-changer. I got cited sources for my JEE prep in my own language — nothing else does this.",
-                name: "Arjun S.",
-                role: "JEE 2025 · AIR 847",
-                color: '#FF9933',
-              },
-              {
-                text: "UniAssist found me two scholarships I had no idea existed and helped me write a winning SOP. Got into my first choice university in Canada.",
-                name: "Kavya R.",
-                role: "MS Admit · University of Toronto",
-                color: '#138808',
-              },
-              {
-                text: "The Coder mode generates production-quality Python and understands Indian context. I use it every day — way better than generic ChatGPT.",
-                name: "Priya M.",
-                role: "Software Engineer · Bengaluru",
-                color: '#8b5cf6',
-              },
-            ].map(({ text, name, role, color }) => (
-              <div key={name} className="rounded-2xl bg-[#161b22] border border-[#30363d] p-6 flex flex-col gap-4">
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i} className="text-[#FF9933] text-sm">★</span>
-                  ))}
-                </div>
-                <p className="text-gray-300 text-sm leading-relaxed flex-1">"{text}"</p>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
-                    style={{ backgroundColor: `${color}25`, border: `1px solid ${color}40`, color }}
-                  >
-                    {name[0]}
-                  </div>
-                  <div>
-                    <p className="text-white text-sm font-bold">{name}</p>
-                    <p className="text-gray-500 text-xs">{role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Products: InBharat + UniAssist + UniBot cards — uniform height, typography, spacing */}
       <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
