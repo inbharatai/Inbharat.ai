@@ -52,18 +52,58 @@ const Landing: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden">
       {/* Top bar */}
-      <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-3 bg-[#0d1117]/90 backdrop-blur-md border-b border-[#30363d]/30">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-50 flex items-center justify-between gap-2 px-4 py-2.5 bg-[#0d1117]/95 backdrop-blur-md border-b border-[#30363d]/40">
+        {/* Brand */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-black border border-[#30363d] flex items-center justify-center">
+            <TricolourStar size={16} />
+          </div>
+          <span className="font-black italic text-white text-sm hidden sm:block tracking-tight">InBharat</span>
+        </div>
+
+        {/* Product anchor nav */}
+        <nav className="hidden lg:flex items-center gap-0.5">
+          {[
+            { href: '#inbharat', label: 'InBharat AI', color: '#FF9933' },
+            { href: '#uniassist', label: 'UniAssist', color: '#138808' },
+            { href: '#testsprep', label: 'TestsPrep', color: '#8b5cf6' },
+            { href: '#unibot', label: 'UniBot', color: '#3b82f6' },
+            { href: '#openclawfix', label: 'OpenClawFix', color: '#14b8a6' },
+          ].map(({ href, label }) => (
+            <a
+              key={href}
+              href={href}
+              className="px-3 py-1.5 text-xs font-bold text-gray-400 hover:text-white rounded-lg hover:bg-[#161b22] transition-all"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        {/* Auth + Language */}
+        <div className="flex items-center gap-2">
+          <select
+            value={i18n.language}
+            onChange={(e) => void i18n.changeLanguage(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-xs font-bold transition-all hover:border-[#FF9933]/50 cursor-pointer appearance-none"
+            aria-label={t('langSwitcher')}
+          >
+            {supportedLanguages.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.native}
+              </option>
+            ))}
+          </select>
           {isSignedIn ? (
             <>
-              <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-sm font-semibold">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-xs font-semibold">
                 <span className="text-gray-500">Signed in:</span>
-                <span className="truncate max-w-[180px]">{user?.email ?? "user"}</span>
+                <span className="truncate max-w-[140px]">{user?.email ?? "user"}</span>
               </div>
               <button
                 type="button"
                 onClick={() => void signOut()}
-                className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+                className="px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-xs font-bold transition-all"
               >
                 Sign out
               </button>
@@ -71,25 +111,24 @@ const Landing: React.FC = () => {
           ) : (
             <Link
               to="/app"
-              className="px-4 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-sm font-bold transition-all"
+              className="px-4 py-1.5 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] text-white text-xs font-bold transition-all"
             >
               Sign in
             </Link>
           )}
         </div>
-        <select
-          value={i18n.language}
-          onChange={(e) => void i18n.changeLanguage(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-sm font-bold transition-all hover:border-[#FF9933]/50 cursor-pointer appearance-none"
-          aria-label={t('langSwitcher')}
-        >
-          {supportedLanguages.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.native}
-            </option>
-          ))}
-        </select>
       </div>
+      {/* Announcement banner */}
+      <div className="flex items-center justify-center gap-2 sm:gap-3 py-2 px-4 bg-[#FF9933]/8 border-b border-[#FF9933]/15">
+        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#8b5cf6] text-white text-[9px] font-black uppercase tracking-wider flex-shrink-0">New</span>
+        <p className="text-gray-400 text-xs text-center">
+          <span className="text-white font-semibold">3D Science Labs</span> now live on TestsPrep.in — Immersive Physics, Chemistry &amp; Biology
+        </p>
+        <a href="#testsprep" className="flex items-center gap-1 text-[#8b5cf6] text-xs font-bold hover:text-[#a78bfa] transition-colors flex-shrink-0">
+          Explore <ArrowRight size={11} />
+        </a>
+      </div>
+
       {/* Tricolor strip — desi */}
       <div className="h-1 flex">
         <div className="flex-1 bg-[#FF9933]" />
@@ -118,8 +157,8 @@ const Landing: React.FC = () => {
             <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
             <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
           </p>
-          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 leading-relaxed">
-            {t('heroSub')}
+          <p className="text-base sm:text-lg text-gray-400 max-w-xl mx-auto mb-6 leading-relaxed">
+            {t('heroSubShort')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
@@ -139,11 +178,126 @@ const Landing: React.FC = () => {
               <ExternalLink size={16} />
             </a>
           </div>
+
+          {/* Product demo mockup */}
+          <div className="mt-10 sm:mt-14 max-w-lg mx-auto pointer-events-none select-none" aria-hidden="true">
+            <div className="rounded-2xl bg-[#161b22] border border-[#30363d]/80 overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+              {/* Window chrome */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-[#0d1117] border-b border-[#30363d]">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md bg-black border border-[#30363d] flex items-center justify-center">
+                    <TricolourStar size={11} />
+                  </div>
+                  <span className="text-xs font-bold text-white">InBharat AI</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-[#FF9933]/20 border border-[#FF9933]/30 text-[#FF9933] text-[9px] font-black uppercase tracking-wider">Research Mode</span>
+              </div>
+              {/* Messages */}
+              <div className="p-4 space-y-4">
+                <div className="flex justify-end">
+                  <div className="max-w-[75%] px-3.5 py-2.5 rounded-2xl rounded-tr-sm bg-[#FF9933]/15 border border-[#FF9933]/25 text-white text-sm font-medium">
+                    भारत में AI का भविष्य क्या है?
+                  </div>
+                </div>
+                <div className="flex gap-2.5">
+                  <div className="w-6 h-6 rounded-md bg-black border border-[#30363d] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <TricolourStar size={12} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="px-3.5 py-3 rounded-2xl rounded-tl-sm bg-[#0d1117] border border-[#30363d] text-gray-300 text-sm leading-relaxed">
+                      भारत सरकार ने <span className="text-white font-semibold">₹10,372 करोड़ का IndiaAI Mission</span> लॉन्च किया है। 2030 तक $17 बिलियन के निवेश का अनुमान है।
+                      <sup className="text-[#FF9933] font-bold text-[10px] ml-0.5">[1]</sup>
+                    </div>
+                    <div className="flex gap-1.5 mt-2 flex-wrap">
+                      {['MeitY.gov.in', 'NASSCOM', 'ET Tech'].map((s) => (
+                        <span key={s} className="px-2 py-1 rounded-md bg-[#161b22] border border-[#30363d] text-gray-500 text-[10px] font-medium">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Input bar */}
+              <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#30363d] bg-[#0d1117]">
+                <div className="flex-1 h-8 px-3 rounded-xl bg-[#161b22] border border-[#30363d] flex items-center text-gray-600 text-xs">Ask in any language…</div>
+                <div className="w-8 h-8 rounded-xl bg-[#161b22] border border-[#30363d] flex items-center justify-center text-[#FF9933]">
+                  <Mic size={14} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
+      {/* Stats bar */}
+      <div className="py-6 px-4 sm:px-6 border-t border-b border-[#30363d]/30 bg-[#161b22]/40">
+        <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-8 sm:gap-16">
+          {[
+            { num: '7', label: t('statsModesLabel') },
+            { num: '14+', label: t('statsLangsLabel') },
+            { num: '5', label: t('statsProductsLabel') },
+            { num: '3', label: t('statsPlatformsLabel') },
+          ].map(({ num, label }) => (
+            <div key={label} className="flex flex-col items-center gap-0.5">
+              <span className="text-2xl sm:text-3xl font-black text-[#FF9933]">{num}</span>
+              <span className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wider">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Testimonials */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 bg-[#0d1117]">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-xl sm:text-2xl font-black text-white text-center mb-1">Loved by students &amp; developers across India</h2>
+          <p className="text-gray-500 text-sm text-center mb-10">Real people, real results</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[
+              {
+                text: "Research mode with Hindi support is a game-changer. I got cited sources for my JEE prep in my own language — nothing else does this.",
+                name: "Arjun S.",
+                role: "JEE 2025 · AIR 847",
+                color: '#FF9933',
+              },
+              {
+                text: "UniAssist found me two scholarships I had no idea existed and helped me write a winning SOP. Got into my first choice university in Canada.",
+                name: "Kavya R.",
+                role: "MS Admit · University of Toronto",
+                color: '#138808',
+              },
+              {
+                text: "The Coder mode generates production-quality Python and understands Indian context. I use it every day — way better than generic ChatGPT.",
+                name: "Priya M.",
+                role: "Software Engineer · Bengaluru",
+                color: '#8b5cf6',
+              },
+            ].map(({ text, name, role, color }) => (
+              <div key={name} className="rounded-2xl bg-[#161b22] border border-[#30363d] p-6 flex flex-col gap-4">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i} className="text-[#FF9933] text-sm">★</span>
+                  ))}
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed flex-1">"{text}"</p>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
+                    style={{ backgroundColor: `${color}25`, border: `1px solid ${color}40`, color }}
+                  >
+                    {name[0]}
+                  </div>
+                  <div>
+                    <p className="text-white text-sm font-bold">{name}</p>
+                    <p className="text-gray-500 text-xs">{role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Products: InBharat + UniAssist + UniBot cards — uniform height, typography, spacing */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
+      <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-10 sm:mb-12">
             {t('ourProducts')}
@@ -280,7 +434,8 @@ const Landing: React.FC = () => {
             </div>
 
             {/* OpenClawFix */}
-            <div className="h-full flex flex-col bg-[#161b22] border border-[#14b8a6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#14b8a6]/20">
+            <div className="h-full flex flex-col bg-[#161b22] border border-[#14b8a6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#14b8a6]/20 relative">
+              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">For Developers</span>
               <div className="flex items-center gap-3 mb-3.5">
                 <div className="w-12 h-12 rounded-xl bg-[#0d1117] border border-[#14b8a6]/50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                   <img src="/openclawfix-logo.png" alt="OpenClawFix" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
@@ -316,7 +471,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— InBharat AI full section (like UniAssist) ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e12] to-[#0d1117]">
+      <section id="inbharat" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e12] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -440,24 +595,6 @@ const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* InBharat: 3 steps */}
-          <div className="mb-16">
-            <h3 className="text-xl font-black text-white text-center mb-8">{t('inBharatHowTitle')}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              {[
-                { num: '1', title: t('inBharatStep1Title'), desc: t('inBharatStep1Desc') },
-                { num: '2', title: t('inBharatStep2Title'), desc: t('inBharatStep2Desc') },
-                { num: '3', title: t('inBharatStep3Title'), desc: t('inBharatStep3Desc') },
-              ].map((step) => (
-                <div key={step.num} className="rounded-2xl border border-[#30363d] bg-[#161b22] p-6 text-center">
-                  <div className="w-12 h-12 rounded-2xl bg-[#FF9933]/20 border border-[#FF9933]/40 flex items-center justify-center text-[#FF9933] font-black text-xl mx-auto mb-4">{step.num}</div>
-                  <h4 className="text-white font-bold mb-2">{step.title}</h4>
-                  <p className="text-gray-500 text-sm">{step.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* InBharat Security + CTA */}
           <div className="rounded-2xl border border-[#30363d] bg-[#161b22]/80 p-6 sm:p-8 text-center">
             <h3 className="text-lg font-black text-white mb-2">{t('inBharatSecurity')}</h3>
@@ -474,7 +611,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— UniAssist.ai full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="uniassist" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -634,7 +771,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— TestsPrep.in full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="testsprep" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -652,9 +789,9 @@ const Landing: React.FC = () => {
             </p>
             <p className="text-gray-500 text-sm mb-8">{t('trustedBy')}</p>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet1')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet2')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepBullet3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature4')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature5')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature6')}</span>
               <span className="px-4 py-2 rounded-full bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#c4b5fd] text-xs font-bold">{t('testsprepFeature7')}</span>
             </div>
             <a
@@ -744,7 +881,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— UniBot full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="unibot" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -762,9 +899,10 @@ const Landing: React.FC = () => {
             </p>
             <p className="text-gray-500 text-sm mb-8">{t('unibotTrust')}</p>
             <div className="flex flex-wrap justify-center gap-3 mb-8">
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet1')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet2')}</span>
-              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotBullet3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill1')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill2')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill3')}</span>
+              <span className="px-4 py-2 rounded-full bg-[#3b82f6]/15 border border-[#3b82f6]/40 text-[#93c5fd] text-xs font-bold">{t('unibotPill4')}</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10 text-left">
               <div className="rounded-2xl border border-[#30363d] bg-[#161b22] p-6 sm:p-8">
@@ -798,7 +936,7 @@ const Landing: React.FC = () => {
       </section>
 
       {/* ——— OpenClawFix full section ——— */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
+      <section id="openclawfix" className="py-16 sm:py-24 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] via-[#0a0e14] to-[#0d1117]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <div className="flex justify-center mb-4">
@@ -807,7 +945,10 @@ const Landing: React.FC = () => {
                 <span className="hidden absolute inset-0 flex items-center justify-center text-[#14b8a6]"><Wrench size={32} /></span>
               </div>
             </div>
-            <p className="text-[#14b8a6] text-xs font-black uppercase tracking-[0.35em] mb-2">OpenClawFix</p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <p className="text-[#14b8a6] text-xs font-black uppercase tracking-[0.35em]">OpenClawFix</p>
+              <span className="px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">For Developers</span>
+            </div>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">
               {t('openClawFixFullTagline')}
             </h2>
