@@ -87,8 +87,16 @@ function classifyStreamError(err: unknown): string {
   if (typeof e?.message === "string") {
     const m = e.message.toLowerCase();
     if (/api.?key|incorrect api key|invalid api key|unauthorized/i.test(m)) return "CONFIG_ERROR";
+    if (/exceeded.*quota|quota exceeded|insufficient_quota/i.test(m)) return "CONFIG_ERROR";
     if (/rate.?limit|too many requests/i.test(m)) return "RATE_LIMIT";
-    if (/overload|capacity|heavy traffic|service unavailable/i.test(m)) return "UPSTREAM_OVERLOADED";
+    if (/overload|capacity|heavy traffic|service unavailable|server had an error|internal server error/i.test(m)) return "UPSTREAM_OVERLOADED";
+    if (/timeout|timed out|request timed|read timed/i.test(m)) return "UPSTREAM_OVERLOADED";
+    if (/econnreset|econnrefused|enotfound|network|fetch failed|failed to fetch|connection reset|socket hang/i.test(m)) return "UPSTREAM_OVERLOADED";
+  }
+  // Node.js system error codes
+  if (typeof (e as { code?: string })?.code === "string") {
+    const c = (e as { code: string }).code;
+    if (/ECONNRESET|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EPIPE/.test(c)) return "UPSTREAM_OVERLOADED";
   }
   return "SERVER_ERROR";
 }
@@ -473,12 +481,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // ── 4. Streaming response via SSE ──
     if (shouldStream) {
+      // Set SSE headers FIRST — before any async work that could throw.
+      // Once these are sent the outer catch MUST NOT call res.status().json().
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
-      // Use agent for search + prompt building
-      const prepared = await agent.prepareServerContext(query, agentCtx);
+      // Helper: send an SSE error event and close the stream.
+      const sendSSEError = (code: string, err?: unknown) => {
+        console.error(`[orchestrate] sse error (${code}):`, err instanceof Error ? err.message : err);
+        try {
+          res.write(`data: ${JSON.stringify({ event: "error", code })}\n\n`);
+          res.end();
+        } catch { /* response already closed */ }
+      };
+
+      // Prepare context (search, system-prompt build).
+      // Wrapped so a throw here sends a proper SSE error instead of leaking
+      // into the outer catch which would try res.status(500).json() on a
+      // response that already has SSE headers committed.
+      let prepared: Awaited<ReturnType<typeof agent.prepareServerContext>>;
+      try {
+        prepared = await agent.prepareServerContext(query, agentCtx);
+      } catch (prepErr: unknown) {
+        sendSSEError(classifyStreamError(prepErr), prepErr);
+        return;
+      }
 
       // Send routing + sources (Perplexity-style: sources appear before text)
       res.write(`data: ${JSON.stringify({ event: "routing", routing: { intent: routing.intent, mode } })}\n\n`);
@@ -520,10 +548,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write(`data: ${JSON.stringify({ event: "done", requestId, text: mainText })}\n\n`);
         res.end();
       } catch (streamErr: unknown) {
-        const errCode = classifyStreamError(streamErr);
-        console.error(`[orchestrate] stream error (${errCode}):`, streamErr instanceof Error ? streamErr.message : streamErr);
-        res.write(`data: ${JSON.stringify({ event: "error", code: errCode })}\n\n`);
-        res.end();
+        sendSSEError(classifyStreamError(streamErr), streamErr);
       }
       return;
     }

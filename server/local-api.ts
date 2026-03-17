@@ -62,11 +62,14 @@ async function runHandler(
   req: express.Request,
   res: express.Response
 ) {
+  // Cast to VercelRequest: local-api is a dev-only shim; the actual handlers only
+  // access .method, .headers, and .body so this partial shape is safe at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vercelStyleReq = {
     method: req.method,
     headers: req.headers as Record<string, string | string[] | undefined>,
     body: req.body,
-  };
+  } as any;
   try {
     if (path === "/api/chat") {
       debugLog("local-api:runHandler", "before chat handler", {
@@ -75,11 +78,13 @@ async function runHandler(
       });
       const mod = await import("../api/chat.ts");
       const handler = mod.default;
-      await handler(vercelStyleReq, res);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await handler(vercelStyleReq, res as any);
     } else if (path === "/api/search") {
       const mod = await import("../api/search.ts");
       const handler = mod.default;
-      await handler(vercelStyleReq, res);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await handler(vercelStyleReq, res as any);
     } else {
       res.status(404).json({ ok: false, code: "SERVER_ERROR" });
     }

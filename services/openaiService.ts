@@ -30,7 +30,8 @@ type ChatApiErr =
   | { ok: false; code: "RATE_LIMIT"; retryAfter: number }
   | { ok: false; code: "UPSTREAM_OVERLOADED"; retryAfterSeconds: number }
   | { ok: false; code: "SERVER_ERROR" }
-  | { ok: false; code: "UNAUTHORIZED" };
+  | { ok: false; code: "UNAUTHORIZED" }
+  | { ok: false; code: "CONFIG_ERROR" };
 
 async function getAccessToken(): Promise<string | null> {
   try {

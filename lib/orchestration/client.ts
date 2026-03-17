@@ -149,8 +149,15 @@ export function orchestrateStream(
 
       // Safety fallback: if stream ended without a "done" event (server crash/timeout),
       // still finalize so the UI doesn't get stuck with isStreaming: true
-      if (!doneReceived && !signal.aborted && fullText) {
-        callbacks.onDone?.(fullText);
+      if (!doneReceived && !signal.aborted) {
+        if (fullText) {
+          // We received partial text — surface it so user sees something
+          callbacks.onDone?.(fullText);
+        } else {
+          // Stream closed immediately with no data (Vercel cold-start timeout,
+          // gateway crash, network drop before first byte) — show a retriable error
+          callbacks.onError?.("UPSTREAM_OVERLOADED");
+        }
       }
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === "AbortError") return;

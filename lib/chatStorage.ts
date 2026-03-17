@@ -205,13 +205,17 @@ export async function loadSession(sessionId: string): Promise<ChatSession | null
  * Return total message count for a user across all sessions (for usage display).
  */
 export async function getMessageCount(userId: string): Promise<number> {
+  // Fetch session IDs first — Supabase JS v2 .in() does not accept a subquery builder
+  const { data: sessions } = await supabase
+    .from("chat_sessions")
+    .select("id")
+    .eq("user_id", userId);
+  if (!sessions || sessions.length === 0) return 0;
+  const sessionIds = sessions.map((s: { id: string }) => s.id);
   const { count, error } = await supabase
     .from("chat_messages")
     .select("id", { count: "exact", head: true })
-    .in(
-      "session_id",
-      supabase.from("chat_sessions").select("id").eq("user_id", userId)
-    );
+    .in("session_id", sessionIds);
   if (error) return 0;
   return count ?? 0;
 }
