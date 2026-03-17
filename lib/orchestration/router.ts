@@ -32,7 +32,7 @@ const INTENT_PATTERNS: Record<IntentCategory, RegExp> = {
   mixed: /(?!)/, // never matches on its own; set programmatically
 };
 
-const UNIASSIST_PATTERNS = /\b(universit(?:y|ies)|admission|study\s+abroad|masters?\s+(?:in|abroad|degree)|phd|bachelor|college|visa|immigration|pr\s+(?:chance|score|predictor|points)|permanent\s+residen|scholarship|ielts\s+for\s+(?:admission|university)|gpa|transcript|sop|lor)\b/i;
+const UNIASSIST_PATTERNS = /\b(universit(?:y|ies)|admission|study\s+abroad|masters?\s+(?:in|abroad|degree)|phd|bachelor\s+(?:degree|program|abroad)|(?:student|work|study|tourist|dependent)\s+visa|visa\s+(?:application|requirement|process|for\s+\w+|fee|rejection|approval|stamping)|immigration\s+(?:to|process|consultant)|pr\s+(?:chance|score|predictor|points)|permanent\s+residen|scholarship\s+(?:for|abroad|opportunity)|ielts\s+for\s+(?:admission|university)|(?:minimum\s+)?gpa\s+(?:requirement|for|score|needed)|transcript|sop|lor)\b/i;
 const TESTPREP_PATTERNS = /\b(ielts|gmat|gre|jee|neet|gate|upsc|toefl|exam\s+prep|practice\s+(?:test|question|problem)|mock\s+test|study\s+plan|score\s+(?:improv|predict|target)|weak\s+(?:area|topic)|syllabus)\b|\b(SAT|CAT)\s+(?:exam|prep|score|test|practice|mock|syllabus|question|coaching)|\b(?:SAT|CAT)\s+\d{4}\b|(?:prepare\s+for\s+(?:SAT|CAT)|SAT\s+(?:\d+|prep|score)|crack\s+(?:SAT|CAT))/i;
 
 /**

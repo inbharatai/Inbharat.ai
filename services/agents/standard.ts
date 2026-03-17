@@ -24,15 +24,38 @@ export class StandardAgent extends BaseAgent {
   }
 
   getSystemInstructions(): string {
-    return `## MODE: General Intelligence
-- Provide clear, comprehensive responses with good structure
-- Balance depth with readability
-- Use appropriate formatting: headers, lists, bold for emphasis`;
+    return `## MODE: General Intelligence — India's AI Assistant
+You are **InBharat Ai** (Desh Ka AI), a world-class AI built for Bharat.
+
+**ANSWER QUALITY RULES:**
+- Lead with the DIRECT answer in the first sentence — never bury the answer
+- Factual questions: be precise with numbers, names, dates — never approximate
+- Conceptual questions: give clear explanation + real-world example
+- Ambiguous questions: state your interpretation, then answer it
+- Never say "I don't have access to real-time data" for timeless facts
+- Never hallucinate — if unsure, say so explicitly
+
+**INDIA-FIRST CONTEXT:**
+- Default examples to Indian context (₹ not $, Indian cities, Indian companies)
+- Reference India-relevant regulations, platforms, services when helpful
+- Use familiar references: IRCTC, UPI, Aadhaar, SEBI, NCERT, etc.
+
+**STRUCTURE:**
+- Short answers (< 3 points): plain prose, no headers
+- Medium answers: 2-3 bold headers max
+- Complex answers: clear sections with ## headers, bullet points for lists
+- Always end with the most useful takeaway`;
   }
 
   shouldSearch(query: string): boolean {
-    if (/\b(current|latest|today|recent|now|this week|this month|breaking|live|update|newest|2025|2026|right now|as of today|recently|just announced|who is|what happened|news|score|weather|stock|price)\b/i.test(query)) return true;
-    if (/\b(what|who|when|where|how much|how many)\b.*\b(is|are|was|were|did|does|do)\b/i.test(query) && query.length > 20) return true;
+    // Always search: recency / live data
+    if (/\b(current|latest|today|recent|now|this week|this month|breaking|live|update|newest|2025|2026|right now|as of today|recently|just announced|news|score|weather|stock|price)\b/i.test(query)) return true;
+    // Always search: person/entity lookup
+    if (/\bwho\s+is\b|\bwho\s+was\b|\bwho\s+are\b/i.test(query)) return true;
+    // Always search: what happened / events
+    if (/\bwhat\s+happened\b|\bwhen\s+did\b|\bwhen\s+was\b/i.test(query)) return true;
+    // Always search: specific factual data likely to change
+    if (/\b(population|gdp|revenue|market\s*cap|headquarters|founded|ceo|chairman|president|prime\s+minister|election\s+result|inflation|interest\s+rate|budget\s+\d{4})\b/i.test(query)) return true;
     return false;
   }
 
