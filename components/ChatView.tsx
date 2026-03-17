@@ -371,9 +371,6 @@ const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                   </div>
                 )}
-                {msg.role === 'assistant' && (!msg.sources || msg.sources.length === 0) && msgIdx === messages.length - 1 && msgIdx > 0 && messages[msgIdx - 1].role === 'user' && (
-                  <p className="text-xs text-gray-500 mt-1">Add SERPER_API_KEY in Vercel to get live links and verified sources.</p>
-                )}
 
                 {/* Answer body */}
                 <div className="rounded-2xl border border-[#30363d]/40 bg-[#161b22]/60 px-4 sm:px-6 py-4 sm:py-5 shadow-sm">
