@@ -37,6 +37,10 @@ const App: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const wasLoadingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  // Keep a ref so handleSearch always reads the latest sessions without
+  // being added to the dep array (which would recreate it on every chunk).
+  const sessionsRef = useRef(sessions);
+  useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
@@ -196,7 +200,7 @@ const App: React.FC = () => {
     let hasStarted = false;
 
     try {
-      const currentSession = isGuest ? guestSession : sessions.find(s => s.id === targetSessionId);
+      const currentSession = isGuest ? guestSession : sessionsRef.current.find(s => s.id === targetSessionId);
       // Extract previous messages for context — trim to last 20 to avoid oversized payloads
       const previousMessages = (currentSession?.messages || [])
         .filter(m => m.role !== 'user' || m.id !== userMsg.id)
