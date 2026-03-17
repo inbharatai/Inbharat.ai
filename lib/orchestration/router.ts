@@ -33,7 +33,7 @@ const INTENT_PATTERNS: Record<IntentCategory, RegExp> = {
 };
 
 const UNIASSIST_PATTERNS = /\b(universit(?:y|ies)|admission|study\s+abroad|masters?\s+(?:in|abroad|degree)|phd|bachelor|college|visa|immigration|pr\s+(?:chance|score|predictor|points)|permanent\s+residen|scholarship|ielts\s+for\s+(?:admission|university)|gpa|transcript|sop|lor)\b/i;
-const TESTPREP_PATTERNS = /\b(ielts|gmat|gre|jee|neet|cat|gate|upsc|toefl|sat|exam\s+prep|practice\s+(?:test|question|problem)|mock\s+test|study\s+plan|score\s+(?:improv|predict|target)|weak\s+(?:area|topic)|syllabus)\b/i;
+const TESTPREP_PATTERNS = /\b(ielts|gmat|gre|jee|neet|gate|upsc|toefl|exam\s+prep|practice\s+(?:test|question|problem)|mock\s+test|study\s+plan|score\s+(?:improv|predict|target)|weak\s+(?:area|topic)|syllabus)\b|\b(SAT|CAT)\s+(?:exam|prep|score|test|practice|mock|syllabus|question|coaching)|\b(?:SAT|CAT)\s+\d{4}\b|(?:prepare\s+for\s+(?:SAT|CAT)|SAT\s+(?:\d+|prep|score)|crack\s+(?:SAT|CAT))/i;
 
 /**
  * Conjunction / multi-task signal — requires explicit sequencing language.
