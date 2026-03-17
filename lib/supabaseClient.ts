@@ -3,7 +3,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+const isPlaceholder = (s?: string) =>
+  !s ||
+  s.includes("your-project-ref") ||
+  s.includes("placeholder") ||
+  s === "your-anon-key-here" ||
+  s === "https://placeholder.supabase.co" ||
+  s === "placeholder-anon-key";
+
+export const isSupabaseConfigured =
+  !isPlaceholder(supabaseUrl) && !isPlaceholder(supabaseAnonKey);
 
 if (!isSupabaseConfigured && typeof window !== "undefined") {
   const key = "supabase_env_warned";
