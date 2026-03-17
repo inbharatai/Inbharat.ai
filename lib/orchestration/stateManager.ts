@@ -12,7 +12,7 @@ import type {
   IntentCategory,
   AppTarget,
   WorkflowType,
-} from "./types";
+} from "./types.js";
 
 // Supabase admin client is only available server-side.
 // This module may be imported from the client too (for type reuse),

@@ -11,9 +11,9 @@
  * All calls are tracked in an in-memory audit ring buffer for cost/perf analysis.
  */
 
-import { serverSearch, type ServerSearchOutput } from "../../api/lib/serverSearch";
-import { serverLLMCall, serverLLMStream } from "../../api/lib/serverLLM";
-import type { ToolCall, ToolResult } from "./types";
+import { serverSearch, type ServerSearchOutput } from "../../api/lib/serverSearch.js";
+import { serverLLMCall, serverLLMStream } from "../../api/lib/serverLLM.js";
+import type { ToolCall, ToolResult } from "./types.js";
 
 // ── Lazy-loaded connectors (avoid cold-start cost if unused) ──
 

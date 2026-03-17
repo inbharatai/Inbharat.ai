@@ -6,16 +6,16 @@
  * and any future tool-router or connector.
  */
 
-import { AgentMode } from "../../types";
-import type { IntentCategory } from "../../lib/orchestration/types";
-import { BaseAgent } from "./baseAgent";
-import { StandardAgent } from "./standard";
-import { ResearcherAgent } from "./researcher";
-import { CoderAgent } from "./coder";
-import { EducatorAgent } from "./educator";
-import { BrowserAgent } from "./browser";
-import { ShopperAgent } from "./shopper";
-import { ExecutiveAgent } from "./executive";
+import { AgentMode } from "../../types.js";
+import type { IntentCategory } from "../../lib/orchestration/types.js";
+import { BaseAgent } from "./baseAgent.js";
+import { StandardAgent } from "./standard.js";
+import { ResearcherAgent } from "./researcher.js";
+import { CoderAgent } from "./coder.js";
+import { EducatorAgent } from "./educator.js";
+import { BrowserAgent } from "./browser.js";
+import { ShopperAgent } from "./shopper.js";
+import { ExecutiveAgent } from "./executive.js";
 
 // Singleton instances — stateless, safe to reuse.
 const agents: Record<AgentMode, BaseAgent> = {

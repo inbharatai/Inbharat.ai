@@ -11,13 +11,13 @@
  * Phase 5 will optionally add an LLM "tie-breaker" for ambiguous queries.
  */
 
-import { AgentMode } from "../../types";
+import { AgentMode } from "../../types.js";
 import type {
   IntentCategory,
   AppTarget,
   RouteDecision,
   WorkflowStepDraft,
-} from "./types";
+} from "./types.js";
 
 // ─── Keyword dictionaries ────────────────────────────────────
 

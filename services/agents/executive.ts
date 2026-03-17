@@ -11,13 +11,13 @@
  * to the best-matching agent (delegator mode).
  */
 
-import { AgentMode } from "../../types";
+import { AgentMode } from "../../types.js";
 import type {
   AgentInput,
   AgentOutput,
   IntentCategory,
-} from "../../lib/orchestration/types";
-import { BaseAgent } from "./baseAgent";
+} from "../../lib/orchestration/types.js";
+import { BaseAgent } from "./baseAgent.js";
 
 let _nexus: any = null;
 async function getNexus() {

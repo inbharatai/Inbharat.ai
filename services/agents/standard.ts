@@ -3,9 +3,9 @@
  * Server-side: uses ToolRouter. Client-side: wraps NexusAgent.
  */
 
-import { AgentMode } from "../../types";
-import type { AgentInput, AgentOutput, IntentCategory } from "../../lib/orchestration/types";
-import { BaseAgent } from "./baseAgent";
+import { AgentMode } from "../../types.js";
+import type { AgentInput, AgentOutput, IntentCategory } from "../../lib/orchestration/types.js";
+import { BaseAgent } from "./baseAgent.js";
 
 let _nexus: any = null;
 async function getNexus() {

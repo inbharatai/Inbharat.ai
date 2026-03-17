@@ -17,11 +17,11 @@ import type {
   IntentCategory,
   ToolCall,
   ToolResult,
-} from "../../lib/orchestration/types";
+} from "../../lib/orchestration/types.js";
 import {
   buildContextWindow,
   estimateTokens,
-} from "../../lib/orchestration/memory";
+} from "../../lib/orchestration/memory.js";
 
 /** Context for server-side agent execution. Injected by orchestrate.ts. */
 export interface ServerRunContext {

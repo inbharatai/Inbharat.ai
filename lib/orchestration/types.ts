@@ -5,7 +5,7 @@
  * ExecutiveAgent planner, ToolRouter, and ResponseComposer.
  */
 
-import type { AgentMode, Source, WidgetData } from "../../types";
+import type { AgentMode, Source, WidgetData } from "../../types.js";
 
 // ─── Intent & Routing ────────────────────────────────────────
 

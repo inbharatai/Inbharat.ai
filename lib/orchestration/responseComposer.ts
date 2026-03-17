@@ -9,8 +9,8 @@
  *  - Attach the first widget found (UI can only show one at a time).
  */
 
-import type { AgentOutput, ComposerInput } from "./types";
-import type { Source, WidgetData } from "../../types";
+import type { AgentOutput, ComposerInput } from "./types.js";
+import type { Source, WidgetData } from "../../types.js";
 
 export function composeResponse(input: ComposerInput): AgentOutput {
   const { steps, verbose } = input;
