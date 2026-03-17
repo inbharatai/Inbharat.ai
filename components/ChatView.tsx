@@ -372,8 +372,24 @@ const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 )}
 
+                {/* ── Thinking indicator — shown while waiting for first content chunk ── */}
+                {msg.isStreaming && !msg.content && (
+                  <div className="rounded-2xl border border-[#FF9933]/20 bg-[#161b22]/60 px-5 py-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#FF9933]" style={{ animation: 'bounce 1.2s infinite', animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-[#FF9933]/65" style={{ animation: 'bounce 1.2s infinite', animationDelay: '200ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-[#FF9933]/30" style={{ animation: 'bounce 1.2s infinite', animationDelay: '400ms' }} />
+                      </div>
+                      <span className="text-sm text-gray-400 font-medium">
+                        {msg.statusText || "Thinking…"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Answer body */}
-                <div className="rounded-2xl border border-[#30363d]/40 bg-[#161b22]/60 px-4 sm:px-6 py-4 sm:py-5 shadow-sm">
+                {(!msg.isStreaming || msg.content) && <div className="rounded-2xl border border-[#30363d]/40 bg-[#161b22]/60 px-4 sm:px-6 py-4 sm:py-5 shadow-sm">
                   {msg.widget && (
                     <div className="mb-5 animate-in slide-in-from-left-3 duration-400">
                       <AgentWidgetRenderer data={msg.widget} />
@@ -408,7 +424,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                       </div>
                     </div>
                   )}
-                </div>
+                </div>}
 
                 {/* Actions: Copy, Regenerate, Retry + Voice */}
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">

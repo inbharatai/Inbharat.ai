@@ -108,6 +108,8 @@ export interface Message {
   errorShownAt?: number;
   /** Whether this message is still being streamed. */
   isStreaming?: boolean;
+  /** Live status text shown while thinking (e.g. "Searching…", "Writing response…"). */
+  statusText?: string;
 }
 
 export interface ChatSession {

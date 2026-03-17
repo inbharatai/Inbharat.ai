@@ -242,10 +242,46 @@ const App: React.FC = () => {
         hasStarted = true;
       };
 
+      let streamedStatus = "";
+
       await new Promise<void>((resolve, reject) => {
         const streamController = orchestrateStream(
           query, mode, language || appLanguage,
           {
+            onStatus: (status) => {
+              streamedStatus = status;
+              // Show the status in the placeholder message before content arrives
+              const statusMsg: Message = {
+                id: assistantMsgId,
+                role: "assistant",
+                content: streamedText,
+                sources: streamedSources,
+                followUps: streamedFollowUps,
+                mode,
+                isStreaming: true,
+                statusText: streamedText ? undefined : status,
+              };
+              if (isGuest && targetGuestSession) {
+                setGuestSession((prev) => {
+                  if (!prev) return null;
+                  const msgs = hasStarted
+                    ? prev.messages.map(m => m.id === assistantMsgId ? statusMsg : m)
+                    : [...prev.messages, statusMsg];
+                  return { ...prev, messages: msgs };
+                });
+              } else if (targetSessionId) {
+                setSessions((prev) =>
+                  prev.map((s) => {
+                    if (s.id !== targetSessionId) return s;
+                    const msgs = hasStarted
+                      ? s.messages.map(m => m.id === assistantMsgId ? statusMsg : m)
+                      : [...s.messages, statusMsg];
+                    return { ...s, messages: msgs };
+                  })
+                );
+              }
+              hasStarted = true;
+            },
             onSources: (sources) => {
               // Accumulate sources from multiple workflow steps (deduplicate by URI)
               const existingUris = new Set(streamedSources.map(s => s.uri));
