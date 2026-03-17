@@ -29,17 +29,34 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('react-dom') || id.includes('react/')) return 'react';
-              if (id.includes('lucide-react')) return 'lucide';
-              if (id.includes('openai')) return 'openai';
-              if (id.includes('react-router') || id.includes('@remix-run')) return 'router';
-              if (id.includes('react-markdown') || id.includes('remark-') || id.includes('unist-') || id.includes('micromark') || id.includes('mdast')) return 'markdown';
-            }
+            if (!id.includes('node_modules')) return undefined;
+            // React core — loaded first, heavily cached
+            if (id.includes('react-dom') || id.includes('/react/') || id.includes('react-is')) return 'react';
+            // Router — separate chunk, loaded on navigation
+            if (id.includes('react-router') || id.includes('@remix-run')) return 'router';
+            // Markdown renderer — large, lazy-loaded
+            if (
+              id.includes('react-markdown') || id.includes('remark-') || id.includes('rehype-') ||
+              id.includes('unist-') || id.includes('micromark') || id.includes('mdast') ||
+              id.includes('hast-') || id.includes('html-url') || id.includes('decode-named')
+            ) return 'markdown';
+            // Icons — frequently updated separately
+            if (id.includes('lucide-react')) return 'icons';
+            // Supabase — auth client
+            if (id.includes('@supabase')) return 'supabase';
+            // i18n — translation engine
+            if (id.includes('i18next') || id.includes('react-i18next')) return 'i18n';
+            // PowerPoint generation — rarely used, split out
+            if (id.includes('pptxgenjs')) return 'pptx';
+            // OpenAI SDK (browser bundle)
+            if (id.includes('openai')) return 'openai-client';
+            // Zod validation
+            if (id.includes('/zod/')) return 'validation';
           },
         },
       },
-      chunkSizeWarningLimit: 500,
+      // Raise warning threshold slightly — 500kB is fine for the react+app chunk
+      chunkSizeWarningLimit: 600,
     },
   };
 });

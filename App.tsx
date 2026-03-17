@@ -287,6 +287,13 @@ const App: React.FC = () => {
               resolve();
             },
             onError: (err) => {
+              // Map server error codes to OpenAISanitizedError so the catch block
+              // can display the correct user-facing message instead of the generic fallback.
+              if (err === "RATE_LIMIT") return reject(new OpenAISanitizedError("RATE_LIMIT", 10));
+              if (err === "UPSTREAM_OVERLOADED") return reject(new OpenAISanitizedError("UPSTREAM_OVERLOADED", 10));
+              if (err === "UNAUTHORIZED") return reject(new OpenAISanitizedError("UNAUTHORIZED"));
+              if (err === "CONFIG_ERROR" || err === "AUTH_ERROR") return reject(new OpenAISanitizedError("AUTH_ERROR"));
+              // Network/connection errors: preserve the message so the fetch pattern matches
               reject(new Error(err));
             },
           },
@@ -333,7 +340,7 @@ const App: React.FC = () => {
         /503|502|500|overload|capacity|heavy traffic|try again later/i.test(errMsgText)
       ) {
         content = "Service is busy right now. Tap Retry in a few seconds.";
-      } else if (/fetch|NetworkError|Failed to fetch|ERR_NETWORK/i.test(errMsgText)) {
+      } else if (/fetch|NetworkError|Failed to fetch|ERR_NETWORK|CONNECTION_FAILED/i.test(errMsgText)) {
         content = "Network error. Check your connection and try again.";
       } else {
         content = "The request failed. Check your API key and connection, then tap Retry.";

@@ -61,11 +61,13 @@ async function postJson<T>(
 }
 
 function toSanitizedFromApi(status: number, payload: unknown): OpenAISanitizedError {
-  const p = payload as Partial<ChatApiErr> & { retryAfter?: number; retryAfterSeconds?: number };
-  if (status === 429 && p.code === "RATE_LIMIT") return new OpenAISanitizedError("RATE_LIMIT", p.retryAfter ?? RETRY_AFTER_CAP_SEC);
-  if (status === 503 && p.code === "UPSTREAM_OVERLOADED") return new OpenAISanitizedError("UPSTREAM_OVERLOADED", p.retryAfterSeconds ?? RETRY_AFTER_CAP_SEC);
+  const p = payload as Partial<ChatApiErr> & { retryAfter?: number; retryAfterSeconds?: number; code?: string };
+  if (status === 429 || p.code === "RATE_LIMIT") return new OpenAISanitizedError("RATE_LIMIT", p.retryAfter ?? RETRY_AFTER_CAP_SEC);
+  if (p.code === "UPSTREAM_OVERLOADED") return new OpenAISanitizedError("UPSTREAM_OVERLOADED", p.retryAfterSeconds ?? RETRY_AFTER_CAP_SEC);
+  if (p.code === "CONFIG_ERROR") return new OpenAISanitizedError("AUTH_ERROR"); // missing API key → treated as auth/config error
   if (status === 401 && p.code === "UNAUTHORIZED") return new OpenAISanitizedError("UNAUTHORIZED");
   if (status === 401) return new OpenAISanitizedError("AUTH_ERROR");
+  if (status === 503 || status === 502 || status === 500) return new OpenAISanitizedError("UPSTREAM_OVERLOADED", RETRY_AFTER_CAP_SEC);
   return new OpenAISanitizedError("SERVER_ERROR");
 }
 
@@ -615,7 +617,11 @@ How may I serve you today?`;
       signal,
       "EXECUTIVE"
     );
-    const data = JSON.parse(raw || "{}");
+    let data: Record<string, string> = {};
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      data = JSON.parse(jsonMatch ? jsonMatch[0] : raw || "{}");
+    } catch { /* use empty data */ }
     return {
       text: data.confirmationText || "I've drafted that email for you.",
       sources: [],
@@ -633,7 +639,11 @@ How may I serve you today?`;
       signal,
       "EXECUTIVE"
     );
-    const data = JSON.parse(raw || "{}");
+    let data: Record<string, any> = {};
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      data = JSON.parse(jsonMatch ? jsonMatch[0] : raw || "{}");
+    } catch { /* use empty data */ }
     return {
       text: data.replyText || "I've set up this event.",
       sources: [],
@@ -661,7 +671,11 @@ How may I serve you today?`;
       signal,
       "SHOPPER"
     );
-    const data = JSON.parse(raw || "{}");
+    let data: Record<string, any> = {};
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      data = JSON.parse(jsonMatch ? jsonMatch[0] : raw || "{}");
+    } catch { /* use empty data */ }
     const fixedItems = (data.items || []).map((i: any) => ({
       ...i,
       imageUrl: i.imageUrl || "https://placehold.co/400x400/161b22/FFF?text=" + encodeURIComponent(i.name || "Product")

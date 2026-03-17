@@ -29,6 +29,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# Agent Arcade (local telemetry — cloned separately)
+agent-arcade/
+
 # Playwright
 playwright-report/
 test-results/

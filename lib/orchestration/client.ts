@@ -81,12 +81,18 @@ export function orchestrateStream(
       });
 
       if (!res.ok) {
-        callbacks.onError?.("Request failed");
+        // Parse the error body to extract the server error code (CONFIG_ERROR, RATE_LIMIT, etc.)
+        let code = "SERVER_ERROR";
+        try {
+          const errBody = await res.json();
+          if (errBody?.code) code = errBody.code;
+        } catch { /* ignore parse failures */ }
+        callbacks.onError?.(code);
         return;
       }
 
       if (!res.body) {
-        callbacks.onError?.("No response body");
+        callbacks.onError?.("SERVER_ERROR");
         return;
       }
 
@@ -148,7 +154,9 @@ export function orchestrateStream(
       }
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === "AbortError") return;
-      callbacks.onError?.("Connection failed");
+      // Preserve fetch/network errors so App.tsx can show "Network error" instead of generic message
+      const msg = (err as Error)?.message ?? "";
+      callbacks.onError?.(msg || "CONNECTION_FAILED");
     }
   })();
 

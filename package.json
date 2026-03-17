@@ -12,11 +12,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "arcade": "cd agent-arcade && node scripts/dev-arcade-auto.mjs \"%CD%\"",
+    "arcade:gateway": "cd agent-arcade && npm run dev:gateway",
+    "arcade:web": "cd agent-arcade && npm run dev:web",
+    "arcade:sim": "cd agent-arcade && npm run sim:human"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
-    "@upstash/redis": "^1.36.2",
     "i18next": "^25.8.14",
     "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.562.0",

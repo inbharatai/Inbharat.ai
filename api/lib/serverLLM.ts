@@ -11,14 +11,30 @@
 import { runWithRetry } from "./openaiRetry.js";
 
 // ── Singleton OpenAI client ──
+// Reset singleton when API key env changes (e.g. hot-reload in dev)
 let _openai: any = null;
+let _openaiKey: string | undefined;
 async function getOpenAI() {
-  if (_openai) return _openai;
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY not set");
+  if (!apiKey) {
+    const err = new Error("OPENAI_API_KEY not set") as Error & { status: number };
+    err.status = 401;
+    throw err;
+  }
+  // Re-create client if key changed (useful in local dev)
+  if (_openai && _openaiKey === apiKey) return _openai;
   const OpenAI = (await import("openai")).default;
   _openai = new OpenAI({ apiKey });
+  _openaiKey = apiKey;
   return _openai;
+}
+
+/** Non-retriable HTTP status codes — no point retrying auth/billing errors. */
+const NON_RETRIABLE_STATUSES = new Set([401, 402, 403]);
+
+function isNonRetriable(err: unknown): boolean {
+  const e = err as { status?: number };
+  return typeof e?.status === "number" && NON_RETRIABLE_STATUSES.has(e.status);
 }
 
 /** All modes use gpt-4.1-mini. */
@@ -95,9 +111,10 @@ export async function* serverLLMStream(options: LLMCallOptions): AsyncIterable<s
       return; // success — exit retry loop
     } catch (err: unknown) {
       lastError = err;
-      // Only retry if no chunks were yielded yet — retrying after partial
-      // yield would duplicate already-streamed text in the SSE output.
+      // Never retry after partial yield — would duplicate already-streamed text.
       if (chunksYielded) throw err;
+      // Never retry auth/billing errors — they won't resolve with retries.
+      if (isNonRetriable(err)) throw err;
       if (attempt < STREAM_MAX_RETRIES - 1) {
         const delay = 500 * (attempt + 1);
         await new Promise(r => setTimeout(r, delay));

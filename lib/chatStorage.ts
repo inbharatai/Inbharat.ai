@@ -149,3 +149,69 @@ export async function updateSession(
   const { error } = await supabase.from("chat_sessions").update(payload).eq("id", sessionId);
   if (error) throw error;
 }
+
+/**
+ * Permanently delete a chat session and all its messages.
+ * Cascade delete is handled by the DB FK (chat_messages.session_id → chat_sessions.id).
+ */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from("chat_sessions")
+    .delete()
+    .eq("id", sessionId);
+  if (error) throw error;
+}
+
+/**
+ * Delete a single message from a session.
+ * RLS ensures only the session owner can delete their own messages.
+ */
+export async function deleteMessage(messageId: string): Promise<void> {
+  const { error } = await supabase
+    .from("chat_messages")
+    .delete()
+    .eq("id", messageId);
+  if (error) throw error;
+}
+
+/**
+ * Clear all messages from a session without deleting the session itself.
+ * Useful for "Clear chat history" while preserving the session title.
+ */
+export async function clearSessionMessages(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from("chat_messages")
+    .delete()
+    .eq("session_id", sessionId);
+  if (error) throw error;
+}
+
+/**
+ * Load a single session by ID with all its messages.
+ * Useful for lazy-loading a specific session on demand.
+ */
+export async function loadSession(sessionId: string): Promise<ChatSession | null> {
+  const { data, error } = await supabase
+    .from("chat_sessions")
+    .select("*, chat_messages(*)")
+    .eq("id", sessionId)
+    .single();
+
+  if (error || !data) return null;
+  return dbSessionToChatSession(data as DbSession);
+}
+
+/**
+ * Return total message count for a user across all sessions (for usage display).
+ */
+export async function getMessageCount(userId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("chat_messages")
+    .select("id", { count: "exact", head: true })
+    .in(
+      "session_id",
+      supabase.from("chat_sessions").select("id").eq("user_id", userId)
+    );
+  if (error) return 0;
+  return count ?? 0;
+}

@@ -52,13 +52,14 @@ const bodySchema = z.object({
   query: z.string().min(1).max(5000),
   mode: z.string().optional(),
   language: z.string().optional().default("EN"),
-  imageData: z.string().optional(),
+  // 5 MB base64 limit (~3.75 MB raw image) — prevents memory exhaustion
+  imageData: z.string().max(5_242_880).optional(),
   sessionId: z.string().optional(),
   stream: z.boolean().optional(),
   previousMessages: z.array(z.object({
     role: z.enum(["user", "assistant"]),
-    content: z.string(),
-  })).optional(),
+    content: z.string().max(10_000),
+  })).max(50).optional(),
 });
 
 function getRequestId(req: VercelRequest): string {
@@ -74,6 +75,23 @@ function getRequestId(req: VercelRequest): string {
 
 // ── Greeting detection ──
 const GREETING_RE = /^(hi|hello|hey|namaste|namaskar|hola|greetings?|good\s+(morning|afternoon|evening)|hiya|howdy)\.?!?\s*$/i;
+
+// ── Classify streaming / workflow errors into SSE-safe codes ──
+function classifyStreamError(err: unknown): string {
+  const e = err as { status?: number; message?: string; code?: string };
+  const status = typeof e?.status === "number" ? e.status : undefined;
+  if (status === 401) return "CONFIG_ERROR";     // bad/missing API key
+  if (status === 429) return "RATE_LIMIT";        // OpenAI rate limit
+  if (status === 402) return "CONFIG_ERROR";      // quota exceeded
+  if (status === 503 || status === 502 || status === 500) return "UPSTREAM_OVERLOADED";
+  if (typeof e?.message === "string") {
+    const m = e.message.toLowerCase();
+    if (/api.?key|incorrect api key|invalid api key|unauthorized/i.test(m)) return "CONFIG_ERROR";
+    if (/rate.?limit|too many requests/i.test(m)) return "RATE_LIMIT";
+    if (/overload|capacity|heavy traffic|service unavailable/i.test(m)) return "UPSTREAM_OVERLOADED";
+  }
+  return "SERVER_ERROR";
+}
 
 // ── Search gating + query rewriting now live in each Agent class ──
 // (agent.shouldSearch(), agent.rewriteSearchQuery())
@@ -411,8 +429,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res.end();
           await completeWorkflow(workflow.id, workflowSteps);
         } catch (workflowErr: unknown) {
-          console.error("[orchestrate] workflow error:", workflowErr instanceof Error ? workflowErr.message : workflowErr);
-          res.write(`data: ${JSON.stringify({ event: "error", code: "SERVER_ERROR" })}\n\n`);
+          const errCode = classifyStreamError(workflowErr);
+          console.error(`[orchestrate] workflow error (${errCode}):`, workflowErr instanceof Error ? workflowErr.message : workflowErr);
+          res.write(`data: ${JSON.stringify({ event: "error", code: errCode })}\n\n`);
           res.end();
           await failWorkflow(workflow.id);
         }
@@ -501,7 +520,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.write(`data: ${JSON.stringify({ event: "done", requestId, text: mainText })}\n\n`);
         res.end();
       } catch (streamErr: unknown) {
-        res.write(`data: ${JSON.stringify({ event: "error", code: "SERVER_ERROR" })}\n\n`);
+        const errCode = classifyStreamError(streamErr);
+        console.error(`[orchestrate] stream error (${errCode}):`, streamErr instanceof Error ? streamErr.message : streamErr);
+        res.write(`data: ${JSON.stringify({ event: "error", code: errCode })}\n\n`);
         res.end();
       }
       return;
