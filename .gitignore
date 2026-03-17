@@ -35,3 +35,4 @@ agent-arcade/
 # Playwright
 playwright-report/
 test-results/
+.vercel
