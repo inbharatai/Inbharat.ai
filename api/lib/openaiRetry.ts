@@ -5,10 +5,10 @@
  */
 
 const RETRIABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
-const ATTEMPT_DELAYS_MS = [250, 750, 1750, 3250];
-const MAX_ATTEMPTS = 4;
-const PER_ATTEMPT_TIMEOUT_MS = 25_000;
-const RETRY_AFTER_CAP_SEC = 10;
+const ATTEMPT_DELAYS_MS = [200, 500, 1500];
+const MAX_ATTEMPTS = 3;
+const PER_ATTEMPT_TIMEOUT_MS = 15_000;
+const RETRY_AFTER_CAP_SEC = 5;
 
 function jitter(ms: number): number {
   return Math.floor(ms * (0.5 + Math.random() * 0.5));

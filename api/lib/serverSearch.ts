@@ -4,8 +4,8 @@
  */
 
 const SERPER_URL = "https://google.serper.dev/search";
-const TIMEOUT_MS = 12000;
-const RETRIES = 2;
+const TIMEOUT_MS = 5000;
+const RETRIES = 1;
 
 export interface SearchResult {
   title: string;

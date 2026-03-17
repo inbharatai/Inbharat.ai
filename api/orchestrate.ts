@@ -487,6 +487,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
+      // Send routing IMMEDIATELY so the client knows the connection is alive.
+      res.write(`data: ${JSON.stringify({ event: "routing", routing: { intent: routing.intent, mode } })}\n\n`);
+      res.write(`data: ${JSON.stringify({ event: "status", status: "Searching..." })}\n\n`);
+
       // Helper: send an SSE error event and close the stream.
       const sendSSEError = (code: string, err?: unknown) => {
         console.error(`[orchestrate] sse error (${code}):`, err instanceof Error ? err.message : err);
@@ -497,9 +501,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
 
       // Prepare context (search, system-prompt build).
-      // Wrapped so a throw here sends a proper SSE error instead of leaking
-      // into the outer catch which would try res.status(500).json() on a
-      // response that already has SSE headers committed.
       let prepared: Awaited<ReturnType<typeof agent.prepareServerContext>>;
       try {
         prepared = await agent.prepareServerContext(query, agentCtx);
@@ -508,8 +509,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return;
       }
 
-      // Send routing + sources (Perplexity-style: sources appear before text)
-      res.write(`data: ${JSON.stringify({ event: "routing", routing: { intent: routing.intent, mode } })}\n\n`);
+      // Send sources (Perplexity-style: sources appear before text)
       if (prepared.sources.length > 0) {
         res.write(`data: ${JSON.stringify({ event: "sources", sources: prepared.sources })}\n\n`);
       }
