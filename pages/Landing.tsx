@@ -318,11 +318,11 @@ const Landing: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white leading-tight">CodeIn.pro</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Code Playground</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Coding IDE</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                An online code playground and collaborative IDE built for Indian developers. Write, run, and share code in the browser.
+                Open-source AI coding IDE with 13 autonomous agents, 60+ LLM providers, and 22 Indian languages. Local-first — your code stays on your machine. Available as an Electron app, VS Code extension, and JetBrains plugin.
               </p>
               <a
                 href="https://github.com/inbharat-ai/codein.pro"
@@ -335,7 +335,7 @@ const Landing: React.FC = () => {
               </a>
             </div>
 
-            {/* Agent Arcade */}
+            {/* Agent Arcade Gateway */}
             <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
@@ -343,14 +343,14 @@ const Landing: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white leading-tight">Agent Arcade</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Agents</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Agent Observability</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                A collection of open source AI agents and automation scripts. Explore, fork, and build on top of ready-made agent workflows.
+                Universal AI agent observability platform. Watch, debug, and control agents from any framework in real-time — execution traces, session replay, cost analytics, WhatsApp remote control, and goal orchestration.
               </p>
               <a
-                href="https://github.com/inbharatai/agent-arcade"
+                href="https://github.com/inbharatai/agent-arcade-gateway"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
@@ -364,15 +364,15 @@ const Landing: React.FC = () => {
             <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
-                  <Phone size={20} className="text-emerald-400" />
+                  <TrendingUp size={20} className="text-emerald-400" />
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white leading-tight">Phoring</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Calling</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Decision Intelligence</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                Open source AI calling assistant framework. Build voice agents that can handle inbound queries and automate outbound calls.
+                Open-source decision intelligence platform. Upload documents → build a knowledge graph → run multi-agent OASIS simulations → get source-cited forecast reports with multi-AI consensus validation.
               </p>
               <a
                 href="https://github.com/inbharatai/phoring"
@@ -385,22 +385,22 @@ const Landing: React.FC = () => {
               </a>
             </div>
 
-            {/* Sahaayak */}
+            {/* Sahaayak AI OS */}
             <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
                   <Brain size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white leading-tight">Sahaayak</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Assistant</p>
+                  <h3 className="text-base font-black text-white leading-tight">Sahaayak AI OS</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Personal AI OS</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                An open source multilingual AI assistant for Bharat. Supports Hindi and regional languages out of the box.
+                Multilingual personal AI OS for Bharat. AI chat with memory, voice I/O, OCR scanner, smart notes, reminders, Gmail inbox, and live news — all in 13 Indian languages.
               </p>
               <a
-                href="https://github.com/inbharatai/sahaayak"
+                href="https://github.com/inbharatai/sahaayak-ai"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
