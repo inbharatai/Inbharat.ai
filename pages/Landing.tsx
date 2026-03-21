@@ -299,6 +299,133 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* ——— Open Source ——— */}
+      <section id="opensource" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 sm:mb-12">
+            <p className="text-emerald-400 text-xs font-black uppercase tracking-[0.35em] mb-2">Open Source</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              Built in public, free to use
+            </h2>
+            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">These are open source projects we've built and released for the community.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* CodeIn.pro */}
+            <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
+                  <Code2 size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">CodeIn.pro</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Code Playground</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mt-2 flex-1">
+                An online code playground and collaborative IDE built for Indian developers. Write, run, and share code in the browser.
+              </p>
+              <a
+                href="https://github.com/inbharat-ai/codein.pro"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
+              >
+                <Github size={15} />
+                View on GitHub
+              </a>
+            </div>
+
+            {/* Agent Arcade */}
+            <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
+                  <Activity size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">Agent Arcade</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Agents</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mt-2 flex-1">
+                A collection of open source AI agents and automation scripts. Explore, fork, and build on top of ready-made agent workflows.
+              </p>
+              <a
+                href="https://github.com/inbharatai/agent-arcade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
+              >
+                <Github size={15} />
+                View on GitHub
+              </a>
+            </div>
+
+            {/* Phoring */}
+            <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
+                  <Phone size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">Phoring</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Calling</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mt-2 flex-1">
+                Open source AI calling assistant framework. Build voice agents that can handle inbound queries and automate outbound calls.
+              </p>
+              <a
+                href="https://github.com/inbharatai/phoring"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
+              >
+                <Github size={15} />
+                View on GitHub
+              </a>
+            </div>
+
+            {/* Sahaayak */}
+            <div className="flex flex-col bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 rounded-2xl p-6 transition-all">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center flex-shrink-0">
+                  <Brain size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">Sahaayak</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Assistant</p>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm mt-2 flex-1">
+                An open source multilingual AI assistant for Bharat. Supports Hindi and regional languages out of the box.
+              </p>
+              <a
+                href="https://github.com/inbharatai/sahaayak"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
+              >
+                <Github size={15} />
+                View on GitHub
+              </a>
+            </div>
+          </div>
+
+          {/* GitHub CTA */}
+          <div className="mt-10 text-center">
+            <a
+              href="https://github.com/inbharatai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold rounded-xl transition-all"
+            >
+              <Github size={16} />
+              See all our open source work on GitHub
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Products: InBharat + UniAssist + UniBot cards — uniform height, typography, spacing */}
       <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
@@ -1081,195 +1208,6 @@ const Landing: React.FC = () => {
             </a>
           </div>
           <p className="text-gray-600 text-xs mt-5">Serving businesses across India — in English, Hindi, and 12+ regional languages.</p>
-        </div>
-      </section>
-
-      {/* ——— Open Source Projects ——— */}
-      <section id="opensource" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] to-[#0a0e12]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10 sm:mb-14">
-            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">Open Source</p>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-              Tools We've Open-Sourced
-            </h2>
-            <p className="text-gray-400 text-base max-w-2xl mx-auto mb-2 leading-relaxed">
-              Beyond client work, we build and release open-source AI tools for the global developer community.
-            </p>
-            <a
-              href="https://github.com/inbharatai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-2 text-gray-500 hover:text-white text-sm font-semibold transition-colors"
-            >
-              <Github size={16} />
-              github.com/inbharatai
-            </a>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-
-            {/* CodeIn.pro */}
-            <a
-              href="https://github.com/inbharat-ai/codein.pro"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-4 p-6 sm:p-7 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#FF6B35]/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#FF6B35] group-hover:scale-110 transition-transform">
-                    <Code2 size={22} />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-black text-base">CodeIn.pro</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#FF6B35]">AI Coding IDE</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#FF6B35]/15 border border-[#FF6B35]/30 text-[#FF6B35] text-[9px] font-black uppercase tracking-wider flex-shrink-0">Open Source</span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Open-source AI coding IDE with <span className="text-white font-semibold">13 autonomous agents</span>, 60+ LLM providers (OpenAI, Claude, Gemini, Ollama), 22 Indian languages, and local-first inference via llama.cpp. VS Code + JetBrains + Electron.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-auto">
-                {['TypeScript', 'React', 'Electron', 'Node.js', '60+ LLMs'].map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded-md bg-[#0d1117] border border-[#30363d] text-gray-500 text-[10px] font-medium">{t}</span>
-                ))}
-              </div>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#FF6B35] uppercase tracking-wider">
-                <Github size={12} /> View on GitHub →
-              </span>
-            </a>
-
-            {/* Agent Arcade */}
-            <a
-              href="https://github.com/inbharatai/agent-arcade-gateway"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-4 p-6 sm:p-7 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#4C8BF5]/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#4C8BF5] group-hover:scale-110 transition-transform">
-                    <Activity size={22} />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-black text-base">Agent Arcade</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#4C8BF5]">AI Agent Observability</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#4C8BF5]/15 border border-[#4C8BF5]/30 text-[#4C8BF5] text-[9px] font-black uppercase tracking-wider flex-shrink-0">Open Source</span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Universal AI agent cockpit — watch, debug & control any agent from any framework in real-time. <span className="text-white font-semibold">LangSmith-grade traces</span>, AgentOps-grade replay, Helicone-grade cost analytics, WhatsApp remote control, and Goal Mode orchestration.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-auto">
-                {['TypeScript', 'Next.js', 'Bun', 'Socket.IO', 'v3.8.1'].map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded-md bg-[#0d1117] border border-[#30363d] text-gray-500 text-[10px] font-medium">{t}</span>
-                ))}
-              </div>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#4C8BF5] uppercase tracking-wider">
-                <Github size={12} /> View on GitHub →
-              </span>
-            </a>
-
-            {/* Phoring */}
-            <a
-              href="https://github.com/inbharatai/phoring"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-4 p-6 sm:p-7 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#059669]/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#10b981] group-hover:scale-110 transition-transform">
-                    <Brain size={22} />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-black text-base">Phoring</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#10b981]">Decision Intelligence</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <a
-                    href="https://phoring.onrender.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="px-2 py-0.5 rounded-full bg-[#10b981]/15 border border-[#10b981]/30 text-[#10b981] text-[9px] font-black uppercase tracking-wider hover:bg-[#10b981]/25 transition-colors"
-                  >
-                    Live Demo ↗
-                  </a>
-                </div>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Open-source decision intelligence platform. <span className="text-white font-semibold">Upload documents → build knowledge graphs → run multi-agent OASIS simulations → generate source-cited forecast reports</span> with multi-AI consensus validation.
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-auto">
-                {['Python', 'Vue.js', 'Flask', 'OASIS', 'Zep Cloud'].map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded-md bg-[#0d1117] border border-[#30363d] text-gray-500 text-[10px] font-medium">{t}</span>
-                ))}
-              </div>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#10b981] uppercase tracking-wider">
-                <Github size={12} /> View on GitHub →
-              </span>
-            </a>
-
-            {/* Sahaayak */}
-            <div className="group flex flex-col gap-4 p-6 sm:p-7 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/50 transition-all">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center text-[#FF9933] group-hover:scale-110 transition-transform">
-                    <Heart size={22} />
-                  </div>
-                  <div>
-                    <h3 className="text-white font-black text-base">Sahaayak</h3>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#FF9933]">Personal AI OS + Field Assistant</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#FF9933]/15 border border-[#FF9933]/30 text-[#FF9933] text-[9px] font-black uppercase tracking-wider flex-shrink-0">2 Repos</span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Two products: <span className="text-white font-semibold">Sahaayak AI OS</span> — multilingual personal AI operating system for Bharat (13 languages, voice, chat, OCR, notes, news, reminders). <span className="text-white font-semibold">SahaayakSeva</span> — AI field assistant for India's 1.4M Anganwadi workers (child growth, maternal health, WHO standards, 13 languages).
-              </p>
-              <div className="flex flex-wrap gap-1.5 mt-auto">
-                {['Python', 'FastAPI', 'Next.js', 'React', '13 Languages'].map(t => (
-                  <span key={t} className="px-2 py-0.5 rounded-md bg-[#0d1117] border border-[#30363d] text-gray-500 text-[10px] font-medium">{t}</span>
-                ))}
-              </div>
-              <div className="flex items-center gap-4">
-                <a
-                  href="https://github.com/inbharatai/sahaayak-ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-bold text-[#FF9933] uppercase tracking-wider hover:text-[#e88a2b] transition-colors"
-                >
-                  <Github size={12} /> Sahaayak AI →
-                </a>
-                <a
-                  href="https://github.com/inbharatai/SahaayakSeva"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[10px] font-bold text-[#FF9933] uppercase tracking-wider hover:text-[#e88a2b] transition-colors"
-                >
-                  <Github size={12} /> SahaayakSeva →
-                </a>
-              </div>
-            </div>
-
-          </div>
-
-          {/* GitHub CTA */}
-          <div className="mt-10 text-center">
-            <a
-              href="https://github.com/inbharatai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3.5 bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 hover:text-white text-gray-300 font-bold rounded-2xl transition-all text-sm"
-            >
-              <Github size={18} />
-              See all projects on GitHub
-            </a>
-          </div>
         </div>
       </section>
 
