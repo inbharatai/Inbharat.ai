@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://inbharat.ai/sitemap.xml
+
+# Block internal/API routes from indexing
+Disallow: /api/
+Disallow: /app/
+
+# Allow landing page
+Allow: /

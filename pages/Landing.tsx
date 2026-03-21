@@ -8,7 +8,7 @@ import {
   Sparkles, Mic, Search, Globe, ArrowRight, ExternalLink, Check, BookOpen,
   GraduationCap, FileCheck, MapPin, Wallet, Briefcase, Heart, MessageCircle,
   Zap, Shield, Terminal, ShoppingBag, Wrench, Box, Key, FileCode, Bot, Send, ListChecks,
-  FlaskConical
+  FlaskConical, TrendingUp, Phone, BarChart2, Mail
 } from 'lucide-react';
 
 
@@ -64,6 +64,7 @@ const Landing: React.FC = () => {
         {/* Product anchor nav */}
         <nav className="hidden lg:flex items-center gap-0.5">
           {[
+            { href: '#services', label: 'Services', color: '#FF9933' },
             { href: '#inbharat', label: 'InBharat AI', color: '#FF9933' },
             { href: '#uniassist', label: 'UniAssist', color: '#138808' },
             { href: '#testsprep', label: 'TestsPrep', color: '#8b5cf6' },
@@ -120,12 +121,12 @@ const Landing: React.FC = () => {
       </div>
       {/* Announcement banner */}
       <div className="flex items-center justify-center gap-2 sm:gap-3 py-2 px-4 bg-[#FF9933]/8 border-b border-[#FF9933]/15">
-        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#8b5cf6] text-white text-[9px] font-black uppercase tracking-wider flex-shrink-0">New</span>
+        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#FF9933] text-white text-[9px] font-black uppercase tracking-wider flex-shrink-0">Now Building</span>
         <p className="text-gray-400 text-xs text-center">
-          <span className="text-white font-semibold">3D Science Labs</span> now live on TestsPrep.in — Immersive Physics, Chemistry &amp; Biology
+          <span className="text-white font-semibold">AI tools for businesses</span> — websites, chatbots, automations, CRM systems &amp; custom AI
         </p>
-        <a href="#testsprep" className="flex items-center gap-1 text-[#8b5cf6] text-xs font-bold hover:text-[#a78bfa] transition-colors flex-shrink-0">
-          Explore <ArrowRight size={11} />
+        <a href="#services" className="flex items-center gap-1 text-[#FF9933] text-xs font-bold hover:text-[#e88a2b] transition-colors flex-shrink-0">
+          See services <ArrowRight size={11} />
         </a>
       </div>
 
@@ -157,25 +158,23 @@ const Landing: React.FC = () => {
             <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
             <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
           </p>
-          <p className="text-base sm:text-lg text-gray-400 max-w-xl mx-auto mb-6 leading-relaxed">
-            {t('heroSubShort')}
+          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 leading-relaxed">
+            We build <span className="text-white font-semibold">AI-powered websites, chatbots, automations, and custom tools</span> for businesses across Bharat — so you grow faster with less effort.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               to="/app"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg hover:shadow-[#FF9933]/20 active:scale-[0.98]"
             >
-              {t('tryInBharat')}
+              Discuss your project
               <ArrowRight size={18} />
             </Link>
             <a
-              href="https://www.uniassist.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#161b22] border border-[#30363d] hover:border-[#138808]/50 text-gray-300 hover:text-white font-bold rounded-2xl transition-all"
+              href="#services"
+              className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/50 text-gray-300 hover:text-white font-bold rounded-2xl transition-all"
             >
-              {t('exploreUniAssist')}
-              <ExternalLink size={16} />
+              See what we build
+              <ArrowRight size={16} />
             </a>
           </div>
 
@@ -232,10 +231,10 @@ const Landing: React.FC = () => {
       <div className="py-6 px-4 sm:px-6 border-t border-b border-[#30363d]/30 bg-[#161b22]/40">
         <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-8 sm:gap-16">
           {[
-            { num: '7', label: t('statsModesLabel') },
+            { num: '50+', label: 'Projects Built' },
             { num: '14+', label: t('statsLangsLabel') },
             { num: '5', label: t('statsProductsLabel') },
-            { num: '3', label: t('statsPlatformsLabel') },
+            { num: '8', label: 'Service Types' },
           ].map(({ num, label }) => (
             <div key={label} className="flex flex-col items-center gap-0.5">
               <span className="text-2xl sm:text-3xl font-black text-[#FF9933]">{num}</span>
@@ -245,12 +244,71 @@ const Landing: React.FC = () => {
         </div>
       </div>
 
+      {/* ——— What We Build: AI Consulting Services ——— */}
+      <section id="services" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 sm:mb-14">
+            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">AI Consulting & Development</p>
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
+              What We Build for Your Business
+            </h2>
+            <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-2 leading-relaxed">
+              We design, build, and deploy AI-powered tools, automations, and websites — so your business runs smarter and grows faster.
+            </p>
+            <p className="text-gray-600 text-sm max-w-xl mx-auto">
+              Tell us your problem. We'll build the solution.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {([
+              { icon: Globe, title: 'Business Websites', desc: 'Modern, fast, AI-ready websites and landing pages built to convert visitors into clients.', color: '#FF9933' },
+              { icon: Bot, title: 'AI Chatbots', desc: 'Custom AI chatbots for customer support, lead capture, and sales — on your website or WhatsApp.', color: '#138808' },
+              { icon: Zap, title: 'Workflow Automation', desc: 'Automate repetitive tasks, approvals, data entry, and multi-step processes with AI.', color: '#FF9933' },
+              { icon: BarChart2, title: 'CRM & Dashboards', desc: 'Custom CRM systems, admin panels, and analytics dashboards for real-time business visibility.', color: '#138808' },
+              { icon: Mail, title: 'WhatsApp & Email Automation', desc: 'Automated follow-ups, drip sequences, and two-way conversations on WhatsApp and email.', color: '#FF9933' },
+              { icon: Phone, title: 'AI Calling Assistants', desc: 'AI-powered voice agents that handle inbound queries, qualify leads, and escalate to humans.', color: '#138808' },
+              { icon: TrendingUp, title: 'Sales Automation', desc: 'End-to-end lead capture, qualification, nurturing, and follow-up systems that work around the clock.', color: '#FF9933' },
+              { icon: Wrench, title: 'Custom AI Tools', desc: 'Bespoke AI tools designed for your exact workflow — from document processing to intelligent decision support.', color: '#138808' },
+            ] as { icon: React.ElementType; title: string; desc: string; color: string }[]).map(({ icon: Icon, title, desc, color }) => (
+              <Link
+                key={title}
+                to="/app"
+                className="group flex flex-col gap-3 p-4 sm:p-5 rounded-2xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[#0d1117] border border-[#30363d] flex items-center justify-center group-hover:scale-110 transition-transform flex-shrink-0" style={{ color }}>
+                  <Icon size={20} />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-sm mb-1">{title}</h3>
+                  <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
+                </div>
+                <span className="text-[10px] font-bold text-[#FF9933] uppercase tracking-wider">Discuss project →</span>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-10 sm:mt-14 text-center">
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg hover:shadow-[#FF9933]/25"
+            >
+              Describe your project
+              <ArrowRight size={20} />
+            </Link>
+            <p className="text-gray-600 text-sm mt-3">Chat with our AI advisor — describe what you need, get a custom recommendation.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Products: InBharat + UniAssist + UniBot cards — uniform height, typography, spacing */}
       <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-black text-white text-center mb-10 sm:mb-12">
-            {t('ourProducts')}
-          </h2>
+          <div className="text-center mb-10 sm:mb-12">
+            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">Proof of Work</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              {t('ourProducts')}
+            </h2>
+            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">These are AI tools and platforms we've built — each solves a real problem for a real audience.</p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-stretch">
             {/* Desh Ka AI */}
             <div className="h-full flex flex-col bg-[#161b22] border border-[#FF9933]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#FF9933]/20">
@@ -996,6 +1054,36 @@ const Landing: React.FC = () => {
         </div>
       </section>
 
+      {/* ——— Work with InBharat CTA ——— */}
+      <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] to-[#0a0e12]">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-3">Work With Us</p>
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
+            Ready to Build Your AI-Powered Business?
+          </h2>
+          <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
+            Describe your business challenge to our AI advisor. We'll recommend the right tools, automations, or systems — and build them for you.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg"
+            >
+              Start the conversation
+              <ArrowRight size={20} />
+            </Link>
+            <a
+              href="#services"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 text-gray-300 hover:text-white font-bold rounded-2xl transition-all"
+            >
+              Browse services
+              <ArrowRight size={16} />
+            </a>
+          </div>
+          <p className="text-gray-600 text-xs mt-5">Serving businesses across India — in English, Hindi, and 12+ regional languages.</p>
+        </div>
+      </section>
+
       {/* Built for India */}
       <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30 bg-[#0d1117]/50">
         <div className="max-w-4xl mx-auto">
@@ -1028,7 +1116,7 @@ const Landing: React.FC = () => {
             <TricolourStar size={24} />
             <span className="font-black italic text-white">InBharat</span>
           </div>
-          <p className="text-gray-500 text-xs text-center sm:text-left">{t('footerJourney')}</p>
+          <p className="text-gray-500 text-xs text-center sm:text-left">AI Consulting & Tool Building for Bharat.</p>
           <div className="flex items-center gap-6 text-sm flex-wrap justify-center">
             <Link to="/app" className="text-gray-400 hover:text-white transition-colors">
               {t('footerInBharat')}

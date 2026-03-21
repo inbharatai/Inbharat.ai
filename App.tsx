@@ -13,7 +13,8 @@ import TricolourStar from './components/TricolourStar';
 import SettingsPanel from './components/SettingsPanel';
 import AuthPanel from './components/AuthPanel';
 import {
-  Menu, Share2, MoreHorizontal, Hash, Terminal, Globe, BookOpen, Sparkles, Briefcase, ShoppingBag, Settings, X
+  Menu, Share2, MoreHorizontal, Hash, Terminal, Globe, BookOpen, Sparkles, Briefcase, ShoppingBag, Settings, X,
+  Bot, Zap, BarChart2, Send, Phone, Wrench, TrendingUp, MessageCircle
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -576,11 +577,35 @@ const App: React.FC = () => {
                   <p className="text-[9px] sm:text-[10px] md:text-xs font-medium uppercase text-[#A0A0A0] max-w-[90vw] sm:max-w-lg px-2 flex flex-col items-center justify-center gap-y-0.5">
                     <span className="tracking-[0.15em] sm:tracking-[0.25em] flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4">
                       <span>A I</span>
-                      <span>I N T E L L I G E N C E</span>
+                      <span>C O N S U L T I N G</span>
                     </span>
                     <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
                     <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
                   </p>
+               </div>
+               {/* Quick action suggestions */}
+               <div className="w-full max-w-xl px-1 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest text-center mb-3">What can we build for you?</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                   {([
+                     { label: 'Build a website for my business', icon: Globe },
+                     { label: 'Create an AI chatbot for my company', icon: Bot },
+                     { label: 'Automate lead capture and follow-ups', icon: TrendingUp },
+                     { label: 'Build a CRM or admin dashboard', icon: BarChart2 },
+                     { label: 'Set up WhatsApp or email automation', icon: Send },
+                     { label: 'Build a custom AI tool for my workflow', icon: Wrench },
+                   ] as { label: string; icon: React.ElementType }[]).map(({ label, icon: Icon }) => (
+                     <button
+                       key={label}
+                       type="button"
+                       onClick={() => handleSearch(label, activeMode, appLanguage)}
+                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 hover:bg-[#1c2330] text-gray-400 hover:text-white text-sm text-left transition-all touch-manual min-h-[44px]"
+                     >
+                       <Icon size={15} className="text-[#FF9933] flex-shrink-0" />
+                       <span className="leading-snug">{label}</span>
+                     </button>
+                   ))}
+                 </div>
                </div>
                <div className="flex-1 min-h-4" />
             </div>
