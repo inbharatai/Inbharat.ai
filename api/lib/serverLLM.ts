@@ -37,9 +37,9 @@ function isNonRetriable(err: unknown): boolean {
   return typeof e?.status === "number" && NON_RETRIABLE_STATUSES.has(e.status);
 }
 
-/** All modes use gpt-3.5-turbo for testing. */
+/** All modes use gpt-4o-mini. */
 function getModelForMode(_mode?: string): string {
-  return "gpt-3.5-turbo";
+  return "gpt-4o-mini";
 }
 
 /** Mode-specific temperature + max_tokens for optimal output quality. */

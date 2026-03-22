@@ -1,7 +1,7 @@
 
 import React from 'react';
 import {
-  Plus, Search, History
+  Plus, Search, History, MessageSquare, User, Settings
 } from 'lucide-react';
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
