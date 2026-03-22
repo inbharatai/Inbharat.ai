@@ -478,7 +478,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       res.write(`data: ${JSON.stringify({ event: "status", status: "Searching..." })}\n\n`);
 
       const sendSSEError = (code: string, err?: unknown) => {
-        console.error(`[chat] sse error (${code}):`, err instanceof Error ? err.message : err);
+        const errMsg = err instanceof Error ? err.message : String(err ?? "unknown");
+        const errStack = err instanceof Error ? err.stack?.split("\n").slice(0, 3).join(" | ") : undefined;
+        console.error(`[chat] sse error (${code}):`, errMsg, errStack ? `[stack: ${errStack}]` : "");
         try {
           res.write(`data: ${JSON.stringify({ event: "error", code })}\n\n`);
           res.end();

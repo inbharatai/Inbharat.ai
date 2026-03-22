@@ -24,7 +24,7 @@ async function getOpenAI() {
   // Re-create client if key changed (useful in local dev)
   if (_openai && _openaiKey === apiKey) return _openai;
   const OpenAI = (await import("openai")).default;
-  _openai = new OpenAI({ apiKey });
+  _openai = new OpenAI({ apiKey, fetch: globalThis.fetch });
   _openaiKey = apiKey;
   return _openai;
 }
