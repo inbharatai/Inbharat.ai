@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Send, Languages, Mic, MicOff, Zap, Camera, Image as ImageIcon, 
-  Paperclip, Terminal, BookOpen, Globe, X, Sparkles, Hash, MessageSquare, Briefcase, ShoppingBag
+  Paperclip, X
 } from 'lucide-react';
 import { AgentMode } from '../types';
 import { getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from '../services/openaiService';
@@ -178,17 +178,8 @@ const Omnibox: React.FC<OmniboxProps> = ({
     }
   }, [query]);
 
-  const agents = [
-    { mode: AgentMode.STANDARD, label: t('modeStandard'), icon: MessageSquare, color: 'text-white', desc: t('modeDescStandard') },
-    { mode: AgentMode.RESEARCH, label: t('modeResearch'), icon: Hash, color: 'text-[#FF9933]', desc: t('modeDescResearch') },
-    { mode: AgentMode.CODER, label: t('modeCoder'), icon: Terminal, color: 'text-[#138808]', desc: t('modeDescCoder') },
-    { mode: AgentMode.EDUCATOR, label: t('modeEducator'), icon: BookOpen, color: 'text-purple-400', desc: t('modeDescEducator') },
-    { mode: AgentMode.BROWSER, label: t('modeBrowser'), icon: Globe, color: 'text-blue-400', desc: t('modeDescBrowser') },
-    { mode: AgentMode.EXECUTIVE, label: t('modeExecutive'), icon: Briefcase, color: 'text-yellow-400', desc: t('modeDescExecutive') },
-    { mode: AgentMode.SHOPPER, label: t('modeShopper'), icon: ShoppingBag, color: 'text-emerald-400', desc: t('modeDescShopper') },
-  ];
+  // Intelligence Units moved to sidebar — no longer in omnibox menu
 
-  const currentAgent = agents.find(a => a.mode === initialMode) || agents[0];
 
   return (
     <div className="relative w-full max-w-2xl mx-auto px-2 sm:px-4">
@@ -235,30 +226,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
               ))}
             </div>
 
-            {/* Units Header */}
-            <div className="flex items-center gap-2 mb-3 px-1">
-               <Sparkles size={12} className="text-[#FF9933]" />
-               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-600">{t('intelligenceUnits')}</span>
-            </div>
-            
-            {/* Unit Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-              {agents.map((agent) => (
-                <button 
-                  key={agent.mode}
-                  onClick={() => { onModeChange(agent.mode); setIsMenuOpen(false); }}
-                  className={`flex items-center gap-3 p-3 rounded-xl transition-all border ${initialMode === agent.mode ? 'bg-[#FF9933]/10 border-[#FF9933]/40 shadow-sm' : 'bg-[#0d1117] border-[#30363d] hover:bg-[#1c2128]'}`}
-                >
-                  <div className={`p-1.5 rounded-lg ${initialMode === agent.mode ? 'bg-[#FF9933]/20' : 'bg-[#161b22]'}`}>
-                    <agent.icon size={14} className={agent.color} />
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <span className="text-xs font-bold text-white leading-none">{agent.label}</span>
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-gray-600 mt-1">{agent.desc}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+
           </div>
         </div>
       )}
