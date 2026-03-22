@@ -523,37 +523,37 @@ const App: React.FC = () => {
         )}
       {/* OpenAI runs server-side; no client key banner */}
         {/* Header */}
-        <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 safe-top z-[100] sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl border-b border-[#30363d]/30 shrink-0">
+        <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 safe-top z-100 sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl border-b border-[#30363d]/30 shrink-0">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <button onClick={() => setIsSidebarOpen(true)} className="flex-shrink-0 w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all shadow-sm touch-manual" aria-label={t('openMenu')}>
+            <button onClick={() => setIsSidebarOpen(true)} className="shrink-0 w-10 h-10 min-h-11 min-w-11 bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all shadow-sm touch-manual" aria-label={t('openMenu')}>
               <Menu size={20} />
             </button>
             <Link to="/" className="flex items-center gap-2 min-w-0 hover:opacity-90 transition-opacity" title="Back to home">
-               <TricolourStar size={28} className="flex-shrink-0" />
+               <TricolourStar size={28} className="shrink-0" />
                <span className="font-black italic text-base sm:text-lg tracking-tight text-white opacity-90 truncate">InBharat</span>
             </Link>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
              <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 md:px-4 ${activeModeInfo.bg} ${activeModeInfo.border} border rounded-xl animate-in fade-in duration-300`}>
                 <activeModeInfo.icon size={12} className={activeModeInfo.color} />
                 <span className={`text-[10px] font-black tracking-widest ${activeModeInfo.color}`}>{activeModeInfo.label} {t('unitOnline')}</span>
              </div>
              <button
                 onClick={() => setShowSettings(true)}
-                className="w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all touch-manual"
+                className="w-10 h-10 min-h-11 min-w-11 bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all touch-manual"
                 aria-label={t('settingsLabel')}
                 data-testid="settings-button"
               >
                 <Settings size={20} />
               </button>
              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#161b22] border border-[#30363d] rounded-xl opacity-50">
-               <Globe size={16} className="text-blue-400 flex-shrink-0" />
+               <Globe size={16} className="text-blue-400 shrink-0" />
                <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{t('voiceInChat')}</span>
              </div>
              {isSignedIn ? (
                <div className="flex items-center gap-2">
-                 <span className="hidden sm:inline text-xs text-gray-500 max-w-[180px] truncate">
+                 <span className="hidden sm:inline text-xs text-gray-500 max-w-45 truncate">
                    {user?.email ?? t('signedIn')}
                  </span>
                  <button
@@ -586,29 +586,29 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col items-center px-4 sm:px-6 pt-8 sm:pt-12 md:pt-20 lg:pt-32 min-h-full pb-44 sm:pb-52">
                <div className="flex flex-col items-center text-center animate-in fade-in slide-in-from-bottom-8 duration-1000 mb-8 sm:mb-12 md:mb-16">
                   <div className="relative mb-6 sm:mb-8">
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 bg-[#000000] border-2 border-[#30363d] rounded-[2rem] sm:rounded-[3rem] flex items-center justify-center shadow-2xl relative overflow-hidden group">
-                       <TricolourStar size={84} className="w-14 h-14 sm:w-20 sm:h-20 md:w-[84px] md:h-[84px] group-hover:scale-110 transition-transform duration-700" />
-                       <div className="absolute inset-0 bg-gradient-to-tr from-[#FF9933]/10 via-transparent to-[#138808]/10 pointer-events-none" />
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 bg-[#000000] border-2 border-[#30363d] rounded-4xl sm:rounded-[3rem] flex items-center justify-center shadow-2xl relative overflow-hidden group">
+                       <TricolourStar size={84} className="w-14 h-14 sm:w-20 sm:h-20 md:w-21 md:h-21 group-hover:scale-110 transition-transform duration-700" />
+                       <div className="absolute inset-0 bg-linear-to-tr from-[#FF9933]/10 via-transparent to-[#138808]/10 pointer-events-none" />
                     </div>
                     <div className="absolute -bottom-2 -right-2 sm:-bottom-3 sm:-right-3 bg-[#FF9933] w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center border-4 border-[#0d1117] shadow-xl animate-bounce">
                       <Sparkles size={16} className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                   </div>
                   <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black italic tracking-tighter text-white mb-3 sm:mb-5 px-2">
-                    InBharat <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent pr-1">Ai</span>
+                    InBharat <span className="inline-block bg-linear-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent pr-1">Ai</span>
                   </h1>
 
                   <p className="text-sm sm:text-base md:text-lg font-semibold text-white mb-2 sm:mb-3">
                     {t('deshKaAiShort')}
                   </p>
-                  <div className="w-20 sm:w-24 h-px bg-gradient-to-r from-[#FF9933] via-white/80 to-[#138808] mb-3 sm:mb-4" />
+                  <div className="w-20 sm:w-24 h-px bg-linear-to-r from-[#FF9933] via-white/80 to-[#138808] mb-3 sm:mb-4" />
                   <p className="text-[9px] sm:text-[10px] md:text-xs font-medium uppercase text-[#A0A0A0] max-w-[90vw] sm:max-w-lg px-2 flex flex-col items-center justify-center gap-y-0.5">
                     <span className="tracking-[0.15em] sm:tracking-[0.25em] flex flex-wrap items-center justify-center gap-x-3 sm:gap-x-4">
                       <span>A I</span>
                       <span>C O N S U L T I N G</span>
                     </span>
                     <span className="tracking-[0.15em] sm:tracking-[0.25em]">F O R</span>
-                    <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
+                    <span className="inline-block bg-linear-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
                   </p>
                </div>
                {/* Quick action suggestions */}
@@ -627,9 +627,9 @@ const App: React.FC = () => {
                        key={label}
                        type="button"
                        onClick={() => handleSearch(label, activeMode, appLanguage)}
-                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 hover:bg-[#1c2330] text-gray-400 hover:text-white text-sm text-left transition-all touch-manual min-h-[44px]"
+                       className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 hover:bg-[#1c2330] text-gray-400 hover:text-white text-sm text-left transition-all touch-manual min-h-11"
                      >
-                       <Icon size={15} className="text-[#FF9933] flex-shrink-0" />
+                       <Icon size={15} className="text-[#FF9933] shrink-0" />
                        <span className="leading-snug">{label}</span>
                      </button>
                    ))}
@@ -652,7 +652,7 @@ const App: React.FC = () => {
                {isLoading && (
                  <div className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-8 ml-0 md:ml-14">
                    <div className="flex gap-4 sm:gap-8 flex-1">
-                     <div className="w-10 h-10 rounded-2xl bg-[#FF9933]/10 border border-[#FF9933]/20 flex items-center justify-center flex-shrink-0">
+                     <div className="w-10 h-10 rounded-2xl bg-[#FF9933]/10 border border-[#FF9933]/20 flex items-center justify-center shrink-0">
                        <TricolourStar size={20} className="opacity-40" />
                      </div>
                      <div className="flex-1 space-y-8 py-2">
@@ -670,7 +670,7 @@ const App: React.FC = () => {
                    <button
                      type="button"
                      onClick={handleStop}
-                     className="sm:self-center px-4 py-2.5 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm font-semibold touch-manual min-h-[44px]"
+                     className="sm:self-center px-4 py-2.5 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm font-semibold touch-manual min-h-11"
                      aria-label={t('stopGenerating')}
                    >
                      {t('stopGenerating')}
@@ -682,7 +682,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Fixed bottom bar — Cursor-style: always visible, compact */}
-        <div className="fixed bottom-0 left-0 right-0 safe-bottom z-[40] bg-[#0d1117] border-t border-[#30363d]/50 pointer-events-none">
+        <div className="fixed bottom-0 left-0 right-0 safe-bottom z-40 bg-[#0d1117] border-t border-[#30363d]/50 pointer-events-none">
           <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 py-2 sm:py-3 pointer-events-auto">
             <Omnibox 
               onSearch={handleSearch} 
@@ -715,7 +715,7 @@ const App: React.FC = () => {
                  URL.revokeObjectURL(url);
                }}
                disabled={!currentSession || currentSession.messages.length === 0}
-               className="p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual disabled:opacity-50"
+               className="p-3 min-h-11 min-w-11 bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual disabled:opacity-50"
                aria-label={t('exportChat')}
              >
                <Share2 size={18} />
@@ -725,7 +725,7 @@ const App: React.FC = () => {
                <div className="h-1 w-12 bg-white/30 rounded-full" />
                <div className="h-1 w-2 bg-[#138808] rounded-full" />
              </div>
-             <button className="p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual"><MoreHorizontal size={18} /></button>
+             <button className="p-3 min-h-11 min-w-11 bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual"><MoreHorizontal size={18} /></button>
           </div>
         </div>
       </main>
@@ -735,7 +735,7 @@ const App: React.FC = () => {
       {/* Auth modal — login without leaving the main UI */}
       {showAuthModal && (
         <div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowAuthModal(false)}
           role="dialog"
           aria-modal="true"
@@ -759,9 +759,9 @@ const App: React.FC = () => {
 
       {/* Sign-in prompt after 3 guest messages — hard gate, no dismiss */}
       {showSignInPrompt && !isSignedIn && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#FF9933]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-100 max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#FF9933]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-sm text-gray-300">{t('signInRequired')}</p>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 shrink-0">
             <button
               type="button"
               onClick={() => { setShowSignInPrompt(false); setShowAuthModal(true); }}
