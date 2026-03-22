@@ -1,8 +1,7 @@
 
 import React from 'react';
 import {
-  Plus, Search, MessageSquare, Compass, Settings,
-  Terminal, Globe, User, Hash, History
+  Plus, Search, History
 } from 'lucide-react';
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
@@ -30,11 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const { isSignedIn, user, signOut } = useAuth();
   const { t } = useTranslation();
   const actionsDisabled = !isSignedIn;
-  const agents = [
-    { mode: AgentMode.RESEARCH, label: t('researchUnit'), icon: Hash, color: 'text-[#FF9933]' },
-    { mode: AgentMode.CODER, label: t('codeTerminal'), icon: Terminal, color: 'text-[#138808]' },
-    { mode: AgentMode.BROWSER, label: t('globalBrowser'), icon: Globe, color: 'text-blue-400' },
-  ];
 
   return (
     <>
@@ -61,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <button 
-            onClick={() => !actionsDisabled && onNewChat(AgentMode.RESEARCH)}
+            onClick={() => !actionsDisabled && onNewChat(AgentMode.STANDARD)}
             disabled={actionsDisabled}
             className={`w-full min-h-[44px] h-11 flex items-center justify-between px-4 rounded-xl font-black text-xs transition-all shadow-lg group touch-manual ${
               actionsDisabled
@@ -79,37 +73,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar px-3 pb-8">
-          {/* Intelligence Units */}
-          <div className="space-y-1 mb-8">
-            <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
-              <span className="w-1 h-1 bg-[#FF9933] rounded-full inline-block" />
-              {t('intelligenceUnits')}
-            </div>
-            {agents.map((agent) => (
-                <button 
-                  key={agent.mode}
-                  onClick={() => !actionsDisabled && onNewChat(agent.mode)}
-                  disabled={actionsDisabled}
-                  className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl transition-all group touch-manual text-left ${
-                    actionsDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#161b22]"
-                  }`}
-                >
-                <agent.icon size={16} className={`${agent.color} opacity-60 group-hover:opacity-100`} />
-                <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">{agent.label}</span>
-              </button>
-            ))}
-            <button 
-              onClick={() => !actionsDisabled && onDiscovery()}
-              disabled={actionsDisabled}
-              className={`w-full flex items-center gap-3 px-4 py-3 sm:py-2.5 min-h-[44px] rounded-xl transition-all group touch-manual text-left ${
-                actionsDisabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[#161b22]"
-              }`}
-            >
-              <Compass size={16} className="text-[#FF9933] opacity-60 group-hover:opacity-100" />
-              <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">{t('discoverLive')}</span>
-            </button>
-          </div>
-
           {/* Chat History */}
           <div className="space-y-1">
             <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
