@@ -9,6 +9,7 @@ import CoderResponsePanel from "./CoderResponsePanel";
 import { Layers, Sparkles, MessageSquare, Volume2, VolumeX, Loader2, Copy, RefreshCw, RotateCcw } from "lucide-react";
 import { NexusAgent, normalizeForTTS, splitForTTS } from "../services/openaiService";
 import { getVoiceSettings } from "../lib/settings";
+import { useTranslation } from 'react-i18next';
 
 const ERROR_MESSAGE_MARKER = "We're experiencing heavy neural traffic";
 
@@ -114,6 +115,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   onRegenerate,
   lastUserMessage,
 }) => {
+  const { t } = useTranslation();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [loadingAudioId, setLoadingAudioId] = useState<string | null>(null);
   const [audioErrorId, setAudioErrorId] = useState<string | null>(null);
@@ -361,8 +363,8 @@ const ChatView: React.FC<ChatViewProps> = ({
                   <div className="rounded-2xl border border-[#30363d]/50 bg-[#0d1117]/50 p-4 sm:p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <Layers size={12} className="text-[#FF9933]/80 flex-shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Verified sources</span>
-                      <span className="text-[9px] font-bold text-gray-600 ml-auto">{msg.sources.length} sources</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">{t('verifiedSources')}</span>
+                      <span className="text-[9px] font-bold text-gray-600 ml-auto">{t('sourcesCount', { count: msg.sources.length })}</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {msg.sources.map((s, idx) => (
@@ -382,7 +384,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                         <span className="w-2 h-2 rounded-full bg-[#FF9933]/30" style={{ animation: 'bounce 1.2s infinite', animationDelay: '400ms' }} />
                       </div>
                       <span className="text-sm text-gray-400 font-medium">
-                        {msg.statusText || "Thinking…"}
+                        {msg.statusText || t('thinking')}
                       </span>
                     </div>
                   </div>
@@ -411,7 +413,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                       <img src={msg.imageUrl} alt="Generation" className="w-full h-auto" />
                       <div className="px-3 py-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 border-t border-[#30363d]/50">
                         <TricolourStar size={12} />
-                        Neural Render
+                        {t('neuralRender')}
                       </div>
                     </div>
                   )}
@@ -430,7 +432,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1.5">
                     <Volume2 size={12} className="text-[#FF9933]/90" />
-                    Voice
+                    {t('voiceLabel')}
                   </span>
                   <button
                     type="button"
@@ -455,7 +457,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                       <Volume2 size={14} className={playingId === msg.id ? "animate-pulse flex-shrink-0" : ""} />
                     )}
                     <span>
-                      {loadingAudioId === msg.id ? "Loading…" : playingId === msg.id ? "Playing" : audioErrorId === msg.id ? "Try again" : "Listen"}
+                      {loadingAudioId === msg.id ? t('audioLoading') : playingId === msg.id ? t('audioPlaying') : audioErrorId === msg.id ? t('audioRetry') : t('audioListen')}
                     </span>
                   </button>
                   {playingId === msg.id && (
@@ -463,23 +465,23 @@ const ChatView: React.FC<ChatViewProps> = ({
                       type="button"
                       onClick={handleStopSpeaking}
                       className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 min-h-[44px] touch-manual text-xs font-semibold"
-                      aria-label="Stop speaking"
+                      aria-label={t('stopSpeaking')}
                     >
                       <VolumeX size={14} />
-                      Stop
+                      {t('audioStop')}
                     </button>
                   )}
                   {audioErrorId === msg.id && (
-                    <span className="text-[10px] text-red-400/90">Voice unavailable. Try again or check connection.</span>
+                    <span className="text-[10px] text-red-400/90">{t('audioError')}</span>
                   )}
                   <button
                     type="button"
                     onClick={() => handleCopy(msg)}
                     className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white hover:border-[#FF9933]/40 min-h-[44px] touch-manual text-xs font-semibold"
-                    aria-label="Copy"
+                    aria-label={t('copy')}
                   >
                     <Copy size={14} />
-                    {copiedId === msg.id ? "Copied" : "Copy"}
+                    {copiedId === msg.id ? t('copied') : t('copy')}
                   </button>
                   {isLastAssistant(msgIdx) && !isLoading && lastUserMessage && onRegenerate && (
                     isErrorMessage(msg) ? (
@@ -488,24 +490,24 @@ const ChatView: React.FC<ChatViewProps> = ({
                         onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
                         disabled={retryDisabled || msg.errorCode === "UNAUTHORIZED"}
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FF9933]/50 bg-[#FF9933]/10 text-[#FF9933] hover:bg-[#FF9933]/20 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] touch-manual text-xs font-semibold"
-                        aria-label="Retry"
+                        aria-label={t('retry')}
                       >
                         <RotateCcw size={14} />
                         {msg.errorCode === "UNAUTHORIZED"
-                          ? "Sign in"
+                          ? t('signIn')
                           : retryDisabled
-                            ? `Retry in ${Math.ceil(retryCooldownMs / 1000)}s`
-                            : "Retry"}
+                            ? t('retryIn', { seconds: Math.ceil(retryCooldownMs / 1000) })
+                            : t('retry')}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={() => onRegenerate(lastUserMessage.content, lastUserMessage.mode ?? activeMode, appLanguage, lastUserMessage.imageUrl)}
                         className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white hover:border-[#FF9933]/40 min-h-[44px] touch-manual text-xs font-semibold"
-                        aria-label="Regenerate"
+                        aria-label={t('regenerate')}
                       >
                         <RefreshCw size={14} />
-                        Regenerate
+                        {t('regenerate')}
                       </button>
                     )
                   )}
@@ -516,7 +518,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                   <div className="rounded-2xl border border-[#30363d]/40 bg-[#0d1117]/40 p-4 sm:p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <MessageSquare size={12} className="text-[#FF9933]/80 flex-shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Follow-up questions</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">{t('followUpQuestions')}</span>
                     </div>
                     <div className="flex flex-col gap-2">
                       {msg.followUps.map((q, idx) => (

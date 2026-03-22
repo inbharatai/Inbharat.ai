@@ -1,5 +1,5 @@
 /**
- * Orchestration type definitions for the InBharat agentic platform.
+ * Type definitions for the InBharat agentic platform.
  *
  * These types power the ConversationRouter, WorkflowStateManager,
  * ExecutiveAgent planner, ToolRouter, and ResponseComposer.
@@ -18,7 +18,7 @@ export type IntentCategory =
   | "shopping"
   | "planning"     // calendar / email / executive tasks
   | "browser"      // explicit live-web request
-  | "mixed";       // multi-domain query needing orchestration
+  | "mixed";       // multi-domain query needing multi-step execution
 
 /** Which product/app should handle (or co-handle) the request. */
 export type AppTarget =
@@ -37,7 +37,7 @@ export interface RouteDecision {
   appTarget: AppTarget;
   /** True when the query requires a multi-step workflow. */
   isWorkflow: boolean;
-  /** Ordered list of agents/tools the orchestrator should invoke. */
+  /** Ordered list of agents/tools the chat pipeline should invoke. */
   suggestedSteps: WorkflowStepDraft[];
   /** Optional confidence score 0-1 for the primary intent. */
   confidence?: number;

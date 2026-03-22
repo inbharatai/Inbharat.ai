@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { X, Volume2, Trash2, Mic } from "lucide-react";
 import { getVoiceSettings, setVoiceSettings, VOICE_OPTIONS, type VoiceSettings } from "../lib/settings";
 import { clearSearchCache } from "../services/openaiService";
@@ -9,6 +10,7 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<VoiceSettings>(getVoiceSettings());
   const [cacheCleared, setCacheCleared] = useState(false);
 
@@ -25,18 +27,18 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} role="dialog" aria-label="Settings">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose} role="dialog" aria-label={t("settings")}>
       <div
         className="bg-[#161b22] border border-[#30363d] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#30363d]">
-          <h2 className="text-lg font-bold text-white">Voice &amp; speech</h2>
+          <h2 className="text-lg font-bold text-white">{t("settingsTitle")}</h2>
           <button
             type="button"
             onClick={onClose}
             className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-[#30363d] transition-all"
-            aria-label="Close"
+            aria-label={t("close")}
           >
             <X size={20} />
           </button>
@@ -45,7 +47,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
               <Volume2 size={16} className="text-[#FF9933]" />
-              Speech rate
+              {t("speechRate")}
             </label>
             <input
               type="range"
@@ -62,7 +64,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
               <Mic size={16} className="text-[#FF9933]" />
-              Voice
+              {t("voiceLabel")}
             </label>
             <div className="grid grid-cols-2 gap-2">
               {VOICE_OPTIONS.map((v) => (
@@ -86,7 +88,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
               <Volume2 size={16} className="text-[#FF9933]" />
-              TTS quality
+              {t("ttsQuality")}
             </label>
             <div className="flex gap-2">
               <button
@@ -98,7 +100,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:border-[#FF9933]/30"
                 }`}
               >
-                Standard
+                {t("ttsStandard")}
               </button>
               <button
                 type="button"
@@ -109,14 +111,14 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:border-[#FF9933]/30"
                 }`}
               >
-                HD
+                {t("ttsHD")}
               </button>
             </div>
-            <p className="text-[10px] text-gray-500 mt-1">HD provides higher quality but is slower</p>
+            <p className="text-[10px] text-gray-500 mt-1">{t("ttsHDDesc")}</p>
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">Auto-read AI responses</span>
+            <span className="text-sm font-medium text-gray-300">{t("autoRead")}</span>
             <button
               type="button"
               role="switch"
@@ -130,7 +132,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </button>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">Push-to-talk (tap to record)</span>
+            <span className="text-sm font-medium text-gray-300">{t("pushToTalk")}</span>
             <button
               type="button"
               role="switch"
@@ -155,7 +157,7 @@ export default function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               className="flex items-center gap-2 w-full px-4 py-3 rounded-xl border border-[#30363d] bg-[#0d1117] text-gray-400 hover:text-white hover:border-[#FF9933]/50 transition-all text-sm font-medium touch-manual"
             >
               <Trash2 size={16} className="text-[#FF9933]" />
-              {cacheCleared ? "Cache cleared" : "Clear search cache"}
+              {cacheCleared ? t("cacheCleared") : t("clearCache")}
             </button>
           </div>
         </div>

@@ -1,13 +1,11 @@
 /**
- * Client-side orchestration — calls /api/orchestrate with SSE streaming.
+ * Client-side chat streaming — calls /api/chat with SSE streaming.
  *
- * This replaces direct NexusAgent.executeQuery() calls for the main chat flow.
  * Provides Perplexity-style UX: sources first, then streaming text, then follow-ups.
  */
 
-import { AgentMode, Source } from "../../types";
-import type { QueryResult } from "../../services/openaiService";
-import { supabase } from "../supabaseClient";
+import { AgentMode, Source } from "../types";
+import { supabase } from "./supabaseClient";
 
 async function getAccessToken(): Promise<string | null> {
   try {
@@ -36,10 +34,10 @@ export interface StreamCallbacks {
 }
 
 /**
- * Call /api/orchestrate with SSE streaming.
- * Returns a function to abort the stream.
+ * Call /api/chat with SSE streaming.
+ * Returns an AbortController to cancel the stream.
  */
-export function orchestrateStream(
+export function streamChat(
   query: string,
   mode: AgentMode,
   language: string,
@@ -54,7 +52,6 @@ export function orchestrateStream(
   const controller = new AbortController();
   const { signal } = controller;
 
-  // Merge external signal
   if (options?.signal) {
     options.signal.addEventListener("abort", () => controller.abort());
   }
@@ -62,7 +59,7 @@ export function orchestrateStream(
   (async () => {
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/orchestrate", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +78,6 @@ export function orchestrateStream(
       });
 
       if (!res.ok) {
-        // Parse the error body to extract the server error code (CONFIG_ERROR, RATE_LIMIT, etc.)
         let code = "SERVER_ERROR";
         try {
           const errBody = await res.json();
@@ -109,7 +105,6 @@ export function orchestrateStream(
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        // Keep the last (possibly incomplete) line in the buffer
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
@@ -147,69 +142,20 @@ export function orchestrateStream(
         }
       }
 
-      // Safety fallback: if stream ended without a "done" event (server crash/timeout),
-      // still finalize so the UI doesn't get stuck with isStreaming: true
+      // Safety fallback: if stream ended without a "done" event
       if (!doneReceived && !signal.aborted) {
         if (fullText) {
-          // We received partial text — surface it so user sees something
           callbacks.onDone?.(fullText);
         } else {
-          // Stream closed immediately with no data (Vercel cold-start timeout,
-          // gateway crash, network drop before first byte) — show a retriable error
           callbacks.onError?.("UPSTREAM_OVERLOADED");
         }
       }
     } catch (err: unknown) {
       if ((err as { name?: string })?.name === "AbortError") return;
-      // Preserve fetch/network errors so App.tsx can show "Network error" instead of generic message
       const msg = (err as Error)?.message ?? "";
       callbacks.onError?.(msg || "CONNECTION_FAILED");
     }
   })();
 
   return controller;
-}
-
-/**
- * Non-streaming orchestrate call.
- * Falls back to NexusAgent-style response format (QueryResult).
- */
-export async function orchestrateQuery(
-  query: string,
-  mode: AgentMode,
-  language: string,
-  imageData?: string,
-  signal?: AbortSignal,
-  previousMessages?: Array<{ role: "user" | "assistant"; content: string }>,
-): Promise<QueryResult> {
-  const token = await getAccessToken();
-  const res = await fetch("/api/orchestrate", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({
-      query, mode, language, imageData, previousMessages, stream: false,
-    }),
-    signal,
-  });
-
-  if (!res.ok) {
-    throw new Error(`Orchestrate failed: ${res.status}`);
-  }
-
-  const json = await res.json();
-  if (!json.ok) {
-    throw new Error(json.code ?? "SERVER_ERROR");
-  }
-
-  return {
-    text: json.text,
-    sources: json.sources ?? [],
-    followUps: json.followUps ?? [],
-    imageUrl: undefined,
-    videoUrl: undefined,
-    widget: json.widget,
-  };
 }

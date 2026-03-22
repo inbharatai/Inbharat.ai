@@ -2,7 +2,7 @@
  * TestPrep Connector — stub implementation.
  *
  * Phase 4 will wire this to the real TestPrep API endpoints.
- * For now it returns structured placeholder data so the orchestrator
+ * For now it returns structured placeholder data so the chat pipeline
  * can exercise the full workflow pipeline end-to-end.
  */
 

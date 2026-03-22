@@ -2,7 +2,7 @@
  * Agent registry — maps AgentMode enum values to concrete BaseAgent instances.
  *
  * Single source of truth for looking up agents by mode.
- * Used by the ExecutiveAgent, the /api/orchestrate endpoint,
+ * Used by the ExecutiveAgent, the /api/chat endpoint,
  * and any future tool-router or connector.
  */
 

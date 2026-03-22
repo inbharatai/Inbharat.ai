@@ -1,5 +1,5 @@
 /**
- * Server-side LLM call — used by /api/orchestrate and server-side agents.
+ * Server-side LLM call — used by /api/chat and server-side agents.
  * Wraps OpenAI with retry logic, matching /api/chat behaviour.
  *
  * Features:
@@ -67,7 +67,7 @@ export async function serverLLMCall(options: LLMCallOptions): Promise<string> {
   const { temperature, max_tokens } = getModeParams(options.mode);
 
   const completion: any = await runWithRetry(
-    { requestId: options.requestId ?? "orchestrate", model },
+    { requestId: options.requestId ?? "chat", model },
     (signal) =>
       openai.chat.completions.create(
         { model, messages: options.messages as any, temperature, max_tokens },

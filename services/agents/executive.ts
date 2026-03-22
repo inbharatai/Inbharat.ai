@@ -1,5 +1,5 @@
 /**
- * ExecutiveAgent — master orchestrator.
+ * ExecutiveAgent — multi-step planner.
  *
  * Responsibilities:
  *  1. Accept a multi-step workflow plan from the ConversationRouter.

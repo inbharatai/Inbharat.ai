@@ -7,6 +7,7 @@ import {
 import { AgentMode, ChatSession } from '../types';
 import TricolourStar from './TricolourStar';
 import { useAuth } from '../lib/auth';
+import { useTranslation } from 'react-i18next';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,11 +28,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   onNewChat, onDiscovery, searchQuery, onSearchChange, activeLanguage: _activeLanguage 
 }) => {
   const { isSignedIn, user, signOut } = useAuth();
+  const { t } = useTranslation();
   const actionsDisabled = !isSignedIn;
   const agents = [
-    { mode: AgentMode.RESEARCH, label: 'Research Unit', icon: Hash, color: 'text-[#FF9933]' },
-    { mode: AgentMode.CODER, label: 'Code Terminal', icon: Terminal, color: 'text-[#138808]' },
-    { mode: AgentMode.BROWSER, label: 'Global Browser', icon: Globe, color: 'text-blue-400' },
+    { mode: AgentMode.RESEARCH, label: t('researchUnit'), icon: Hash, color: 'text-[#FF9933]' },
+    { mode: AgentMode.CODER, label: t('codeTerminal'), icon: Terminal, color: 'text-[#138808]' },
+    { mode: AgentMode.BROWSER, label: t('globalBrowser'), icon: Globe, color: 'text-blue-400' },
   ];
 
   return (
@@ -51,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 group-focus-within:text-[#FF9933] transition-colors" />
             <input 
               type="text" 
-              placeholder="Search history..." 
+              placeholder={t('searchHistory')} 
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full h-10 bg-[#161b22] border border-[#30363d]/50 rounded-xl pl-10 pr-4 text-xs text-white placeholder-gray-600 outline-none focus:border-[#FF9933]/30 transition-all"
@@ -69,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-2">
               <Plus size={16} strokeWidth={3} />
-              <span className="uppercase tracking-widest">New Chat</span>
+              <span className="uppercase tracking-widest">{t('newChat')}</span>
             </div>
             <TricolourStar size={16} className="group-hover:rotate-[18deg] transition-transform" />
           </button>
@@ -81,7 +83,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1 mb-8">
             <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
               <span className="w-1 h-1 bg-[#FF9933] rounded-full inline-block" />
-              Intelligence Units
+              {t('intelligenceUnits')}
             </div>
             {agents.map((agent) => (
                 <button 
@@ -104,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               }`}
             >
               <Compass size={16} className="text-[#FF9933] opacity-60 group-hover:opacity-100" />
-              <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">Discover Live</span>
+              <span className="text-[13px] font-semibold text-gray-400 group-hover:text-white">{t('discoverLive')}</span>
             </button>
           </div>
 
@@ -112,12 +114,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1">
             <div className="px-4 text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 mb-3 flex items-center gap-2">
               <History size={10} className="text-gray-600" />
-              Chat History
+              {t('chatHistory')}
             </div>
             {sessionsLoading ? (
-              <p className="px-4 text-[11px] text-gray-500 italic font-medium">Loading chats...</p>
+              <p className="px-4 text-[11px] text-gray-500 italic font-medium">{t('loadingChats')}</p>
             ) : sessions.length === 0 ? (
-              <p className="px-4 text-[11px] text-gray-800 italic font-medium">No chats yet. Start a new chat above.</p>
+              <p className="px-4 text-[11px] text-gray-800 italic font-medium">{t('noChatsYet')}</p>
             ) : (
               sessions.map(s => (
                 <button 
@@ -144,7 +146,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               if (!isSignedIn) return;
               void signOut();
             }}
-            title={isSignedIn ? "Sign out" : "Sign in to enable chat"}
+            title={isSignedIn ? t('signOut') : t('signInToChat')}
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 bg-gradient-to-br from-[#FF9933] to-[#138808] rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
@@ -152,11 +154,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="flex flex-col text-left min-w-0">
                 <span className="text-[11px] font-black text-white truncate uppercase tracking-widest leading-none mb-1">
-                  {isSignedIn ? "Signed in" : "Guest"}
+                  {isSignedIn ? t('signedIn') : t('guest')}
                 </span>
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[10px] font-semibold text-gray-500 truncate">
-                    {isSignedIn ? (user?.email ?? "user") : "Sign in to enable chat"}
+                    {isSignedIn ? (user?.email ?? "user") : t('signInToChat')}
                   </span>
                   <TricolourStar size={10} />
                 </div>

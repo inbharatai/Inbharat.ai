@@ -4,7 +4,7 @@
  * Analyses a user query to decide:
  *  1. Which intent category (research, coding, education, shopping, …)
  *  2. Which product/app should handle it (InBharat, UniAssist, TestPrep)
- *  3. Whether the request needs multi-step orchestration
+ *  3. Whether the request needs multi-step execution
  *  4. An ordered list of steps for the ExecutiveAgent
  *
  * This is a cost-zero layer — no LLM calls, purely keyword / regex heuristics.

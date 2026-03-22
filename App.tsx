@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './lib/auth';
+import { useTranslation } from 'react-i18next';
 import { Message, AgentMode, ChatSession, ViewMode, Source } from './types';
 import { NexusAgent, OpenAISanitizedError } from './services/openaiService';
-import { orchestrateStream } from './lib/orchestration/client';
+import { streamChat } from './lib/chatStream';
 import { loadSessions, createSession, appendMessage } from './lib/chatStorage';
 import Omnibox from './components/Omnibox';
 import ChatView from './components/ChatView';
@@ -43,6 +44,7 @@ const App: React.FC = () => {
   const sessionsRef = useRef(sessions);
   useEffect(() => { sessionsRef.current = sessions; }, [sessions]);
   const [isOffline, setIsOffline] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     agentRef.current = new NexusAgent();
@@ -107,6 +109,12 @@ const App: React.FC = () => {
       abortRef.current.abort();
       abortRef.current = null;
     }
+    // Finalize any in-progress streaming message so it doesn't stay as a ghost
+    setIsLoading(false);
+    const finalizeStreaming = (msgs: Message[]) =>
+      msgs.map(m => m.isStreaming ? { ...m, isStreaming: false } : m);
+    setGuestSession(prev => prev ? { ...prev, messages: finalizeStreaming(prev.messages) } : null);
+    setSessions(prev => prev.map(s => ({ ...s, messages: finalizeStreaming(s.messages) })));
   }, []);
 
   const handleSearch = useCallback(async (query: string, mode: AgentMode, language: string, imageData?: string) => {
@@ -117,7 +125,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setViewMode(ViewMode.HOME);
 
-    const title = query ? (query.length > 40 ? query.slice(0, 40) + "..." : query) : "Intelligence Search";
+    const title = query ? (query.length > 40 ? query.slice(0, 40) + "..." : query) : t('intelligenceSearch');
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: "user",
@@ -208,8 +216,7 @@ const App: React.FC = () => {
         .slice(-20)
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, 2000) }));
 
-      // Use streaming orchestration for Perplexity-style UX:
-      // Sources arrive first → text streams in real-time → follow-ups at end
+      // Streaming chat: sources arrive first → text streams in real-time → follow-ups at end
 
       const updateStreamingMessage = () => {
         const streamMsg: Message = {
@@ -246,7 +253,7 @@ const App: React.FC = () => {
       let streamedStatus = "";
 
       await new Promise<void>((resolve, reject) => {
-        const streamController = orchestrateStream(
+        const streamController = streamChat(
           query, mode, language || appLanguage,
           {
             onStatus: (status) => {
@@ -360,31 +367,31 @@ const App: React.FC = () => {
       const sanitized = error instanceof OpenAISanitizedError ? error : null;
       let content: string;
       if (sanitized?.code === "UNAUTHORIZED") {
-        content = "Please sign in to use InBharat AI.";
+        content = t('errUnauthorized');
       } else if (sanitized?.code === "UPSTREAM_OVERLOADED") {
-        content = "Service is busy right now. Tap Retry in a few seconds.";
+        content = t('errUpstreamBusy');
       } else if (sanitized?.code === "RATE_LIMIT") {
-        content = "Too many requests. Tap Retry in a few seconds.";
+        content = t('errRateLimit');
       } else if (
         sanitized?.code === "AUTH_ERROR" ||
         errStatus === 401 ||
         /OPENAI_API_KEY|api key|not set|unauthorized|incorrect api key|401/i.test(errMsgText)
       ) {
-        content = "AI service is not configured. Set OPENAI_API_KEY in the server environment (Vercel) and redeploy.";
+        content = t('errApiKey');
       } else if (
         errStatus === 429 ||
         /429|rate limit|too many requests/i.test(errMsgText)
       ) {
-        content = "Too many requests. Tap Retry in a few seconds.";
+        content = t('errRateLimit');
       } else if (
         errStatus === 503 || errStatus === 502 || errStatus === 500 ||
         /503|502|500|overload|capacity|heavy traffic|try again later/i.test(errMsgText)
       ) {
-        content = "Service is busy right now. Tap Retry in a few seconds.";
+        content = t('errUpstreamBusy');
       } else if (/fetch|NetworkError|Failed to fetch|ERR_NETWORK|CONNECTION_FAILED/i.test(errMsgText)) {
-        content = "Network error. Check your connection and try again.";
+        content = t('errNetwork');
       } else {
-        content = "The request failed. Check your API key and connection, then tap Retry.";
+        content = t('errGeneric');
       }
       // Replace the stuck streaming message (if any) instead of appending a new one
       const errMsg: Message = {
@@ -436,14 +443,14 @@ const App: React.FC = () => {
 
   const getModeInfo = (mode: AgentMode) => {
     switch (mode) {
-      case AgentMode.STANDARD: return { label: 'Nexus', icon: Sparkles, color: 'text-white', bg: 'bg-white/5', border: 'border-white/10' };
-      case AgentMode.RESEARCH: return { label: 'Research', icon: Hash, color: 'text-[#FF9933]', bg: 'bg-[#FF9933]/10', border: 'border-[#FF9933]/30' };
-      case AgentMode.CODER: return { label: 'Coder', icon: Terminal, color: 'text-[#138808]', bg: 'bg-[#138808]/10', border: 'border-[#138808]/30' };
-      case AgentMode.BROWSER: return { label: 'Browser', icon: Globe, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' };
-      case AgentMode.EDUCATOR: return { label: 'Educator', icon: BookOpen, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
-      case AgentMode.EXECUTIVE: return { label: 'Executive', icon: Briefcase, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
-      case AgentMode.SHOPPER: return { label: 'Shopper', icon: ShoppingBag, color: 'text-[#138808]', bg: 'bg-[#138808]/10', border: 'border-[#138808]/30' };
-      default: return { label: 'InBharat', icon: Sparkles, color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30' };
+      case AgentMode.STANDARD: return { label: t('modeNexus'), icon: Sparkles, color: 'text-white', bg: 'bg-white/5', border: 'border-white/10' };
+      case AgentMode.RESEARCH: return { label: t('modeResearch'), icon: Hash, color: 'text-[#FF9933]', bg: 'bg-[#FF9933]/10', border: 'border-[#FF9933]/30' };
+      case AgentMode.CODER: return { label: t('modeCoder'), icon: Terminal, color: 'text-[#138808]', bg: 'bg-[#138808]/10', border: 'border-[#138808]/30' };
+      case AgentMode.BROWSER: return { label: t('modeBrowser'), icon: Globe, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' };
+      case AgentMode.EDUCATOR: return { label: t('modeEducator'), icon: BookOpen, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
+      case AgentMode.EXECUTIVE: return { label: t('modeExecutive'), icon: Briefcase, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
+      case AgentMode.SHOPPER: return { label: t('modeShopper'), icon: ShoppingBag, color: 'text-[#138808]', bg: 'bg-[#138808]/10', border: 'border-[#138808]/30' };
+      default: return { label: t('modeInBharat'), icon: Sparkles, color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30' };
     }
   };
 
@@ -477,27 +484,27 @@ const App: React.FC = () => {
         {/* Sign-in banner (non-blocking) */}
         {!authLoading && !isSignedIn && (
           <div className="shrink-0 bg-[#161b22] border-b border-[#30363d]/50 px-4 py-2 flex items-center justify-center gap-3 text-sm">
-            <span className="text-gray-400">Sign in to save your chats and use InBharat on any device.</span>
+            <span className="text-gray-400">{t('signInBanner')}</span>
             <button
               type="button"
               onClick={() => setShowAuthModal(true)}
               className="px-3 py-1.5 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] text-white font-bold text-sm transition-all"
             >
-              Sign in
+              {t('signIn')}
             </button>
           </div>
         )}
         {isOffline && (
           <div className="shrink-0 bg-amber-500/15 border-b border-amber-500/40 px-4 py-2 flex items-center justify-center gap-2 text-amber-200 text-sm">
-            <span className="font-medium">You are offline.</span>
-            <span className="text-amber-200/80">History and drafts are available; connect to the internet for search and AI.</span>
+            <span className="font-medium">{t('offlineTitle')}</span>
+            <span className="text-amber-200/80">{t('offlineDesc')}</span>
           </div>
         )}
       {/* OpenAI runs server-side; no client key banner */}
         {/* Header */}
         <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 safe-top z-[100] sticky top-0 bg-[#0d1117]/95 backdrop-blur-xl border-b border-[#30363d]/30 shrink-0">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <button onClick={() => setIsSidebarOpen(true)} className="flex-shrink-0 w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all shadow-sm touch-manual" aria-label="Open menu">
+            <button onClick={() => setIsSidebarOpen(true)} className="flex-shrink-0 w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all shadow-sm touch-manual" aria-label={t('openMenu')}>
               <Menu size={20} />
             </button>
             <Link to="/" className="flex items-center gap-2 min-w-0 hover:opacity-90 transition-opacity" title="Back to home">
@@ -509,31 +516,31 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
              <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 md:px-4 ${activeModeInfo.bg} ${activeModeInfo.border} border rounded-xl animate-in fade-in duration-300`}>
                 <activeModeInfo.icon size={12} className={activeModeInfo.color} />
-                <span className={`text-[10px] font-black tracking-widest ${activeModeInfo.color}`}>{activeModeInfo.label} Unit Online</span>
+                <span className={`text-[10px] font-black tracking-widest ${activeModeInfo.color}`}>{activeModeInfo.label} {t('unitOnline')}</span>
              </div>
              <button
                 onClick={() => setShowSettings(true)}
                 className="w-10 h-10 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-xl flex items-center justify-center text-gray-400 hover:text-[#FF9933] transition-all touch-manual"
-                aria-label="Settings"
+                aria-label={t('settingsLabel')}
                 data-testid="settings-button"
               >
                 <Settings size={20} />
               </button>
              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#161b22] border border-[#30363d] rounded-xl opacity-50">
                <Globe size={16} className="text-blue-400 flex-shrink-0" />
-               <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">Voice in Chat</span>
+               <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap">{t('voiceInChat')}</span>
              </div>
              {isSignedIn ? (
                <div className="flex items-center gap-2">
                  <span className="hidden sm:inline text-xs text-gray-500 max-w-[180px] truncate">
-                   {user?.email ?? "Signed in"}
+                   {user?.email ?? t('signedIn')}
                  </span>
                  <button
                    type="button"
                    onClick={() => void signOut()}
                    className="px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/50 text-gray-300 hover:text-white font-bold text-sm transition-all"
                  >
-                   Sign out
+                   {t('signOut')}
                  </button>
                </div>
              ) : (
@@ -542,7 +549,7 @@ const App: React.FC = () => {
                  onClick={() => setShowAuthModal(true)}
                  className="px-3 py-2 rounded-xl bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/50 text-gray-400 hover:text-white font-bold text-sm transition-all"
                >
-                 Sign in
+                 {t('signIn')}
                </button>
              )}
           </div>
@@ -571,7 +578,7 @@ const App: React.FC = () => {
                   </h1>
 
                   <p className="text-sm sm:text-base md:text-lg font-semibold text-white mb-2 sm:mb-3">
-                    Desh Ka Ai
+                    {t('deshKaAiShort')}
                   </p>
                   <div className="w-20 sm:w-24 h-px bg-gradient-to-r from-[#FF9933] via-white/80 to-[#138808] mb-3 sm:mb-4" />
                   <p className="text-[9px] sm:text-[10px] md:text-xs font-medium uppercase text-[#A0A0A0] max-w-[90vw] sm:max-w-lg px-2 flex flex-col items-center justify-center gap-y-0.5">
@@ -585,15 +592,15 @@ const App: React.FC = () => {
                </div>
                {/* Quick action suggestions */}
                <div className="w-full max-w-xl px-1 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
-                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest text-center mb-3">What can we build for you?</p>
+                 <p className="text-xs text-gray-600 font-semibold uppercase tracking-widest text-center mb-3">{t('whatCanWeBuild')}</p>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                    {([
-                     { label: 'Build a website for my business', icon: Globe },
-                     { label: 'Create an AI chatbot for my company', icon: Bot },
-                     { label: 'Automate lead capture and follow-ups', icon: TrendingUp },
-                     { label: 'Build a CRM or admin dashboard', icon: BarChart2 },
-                     { label: 'Set up WhatsApp or email automation', icon: Send },
-                     { label: 'Build a custom AI tool for my workflow', icon: Wrench },
+                     { label: t('quickBuildWebsite'), icon: Globe },
+                     { label: t('quickBuildChatbot'), icon: Bot },
+                     { label: t('quickAutomate'), icon: TrendingUp },
+                     { label: t('quickBuildCRM'), icon: BarChart2 },
+                     { label: t('quickWhatsApp'), icon: Send },
+                     { label: t('quickCustomTool'), icon: Wrench },
                    ] as { label: string; icon: React.ElementType }[]).map(({ label, icon: Icon }) => (
                      <button
                        key={label}
@@ -643,9 +650,9 @@ const App: React.FC = () => {
                      type="button"
                      onClick={handleStop}
                      className="sm:self-center px-4 py-2.5 rounded-xl border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm font-semibold touch-manual min-h-[44px]"
-                     aria-label="Stop generating"
+                     aria-label={t('stopGenerating')}
                    >
-                     Stop
+                     {t('stopGenerating')}
                    </button>
                  </div>
                )}
@@ -688,7 +695,7 @@ const App: React.FC = () => {
                }}
                disabled={!currentSession || currentSession.messages.length === 0}
                className="p-3 min-h-[44px] min-w-[44px] bg-[#161b22] border border-[#30363d] rounded-2xl text-gray-500 hover:text-white transition-all active:scale-90 touch-manual disabled:opacity-50"
-               aria-label="Export chat"
+               aria-label={t('exportChat')}
              >
                <Share2 size={18} />
              </button>
@@ -720,7 +727,7 @@ const App: React.FC = () => {
               type="button"
               onClick={() => setShowAuthModal(false)}
               className="absolute top-2 right-2 z-10 w-10 h-10 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-400 hover:text-white flex items-center justify-center"
-              aria-label="Close"
+              aria-label={t('closeLabel')}
             >
               <X size={20} />
             </button>
@@ -732,21 +739,21 @@ const App: React.FC = () => {
       {/* Sign-in prompt after a few guest messages */}
       {showSignInPrompt && !isSignedIn && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#30363d] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-gray-300">Sign in to save your chats and use InBharat on any device.</p>
+          <p className="text-sm text-gray-300">{t('signInPrompt')}</p>
           <div className="flex gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => { setShowSignInPrompt(false); setDismissedSignInPrompt(true); }}
               className="px-3 py-2 rounded-xl border border-[#30363d] text-gray-400 hover:text-white text-sm font-medium"
             >
-              Maybe later
+              {t('maybeLater')}
             </button>
             <button
               type="button"
               onClick={() => { setShowSignInPrompt(false); setShowAuthModal(true); }}
               className="px-3 py-2 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] text-white text-sm font-bold"
             >
-              Sign in
+              {t('signIn')}
             </button>
           </div>
         </div>

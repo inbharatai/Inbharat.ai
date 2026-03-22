@@ -23,7 +23,7 @@ import {
   estimateTokens,
 } from "../../lib/orchestration/memory.js";
 
-/** Context for server-side agent execution. Injected by orchestrate.ts. */
+/** Context for server-side agent execution. Injected by /api/chat. */
 export interface ServerRunContext {
   requestId: string;
   mode: string;
@@ -46,7 +46,7 @@ export interface PreparedContext {
   sources: Array<{ title: string; uri: string }>;
 }
 
-/** Shared follow-up extraction — used by BaseAgent and orchestrate.ts streaming path. */
+/** Shared follow-up extraction — used by BaseAgent and the /api/chat streaming path. */
 export function extractFollowUps(text: string): { mainText: string; followUps: string[] } {
   const followUps: string[] = [];
   const lines = text.split("\n");
@@ -131,7 +131,7 @@ export abstract class BaseAgent {
 
   /**
    * Run search and build system prompt without calling LLM.
-   * Used by the streaming path in orchestrate.ts and by runServer().
+   * Used by the streaming path in /api/chat and by runServer().
    */
   async prepareServerContext(query: string, ctx: ServerRunContext): Promise<PreparedContext> {
     let searchResults: Array<{ title: string; link: string; snippet?: string }> = [];

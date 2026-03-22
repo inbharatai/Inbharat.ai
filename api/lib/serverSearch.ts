@@ -1,5 +1,5 @@
 /**
- * Server-side Serper search — used by /api/orchestrate and agents.
+ * Server-side Serper search — used by /api/chat and agents.
  * Identical logic to /api/search but callable as a function (no req/res).
  */
 

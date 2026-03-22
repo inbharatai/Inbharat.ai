@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { AgentMode } from '../types';
 import { getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from '../services/openaiService';
+import { useTranslation } from 'react-i18next';
 
 interface OmniboxProps {
   onSearch: (query: string, mode: AgentMode, language: string, imageData?: string) => void;
@@ -37,6 +38,7 @@ const indianLanguages = [
 const Omnibox: React.FC<OmniboxProps> = ({ 
   onSearch, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange 
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [_isFocused, setIsFocused] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -93,7 +95,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
         sr.onerror = (event: SpeechRecognitionErrorEvent) => {
           // 'no-speech' is not a real error, just silence
           if (event.error !== 'no-speech' && event.error !== 'aborted') {
-            setSpeakError('Speech recognition error. Try again.');
+            setSpeakError(t('micError'));
           }
           setIsSpeaking(false);
           nativeSRRef.current = null;
@@ -125,7 +127,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
           const text = await onSpeakToType(blob);
           if (text) setQuery((q) => (q ? q + ' ' + text : text));
         } catch {
-          setSpeakError('Could not transcribe. Try again.');
+          setSpeakError(t('micError'));
         }
         setIsSpeaking(false);
       };
@@ -134,11 +136,11 @@ const Omnibox: React.FC<OmniboxProps> = ({
       setIsSpeaking(true);
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
-        setSpeakError('Microphone denied. Allow mic in browser and try again.');
+        setSpeakError(t('micPermissionDenied'));
       } else if (typeof location !== 'undefined' && location?.protocol !== 'https:' && !location?.hostname?.match(/^localhost$/i)) {
-        setSpeakError('Mic needs HTTPS or localhost.');
+        setSpeakError(t('micError'));
       } else {
-        setSpeakError('Mic unavailable. Check device and permissions.');
+        setSpeakError(t('micNotSupported'));
       }
       setIsSpeaking(false);
     }
@@ -177,13 +179,13 @@ const Omnibox: React.FC<OmniboxProps> = ({
   }, [query]);
 
   const agents = [
-    { mode: AgentMode.STANDARD, label: 'Standard', icon: MessageSquare, color: 'text-white', desc: 'General Chat' },
-    { mode: AgentMode.RESEARCH, label: 'Research', icon: Hash, color: 'text-[#FF9933]', desc: 'Reasoning' },
-    { mode: AgentMode.CODER, label: 'Coder', icon: Terminal, color: 'text-[#138808]', desc: 'Logic' },
-    { mode: AgentMode.EDUCATOR, label: 'Educator', icon: BookOpen, color: 'text-purple-400', desc: 'Learning' },
-    { mode: AgentMode.BROWSER, label: 'Browser', icon: Globe, color: 'text-blue-400', desc: 'Real-time' },
-    { mode: AgentMode.EXECUTIVE, label: 'Executive', icon: Briefcase, color: 'text-yellow-400', desc: 'Planner' },
-    { mode: AgentMode.SHOPPER, label: 'Shopper', icon: ShoppingBag, color: 'text-emerald-400', desc: 'Market' },
+    { mode: AgentMode.STANDARD, label: t('modeStandard'), icon: MessageSquare, color: 'text-white', desc: t('modeStandardDesc') },
+    { mode: AgentMode.RESEARCH, label: t('modeResearch'), icon: Hash, color: 'text-[#FF9933]', desc: t('modeResearchDesc') },
+    { mode: AgentMode.CODER, label: t('modeCoder'), icon: Terminal, color: 'text-[#138808]', desc: t('modeCoderDesc') },
+    { mode: AgentMode.EDUCATOR, label: t('modeAcademic'), icon: BookOpen, color: 'text-purple-400', desc: t('modeAcademicDesc') },
+    { mode: AgentMode.BROWSER, label: t('modeBrowse'), icon: Globe, color: 'text-blue-400', desc: t('modeBrowseDesc') },
+    { mode: AgentMode.EXECUTIVE, label: t('modeExec'), icon: Briefcase, color: 'text-yellow-400', desc: t('modeExecDesc') },
+    { mode: AgentMode.SHOPPER, label: t('modeShopping'), icon: ShoppingBag, color: 'text-emerald-400', desc: t('modeShoppingDesc') },
   ];
 
   const currentAgent = agents.find(a => a.mode === initialMode) || agents[0];
@@ -218,9 +220,9 @@ const Omnibox: React.FC<OmniboxProps> = ({
             {/* Quick Actions */}
             <div className="flex gap-2 mb-6">
               {[
-                { icon: Camera, label: 'Camera', onClick: () => { cameraInputRef.current?.click(); } },
-                { icon: ImageIcon, label: 'Photos', onClick: () => { fileInputRef.current?.click(); } },
-                { icon: Paperclip, label: 'Files', onClick: () => { fileInputRef.current?.click(); } }
+                { icon: Camera, label: t('camera'), onClick: () => { cameraInputRef.current?.click(); } },
+                { icon: ImageIcon, label: t('photos'), onClick: () => { fileInputRef.current?.click(); } },
+                { icon: Paperclip, label: t('files'), onClick: () => { fileInputRef.current?.click(); } }
               ].map((tool, idx) => (
                 <button 
                   key={idx} 
@@ -236,7 +238,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             {/* Units Header */}
             <div className="flex items-center gap-2 mb-3 px-1">
                <Sparkles size={12} className="text-[#FF9933]" />
-               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-600">Intelligence Units</span>
+               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-600">{t('intelligenceUnits')}</span>
             </div>
             
             {/* Unit Grid */}
@@ -289,7 +291,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
                   ? "bg-[#FF9933] border-[#FF9933] text-white"
                   : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
             }`}
-            title="Modes & attach"
+            title={t('modesAttach')}
           >
             {isMenuOpen ? <X size={16} /> : <currentAgent.icon size={16} className={currentAgent.color} />}
           </button>
@@ -302,7 +304,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             onBlur={() => setIsFocused(false)}
             disabled={disabled}
             onKeyDown={(e) => !disabled && e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-            placeholder={disabled ? "Sign in to start chatting..." : (initialMode === AgentMode.STANDARD ? "Ask InBharat..." : `Ask ${currentAgent.label}...`)}
+            placeholder={disabled ? t('signInToChat') : (initialMode === AgentMode.STANDARD ? t('askPlaceholder') : t('askMode', { mode: currentAgent.label }))}
             className={`flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px] ${
               disabled ? "opacity-60 cursor-not-allowed" : ""
             }`}
@@ -320,7 +322,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
                     ? "bg-red-500/20 border-red-500/50 text-red-400"
                     : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
               }`}
-              title={isSpeaking ? 'Stop' : 'Speak'}
+              title={isSpeaking ? t('stop') : t('speak')}
             >
               {isSpeaking ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
@@ -354,7 +356,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
         {isSpeaking && (
           <div className="flex items-center gap-2 px-3 py-2 bg-[#0d1117] border-t border-[#30363d]">
             <Globe size={12} className="text-[#FF9933] flex-shrink-0" />
-            <span className="text-[9px] font-bold text-gray-300">Listening...</span>
+            <span className="text-[9px] font-bold text-gray-300">{t('listeningLabel')}</span>
             <div className="flex items-center gap-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="w-1 h-2 bg-[#FF9933] rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />

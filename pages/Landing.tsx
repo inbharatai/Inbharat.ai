@@ -64,12 +64,12 @@ const Landing: React.FC = () => {
         {/* Product anchor nav */}
         <nav className="hidden lg:flex items-center gap-0.5">
           {[
-            { href: '#services', label: 'Services', color: '#FF9933' },
-            { href: '#products', label: 'Products', color: '#FF9933' },
-            { href: '#opensource', label: 'Open Source', color: '#10b981' },
-            { href: '#inbharat', label: 'InBharat AI', color: '#FF9933' },
-            { href: '#uniassist', label: 'UniAssist', color: '#138808' },
-            { href: '#testsprep', label: 'TestsPrep', color: '#8b5cf6' },
+            { href: '#services', label: t('navServices'), color: '#FF9933' },
+            { href: '#products', label: t('navProducts'), color: '#FF9933' },
+            { href: '#opensource', label: t('navOpenSource'), color: '#10b981' },
+            { href: '#inbharat', label: t('navInBharatAI'), color: '#FF9933' },
+            { href: '#uniassist', label: t('navUniAssist'), color: '#138808' },
+            { href: '#testsprep', label: t('navTestsPrep'), color: '#8b5cf6' },
           ].map(({ href, label }) => (
             <a
               key={href}
@@ -98,7 +98,7 @@ const Landing: React.FC = () => {
           {isSignedIn ? (
             <>
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 text-xs font-semibold">
-                <span className="text-gray-500">Signed in:</span>
+                <span className="text-gray-500">{t('signedInLabel')}</span>
                 <span className="truncate max-w-[140px]">{user?.email ?? "user"}</span>
               </div>
               <button
@@ -106,7 +106,7 @@ const Landing: React.FC = () => {
                 onClick={() => void signOut()}
                 className="px-3 py-1.5 rounded-xl bg-[#161b22] border border-[#30363d] text-gray-300 hover:text-white hover:border-[#FF9933]/50 text-xs font-bold transition-all"
               >
-                Sign out
+                {t('signOut')}
               </button>
             </>
           ) : (
@@ -114,19 +114,19 @@ const Landing: React.FC = () => {
               to="/app"
               className="px-4 py-1.5 rounded-xl bg-[#FF9933] hover:bg-[#e88a2b] text-white text-xs font-bold transition-all"
             >
-              Sign in
+              {t('signIn')}
             </Link>
           )}
         </div>
       </div>
       {/* Announcement banner */}
       <div className="flex items-center justify-center gap-2 sm:gap-3 py-2 px-4 bg-[#FF9933]/8 border-b border-[#FF9933]/15">
-        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#FF9933] text-white text-[9px] font-black uppercase tracking-wider flex-shrink-0">Now Building</span>
+        <span className="hidden sm:inline px-2 py-0.5 rounded-full bg-[#FF9933] text-white text-[9px] font-black uppercase tracking-wider flex-shrink-0">{t('nowBuilding')}</span>
         <p className="text-gray-400 text-xs text-center">
-          <span className="text-white font-semibold">AI tools for businesses</span> — websites, chatbots, automations, CRM systems &amp; custom AI
+          <span className="text-white font-semibold">{t('announcementText')}</span> {t('announcementDesc')}
         </p>
         <a href="#services" className="flex items-center gap-1 text-[#FF9933] text-xs font-bold hover:text-[#e88a2b] transition-colors flex-shrink-0">
-          See services <ArrowRight size={11} />
+          {t('seeServices')} <ArrowRight size={11} />
         </a>
       </div>
 
@@ -147,7 +147,7 @@ const Landing: React.FC = () => {
             InBharat <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent pr-1">Ai</span>
           </h1>
           <p className="text-sm sm:text-base font-semibold text-white mb-2">
-            Desh Ka Ai
+            {t('deshKaAiShort')}
           </p>
           <div className="w-16 sm:w-20 h-0.5 bg-gradient-to-r from-[#FF9933] via-white/80 to-[#138808] mx-auto mb-3" />
           <p className="text-[9px] sm:text-[10px] font-medium uppercase text-gray-500 max-w-lg mx-auto mb-6 flex flex-col items-center justify-center gap-y-0.5">
@@ -159,21 +159,21 @@ const Landing: React.FC = () => {
             <span className="inline-block bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent tracking-[0.15em] sm:tracking-[0.25em] pr-1">B H A R A T</span>
           </p>
           <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-6 leading-relaxed">
-            We build <span className="text-white font-semibold">AI-powered websites, chatbots, automations, and custom tools</span> for businesses across Bharat — so you grow faster with less effort.
+            {t('heroDescPlain')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               to="/app"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg hover:shadow-[#FF9933]/20 active:scale-[0.98]"
             >
-              Discuss your project
+              {t('discussProject')}
               <ArrowRight size={18} />
             </Link>
             <a
               href="#services"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/50 text-gray-300 hover:text-white font-bold rounded-2xl transition-all"
             >
-              See what we build
+              {t('seeWhatWeBuild')}
               <ArrowRight size={16} />
             </a>
           </div>
@@ -189,7 +189,7 @@ const Landing: React.FC = () => {
                   </div>
                   <span className="text-xs font-bold text-white">InBharat AI</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-[#FF9933]/20 border border-[#FF9933]/30 text-[#FF9933] text-[9px] font-black uppercase tracking-wider">Research Mode</span>
+                <span className="px-2 py-0.5 rounded-full bg-[#FF9933]/20 border border-[#FF9933]/30 text-[#FF9933] text-[9px] font-black uppercase tracking-wider">{t('researchMode')}</span>
               </div>
               {/* Messages */}
               <div className="p-4 space-y-4">
@@ -217,7 +217,7 @@ const Landing: React.FC = () => {
               </div>
               {/* Input bar */}
               <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#30363d] bg-[#0d1117]">
-                <div className="flex-1 h-8 px-3 rounded-xl bg-[#161b22] border border-[#30363d] flex items-center text-gray-600 text-xs">Ask in any language…</div>
+                <div className="flex-1 h-8 px-3 rounded-xl bg-[#161b22] border border-[#30363d] flex items-center text-gray-600 text-xs">{t('askAnyLanguage')}</div>
                 <div className="w-8 h-8 rounded-xl bg-[#161b22] border border-[#30363d] flex items-center justify-center text-[#FF9933]">
                   <Mic size={14} />
                 </div>
@@ -231,10 +231,10 @@ const Landing: React.FC = () => {
       <div className="py-6 px-4 sm:px-6 border-t border-b border-[#30363d]/30 bg-[#161b22]/40">
         <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-center gap-8 sm:gap-16">
           {[
-            { num: '50+', label: 'Projects Built' },
+            { num: '50+', label: t('statsProjectsBuilt') },
             { num: '14+', label: t('statsLangsLabel') },
             { num: '5', label: t('statsProductsLabel') },
-            { num: '8', label: 'Service Types' },
+            { num: '8', label: t('statsServiceTypes') },
           ].map(({ num, label }) => (
             <div key={label} className="flex flex-col items-center gap-0.5">
               <span className="text-2xl sm:text-3xl font-black text-[#FF9933]">{num}</span>
@@ -248,27 +248,27 @@ const Landing: React.FC = () => {
       <section id="services" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 sm:mb-14">
-            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">AI Consulting & Development</p>
+            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">{t('servicesLabel')}</p>
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-              What We Build for Your Business
+              {t('servicesTitle')}
             </h2>
             <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-2 leading-relaxed">
-              We design, build, and deploy AI-powered tools, automations, and websites — so your business runs smarter and grows faster.
+              {t('servicesDesc')}
             </p>
             <p className="text-gray-600 text-sm max-w-xl mx-auto">
-              Tell us your problem. We'll build the solution.
+              {t('servicesTellUs')}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             {([
-              { icon: Globe, title: 'Business Websites', desc: 'Modern, fast, AI-ready websites and landing pages built to convert visitors into clients.', color: '#FF9933' },
-              { icon: Bot, title: 'AI Chatbots', desc: 'Custom AI chatbots for customer support, lead capture, and sales — on your website or WhatsApp.', color: '#138808' },
-              { icon: Zap, title: 'Workflow Automation', desc: 'Automate repetitive tasks, approvals, data entry, and multi-step processes with AI.', color: '#FF9933' },
-              { icon: BarChart2, title: 'CRM & Dashboards', desc: 'Custom CRM systems, admin panels, and analytics dashboards for real-time business visibility.', color: '#138808' },
-              { icon: Mail, title: 'WhatsApp & Email Automation', desc: 'Automated follow-ups, drip sequences, and two-way conversations on WhatsApp and email.', color: '#FF9933' },
-              { icon: Phone, title: 'AI Calling Assistants', desc: 'AI-powered voice agents that handle inbound queries, qualify leads, and escalate to humans.', color: '#138808' },
-              { icon: TrendingUp, title: 'Sales Automation', desc: 'End-to-end lead capture, qualification, nurturing, and follow-up systems that work around the clock.', color: '#FF9933' },
-              { icon: Wrench, title: 'Custom AI Tools', desc: 'Bespoke AI tools designed for your exact workflow — from document processing to intelligent decision support.', color: '#138808' },
+              { icon: Globe, title: t('serviceWebsites'), desc: t('serviceWebsitesDesc'), color: '#FF9933' },
+              { icon: Bot, title: t('serviceChatbots'), desc: t('serviceChatbotsDesc'), color: '#138808' },
+              { icon: Zap, title: t('serviceAutomation'), desc: t('serviceAutomationDesc'), color: '#FF9933' },
+              { icon: BarChart2, title: t('serviceCRM'), desc: t('serviceCRMDesc'), color: '#138808' },
+              { icon: Mail, title: t('serviceWhatsApp'), desc: t('serviceWhatsAppDesc'), color: '#FF9933' },
+              { icon: Phone, title: t('serviceCalling'), desc: t('serviceCallingDesc'), color: '#138808' },
+              { icon: TrendingUp, title: t('serviceSales'), desc: t('serviceSalesDesc'), color: '#FF9933' },
+              { icon: Wrench, title: t('serviceCustom'), desc: t('serviceCustomDesc'), color: '#138808' },
             ] as { icon: React.ElementType; title: string; desc: string; color: string }[]).map(({ icon: Icon, title, desc, color }) => (
               <Link
                 key={title}
@@ -282,7 +282,7 @@ const Landing: React.FC = () => {
                   <h3 className="text-white font-bold text-sm mb-1">{title}</h3>
                   <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
                 </div>
-                <span className="text-[10px] font-bold text-[#FF9933] uppercase tracking-wider">Discuss project →</span>
+                <span className="text-[10px] font-bold text-[#FF9933] uppercase tracking-wider">{t('discussProjectArrow')}</span>
               </Link>
             ))}
           </div>
@@ -291,10 +291,10 @@ const Landing: React.FC = () => {
               to="/app"
               className="inline-flex items-center gap-2 px-8 py-4 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg hover:shadow-[#FF9933]/25"
             >
-              Describe your project
+              {t('describeProject')}
               <ArrowRight size={20} />
             </Link>
-            <p className="text-gray-600 text-sm mt-3">Chat with our AI advisor — describe what you need, get a custom recommendation.</p>
+            <p className="text-gray-600 text-sm mt-3">{t('chatAdvisor')}</p>
           </div>
         </div>
       </section>
@@ -303,11 +303,11 @@ const Landing: React.FC = () => {
       <section id="opensource" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 sm:mb-12">
-            <p className="text-emerald-400 text-xs font-black uppercase tracking-[0.35em] mb-2">Open Source</p>
+            <p className="text-emerald-400 text-xs font-black uppercase tracking-[0.35em] mb-2">{t('openSourceLabel')}</p>
             <h2 className="text-2xl sm:text-3xl font-black text-white">
-              Built in public, free to use
+              {t('openSourceTitle')}
             </h2>
-            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">These are open source projects we've built and released for the community.</p>
+            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">{t('openSourceDesc')}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* CodeIn.pro */}
@@ -317,12 +317,12 @@ const Landing: React.FC = () => {
                   <Code2 size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white leading-tight">CodeIn.pro</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">AI Coding IDE</p>
+                  <h3 className="text-base font-black text-white leading-tight">{t('codeinProName')}</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">{t('codeinProSub')}</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                Open-source AI coding IDE with 13 autonomous agents, 60+ LLM providers, and 22 Indian languages. Local-first — your code stays on your machine. Available as an Electron app, VS Code extension, and JetBrains plugin.
+                {t('codeinProDesc')}
               </p>
               <a
                 href="https://github.com/inbharat-ai/codein.pro"
@@ -331,7 +331,7 @@ const Landing: React.FC = () => {
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
               >
                 <Github size={15} />
-                View on GitHub
+                {t('viewOnGitHub')}
               </a>
             </div>
 
@@ -342,12 +342,12 @@ const Landing: React.FC = () => {
                   <Activity size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white leading-tight">Agent Arcade</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Agent Observability</p>
+                  <h3 className="text-base font-black text-white leading-tight">{t('agentArcadeName')}</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">{t('agentArcadeSub')}</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                Universal AI agent observability platform. Watch, debug, and control agents from any framework in real-time — execution traces, session replay, cost analytics, WhatsApp remote control, and goal orchestration.
+                {t('agentArcadeDesc')}
               </p>
               <a
                 href="https://github.com/inbharatai/agent-arcade-gateway"
@@ -356,7 +356,7 @@ const Landing: React.FC = () => {
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
               >
                 <Github size={15} />
-                View on GitHub
+                {t('viewOnGitHub')}
               </a>
             </div>
 
@@ -367,12 +367,12 @@ const Landing: React.FC = () => {
                   <TrendingUp size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white leading-tight">Phoring</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Decision Intelligence</p>
+                  <h3 className="text-base font-black text-white leading-tight">{t('phoringName')}</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">{t('phoringSub')}</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                Open-source decision intelligence platform. Upload documents → build a knowledge graph → run multi-agent OASIS simulations → get source-cited forecast reports with multi-AI consensus validation.
+                {t('phoringDesc')}
               </p>
               <a
                 href="https://github.com/inbharatai/phoring"
@@ -381,7 +381,7 @@ const Landing: React.FC = () => {
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
               >
                 <Github size={15} />
-                View on GitHub
+                {t('viewOnGitHub')}
               </a>
             </div>
 
@@ -392,12 +392,12 @@ const Landing: React.FC = () => {
                   <Brain size={20} className="text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white leading-tight">Sahaayak AI OS</h3>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">Personal AI OS</p>
+                  <h3 className="text-base font-black text-white leading-tight">{t('sahaayakName')}</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-0.5">{t('sahaayakSub')}</p>
                 </div>
               </div>
               <p className="text-gray-400 text-sm mt-2 flex-1">
-                Multilingual personal AI OS for Bharat. AI chat with memory, voice I/O, OCR scanner, smart notes, reminders, Gmail inbox, and live news — all in 13 Indian languages.
+                {t('sahaayakDesc')}
               </p>
               <a
                 href="https://github.com/inbharatai/sahaayak-ai"
@@ -406,7 +406,7 @@ const Landing: React.FC = () => {
                 className="mt-5 flex items-center justify-center gap-2 w-full h-[44px] rounded-xl bg-[#0d1117] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold transition-all"
               >
                 <Github size={15} />
-                View on GitHub
+                {t('viewOnGitHub')}
               </a>
             </div>
           </div>
@@ -420,7 +420,7 @@ const Landing: React.FC = () => {
               className="inline-flex items-center gap-2 px-6 py-3 bg-[#161b22] border border-[#30363d] hover:border-emerald-500/40 text-gray-300 hover:text-white text-sm font-bold rounded-xl transition-all"
             >
               <Github size={16} />
-              See all our open source work on GitHub
+              {t('seeAllGitHub')}
             </a>
           </div>
         </div>
@@ -430,11 +430,11 @@ const Landing: React.FC = () => {
       <section id="products" className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 sm:mb-12">
-            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">Proof of Work</p>
+            <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-2">{t('proofOfWork')}</p>
             <h2 className="text-2xl sm:text-3xl font-black text-white">
               {t('ourProducts')}
             </h2>
-            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">These are AI tools and platforms we've built — each solves a real problem for a real audience.</p>
+            <p className="text-gray-500 text-sm mt-2 max-w-xl mx-auto">{t('productsDesc')}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-stretch">
             {/* Desh Ka AI */}
@@ -569,7 +569,7 @@ const Landing: React.FC = () => {
 
             {/* OpenClawFix */}
             <div className="h-full flex flex-col bg-[#161b22] border border-[#14b8a6]/40 rounded-2xl p-7 shadow-lg ring-1 ring-[#14b8a6]/20 relative">
-              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">For Developers</span>
+              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">{t('forDevelopers')}</span>
               <div className="flex items-center gap-3 mb-3.5">
                 <div className="w-12 h-12 rounded-xl bg-[#0d1117] border border-[#14b8a6]/50 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                   <img src="/openclawfix-logo.png" alt="OpenClawFix" className="w-full h-full object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; const next = e.currentTarget.nextElementSibling as HTMLElement; if (next) next.classList.remove('hidden'); }} />
@@ -675,9 +675,9 @@ const Landing: React.FC = () => {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#30363d]">
-                    <th className="p-4 font-black text-white uppercase tracking-wider">Feature</th>
-                    <th className="p-4 text-gray-500 font-bold">Perplexity</th>
-                    <th className="p-4 text-gray-500 font-bold">ChatGPT</th>
+                    <th className="p-4 font-black text-white uppercase tracking-wider">{t('tableFeature')}</th>
+                    <th className="p-4 text-gray-500 font-bold">{t('tablePerplexity')}</th>
+                    <th className="p-4 text-gray-500 font-bold">{t('tableChatGPT')}</th>
                     <th className="p-4 text-[#FF9933] font-bold">InBharat AI</th>
                   </tr>
                 </thead>
@@ -812,9 +812,9 @@ const Landing: React.FC = () => {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-[#30363d]">
-                    <th className="p-4 font-black text-white uppercase tracking-wider">Feature</th>
-                    <th className="p-4 text-gray-500 font-bold">Perplexity</th>
-                    <th className="p-4 text-gray-500 font-bold">ChatGPT</th>
+                    <th className="p-4 font-black text-white uppercase tracking-wider">{t('tableFeature')}</th>
+                    <th className="p-4 text-gray-500 font-bold">{t('tablePerplexity')}</th>
+                    <th className="p-4 text-gray-500 font-bold">{t('tableChatGPT')}</th>
                     <th className="p-4 text-[#138808] font-bold">UniAssist.ai</th>
                   </tr>
                 </thead>
@@ -1081,7 +1081,7 @@ const Landing: React.FC = () => {
             </div>
             <div className="flex items-center justify-center gap-2 mb-2">
               <p className="text-[#14b8a6] text-xs font-black uppercase tracking-[0.35em]">OpenClawFix</p>
-              <span className="px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">For Developers</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#14b8a6]/15 border border-[#14b8a6]/30 text-[#14b8a6] text-[9px] font-black uppercase tracking-wider">{t('forDevelopers')}</span>
             </div>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-4">
               {t('openClawFixFullTagline')}
@@ -1184,30 +1184,30 @@ const Landing: React.FC = () => {
       {/* ——— Work with InBharat CTA ——— */}
       <section className="py-12 sm:py-20 px-4 sm:px-6 border-t border-[#30363d]/30 bg-gradient-to-b from-[#0d1117] to-[#0a0e12]">
         <div className="max-w-3xl mx-auto text-center">
-          <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-3">Work With Us</p>
+          <p className="text-[#FF9933] text-xs font-black uppercase tracking-[0.35em] mb-3">{t('workWithUs')}</p>
           <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-            Ready to Build Your AI-Powered Business?
+            {t('workWithUsTitle')}
           </h2>
           <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed">
-            Describe your business challenge to our AI advisor. We'll recommend the right tools, automations, or systems — and build them for you.
+            {t('workWithUsDesc')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/app"
               className="inline-flex items-center gap-2 px-8 py-4 bg-[#FF9933] hover:bg-[#e88a2b] text-white font-black rounded-2xl transition-all shadow-lg"
             >
-              Start the conversation
+              {t('startConversation')}
               <ArrowRight size={20} />
             </Link>
             <a
               href="#services"
               className="inline-flex items-center gap-2 px-8 py-4 bg-[#161b22] border border-[#30363d] hover:border-[#FF9933]/40 text-gray-300 hover:text-white font-bold rounded-2xl transition-all"
             >
-              Browse services
+              {t('browseServices')}
               <ArrowRight size={16} />
             </a>
           </div>
-          <p className="text-gray-600 text-xs mt-5">Serving businesses across India — in English, Hindi, and 12+ regional languages.</p>
+          <p className="text-gray-600 text-xs mt-5">{t('servingBusinesses')}</p>
         </div>
       </section>
 
@@ -1243,7 +1243,7 @@ const Landing: React.FC = () => {
             <TricolourStar size={24} />
             <span className="font-black italic text-white">InBharat</span>
           </div>
-          <p className="text-gray-500 text-xs text-center sm:text-left">AI Consulting & Tool Building for Bharat.</p>
+          <p className="text-gray-500 text-xs text-center sm:text-left">{t('footerTagline')}</p>
           <div className="flex items-center gap-6 text-sm flex-wrap justify-center">
             <Link to="/app" className="text-gray-400 hover:text-white transition-colors">
               {t('footerInBharat')}
@@ -1263,7 +1263,7 @@ const Landing: React.FC = () => {
             </a>
             <a href="https://github.com/inbharatai" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors">
               <Github size={15} />
-              GitHub
+              {t('gitHub')}
             </a>
           </div>
         </div>

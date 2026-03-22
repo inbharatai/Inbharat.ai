@@ -1,20 +1,22 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { NewsArticle } from '../types';
 import { ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-
-const FALLBACK_TOPICS: NewsArticle[] = [
-  { title: "India economy growth 2025", summary: "Search for latest economic outlook.", url: "#", category: "Economy" },
-  { title: "Viksit Bharat 2047 vision", summary: "Explore long-term national vision.", url: "#", category: "Policy" },
-  { title: "Indian space missions Chandrayaan", summary: "Latest in space exploration.", url: "#", category: "Science" },
-];
 
 interface NewsFeedProps {
   onArticleClick: (title: string) => void;
 }
 
 const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
+  const { t } = useTranslation();
   const { accessToken } = useAuth();
+
+  const FALLBACK_TOPICS: NewsArticle[] = useMemo(() => [
+    { title: t('fallbackEconomyTitle'), summary: t('fallbackEconomySummary'), url: '#', category: t('fallbackEconomy') },
+    { title: t('fallbackPolicyTitle'), summary: t('fallbackPolicySummary'), url: '#', category: t('fallbackPolicy') },
+    { title: t('fallbackScienceTitle'), summary: t('fallbackScienceSummary'), url: '#', category: t('fallbackScience') },
+  ], [t]);
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [noConfig, setNoConfig] = useState(false);
@@ -36,7 +38,7 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
       setArticles(FALLBACK_TOPICS);
     }
     setLoading(false);
-  }, [accessToken]);
+  }, [accessToken, FALLBACK_TOPICS]);
 
   useEffect(() => {
     void fetchNews();
@@ -46,7 +48,7 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <RefreshCw className="animate-spin text-blue-500" size={32} />
-        <p className="text-gray-500 animate-pulse">Scanning live global news...</p>
+        <p className="text-gray-500 animate-pulse">{t('scanningNews')}</p>
       </div>
     );
   }
@@ -55,10 +57,10 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex items-center gap-2 mb-6 sm:mb-8 border-b border-[#30363d] pb-4">
         <TrendingUp className="text-blue-500" />
-        <h2 className="text-xl sm:text-2xl font-bold">Discover Live</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">{t('discoverLive')}</h2>
       </div>
       {noConfig && (
-        <p className="text-sm text-gray-500 mb-4">Configure SERPER_API_KEY in Vercel for live news. Showing suggested topics to explore.</p>
+        <p className="text-sm text-gray-500 mb-4">{t('newsNoConfig')}</p>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {articles.map((article, idx) => (
@@ -77,7 +79,7 @@ const NewsFeed: React.FC<NewsFeedProps> = ({ onArticleClick }) => {
               {article.summary}
             </p>
             <div className="flex items-center justify-between pt-4 border-t border-[#30363d]">
-              <span className="text-xs text-gray-500">Live Research Available</span>
+              <span className="text-xs text-gray-500">{t('liveResearch')}</span>
               <ExternalLink size={14} className="text-gray-600 group-hover:text-blue-400" />
             </div>
           </div>
