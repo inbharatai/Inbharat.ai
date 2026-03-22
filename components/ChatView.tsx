@@ -140,8 +140,8 @@ const ChatView: React.FC<ChatViewProps> = ({
       currentAudioRef.current = null;
     }
     const wa = webAudioRef.current;
-    wa.sources.forEach(s => { try { s.stop(); } catch {} });
-    wa.ctx?.close().catch(() => {});
+    wa.sources.forEach(s => { try { s.stop(); } catch { /* ignore */ } });
+    wa.ctx?.close().catch(() => { /* ignore */ });
   }, []);
 
   const handleStopSpeaking = useCallback(() => {
@@ -150,8 +150,8 @@ const ChatView: React.FC<ChatViewProps> = ({
       chunkAbortRef.current = null;
     }
     const wa = webAudioRef.current;
-    wa.sources.forEach(s => { try { s.stop(); } catch {} });
-    wa.ctx?.close().catch(() => {});
+    wa.sources.forEach(s => { try { s.stop(); } catch { /* ignore */ } });
+    wa.ctx?.close().catch(() => { /* ignore */ });
     webAudioRef.current = { ctx: null, nextStart: 0, sources: [], buffers: [], scheduled: 0, ended: 0, allFetched: false };
     playingMsgIdRef.current = null;
     if (currentAudioRef.current) {

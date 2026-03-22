@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Send, Languages, Mic, MicOff, Zap, Camera, Image as ImageIcon, 
-  Paperclip, X
+  Paperclip, X, Globe
 } from 'lucide-react';
 import { AgentMode } from '../types';
 import { getSupportedMimeType, getNativeSpeechRecognition, getBCP47Locale } from '../services/openaiService';
@@ -261,7 +261,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             }`}
             title={t('modesAndAttach')}
           >
-            {isMenuOpen ? <X size={16} /> : <currentAgent.icon size={16} className={currentAgent.color} />}
+            {isMenuOpen ? <X size={16} /> : <Zap size={16} className="text-[#FF9933]" />}
           </button>
           <textarea
             ref={inputRef}
