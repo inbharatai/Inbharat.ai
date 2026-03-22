@@ -33,7 +33,6 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [guestSession, setGuestSession] = useState<ChatSession | null>(null);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
-  const [dismissedSignInPrompt, setDismissedSignInPrompt] = useState(false);
 
   const agentRef = useRef<NexusAgent | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -120,6 +119,17 @@ const App: React.FC = () => {
   const handleSearch = useCallback(async (query: string, mode: AgentMode, language: string, imageData?: string) => {
     if (authLoading) return;
     if (!agentRef.current || (!query.trim() && !imageData)) return;
+
+    // Hard gate: after 3 guest messages, require sign-in
+    const isGuestUser = !isSignedIn || !user;
+    if (isGuestUser && guestSession) {
+      const guestUserCount = guestSession.messages.filter((m) => m.role === "user").length;
+      if (guestUserCount >= 3) {
+        setShowSignInPrompt(true);
+        setShowAuthModal(true);
+        return;
+      }
+    }
     abortRef.current = new AbortController();
     const signal = abortRef.current.signal;
     setIsLoading(true);
@@ -134,11 +144,10 @@ const App: React.FC = () => {
       imageUrl: imageData,
     };
 
-    const isGuest = !isSignedIn || !user;
     let targetSessionId: string | null = null;
     let targetGuestSession: ChatSession | null = null;
 
-    if (isGuest) {
+    if (isGuestUser) {
       if (!guestSession) {
         targetGuestSession = {
           id: "guest",
@@ -187,12 +196,12 @@ const App: React.FC = () => {
     }
 
     const appendToSession = (assistantMsg: Message) => {
-      if (isGuest && targetGuestSession) {
+      if (isGuestUser && targetGuestSession) {
         setGuestSession((prev) =>
           prev ? { ...prev, messages: [...prev.messages, assistantMsg] } : null
         );
         const userCount = (targetGuestSession.messages.filter((m) => m.role === "user").length) + 1;
-        if (userCount >= 3 && !dismissedSignInPrompt) setShowSignInPrompt(true);
+        if (userCount >= 3) setShowSignInPrompt(true);
       } else if (targetSessionId) {
         setSessions((prev) =>
           prev.map((s) => (s.id === targetSessionId ? { ...s, messages: [...s.messages, assistantMsg] } : s))
@@ -209,7 +218,7 @@ const App: React.FC = () => {
     let hasStarted = false;
 
     try {
-      const currentSession = isGuest ? guestSession : sessionsRef.current.find(s => s.id === targetSessionId);
+      const currentSession = isGuestUser ? guestSession : sessionsRef.current.find(s => s.id === targetSessionId);
       // Extract previous messages for context — trim to last 20 to avoid oversized payloads
       const previousMessages = (currentSession?.messages || [])
         .filter(m => m.role !== 'user' || m.id !== userMsg.id)
@@ -228,7 +237,7 @@ const App: React.FC = () => {
           mode,
           isStreaming: true,
         };
-        if (isGuest && targetGuestSession) {
+        if (isGuestUser && targetGuestSession) {
           setGuestSession((prev) => {
             if (!prev) return null;
             const exists = prev.messages.some(m => m.id === assistantMsgId);
@@ -271,7 +280,7 @@ const App: React.FC = () => {
                 isStreaming: true,
                 statusText: streamedText ? undefined : status,
               };
-              if (isGuest && targetGuestSession) {
+              if (isGuestUser && targetGuestSession) {
                 setGuestSession((prev) => {
                   if (!prev) return null;
                   const exists = prev.messages.some(m => m.id === assistantMsgId);
@@ -322,7 +331,7 @@ const App: React.FC = () => {
                 isStreaming: false,
               };
               // Replace the streaming message with the final one (or append if not yet inserted)
-              if (isGuest && targetGuestSession) {
+              if (isGuestUser && targetGuestSession) {
                 setGuestSession((prev) => {
                   if (!prev) return null;
                   const exists = prev.messages.some(m => m.id === assistantMsgId);
@@ -420,7 +429,7 @@ const App: React.FC = () => {
       };
       if (hasStarted) {
         // Streaming message exists — replace it with the error
-        if (isGuest && targetGuestSession) {
+        if (isGuestUser && targetGuestSession) {
           setGuestSession((prev) => {
             if (!prev) return null;
             return { ...prev, messages: prev.messages.map(m => m.id === assistantMsgId ? errMsg : m) };
@@ -440,7 +449,7 @@ const App: React.FC = () => {
       abortRef.current = null;
       setIsLoading(false);
     }
-  }, [currentSessionId, appLanguage, isSignedIn, authLoading, user, guestSession, dismissedSignInPrompt]);
+  }, [currentSessionId, appLanguage, isSignedIn, authLoading, user, guestSession]);
 
   const handleRegenerate = useCallback((query: string, mode: AgentMode, language: string, imageUrl?: string) => {
     if (!isLoading) handleSearch(query, mode, language, imageUrl);
@@ -748,18 +757,11 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Sign-in prompt after a few guest messages */}
+      {/* Sign-in prompt after 3 guest messages — hard gate, no dismiss */}
       {showSignInPrompt && !isSignedIn && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#30363d] shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-gray-300">{t('signInPrompt')}</p>
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#FF9933]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-sm text-gray-300">{t('signInRequired')}</p>
           <div className="flex gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => { setShowSignInPrompt(false); setDismissedSignInPrompt(true); }}
-              className="px-3 py-2 rounded-xl border border-[#30363d] text-gray-400 hover:text-white text-sm font-medium"
-            >
-              {t('maybeLater')}
-            </button>
             <button
               type="button"
               onClick={() => { setShowSignInPrompt(false); setShowAuthModal(true); }}

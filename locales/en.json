@@ -348,6 +348,7 @@
   "quickCustomTool": "Build a custom AI tool for my workflow",
   "stopGenerating": "Stop",
   "signInPrompt": "Sign in to save your chats and use InBharat on any device.",
+  "signInRequired": "You've used your 3 free chats. Sign in to continue using InBharat AI.",
   "maybeLater": "Maybe later",
   "searchHistory": "Search history...",
   "newChat": "New Chat",

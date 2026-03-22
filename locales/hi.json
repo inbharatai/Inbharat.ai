@@ -348,6 +348,7 @@
   "quickCustomTool": "मेरे वर्कफ़्लो के लिए कस्टम AI टूल बनाएं",
   "stopGenerating": "रोकें",
   "signInPrompt": "अपनी चैट सहेजने और किसी भी डिवाइस पर InBharat इस्तेमाल करने के लिए साइन इन करें।",
+  "signInRequired": "आपकी 3 मुफ़्त चैट समाप्त हो गई हैं। InBharat AI जारी रखने के लिए साइन इन करें।",
   "maybeLater": "बाद में",
   "searchHistory": "इतिहास खोजें...",
   "newChat": "नई चैट",
