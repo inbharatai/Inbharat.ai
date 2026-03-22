@@ -58,9 +58,7 @@ export function streamChat(
 
   (async () => {
     try {
-      console.error("[chatStream] 1. Getting access token...");
       const token = await getAccessToken();
-      console.error("[chatStream] 2. Token:", token ? "present" : "none", "- Starting fetch...");
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -79,21 +77,17 @@ export function streamChat(
         signal,
       });
 
-      console.error("[chatStream] 3. Response:", res.status, res.ok, "Content-Type:", res.headers.get("content-type"));
-
       if (!res.ok) {
         let code = "SERVER_ERROR";
         try {
           const errBody = await res.json();
           if (errBody?.code) code = errBody.code;
         } catch { /* ignore parse failures */ }
-        console.error("[chatStream] 4. NOT OK — error code:", code);
         callbacks.onError?.(code);
         return;
       }
 
       if (!res.body) {
-        console.error("[chatStream] 4. No response body!");
         callbacks.onError?.("SERVER_ERROR");
         return;
       }
@@ -103,7 +97,6 @@ export function streamChat(
       let fullText = "";
       let buffer = "";
       let doneReceived = false;
-      let eventCount = 0;
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -119,8 +112,6 @@ export function streamChat(
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
-            eventCount++;
-            console.error(`[chatStream] 5. Event #${eventCount}:`, data.event, data.event === "chunk" ? `(${data.chunk?.length ?? 0} chars)` : "");
             switch (data.event) {
               case "routing":
                 callbacks.onRouting?.(data.routing);
@@ -140,11 +131,9 @@ export function streamChat(
                 break;
               case "done":
                 doneReceived = true;
-                console.error("[chatStream] 6. DONE received, fullText length:", (data.text ?? fullText).length);
                 callbacks.onDone?.(data.text ?? fullText);
                 break;
               case "error":
-                console.error("[chatStream] 6. ERROR event:", data.code);
                 callbacks.onError?.(data.code ?? "SERVER_ERROR");
                 break;
             }
@@ -153,8 +142,6 @@ export function streamChat(
           }
         }
       }
-
-      console.error("[chatStream] 7. Stream ended. doneReceived:", doneReceived, "fullText length:", fullText.length, "eventCount:", eventCount);
 
       // Safety fallback: if stream ended without a "done" event
       if (!doneReceived && !signal.aborted) {
@@ -165,7 +152,6 @@ export function streamChat(
         }
       }
     } catch (err: unknown) {
-      console.error("[chatStream] CATCH error:", (err as Error)?.name, (err as Error)?.message);
       if ((err as { name?: string })?.name === "AbortError") return;
       const msg = (err as Error)?.message ?? "";
       callbacks.onError?.(msg || "CONNECTION_FAILED");
