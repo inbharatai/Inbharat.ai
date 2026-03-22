@@ -231,7 +231,8 @@ const App: React.FC = () => {
         if (isGuest && targetGuestSession) {
           setGuestSession((prev) => {
             if (!prev) return null;
-            const msgs = hasStarted
+            const exists = prev.messages.some(m => m.id === assistantMsgId);
+            const msgs = exists
               ? prev.messages.map(m => m.id === assistantMsgId ? streamMsg : m)
               : [...prev.messages, streamMsg];
             return { ...prev, messages: msgs };
@@ -240,7 +241,8 @@ const App: React.FC = () => {
           setSessions((prev) =>
             prev.map((s) => {
               if (s.id !== targetSessionId) return s;
-              const msgs = hasStarted
+              const exists = s.messages.some(m => m.id === assistantMsgId);
+              const msgs = exists
                 ? s.messages.map(m => m.id === assistantMsgId ? streamMsg : m)
                 : [...s.messages, streamMsg];
               return { ...s, messages: msgs };
@@ -272,7 +274,8 @@ const App: React.FC = () => {
               if (isGuest && targetGuestSession) {
                 setGuestSession((prev) => {
                   if (!prev) return null;
-                  const msgs = hasStarted
+                  const exists = prev.messages.some(m => m.id === assistantMsgId);
+                  const msgs = exists
                     ? prev.messages.map(m => m.id === assistantMsgId ? statusMsg : m)
                     : [...prev.messages, statusMsg];
                   return { ...prev, messages: msgs };
@@ -281,7 +284,8 @@ const App: React.FC = () => {
                 setSessions((prev) =>
                   prev.map((s) => {
                     if (s.id !== targetSessionId) return s;
-                    const msgs = hasStarted
+                    const exists = s.messages.some(m => m.id === assistantMsgId);
+                    const msgs = exists
                       ? s.messages.map(m => m.id === assistantMsgId ? statusMsg : m)
                       : [...s.messages, statusMsg];
                     return { ...s, messages: msgs };
@@ -317,17 +321,25 @@ const App: React.FC = () => {
                 mode,
                 isStreaming: false,
               };
-              // Replace the streaming message with the final one
+              // Replace the streaming message with the final one (or append if not yet inserted)
               if (isGuest && targetGuestSession) {
                 setGuestSession((prev) => {
                   if (!prev) return null;
-                  return { ...prev, messages: prev.messages.map(m => m.id === assistantMsgId ? assistantMsg : m) };
+                  const exists = prev.messages.some(m => m.id === assistantMsgId);
+                  const msgs = exists
+                    ? prev.messages.map(m => m.id === assistantMsgId ? assistantMsg : m)
+                    : [...prev.messages, assistantMsg];
+                  return { ...prev, messages: msgs };
                 });
               } else if (targetSessionId) {
                 setSessions((prev) =>
                   prev.map((s) => {
                     if (s.id !== targetSessionId) return s;
-                    return { ...s, messages: s.messages.map(m => m.id === assistantMsgId ? assistantMsg : m) };
+                    const exists = s.messages.some(m => m.id === assistantMsgId);
+                    const msgs = exists
+                      ? s.messages.map(m => m.id === assistantMsgId ? assistantMsg : m)
+                      : [...s.messages, assistantMsg];
+                    return { ...s, messages: msgs };
                   })
                 );
                 appendMessage(targetSessionId, assistantMsg).catch((err) => console.error("Failed to persist message:", err));
