@@ -95,7 +95,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
         sr.onerror = (event: SpeechRecognitionErrorEvent) => {
           // 'no-speech' is not a real error, just silence
           if (event.error !== 'no-speech' && event.error !== 'aborted') {
-            setSpeakError(t('micError'));
+            setSpeakError(t('speechError'));
           }
           setIsSpeaking(false);
           nativeSRRef.current = null;
@@ -127,7 +127,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
           const text = await onSpeakToType(blob);
           if (text) setQuery((q) => (q ? q + ' ' + text : text));
         } catch {
-          setSpeakError(t('micError'));
+          setSpeakError(t('transcribeError'));
         }
         setIsSpeaking(false);
       };
@@ -136,11 +136,11 @@ const Omnibox: React.FC<OmniboxProps> = ({
       setIsSpeaking(true);
     } catch (err: any) {
       if (err?.name === 'NotAllowedError') {
-        setSpeakError(t('micPermissionDenied'));
+        setSpeakError(t('micDenied'));
       } else if (typeof location !== 'undefined' && location?.protocol !== 'https:' && !location?.hostname?.match(/^localhost$/i)) {
-        setSpeakError(t('micError'));
+        setSpeakError(t('micHttps'));
       } else {
-        setSpeakError(t('micNotSupported'));
+        setSpeakError(t('micUnavailable'));
       }
       setIsSpeaking(false);
     }
@@ -179,13 +179,13 @@ const Omnibox: React.FC<OmniboxProps> = ({
   }, [query]);
 
   const agents = [
-    { mode: AgentMode.STANDARD, label: t('modeStandard'), icon: MessageSquare, color: 'text-white', desc: t('modeStandardDesc') },
-    { mode: AgentMode.RESEARCH, label: t('modeResearch'), icon: Hash, color: 'text-[#FF9933]', desc: t('modeResearchDesc') },
-    { mode: AgentMode.CODER, label: t('modeCoder'), icon: Terminal, color: 'text-[#138808]', desc: t('modeCoderDesc') },
-    { mode: AgentMode.EDUCATOR, label: t('modeAcademic'), icon: BookOpen, color: 'text-purple-400', desc: t('modeAcademicDesc') },
-    { mode: AgentMode.BROWSER, label: t('modeBrowse'), icon: Globe, color: 'text-blue-400', desc: t('modeBrowseDesc') },
-    { mode: AgentMode.EXECUTIVE, label: t('modeExec'), icon: Briefcase, color: 'text-yellow-400', desc: t('modeExecDesc') },
-    { mode: AgentMode.SHOPPER, label: t('modeShopping'), icon: ShoppingBag, color: 'text-emerald-400', desc: t('modeShoppingDesc') },
+    { mode: AgentMode.STANDARD, label: t('modeStandard'), icon: MessageSquare, color: 'text-white', desc: t('modeDescStandard') },
+    { mode: AgentMode.RESEARCH, label: t('modeResearch'), icon: Hash, color: 'text-[#FF9933]', desc: t('modeDescResearch') },
+    { mode: AgentMode.CODER, label: t('modeCoder'), icon: Terminal, color: 'text-[#138808]', desc: t('modeDescCoder') },
+    { mode: AgentMode.EDUCATOR, label: t('modeEducator'), icon: BookOpen, color: 'text-purple-400', desc: t('modeDescEducator') },
+    { mode: AgentMode.BROWSER, label: t('modeBrowser'), icon: Globe, color: 'text-blue-400', desc: t('modeDescBrowser') },
+    { mode: AgentMode.EXECUTIVE, label: t('modeExecutive'), icon: Briefcase, color: 'text-yellow-400', desc: t('modeDescExecutive') },
+    { mode: AgentMode.SHOPPER, label: t('modeShopper'), icon: ShoppingBag, color: 'text-emerald-400', desc: t('modeDescShopper') },
   ];
 
   const currentAgent = agents.find(a => a.mode === initialMode) || agents[0];
@@ -291,7 +291,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
                   ? "bg-[#FF9933] border-[#FF9933] text-white"
                   : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
             }`}
-            title={t('modesAttach')}
+            title={t('modesAndAttach')}
           >
             {isMenuOpen ? <X size={16} /> : <currentAgent.icon size={16} className={currentAgent.color} />}
           </button>
@@ -304,7 +304,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             onBlur={() => setIsFocused(false)}
             disabled={disabled}
             onKeyDown={(e) => !disabled && e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-            placeholder={disabled ? t('signInToChat') : (initialMode === AgentMode.STANDARD ? t('askPlaceholder') : t('askMode', { mode: currentAgent.label }))}
+            placeholder={disabled ? t('signInToChat') : (initialMode === AgentMode.STANDARD ? t('askInBharat') : t('askMode', { mode: currentAgent.label }))}
             className={`flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px] ${
               disabled ? "opacity-60 cursor-not-allowed" : ""
             }`}
@@ -322,7 +322,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
                     ? "bg-red-500/20 border-red-500/50 text-red-400"
                     : "bg-[#0d1117] border-[#30363d] text-gray-400 hover:text-white"
               }`}
-              title={isSpeaking ? t('stop') : t('speak')}
+              title={isSpeaking ? t('speakStop') : t('speakTitle')}
             >
               {isSpeaking ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
@@ -356,7 +356,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
         {isSpeaking && (
           <div className="flex items-center gap-2 px-3 py-2 bg-[#0d1117] border-t border-[#30363d]">
             <Globe size={12} className="text-[#FF9933] flex-shrink-0" />
-            <span className="text-[9px] font-bold text-gray-300">{t('listeningLabel')}</span>
+            <span className="text-[9px] font-bold text-gray-300">{t('listening')}</span>
             <div className="flex items-center gap-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="w-1 h-2 bg-[#FF9933] rounded-full animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
