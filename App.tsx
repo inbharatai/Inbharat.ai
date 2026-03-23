@@ -55,6 +55,10 @@ const App: React.FC = () => {
       setCurrentSessionId(null);
       return;
     }
+    // User just signed in — clear guest usage from localStorage
+    localStorage.removeItem("inbharat_guest_chats");
+    setShowSignInPrompt(false);
+    setGuestSession(null);
     setSessionsLoading(true);
     loadSessions(user.id)
       .then((loaded) => {
@@ -122,9 +126,12 @@ const App: React.FC = () => {
 
     // Hard gate: after 3 guest messages, require sign-in
     const isGuestUser = !isSignedIn || !user;
-    if (isGuestUser && guestSession) {
-      const guestUserCount = guestSession.messages.filter((m) => m.role === "user").length;
-      if (guestUserCount >= 3) {
+    const GUEST_LIMIT = 3;
+    const storedGuestCount = isGuestUser ? parseInt(localStorage.getItem("inbharat_guest_chats") || "0", 10) : 0;
+    if (isGuestUser) {
+      const sessionCount = guestSession ? guestSession.messages.filter((m) => m.role === "user").length : 0;
+      const effectiveCount = Math.max(storedGuestCount, sessionCount);
+      if (effectiveCount >= GUEST_LIMIT) {
         setShowSignInPrompt(true);
         setShowAuthModal(true);
         return;
@@ -201,6 +208,7 @@ const App: React.FC = () => {
           prev ? { ...prev, messages: [...prev.messages, assistantMsg] } : null
         );
         const userCount = (targetGuestSession.messages.filter((m) => m.role === "user").length) + 1;
+        localStorage.setItem("inbharat_guest_chats", String(userCount));
         if (userCount >= 3) setShowSignInPrompt(true);
       } else if (targetSessionId) {
         setSessions((prev) =>
@@ -360,6 +368,7 @@ const App: React.FC = () => {
               // can display the correct user-facing message instead of the generic fallback.
               if (err === "RATE_LIMIT") return reject(new OpenAISanitizedError("RATE_LIMIT", 10));
               if (err === "UPSTREAM_OVERLOADED") return reject(new OpenAISanitizedError("UPSTREAM_OVERLOADED", 10));
+              if (err === "GUEST_LIMIT") return reject(new OpenAISanitizedError("GUEST_LIMIT"));
               if (err === "UNAUTHORIZED") return reject(new OpenAISanitizedError("UNAUTHORIZED"));
               if (err === "CONFIG_ERROR" || err === "AUTH_ERROR") return reject(new OpenAISanitizedError("AUTH_ERROR"));
               // Network/connection errors: preserve the message so the fetch pattern matches
@@ -389,6 +398,10 @@ const App: React.FC = () => {
       let content: string;
       if (sanitized?.code === "UNAUTHORIZED") {
         content = t('errUnauthorized');
+      } else if (sanitized?.code === "GUEST_LIMIT") {
+        setShowSignInPrompt(true);
+        setShowAuthModal(true);
+        content = t('signInRequired');
       } else if (sanitized?.code === "UPSTREAM_OVERLOADED") {
         content = t('errUpstreamBusy');
       } else if (sanitized?.code === "RATE_LIMIT") {

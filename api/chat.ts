@@ -17,7 +17,9 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { isVerifyErr, verifySupabaseUserOptional } from "./lib/verifySupabaseUser.js";
+import { supabaseAdmin } from "./lib/supabaseAdmin.js";
 import { serverLLMStream } from "./lib/serverLLM.js";
 import { routeQuery } from "../lib/orchestration/router.js";
 import { buildContextWindow, estimateTokens } from "../lib/orchestration/memory.js";
@@ -341,6 +343,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const previousMessages = (parsed.previousMessages ?? []) as Array<{ role: "user" | "assistant"; content: string }>;
   const shouldStream = parsed.stream === true;
   const lang = langMap[language!] ?? langMap.EN;
+
+  // ── Guest limit: 3 messages/day for unauthenticated users ──
+  const FREE_GUEST_LIMIT = 3;
+  const isGuest = !verified.userId;
+  if (isGuest && supabaseAdmin) {
+    try {
+      const ipHash = createHash("sha256").update(clientIp + "_inbharat_guest_salt").digest("hex");
+      const { data: count } = await supabaseAdmin.rpc("get_guest_usage", { p_ip_hash: ipHash });
+      if (typeof count === "number" && count >= FREE_GUEST_LIMIT) {
+        if (shouldStream) {
+          res.setHeader("Content-Type", "text/event-stream");
+          res.setHeader("Cache-Control", "no-cache");
+          res.setHeader("Connection", "keep-alive");
+          res.write(`data: ${JSON.stringify({ event: "error", code: "GUEST_LIMIT" })}\n\n`);
+          res.end();
+          return;
+        }
+        return res.status(403).json({ ok: false, code: "GUEST_LIMIT", requestId });
+      }
+      // Increment usage now (pre-charge); if the request fails the count is still consumed
+      await supabaseAdmin.rpc("increment_guest_usage", { p_ip_hash: ipHash });
+    } catch (err) {
+      // Best-effort: if DB is unreachable, allow the request through
+      console.warn("[chat] guest limit check failed:", err instanceof Error ? err.message : err);
+    }
+  }
 
   // ── 1. Greeting short-circuit ──
   const trimmed = query.trim();
