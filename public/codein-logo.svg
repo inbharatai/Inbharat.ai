@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" fill="none">
+  <defs>
+    <linearGradient id="circuit-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="c-fill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="orange-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <clipPath id="emblem-clip">
+      <rect x="4" y="4" width="72" height="72" rx="16"/>
+    </clipPath>
+  </defs>
+
+  <!-- Emblem background -->
+  <rect x="4" y="4" width="72" height="72" rx="16" fill="#12141a" stroke="url(#circuit-grad)" stroke-width="1.5"/>
+
+  <!-- Circuit-board traces (inside emblem) -->
+  <g clip-path="url(#emblem-clip)" opacity="0.18">
+    <!-- Horizontal traces -->
+    <line x1="8" y1="20" x2="72" y2="20" stroke="#818cf8" stroke-width="0.7"/>
+    <line x1="8" y1="40" x2="72" y2="40" stroke="#818cf8" stroke-width="0.7"/>
+    <line x1="8" y1="60" x2="72" y2="60" stroke="#818cf8" stroke-width="0.7"/>
+    <!-- Vertical traces -->
+    <line x1="20" y1="8" x2="20" y2="72" stroke="#fb923c" stroke-width="0.7"/>
+    <line x1="40" y1="8" x2="40" y2="72" stroke="#818cf8" stroke-width="0.7"/>
+    <line x1="60" y1="8" x2="60" y2="72" stroke="#fb923c" stroke-width="0.7"/>
+    <!-- Circuit nodes -->
+    <circle cx="20" cy="20" r="2" fill="#818cf8"/>
+    <circle cx="60" cy="20" r="2" fill="#fb923c"/>
+    <circle cx="20" cy="60" r="2" fill="#fb923c"/>
+    <circle cx="60" cy="60" r="2" fill="#818cf8"/>
+    <circle cx="40" cy="40" r="2.5" fill="#6366f1"/>
+    <!-- Diagonal traces -->
+    <line x1="20" y1="20" x2="40" y2="40" stroke="#6366f1" stroke-width="0.5"/>
+    <line x1="60" y1="20" x2="40" y2="40" stroke="#f97316" stroke-width="0.5"/>
+    <line x1="20" y1="60" x2="40" y2="40" stroke="#f97316" stroke-width="0.5"/>
+    <line x1="60" y1="60" x2="40" y2="40" stroke="#6366f1" stroke-width="0.5"/>
+  </g>
+
+  <!-- Main "C" letter -->
+  <g filter="url(#glow)">
+    <path d="M55 24C51.5 18 45 14.5 38 14.5C26 14.5 17 25 17 40C17 55 26 65.5 38 65.5C45 65.5 51.5 62 55 56"
+          stroke="url(#c-fill)" stroke-width="5" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <!-- Orange accent arcs on the C -->
+  <path d="M55 24C56.5 26.5 57.5 29.5 58 33" stroke="url(#orange-accent)" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M55 56C56.5 53.5 57.5 50.5 58 47" stroke="url(#orange-accent)" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Small circuit dots on the C -->
+  <circle cx="55" cy="24" r="2.5" fill="#818cf8"/>
+  <circle cx="55" cy="56" r="2.5" fill="#fb923c"/>
+  <circle cx="17" cy="40" r="2" fill="#6366f1"/>
+
+  <!-- "Code" text in blue -->
+  <text x="92" y="50" font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="800" font-size="36" fill="#818cf8" letter-spacing="-0.5">Code</text>
+
+  <!-- "In" text in orange -->
+  <text x="200" y="50" font-family="Inter, system-ui, -apple-system, sans-serif" font-weight="800" font-size="36" fill="#fb923c" letter-spacing="-0.5">In</text>
+</svg>

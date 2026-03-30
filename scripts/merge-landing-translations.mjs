@@ -641,13 +641,22 @@ const translations = {
   },
 };
 
+// Load English source for fallback propagation
+const enSource = JSON.parse(readFileSync(join(localesDir, 'en.json'), 'utf8'));
+const enLandKeys = Object.fromEntries(
+  Object.entries(enSource).filter(([k]) => k.startsWith('land'))
+);
+
 // Merge translations into each locale file
 for (const [locale, trans] of Object.entries(translations)) {
   const filePath = join(localesDir, `${locale}.json`);
   const existing = JSON.parse(readFileSync(filePath, 'utf8'));
-  const merged = { ...existing, ...trans };
+  // 1. Apply any missing land* keys from en.json as English placeholders
+  // 2. Then overlay the hardcoded native translations (which take precedence)
+  const merged = { ...existing, ...enLandKeys, ...trans };
   writeFileSync(filePath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
-  console.log(`✓ ${locale}.json — merged ${Object.keys(trans).length} keys`);
+  const newKeys = Object.keys(merged).length - Object.keys(existing).length;
+  console.log(`✓ ${locale}.json — merged ${Object.keys(trans).length} native keys + ${newKeys > 0 ? newKeys : 0} new land* placeholders`);
 }
 
 console.log('\nDone! All landing page translations merged.');
