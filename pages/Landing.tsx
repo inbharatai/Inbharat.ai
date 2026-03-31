@@ -13,11 +13,13 @@ import {
   Code2,
   Download,
   ExternalLink,
+  FileText,
   Github,
   Globe,
   Menu,
   MessageCircle,
   Monitor,
+  Network,
   Search,
   ShieldCheck,
   Share2,
@@ -725,6 +727,7 @@ const Landing: React.FC = () => {
   const navItems = useMemo(
     () => [
       { href: '#ecosystem', label: t('landNavEcosystem') },
+      { href: '#phoring', label: t('landNavPhoring') },
       { href: '#codein', label: t('landNavCodein') },
       { href: '#products', label: t('landNavProducts') },
       { href: '#why', label: t('landNavWhy') },
@@ -1145,6 +1148,227 @@ const Landing: React.FC = () => {
                 <p className="mt-3 text-sm leading-[1.7] text-[#6b7f9c]">{item.text}</p>
               </motion.article>
             ))}
+          </div>
+        </div>
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
+      {/* ═══════════════ PHORING SPOTLIGHT ═══════════════ */}
+      <Reveal id="phoring" className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+          <div className="relative overflow-hidden rounded-[28px] border border-[#10b981]/20 bg-gradient-to-br from-[#041f18] via-[#060f12] to-[#040a10]">
+            {/* Ambient glows */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(16,185,129,0.16),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(6,182,212,0.10),transparent 50%)' }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.04]"
+              style={{ backgroundImage: 'linear-gradient(to right,rgba(16,185,129,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(16,185,129,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
+            />
+
+            <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
+              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+                {/* Left */}
+                <div>
+                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#10b981]/30 bg-[#10b981]/10">
+                      <img src="/phoring-logo.png" alt="Phoring logo" className="h-6 w-6 rounded object-contain" />
+                    </div>
+                    <span className="rounded-full border border-[#10b981]/30 bg-[#10b981]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#34d399]">
+                      {t('landPhoringBadgeOpen')}
+                    </span>
+                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/8 px-3 py-1 text-[10px] font-bold text-cyan-400">
+                      Scenario Engine
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
+                    {t('landPhoringTitle')}
+                    <br />
+                    <span className="bg-gradient-to-r from-[#34d399] via-[#a7f3d0] to-[#d1fae5] bg-clip-text text-transparent">
+                      {t('landPhoringTitle2')}
+                    </span>
+                  </h2>
+
+                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#6b7f9c]">
+                    {t('landPhoringDesc')}
+                  </p>
+
+                  {/* Stats */}
+                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {([
+                      { val: '4', label: t('landPhoringStat1') },
+                      { val: '3', label: t('landPhoringStat2') },
+                      { val: '100%', label: t('landPhoringStat3') },
+                      { val: '11', label: t('landPhoringStat4') },
+                    ] as const).map((stat, i) => (
+                      <motion.div
+                        key={stat.label}
+                        custom={i}
+                        variants={itemReveal}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        className="rounded-xl border border-[#10b981]/15 bg-[#10b981]/[0.05] p-3.5 text-center"
+                      >
+                        <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-[#6b7f9c]">{stat.label}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Feature chips */}
+                  <div className="mt-6 flex flex-wrap gap-1.5">
+                    {[
+                      t('landPhoringFeat1'), t('landPhoringFeat2'), t('landPhoringFeat3'),
+                      t('landPhoringFeat4'), t('landPhoringFeat5'), t('landPhoringFeat6'),
+                      t('landPhoringFeat7'), t('landPhoringFeat8'), t('landPhoringFeat9'),
+                    ].map((feat) => (
+                      <span
+                        key={feat}
+                        className="rounded-full border border-[#10b981]/20 bg-[#10b981]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#6ee7b7]"
+                      >
+                        {feat}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Use cases callout */}
+                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#06b6d4]/20 bg-[#06b6d4]/[0.06] px-4 py-2.5 text-sm text-[#67e8f9]">
+                    <Target size={14} className="flex-shrink-0 text-[#06b6d4]" />
+                    {t('landPhoringUseCases')}
+                  </div>
+
+                  {/* CTAs */}
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <a
+                      href="https://phoring.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#10b981] px-6 py-3 text-sm font-bold text-[#022c22] shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#34d399] hover:shadow-[0_0_40px_rgba(16,185,129,0.4)]"
+                    >
+                      {t('landPhoringCta1')}
+                      <ExternalLink size={14} />
+                    </a>
+                    <a
+                      href="https://phoring.in"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
+                    >
+                      <Sparkles size={14} />
+                      {t('landPhoringCta2')}
+                    </a>
+                    <a
+                      href="https://github.com/inbharatai/phoring"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#6b7f9c] transition-all hover:text-white"
+                    >
+                      <Github size={14} />
+                      {t('landPhoringCta3')}
+                    </a>
+                  </div>
+                </div>
+
+                {/* Right: Pipeline visualization + comparison */}
+                <div className="space-y-5">
+                  {/* 4-Stage Pipeline */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.7, ease }}
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#060a10]"
+                  >
+                    <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#10b981]/80" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#06b6d4]/80" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#f59f4f]/80" />
+                      <span className="ml-auto text-[10px] text-[#3a4a5e]">intelligence pipeline</span>
+                    </div>
+                    <div className="p-5 space-y-0">
+                      {[
+                        { step: '01', title: t('landPhoringPipe1'), desc: t('landPhoringPipe1Desc'), color: '#10b981', icon: FileText },
+                        { step: '02', title: t('landPhoringPipe2'), desc: t('landPhoringPipe2Desc'), color: '#06b6d4', icon: Users },
+                        { step: '03', title: t('landPhoringPipe3'), desc: t('landPhoringPipe3Desc'), color: '#f59f4f', icon: Network },
+                        { step: '04', title: t('landPhoringPipe4'), desc: t('landPhoringPipe4Desc'), color: '#a78bfa', icon: ShieldCheck },
+                      ].map((stage, i, arr) => (
+                        <div key={stage.step} className="relative">
+                          <div className="flex items-start gap-3.5 py-3">
+                            <div className="relative flex flex-col items-center">
+                              <div
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border"
+                                style={{ borderColor: `${stage.color}30`, backgroundColor: `${stage.color}12` }}
+                              >
+                                <stage.icon size={16} style={{ color: stage.color }} />
+                              </div>
+                              {i < arr.length - 1 && (
+                                <div className="mt-1 h-5 w-px" style={{ background: `linear-gradient(to bottom, ${stage.color}40, transparent)` }} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold tabular-nums" style={{ color: stage.color }}>{stage.step}</span>
+                                <span className="text-[13px] font-semibold text-white">{stage.title}</span>
+                              </div>
+                              <p className="mt-0.5 text-[11px] leading-relaxed text-[#5a6f8c]">{stage.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <motion.div
+                        className="mt-2 rounded-xl border border-[#10b981]/25 bg-[#10b981]/10 px-4 py-3 text-[12px] text-[#6ee7b7]"
+                        animate={{ opacity: [0.6, 1, 0.6] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                      >
+                        <ShieldCheck size={13} className="mr-1.5 inline text-[#10b981]" />
+                        Document → Knowledge Graph → Multi-Agent Simulation → Source-Cited Forecast
+                      </motion.div>
+                    </div>
+                  </motion.div>
+
+                  {/* Comparison table */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.7, delay: 0.1, ease }}
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
+                  >
+                    <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#5a6f8c]">
+                        {t('landPhoringVsTitle')}
+                      </p>
+                      <div className="flex gap-5 text-[10px] font-bold">
+                        <span className="text-[#34d399]">{t('landPhoringVsPhoringCol')}</span>
+                        <span className="text-[#3a4a5e]">{t('landPhoringVsOthersCol')}</span>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-white/[0.04]">
+                      {[
+                        { f: t('landPhoringCompRow1'), ph: '\u2713', o: '\u2717' },
+                        { f: t('landPhoringCompRow2'), ph: '\u2713', o: '\u2717' },
+                        { f: t('landPhoringCompRow3'), ph: '\u2713', o: '\u2717' },
+                        { f: t('landPhoringCompRow4'), ph: '\u2713', o: '\u2717' },
+                        { f: t('landPhoringCompRow5'), ph: '\u2713', o: '\u2717' },
+                        { f: t('landPhoringCompRow6'), ph: t('landPhoringCompRow6Ph'), o: t('landPhoringCompRow6Others') },
+                      ].map((row) => (
+                        <div key={row.f} className="flex items-center justify-between px-5 py-2.5 text-[12px]">
+                          <span className="text-[#7a8fad]">{row.f}</span>
+                          <div className="flex gap-8">
+                            <span className="font-bold text-emerald-400">{row.ph}</span>
+                            <span className={`font-bold ${row.o === '\u2717' ? 'text-[#3a4a5e]' : 'text-[#f59f4f]'}`}>{row.o}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Reveal>
