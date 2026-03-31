@@ -1374,7 +1374,7 @@ const Landing: React.FC = () => {
             />
 
             <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
-              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:items-stretch">
                 {/* Left */}
                 <div>
                   <div className="mb-6 flex flex-wrap items-center gap-2.5">
@@ -1478,74 +1478,16 @@ const Landing: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right: Pipeline visualization + comparison */}
-                <div className="space-y-5">
-                  {/* 4-Stage Pipeline */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#060a10]"
-                  >
-                    <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#10b981]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#06b6d4]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#f59f4f]/80" />
-                      <span className="ml-auto text-[10px] text-[#3a4a5e]">intelligence pipeline</span>
-                    </div>
-                    <div className="p-5 space-y-0">
-                      {[
-                        { step: '01', title: t('landPhoringPipe1'), desc: t('landPhoringPipe1Desc'), color: '#10b981', icon: FileText },
-                        { step: '02', title: t('landPhoringPipe2'), desc: t('landPhoringPipe2Desc'), color: '#06b6d4', icon: Users },
-                        { step: '03', title: t('landPhoringPipe3'), desc: t('landPhoringPipe3Desc'), color: '#f59f4f', icon: Network },
-                        { step: '04', title: t('landPhoringPipe4'), desc: t('landPhoringPipe4Desc'), color: '#a78bfa', icon: ShieldCheck },
-                      ].map((stage, i, arr) => (
-                        <div key={stage.step} className="relative">
-                          <div className="flex items-start gap-3.5 py-3">
-                            <div className="relative flex flex-col items-center">
-                              <div
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border"
-                                style={{ borderColor: `${stage.color}30`, backgroundColor: `${stage.color}12` }}
-                              >
-                                <stage.icon size={16} style={{ color: stage.color }} />
-                              </div>
-                              {i < arr.length - 1 && (
-                                <div className="mt-1 h-5 w-px" style={{ background: `linear-gradient(to bottom, ${stage.color}40, transparent)` }} />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold tabular-nums" style={{ color: stage.color }}>{stage.step}</span>
-                                <span className="text-[13px] font-semibold text-white">{stage.title}</span>
-                              </div>
-                              <p className="mt-0.5 text-[11px] leading-relaxed text-[#5a6f8c]">{stage.desc}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <motion.div
-                        className="mt-2 rounded-xl border border-[#10b981]/25 bg-[#10b981]/10 px-4 py-3 text-[12px] text-[#6ee7b7]"
-                        animate={{ opacity: [0.6, 1, 0.6] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        <ShieldCheck size={13} className="mr-1.5 inline text-[#10b981]" />
-                        Document → Knowledge Graph → Multi-Agent Simulation → Source-Cited Forecast
-                      </motion.div>
-                    </div>
-                  </motion.div>
-
-                  {/* Scenario Intelligence Graph — live pipeline visualization */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.9, delay: 0.1, ease }}
-                    className="overflow-hidden rounded-2xl border border-[#10b981]/15 bg-[#030808] aspect-[4/5] sm:aspect-[3/4]"
-                  >
-                    <PhoringScenarioGraph reduceMotion={reduceMotion} />
-                  </motion.div>
-                </div>
+                {/* Right: Scenario Intelligence Graph — live pipeline visualization */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.9, delay: 0.1, ease }}
+                  className="relative overflow-hidden rounded-2xl border border-[#10b981]/15 bg-[#030808] min-h-[400px] lg:min-h-0 lg:self-stretch"
+                >
+                  <PhoringScenarioGraph reduceMotion={reduceMotion} />
+                </motion.div>
               </div>
             </div>
           </div>
