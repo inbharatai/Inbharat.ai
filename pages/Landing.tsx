@@ -4,6 +4,7 @@ import { motion, useReducedMotion, useScroll, useTransform, useInView } from 'mo
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
+import HeroGitaQuote from '../components/HeroGitaQuote';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -939,11 +940,14 @@ const Landing: React.FC = () => {
           style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(245,159,79,0.02) 30%, transparent 60%, rgba(99,102,241,0.015) 80%, transparent 100%)' }}
         />
 
+        {/* Bhagavad Gita Quote — hero top */}
+        <HeroGitaQuote />
+
         <motion.div
           className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-10"
           style={reduceMotion ? {} : { y: heroY, opacity: heroOpacity }}
         >
-          <div className="flex flex-col items-center pt-16 pb-12 text-center sm:pt-20 sm:pb-16 md:pt-28 md:pb-20 lg:pt-32 lg:pb-24">
+          <div className="flex flex-col items-center pt-8 pb-12 text-center sm:pt-12 sm:pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
             {/* Badge */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
