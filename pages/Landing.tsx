@@ -1304,6 +1304,7 @@ const Landing: React.FC = () => {
 
             {/* Right: Orbital visualization */}
             <motion.div
+              className="flex items-center justify-center"
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
