@@ -397,6 +397,211 @@ const CountUp: React.FC<{ target: string; reduceMotion: boolean }> = ({ target, 
 };
 
 /* ═══════════════════════════════════════════════════════
+   PHORING SCENARIO GRAPH — Animated intelligence pipeline
+   Adapted from phoring.in's ScenarioGraph canvas visualization.
+   Renders the real data-flow: Documents → Knowledge Graph →
+   Multi-Agent Simulation → Source-Cited Intelligence Report
+   ═══════════════════════════════════════════════════════ */
+
+const GRAPH_BLUE: [number, number, number] = [16, 185, 129];   // emerald
+const GRAPH_CYAN: [number, number, number] = [34, 211, 238];
+const GRAPH_AMBER: [number, number, number] = [245, 159, 79];
+const GRAPH_GREEN: [number, number, number] = [52, 211, 153];
+const GRAPH_PURPLE: [number, number, number] = [147, 51, 234];
+const GRAPH_ROSE: [number, number, number] = [244, 63, 94];
+
+interface GNode { x: number; y: number; r: number; color: [number, number, number]; label: string; tech?: string; baseAlpha: number }
+interface GEdge { from: number; to: number }
+interface GSignal { edgeIdx: number; progress: number; speed: number; size: number }
+
+const G_NODES: GNode[] = [
+  { x: 0.50, y: 0.92, r: 9, color: GRAPH_BLUE, label: 'DOCUMENTS', tech: 'PDF · MD · TXT', baseAlpha: 1.0 },
+  { x: 0.30, y: 0.76, r: 6, color: GRAPH_CYAN, label: 'ONTOLOGY', tech: 'LLM', baseAlpha: 0.85 },
+  { x: 0.70, y: 0.76, r: 7, color: GRAPH_BLUE, label: 'ZEP GRAPH', tech: 'Zep Cloud', baseAlpha: 0.9 },
+  { x: 0.12, y: 0.55, r: 4.5, color: GRAPH_GREEN, label: 'ENTITIES', tech: 'Zep', baseAlpha: 0.7 },
+  { x: 0.37, y: 0.52, r: 5, color: GRAPH_PURPLE, label: 'PROFILES', tech: 'LLM + OASIS', baseAlpha: 0.75 },
+  { x: 0.63, y: 0.52, r: 5, color: GRAPH_AMBER, label: 'WEB INTEL', tech: 'Serper · News', baseAlpha: 0.75 },
+  { x: 0.88, y: 0.55, r: 4.5, color: GRAPH_CYAN, label: 'CONFIG', tech: 'LLM', baseAlpha: 0.7 },
+  { x: 0.50, y: 0.36, r: 8, color: GRAPH_AMBER, label: 'SIMULATION', tech: 'OASIS · CAMEL', baseAlpha: 0.9 },
+  { x: 0.32, y: 0.20, r: 5.5, color: GRAPH_GREEN, label: 'REPORT AGENT', tech: 'ReACT Loop', baseAlpha: 0.8 },
+  { x: 0.68, y: 0.20, r: 4.5, color: GRAPH_BLUE, label: 'ZEP TOOLS', tech: 'Search · Query', baseAlpha: 0.7 },
+  { x: 0.50, y: 0.08, r: 6, color: GRAPH_ROSE, label: 'CONSENSUS', tech: 'Multi-AI', baseAlpha: 0.85 },
+];
+
+const G_EDGES: GEdge[] = [
+  { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 2 },
+  { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 5 }, { from: 2, to: 6 },
+  { from: 3, to: 4 },
+  { from: 3, to: 7 }, { from: 4, to: 7 }, { from: 5, to: 7 }, { from: 6, to: 7 },
+  { from: 7, to: 8 }, { from: 7, to: 9 }, { from: 9, to: 8 }, { from: 8, to: 10 },
+];
+
+function gBezier(ax: number, ay: number, bx: number, by: number, t: number) {
+  const mx = (ax + bx) / 2, my = ay - (ay - by) * 0.6;
+  const u = 1 - t;
+  return { x: u * u * ax + 2 * u * t * mx + t * t * bx, y: u * u * ay + 2 * u * t * my + t * t * by };
+}
+
+const PhoringScenarioGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    let w = 0, h = 0, raf = 0;
+    const phases = G_NODES.map(() => Math.random() * Math.PI * 2);
+    const signals: GSignal[] = [];
+
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      w = rect.width; h = rect.height;
+      canvas.width = w * dpr; canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    if (reduceMotion) {
+      // Static render: draw edges + nodes once
+      const nx = (v: number) => v * w, ny = (v: number) => v * h;
+      for (const e of G_EDGES) {
+        const a = G_NODES[e.from], b = G_NODES[e.to];
+        const [r, g, bb] = b.color;
+        ctx.beginPath();
+        for (let s = 0; s <= 50; s++) { const t = s / 50; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        ctx.strokeStyle = `rgba(${r},${g},${bb},0.18)`; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+      for (const n of G_NODES) {
+        const [r, g, b] = n.color; const px = nx(n.x), py = ny(n.y);
+        const cg = ctx.createRadialGradient(px, py, 0, px, py, n.r);
+        cg.addColorStop(0, `rgba(${r},${g},${b},${n.baseAlpha * 0.9})`);
+        cg.addColorStop(1, `rgba(${r},${g},${b},${n.baseAlpha * 0.2})`);
+        ctx.beginPath(); ctx.arc(px, py, n.r, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
+        ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
+        ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
+        ctx.fillText(n.label, px, py - n.r - 10);
+        if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},0.55)`; ctx.fillText(n.tech, px, py - n.r - 1); }
+      }
+      return () => window.removeEventListener('resize', resize);
+    }
+
+    const startTime = performance.now();
+
+    const animate = (time: number) => {
+      const elapsed = time - startTime;
+      ctx.clearRect(0, 0, w, h);
+      const intro = Math.min(elapsed / 4000, 1);
+      const eased = 1 - Math.pow(1 - intro, 3);
+      const nx = (v: number) => v * w, ny = (v: number) => v * h;
+
+      // Edges
+      for (const e of G_EDGES) {
+        const a = G_NODES[e.from], b = G_NODES[e.to];
+        const [r, g, bb] = b.color;
+        const df = 1 - b.y, ed = df * 0.5;
+        const ei = Math.max(0, Math.min((eased - ed) / (1 - ed), 1));
+        if (ei <= 0) continue;
+        const steps = 50, draw = Math.floor(steps * ei);
+        ctx.beginPath();
+        for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        ctx.strokeStyle = `rgba(${r},${g},${bb},${0.18 * ei})`; ctx.lineWidth = 1.2; ctx.stroke();
+        if (ei > 0.5) { ctx.beginPath(); for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.strokeStyle = `rgba(${r},${g},${bb},${0.04 * ei})`; ctx.lineWidth = 4; ctx.stroke(); }
+      }
+
+      // Nodes
+      for (let i = 0; i < G_NODES.length; i++) {
+        const n = G_NODES[i];
+        phases[i] += 0.015 + (i % 3) * 0.003;
+        const df = 1 - n.y, nd = df * 0.5;
+        const ni = Math.max(0, Math.min((eased - nd) / (1 - nd), 1));
+        if (ni <= 0) continue;
+        const pulse = Math.sin(phases[i]) * 0.3 + 0.7;
+        const alpha = n.baseAlpha * ni * pulse;
+        const [r, g, b] = n.color;
+        const px = nx(n.x), py = ny(n.y), rr = n.r * ni;
+
+        // Atmospheric glow
+        const og = ctx.createRadialGradient(px, py, 0, px, py, rr * 6);
+        og.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.12})`);
+        og.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.03})`);
+        og.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        ctx.beginPath(); ctx.arc(px, py, rr * 6, 0, Math.PI * 2); ctx.fillStyle = og; ctx.fill();
+
+        // Mid glow ring
+        ctx.beginPath(); ctx.arc(px, py, rr * 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.12})`; ctx.lineWidth = 0.8; ctx.stroke();
+
+        // Core
+        const cg = ctx.createRadialGradient(px, py, 0, px, py, rr);
+        cg.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.9})`);
+        cg.addColorStop(0.7, `rgba(${r},${g},${b},${alpha * 0.6})`);
+        cg.addColorStop(1, `rgba(${r},${g},${b},${alpha * 0.2})`);
+        ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
+        ctx.beginPath(); ctx.arc(px, py, rr * 0.35, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`; ctx.fill();
+
+        // Pulse rings for key nodes
+        if ((i === 0 || i === 7 || i === 10) && ni > 0.5) {
+          const ra = Math.sin(time * 0.002 + i) * 0.3 + 0.5;
+          ctx.beginPath(); ctx.arc(px, py, rr * 3 * ni, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(${r},${g},${b},${ra * 0.15 * ni})`; ctx.lineWidth = 0.7; ctx.stroke();
+        }
+
+        // Labels
+        if (ni > 0.6) {
+          const la = (ni - 0.6) / 0.4;
+          ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
+          ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.92})`;
+          ctx.fillText(n.label, px, py - rr - 10);
+          if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.60})`; ctx.fillText(n.tech, px, py - rr - 1); }
+        }
+      }
+
+      // Data signals
+      if (eased > 0.5 && signals.length < 18 && Math.random() < 0.04) {
+        signals.push({ edgeIdx: Math.floor(Math.random() * G_EDGES.length), progress: 0, speed: 0.003 + Math.random() * 0.005, size: 1.5 + Math.random() * 2 });
+      }
+      for (let i = signals.length - 1; i >= 0; i--) {
+        const s = signals[i]; s.progress += s.speed;
+        if (s.progress > 1) { signals.splice(i, 1); continue; }
+        const e = G_EDGES[s.edgeIdx]; const a = G_NODES[e.from], b = G_NODES[e.to];
+        const pos = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), s.progress);
+        const [r, g, bb] = b.color; const fa = Math.sin(s.progress * Math.PI);
+        const tg = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, s.size * 6);
+        tg.addColorStop(0, `rgba(${r},${g},${bb},${fa * 0.25})`); tg.addColorStop(1, `rgba(${r},${g},${bb},0)`);
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size * 6, 0, Math.PI * 2); ctx.fillStyle = tg; ctx.fill();
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${bb},${fa * 0.85})`; ctx.fill();
+      }
+
+      // Stage labels on left
+      if (eased > 0.85) {
+        const ra = (eased - 0.85) / 0.15;
+        ctx.font = `500 ${Math.max(6.5, Math.min(8, w * 0.009))}px "Sora","Manrope",sans-serif`;
+        ctx.textAlign = 'left';
+        for (const st of [
+          { y: 0.92, label: 'INPUT', color: GRAPH_BLUE },
+          { y: 0.76, label: 'STAGE 1 · KNOWLEDGE GRAPH', color: GRAPH_CYAN },
+          { y: 0.53, label: 'STAGE 2 · ENVIRONMENT', color: GRAPH_PURPLE },
+          { y: 0.36, label: 'STAGE 3 · MULTI-AGENT SIM', color: GRAPH_AMBER },
+          { y: 0.20, label: 'STAGE 4 · REPORT', color: GRAPH_GREEN },
+          { y: 0.08, label: 'OUTPUT · VALIDATION', color: GRAPH_ROSE },
+        ]) { const [r, g, b] = st.color; ctx.fillStyle = `rgba(${r},${g},${b},${ra * 0.55})`; ctx.fillText(st.label, 6, ny(st.y) + 3); }
+      }
+
+      raf = requestAnimationFrame(animate);
+    };
+
+    raf = requestAnimationFrame(animate);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+  }, [reduceMotion]);
+
+  return <canvas ref={canvasRef} className="w-full h-full" aria-hidden="true" />;
+};
+
+/* ═══════════════════════════════════════════════════════
    ECOSYSTEM ORBITAL — Premium 3-ring system map
 
    Layout logic:
@@ -1330,41 +1535,15 @@ const Landing: React.FC = () => {
                     </div>
                   </motion.div>
 
-                  {/* Comparison table */}
+                  {/* Scenario Intelligence Graph — live pipeline visualization */}
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.7, delay: 0.1, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
+                    transition={{ duration: 0.9, delay: 0.1, ease }}
+                    className="overflow-hidden rounded-2xl border border-[#10b981]/15 bg-[#030808] aspect-[4/5] sm:aspect-[3/4]"
                   >
-                    <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#5a6f8c]">
-                        {t('landPhoringVsTitle')}
-                      </p>
-                      <div className="flex gap-5 text-[10px] font-bold">
-                        <span className="text-[#34d399]">{t('landPhoringVsPhoringCol')}</span>
-                        <span className="text-[#3a4a5e]">{t('landPhoringVsOthersCol')}</span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-white/[0.04]">
-                      {[
-                        { f: t('landPhoringCompRow1'), ph: '\u2713', o: '\u2717' },
-                        { f: t('landPhoringCompRow2'), ph: '\u2713', o: '\u2717' },
-                        { f: t('landPhoringCompRow3'), ph: '\u2713', o: '\u2717' },
-                        { f: t('landPhoringCompRow4'), ph: '\u2713', o: '\u2717' },
-                        { f: t('landPhoringCompRow5'), ph: '\u2713', o: '\u2717' },
-                        { f: t('landPhoringCompRow6'), ph: t('landPhoringCompRow6Ph'), o: t('landPhoringCompRow6Others') },
-                      ].map((row) => (
-                        <div key={row.f} className="flex items-center justify-between px-5 py-2.5 text-[12px]">
-                          <span className="text-[#7a8fad]">{row.f}</span>
-                          <div className="flex gap-8">
-                            <span className="font-bold text-emerald-400">{row.ph}</span>
-                            <span className={`font-bold ${row.o === '\u2717' ? 'text-[#3a4a5e]' : 'text-[#f59f4f]'}`}>{row.o}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <PhoringScenarioGraph reduceMotion={reduceMotion} />
                   </motion.div>
                 </div>
               </div>
