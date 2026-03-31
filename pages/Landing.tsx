@@ -685,8 +685,8 @@ const Landing: React.FC = () => {
 
   // Parallax scroll for hero
   const { scrollY } = useScroll();
-  const heroY = useTransform(scrollY, [0, 900], [0, 120]);
-  const heroOpacity = useTransform(scrollY, [0, 700], [1, 0]);
+  const heroY = useTransform(scrollY, [0, 1200], [0, 100]);
+  const heroOpacity = useTransform(scrollY, [0, 400, 1000], [1, 1, 0]);
 
   /* Cursor glow */
   useEffect(() => {
