@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useScroll, useTransform, useInView } from 'motion/react';
 import { useTranslation } from 'react-i18next';
@@ -342,7 +342,7 @@ const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
         {doubled.map((name, i) => (
           <span
             key={i}
-            className="flex shrink-0 items-center gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-[#2d3d52]"
+            className="flex shrink-0 items-center gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-[#8ab4d8]"
           >
             <span className="h-1 w-1 rounded-full bg-[#f59f4f]/40 flex-shrink-0" />
             {name}
@@ -1021,7 +1021,7 @@ const Landing: React.FC = () => {
             </div>
             <div>
               <p className="text-[13px] font-semibold tracking-[0.2em] text-white">INBHARAT</p>
-              <p className="text-[9px] uppercase tracking-[0.25em] text-[#5a6f8c]">{t('landBrandSub')}</p>
+              <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">{t('landBrandSub')}</p>
             </div>
           </Link>
 
@@ -1033,7 +1033,7 @@ const Landing: React.FC = () => {
                 className={`relative rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide transition-all duration-300 ${
                   activeSection === item.href
                     ? 'text-white'
-                    : 'text-[#6b7f9c] hover:text-[#b0c0d8]'
+                    : 'text-[#9aafc6] hover:text-[#b0c0d8]'
                 }`}
               >
                 {item.label}
@@ -1088,7 +1088,7 @@ const Landing: React.FC = () => {
 
             <button
               type="button"
-              className="rounded-lg border border-white/8 p-1.5 text-[#8a9bb5] transition-colors hover:bg-white/[0.06] hover:text-white lg:hidden"
+              className="rounded-lg border border-white/8 p-1.5 text-[#b4c8de] transition-colors hover:bg-white/[0.06] hover:text-white lg:hidden"
               onClick={() => setMobileOpen((prev) => !prev)}
               aria-label={t('openMenu')}
             >
@@ -1111,7 +1111,7 @@ const Landing: React.FC = () => {
                   key={item.href}
                   href={item.href}
                   className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-                    activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#8a9bb5] hover:bg-white/[0.04] hover:text-white'
+                    activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
                   }`}
                 >
                   {item.label}
@@ -1162,7 +1162,7 @@ const Landing: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease }}
             >
-              <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#7a8fad] backdrop-blur-sm">
+              <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#a8bfd4] backdrop-blur-sm">
                 <motion.span
                   animate={reduceMotion ? undefined : { scale: [1, 1.3, 1] }}
                   transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -1182,7 +1182,7 @@ const Landing: React.FC = () => {
 
             {/* Subheadline */}
             <motion.p
-              className="mt-6 max-w-2xl text-[15px] leading-relaxed text-[#6b7f9c] sm:text-[16px] sm:leading-[1.7]"
+              className="mt-6 max-w-2xl text-[15px] leading-relaxed text-[#9aafc6] sm:text-[16px] sm:leading-[1.7]"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.55, ease }}
@@ -1229,10 +1229,10 @@ const Landing: React.FC = () => {
                   key={metric.label}
                   className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4 backdrop-blur-sm"
                 >
-                  <p className="metric-num bg-gradient-to-br from-white to-[#8a9bb5] bg-clip-text text-transparent">
+                  <p className="metric-num bg-gradient-to-br from-white to-[#c8d8ea] bg-clip-text text-transparent">
                     <CountUp target={metric.value} reduceMotion={reduceMotion} />
                   </p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#5a6f8c]">{metric.label}</p>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#96b0c8]">{metric.label}</p>
                 </div>
               ))}
             </motion.div>
@@ -1251,7 +1251,7 @@ const Landing: React.FC = () => {
           <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <p className="eyebrow-line text-[#5a6f8c] gsap-header">{t('landEcoLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landEcoLabel')}</p>
               <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
                 {t('landEcoTitle')}
               </h2>
@@ -1280,7 +1280,7 @@ const Landing: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="text-base font-semibold text-white">{item.title}</h3>
-                        <p className="mt-1.5 text-sm leading-relaxed text-[#6b7f9c]">{item.desc}</p>
+                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
                       </div>
                     </div>
                   </motion.div>
@@ -1295,7 +1295,7 @@ const Landing: React.FC = () => {
                   t('landEcoPulse3'),
                   t('landEcoPulse4'),
                 ].map((line) => (
-                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#7a8fad]">
+                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
                     {line}
                   </div>
                 ))}
@@ -1323,7 +1323,7 @@ const Landing: React.FC = () => {
       <Reveal id="why" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#5a6f8c] gsap-header">{t('landNavWhy')}</p>
+            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavWhy')}</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
               {t('landWhy1Title').split(' ').slice(0, 3).join(' ')}
             </h2>
@@ -1351,7 +1351,7 @@ const Landing: React.FC = () => {
                   <item.icon size={22} style={{ color: item.color }} />
                 </div>
                 <h3 className="mt-6 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-3 text-sm leading-[1.7] text-[#6b7f9c]">{item.text}</p>
+                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{item.text}</p>
               </motion.article>
             ))}
           </div>
@@ -1398,7 +1398,7 @@ const Landing: React.FC = () => {
                     </span>
                   </h2>
 
-                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#6b7f9c]">
+                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
                     {t('landPhoringDesc')}
                   </p>
 
@@ -1420,7 +1420,7 @@ const Landing: React.FC = () => {
                         className="rounded-xl border border-[#10b981]/15 bg-[#10b981]/[0.05] p-3.5 text-center"
                       >
                         <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#6b7f9c]">{stat.label}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
                       </motion.div>
                     ))}
                   </div>
@@ -1471,7 +1471,7 @@ const Landing: React.FC = () => {
                       href="https://github.com/inbharatai/phoring"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#6b7f9c] transition-all hover:text-white"
+                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#9aafc6] transition-all hover:text-white"
                     >
                       <Github size={14} />
                       {t('landPhoringCta3')}
@@ -1535,7 +1535,7 @@ const Landing: React.FC = () => {
                     </span>
                   </h2>
 
-                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#6b7f9c]">
+                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
                     {t('landCodeinDesc')}
                   </p>
 
@@ -1557,7 +1557,7 @@ const Landing: React.FC = () => {
                         className="rounded-xl border border-[#6366f1]/15 bg-[#6366f1]/[0.05] p-3.5 text-center"
                       >
                         <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#6b7f9c]">{stat.label}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
                       </motion.div>
                     ))}
                   </div>
@@ -1608,7 +1608,7 @@ const Landing: React.FC = () => {
                       href="https://github.com/inbharat-ai/codein.pro"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#6b7f9c] transition-all hover:text-white"
+                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#9aafc6] transition-all hover:text-white"
                     >
                       <Github size={14} />
                       {t('landCodeinCta3')}
@@ -1629,10 +1629,10 @@ const Landing: React.FC = () => {
                       <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]/80" />
                       <div className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]/80" />
                       <div className="h-2.5 w-2.5 rounded-full bg-[#27c93f]/80" />
-                      <span className="ml-auto text-[10px] text-[#3a4a5e]">project/main.py</span>
+                      <span className="ml-auto text-[10px] text-[#7a9ab8]">project/main.py</span>
                     </div>
                     <div className="space-y-1.5 p-5">
-                      <p className="text-[#3a4a5e]"># {t('landCodeinEditorComment')}</p>
+                      <p className="text-[#7a9ab8]"># {t('landCodeinEditorComment')}</p>
                       <p>
                         <span className="text-[#818cf8]">from</span>{' '}
                         <span className="text-[#10b981]">codein</span>{' '}
@@ -1674,12 +1674,12 @@ const Landing: React.FC = () => {
                     className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
                   >
                     <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#5a6f8c]">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#96b0c8]">
                         {t('landCodeinVsTitle')}
                       </p>
                       <div className="flex gap-5 text-[10px] font-bold">
                         <span className="text-[#818cf8]">{t('landCodeinVsCodeinCol')}</span>
-                        <span className="text-[#3a4a5e]">{t('landCodeinVsOthersCol')}</span>
+                        <span className="text-[#7a9ab8]">{t('landCodeinVsOthersCol')}</span>
                       </div>
                     </div>
                     <div className="divide-y divide-white/[0.04]">
@@ -1692,10 +1692,10 @@ const Landing: React.FC = () => {
                         { f: t('landCodeinCompRow6'), ci: t('landCodeinCompRow6Ci'), o: t('landCodeinCompRow6Others') },
                       ].map((row) => (
                         <div key={row.f} className="flex items-center justify-between px-5 py-2.5 text-[12px]">
-                          <span className="text-[#7a8fad]">{row.f}</span>
+                          <span className="text-[#a8bfd4]">{row.f}</span>
                           <div className="flex gap-8">
                             <span className="font-bold text-emerald-400">{row.ci}</span>
-                            <span className={`font-bold ${row.o === '\u2717' ? 'text-[#3a4a5e]' : 'text-[#f59f4f]'}`}>{row.o}</span>
+                            <span className={`font-bold ${row.o === '\u2717' ? 'text-[#7a9ab8]' : 'text-[#f59f4f]'}`}>{row.o}</span>
                           </div>
                         </div>
                       ))}
@@ -1715,14 +1715,14 @@ const Landing: React.FC = () => {
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="eyebrow-line text-[#5a6f8c] gsap-header">{t('landProdLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
               <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
             </div>
             <a
               href="https://github.com/inbharatai"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 self-start rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-[#8a9bb5] transition-all hover:border-white/20 hover:text-white sm:self-auto"
+              className="inline-flex items-center gap-2 self-start rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-[#b4c8de] transition-all hover:border-white/20 hover:text-white sm:self-auto"
             >
               <Github size={14} />
               {t('landProdGithub')}
@@ -1752,11 +1752,11 @@ const Landing: React.FC = () => {
                   <TypeBadge color={product.color}>{product.type}</TypeBadge>
                   <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
                 </div>
-                <p className="text-[10px] font-medium text-[#7a8fad]">{product.tagline}</p>
-                <p className="mt-2 flex-1 text-[13px] leading-relaxed text-[#6b7f9c]">{product.desc}</p>
+                <p className="text-[10px] font-medium text-[#a8bfd4]">{product.tagline}</p>
+                <p className="mt-2 flex-1 text-[13px] leading-relaxed text-[#9aafc6]">{product.desc}</p>
                 <div className="mt-3 flex flex-wrap gap-1">
                   {product.tech.map((t) => (
-                    <span key={t} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#5a6f8c]">{t}</span>
+                    <span key={t} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{t}</span>
                   ))}
                 </div>
                 {product.internal ? (
@@ -1797,11 +1797,11 @@ const Landing: React.FC = () => {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Mission */}
             <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 sm:p-9">
-              <p className="eyebrow-line text-[#5a6f8c]">{t('landMissionLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8]">{t('landMissionLabel')}</p>
               <h2 className="mt-4 text-2xl font-bold leading-[1.1] text-white sm:text-3xl">
                 {t('landMissionTitle')}
               </h2>
-              <p className="mt-5 text-sm leading-[1.7] text-[#6b7f9c]">
+              <p className="mt-5 text-sm leading-[1.7] text-[#9aafc6]">
                 {t('landMissionDesc')}
               </p>
               <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
@@ -1811,7 +1811,7 @@ const Landing: React.FC = () => {
                   t('landMissionBullet3'),
                   t('landMissionBullet4'),
                 ].map((line) => (
-                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[13px] text-[#8a9bb5]">
+                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[13px] text-[#b4c8de]">
                     {line}
                   </div>
                 ))}
@@ -1820,7 +1820,7 @@ const Landing: React.FC = () => {
 
             {/* Trust */}
             <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-[#0a1020]/80 to-[#060810]/80 p-7 sm:p-9">
-              <p className="eyebrow-line text-[#5a6f8c]">{t('landTrustLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8]">{t('landTrustLabel')}</p>
               <div className="mt-6 space-y-4">
                 {[
                   { title: t('landTrust1Title'), desc: t('landTrust1Desc') },
@@ -1829,7 +1829,7 @@ const Landing: React.FC = () => {
                 ].map((item) => (
                   <div key={item.title} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-4">
                     <p className="text-sm font-semibold text-white">{item.title}</p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-[#6b7f9c]">{item.desc}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
                   </div>
                 ))}
               </div>
@@ -1848,11 +1848,11 @@ const Landing: React.FC = () => {
 
             <div className="relative grid gap-8 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr] lg:p-12">
               <div>
-                <p className="eyebrow-line text-[#5a6f8c]">{t('landChatLabel')}</p>
+                <p className="eyebrow-line text-[#96b0c8]">{t('landChatLabel')}</p>
                 <h2 className="mt-4 text-2xl font-bold text-white sm:text-3xl lg:text-4xl">
                   {t('landChatTitle')}
                 </h2>
-                <p className="mt-5 max-w-2xl text-sm leading-[1.7] text-[#6b7f9c]">
+                <p className="mt-5 max-w-2xl text-sm leading-[1.7] text-[#9aafc6]">
                   {t('landChatDesc')}
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
@@ -1887,7 +1887,7 @@ const Landing: React.FC = () => {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true, amount: 0.3 }}
                     transition={{ duration: 0.5, delay: i * 0.08 }}
-                    className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4 text-sm leading-relaxed text-[#8a9bb5]"
+                    className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4 text-sm leading-relaxed text-[#b4c8de]"
                   >
                     {point}
                   </motion.div>
@@ -1908,11 +1908,11 @@ const Landing: React.FC = () => {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_600px_300px_at_50%_-10%,rgba(245,159,79,0.1),transparent_55%)]" />
 
             <div className="relative">
-              <p className="eyebrow-line justify-center text-[#5a6f8c]">{t('landContactLabel')}</p>
+              <p className="eyebrow-line justify-center text-[#96b0c8]">{t('landContactLabel')}</p>
               <h2 className="mx-auto mt-4 max-w-3xl text-2xl font-bold leading-[1.1] text-white sm:text-3xl lg:text-4xl">
                 {t('landContactTitle')}
               </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.7] text-[#6b7f9c]">
+              <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.7] text-[#9aafc6]">
                 {t('landContactDesc')}
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -1945,8 +1945,8 @@ const Landing: React.FC = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 status-pulse" />
             {t('landStatusOperational')}
           </span>
-          <span className="text-[#3a4a5e]">22 Languages</span>
-          <span className="text-[#3a4a5e]">11 Products</span>
+          <span className="text-[#7a9ab8]">22 Languages</span>
+          <span className="text-[#7a9ab8]">11 Products</span>
         </div>
       </div>
 
@@ -1955,10 +1955,10 @@ const Landing: React.FC = () => {
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-6 lg:px-10">
           <div className="flex items-center gap-2.5">
             <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6b7f9c]">InBharat.ai</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">InBharat.ai</p>
           </div>
-          <p className="text-[11px] text-[#3a4a5e]">{t('landFooterTagline')}</p>
-          <div className="flex items-center gap-5 text-[11px] text-[#5a6f8c]">
+          <p className="text-[11px] text-[#7a9ab8]">{t('landFooterTagline')}</p>
+          <div className="flex items-center gap-5 text-[11px] text-[#96b0c8]">
             <a href="https://github.com/inbharatai" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">
               {t('landFooterGithub')}
             </a>
