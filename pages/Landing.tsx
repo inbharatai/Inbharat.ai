@@ -1366,6 +1366,16 @@ const Landing: React.FC = () => {
       <Reveal id="kathakitaab" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="relative overflow-hidden rounded-[28px] border border-[#f97316]/20 bg-gradient-to-br from-[#1a0d05] via-[#120a06] to-[#0a0703]">
+                        {/* Background battle scene image */}
+                        <div
+                          className="pointer-events-none absolute inset-0 opacity-15"
+                          style={{
+                            backgroundImage: 'url(/kathakitaab/scene_battle_lanka.png)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center right',
+                            filter: 'blur(2px)',
+                          }}
+                        />
             {/* Ambient glows */}
             <div
               className="pointer-events-none absolute inset-0"
@@ -1478,23 +1488,20 @@ const Landing: React.FC = () => {
                     className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#1a0d05] to-[#0a0703]"
                   >
                     <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">Three visual styles</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">Ramayana LiveBook</span>
                       <div className="flex gap-2 text-[10px] font-semibold text-[#9aafc6]">
                         <span className="text-[#fb923c]">Photoreal</span>
                         <span className="text-[#f97316]/40">/</span>
-                        <span>Watercolour</span>
-                        <span className="text-[#f97316]/40">/</span>
-                        <span>Animation</span>
+                        <span>Interactive</span>
                       </div>
                     </div>
-                    <div className="space-y-3 p-4">
-                      <div className="h-32 rounded-xl bg-gradient-to-br from-[#f97316]/10 to-[#fb923c]/5 flex items-center justify-center border border-[#f97316]/20">
-                        <div className="text-center">
-                          <div className="text-3xl mb-1">🎬</div>
-                          <p className="text-[11px] text-[#9aafc6]">Ramayana LiveBook</p>
-                          <p className="text-[9px] text-[#f97316]/60 mt-1">Photoreal cinematic</p>
-                        </div>
-                      </div>
+                    <div className="relative h-48 overflow-hidden bg-black/40">
+                      <img 
+                        src="/kathakitaab/scene_ayodhya_intro.png" 
+                        alt="Ramayana Ayodhya scene" 
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-40" />
                     </div>
                   </motion.div>
 
@@ -1504,19 +1511,29 @@ const Landing: React.FC = () => {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, delay: 0.1, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.04]"
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
                   >
-                    {[
-                      { num: '1', label: 'Hand-painted scene' },
-                      { num: '2', label: 'Click highlighted elements' },
-                      { num: '3', label: 'Pick a verb — world reacts' },
-                      { num: '4', label: 'Or watch as cinematic film' },
-                    ].map((step) => (
-                      <div key={step.num} className="flex items-center gap-3 px-4 py-3 text-[12px]">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f97316]/20 text-[#fb923c] text-[10px] font-bold">{step.num}</span>
-                        <span className="text-[#a8bfd4]">{step.label}</span>
-                      </div>
-                    ))}
+                    <div className="relative h-40 overflow-hidden bg-black/30">
+                      <img 
+                        src="/kathakitaab/scene_mithila_bow.png" 
+                        alt="Scene showcase" 
+                        className="h-full w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-50" />
+                    </div>
+                    <div className="divide-y divide-white/[0.04]">
+                      {[
+                        { num: '1', label: 'Hand-painted scenes' },
+                        { num: '2', label: 'Click highlighted elements' },
+                        { num: '3', label: 'Pick a verb — world reacts' },
+                        { num: '4', label: 'Or watch as cinema' },
+                      ].map((step) => (
+                        <div key={step.num} className="flex items-center gap-3 px-4 py-3 text-[12px]">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f97316]/20 text-[#fb923c] text-[10px] font-bold">{step.num}</span>
+                          <span className="text-[#a8bfd4]">{step.label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </motion.div>
                 </div>
               </div>
