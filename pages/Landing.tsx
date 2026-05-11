@@ -9,6 +9,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   ArrowRight,
+  BookOpen,
   Brain,
   Code2,
   Download,
@@ -20,6 +21,7 @@ import {
   MessageCircle,
   Monitor,
   Network,
+  Play,
   Search,
   ShieldCheck,
   Share2,
@@ -1380,33 +1382,59 @@ const Landing: React.FC = () => {
                 <div>
                   <div className="mb-6 flex flex-wrap items-center gap-2.5">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f97316]/30 bg-[#f97316]/10">
-                      <FileText size={20} className="text-[#fb923c]" />
+                      <BookOpen size={20} className="text-[#fb923c]" />
                     </div>
                     <span className="rounded-full border border-[#f97316]/30 bg-[#f97316]/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#fb923c]">
-                      {t('landKathakitaabBadge')}
+                      Living Story Engine
                     </span>
                     <span className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-1 text-[10px] font-bold text-emerald-400">
-                      {t('landKathakitaabBadgeLive')}
+                      Live Now
                     </span>
                   </div>
 
                   <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    {t('landKathakitaabTitle')}
+                    Where Stories
                     <br />
                     <span className="bg-gradient-to-r from-[#fb923c] via-[#fde68a] to-[#f9a8d4] bg-clip-text text-transparent">
-                      {t('landKathakitaabTitle2')}
+                      Come Alive
                     </span>
                   </h2>
 
                   <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    {t('landKathakitaabDesc')}
+                    Not a flipbook. An interactive story engine. Click characters, trigger hidden details. Watch figures breathe, move, and react. Experience Indian epics and fables as living books — or cinematic films. Three visual styles: photoreal Bollywood, storybook watercolour, or Pixar animation.
                   </p>
+
+                  {/* Stats */}
+                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {([
+                      { val: 'Ramayana', label: 'Curated · 12 scenes' },
+                      { val: '3+', label: 'AI-Generated books' },
+                      { val: '2 Modes', label: 'Interactive + Movie' },
+                    ] as const).map((stat, i) => (
+                      <motion.div
+                        key={stat.label}
+                        custom={i}
+                        variants={itemReveal}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        className="rounded-xl border border-[#f97316]/15 bg-[#f97316]/[0.05] p-3.5 text-center"
+                      >
+                        <p className="text-lg font-bold leading-none text-white">{stat.val}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
+                      </motion.div>
+                    ))}
+                  </div>
 
                   {/* Feature chips */}
                   <div className="mt-6 flex flex-wrap gap-1.5">
                     {[
-                      t('landKathakitaabFeat1'), t('landKathakitaabFeat2'), t('landKathakitaabFeat3'),
-                      t('landKathakitaabFeat4'), t('landKathakitaabFeat5'), t('landKathakitaabFeat6'),
+                      'Interactive click-to-explore',
+                      'Verb-aware AI animations',
+                      'Photoreal + Watercolour + Animation',
+                      'Emotional Sarvam narration',
+                      'Cinematic movie cuts',
+                      'AI-generated story branches',
                     ].map((feat) => (
                       <span
                         key={feat}
@@ -1417,7 +1445,7 @@ const Landing: React.FC = () => {
                     ))}
                   </div>
 
-                  {/* CTA */}
+                  {/* CTAs */}
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
                       href="https://kathakitaab-ai.vercel.app/"
@@ -1425,43 +1453,52 @@ const Landing: React.FC = () => {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full bg-[#f97316] px-6 py-3 text-sm font-bold text-white shadow-[0_0_30px_rgba(249,115,22,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#fb923c] hover:shadow-[0_0_40px_rgba(249,115,22,0.4)]"
                     >
-                      {t('landKathakitaabCta1')}
+                      Enter Ramayana
                       <ExternalLink size={14} />
+                    </a>
+                    <a
+                      href="https://kathakitaab-ai.vercel.app/books/ramayana/movie"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
+                    >
+                      Watch as Movie
+                      <Play size={14} />
                     </a>
                   </div>
                 </div>
 
-                {/* Right: Story preview mockup */}
+                {/* Right: Visual showcase */}
                 <div className="space-y-5">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.7, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080400] text-[11px] sm:text-[13px]"
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#1a0d05] to-[#0a0703]"
                   >
-                    <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#27c93f]/80" />
-                      <span className="ml-auto text-[10px] text-[#7a9ab8]">kathakitaab.ai</span>
+                    <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">Three visual styles</span>
+                      <div className="flex gap-2 text-[10px] font-semibold text-[#9aafc6]">
+                        <span className="text-[#fb923c]">Photoreal</span>
+                        <span className="text-[#f97316]/40">/</span>
+                        <span>Watercolour</span>
+                        <span className="text-[#f97316]/40">/</span>
+                        <span>Animation</span>
+                      </div>
                     </div>
-                    <div className="space-y-2 p-5 font-sans">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">{t('landKathakitaabEditorLabel')}</p>
-                      <p className="text-[15px] font-semibold leading-snug text-white">{t('landKathakitaabEditorTitle')}</p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-[#9aafc6]">{t('landKathakitaabEditorExcerpt')}</p>
-                      <motion.div
-                        className="mt-3 rounded-xl border border-[#f97316]/25 bg-[#f97316]/10 px-4 py-3 text-[#fb923c] text-[12px]"
-                        animate={{ opacity: [0.6, 1, 0.6] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        <Sparkles size={13} className="mr-1.5 inline text-[#f97316]" />
-                        {t('landKathakitaabEditorOutput')}
-                      </motion.div>
+                    <div className="space-y-3 p-4">
+                      <div className="h-32 rounded-xl bg-gradient-to-br from-[#f97316]/10 to-[#fb923c]/5 flex items-center justify-center border border-[#f97316]/20">
+                        <div className="text-center">
+                          <div className="text-3xl mb-1">🎬</div>
+                          <p className="text-[11px] text-[#9aafc6]">Ramayana LiveBook</p>
+                          <p className="text-[9px] text-[#f97316]/60 mt-1">Photoreal cinematic</p>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
 
-                  {/* Feature highlights */}
+                  {/* How it works */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -1470,14 +1507,14 @@ const Landing: React.FC = () => {
                     className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.04]"
                   >
                     {[
-                      { icon: '📖', label: t('landKathakitaabHl1') },
-                      { icon: '🎙️', label: t('landKathakitaabHl2') },
-                      { icon: '🌐', label: t('landKathakitaabHl3') },
-                      { icon: '✨', label: t('landKathakitaabHl4') },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-3 px-5 py-3 text-[12px] text-[#a8bfd4]">
-                        <span className="text-base">{item.icon}</span>
-                        <span>{item.label}</span>
+                      { num: '1', label: 'Hand-painted scene' },
+                      { num: '2', label: 'Click highlighted elements' },
+                      { num: '3', label: 'Pick a verb — world reacts' },
+                      { num: '4', label: 'Or watch as cinematic film' },
+                    ].map((step) => (
+                      <div key={step.num} className="flex items-center gap-3 px-4 py-3 text-[12px]">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f97316]/20 text-[#fb923c] text-[10px] font-bold">{step.num}</span>
+                        <span className="text-[#a8bfd4]">{step.label}</span>
                       </div>
                     ))}
                   </motion.div>
