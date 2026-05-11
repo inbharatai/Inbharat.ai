@@ -329,7 +329,7 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
    ═══════════════════════════════════════════════════════ */
 
 const TICKER_NAMES = [
-  'InBharat AI', 'CodeIn.pro', 'Agent Arcade', 'Phoring',
+  'InBharat AI', 'KathaKitaab.AI', 'Agent Arcade', 'Phoring',
   'Sahaayak AI', 'UniAssist', 'TestsPrep.in', 'UniBot',
   'SocialFlow', 'OpenClawFix', 'SahaayakSeva',
 ];
@@ -626,9 +626,9 @@ type OrbitalModule = {
 // Ring 3: 4 supporting, evenly spaced at 90 degrees
 const ORBITAL_MODULES: OrbitalModule[] = [
   // Ring 1 — flagships
-  { label: 'InBharat AI',  color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
-  { label: 'CodeIn.pro',   color: '#6366f1', ring: 1, baseAngle: 30,  flagship: true },
-  { label: 'Sahaayak AI',  color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
+  { label: 'InBharat AI',    color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
+  { label: 'KathaKitaab.AI', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
+  { label: 'Sahaayak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
   // Ring 2 — ecosystem
   { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
   { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 90 },
@@ -864,7 +864,7 @@ const TypeBadge: React.FC<{ children: React.ReactNode; color: string }> = ({ chi
 
 const PRODUCT_DEFS = [
   { name: 'InBharat AI', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
-  { name: 'CodeIn.pro', tagKey: 'landProdCodeinTag', descKey: 'landProdCodeinDesc', ctaKey: 'landProdCodeinCta', typeKey: 'landProdCodeinType', href: 'https://codein.pro', logo: '/codein-logo.svg', internal: false, color: '#6366f1', tech: ['Electron', 'llama.cpp', '60+ LLMs', '22 Languages'] },
+  { name: 'KathaKitaab.AI', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://kathakitaab-ai.vercel.app/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
   { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://phoring.onrender.com', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
   { name: 'Sahaayak AI', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
@@ -932,8 +932,8 @@ const Landing: React.FC = () => {
   const navItems = useMemo(
     () => [
       { href: '#ecosystem', label: t('landNavEcosystem') },
+      { href: '#kathakitaab', label: t('landNavKathakitaab') },
       { href: '#phoring', label: t('landNavPhoring') },
-      { href: '#codein', label: t('landNavCodein') },
       { href: '#products', label: t('landNavProducts') },
       { href: '#why', label: t('landNavWhy') },
       { href: '#mission', label: t('landNavMission') },
@@ -1360,6 +1360,136 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
+      {/* ═══════════════ KATHAKITAAB SPOTLIGHT ═══════════════ */}
+      <Reveal id="kathakitaab" className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+          <div className="relative overflow-hidden rounded-[28px] border border-[#f97316]/20 bg-gradient-to-br from-[#1a0d05] via-[#120a06] to-[#0a0703]">
+            {/* Ambient glows */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(249,115,22,0.18),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(236,72,153,0.12),transparent 50%)' }}
+            />
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.04]"
+              style={{ backgroundImage: 'linear-gradient(to right,rgba(249,115,22,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(249,115,22,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
+            />
+
+            <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
+              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+                {/* Left */}
+                <div>
+                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f97316]/30 bg-[#f97316]/10">
+                      <FileText size={20} className="text-[#fb923c]" />
+                    </div>
+                    <span className="rounded-full border border-[#f97316]/30 bg-[#f97316]/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#fb923c]">
+                      {t('landKathakitaabBadge')}
+                    </span>
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-1 text-[10px] font-bold text-emerald-400">
+                      {t('landKathakitaabBadgeLive')}
+                    </span>
+                  </div>
+
+                  <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
+                    {t('landKathakitaabTitle')}
+                    <br />
+                    <span className="bg-gradient-to-r from-[#fb923c] via-[#fde68a] to-[#f9a8d4] bg-clip-text text-transparent">
+                      {t('landKathakitaabTitle2')}
+                    </span>
+                  </h2>
+
+                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
+                    {t('landKathakitaabDesc')}
+                  </p>
+
+                  {/* Feature chips */}
+                  <div className="mt-6 flex flex-wrap gap-1.5">
+                    {[
+                      t('landKathakitaabFeat1'), t('landKathakitaabFeat2'), t('landKathakitaabFeat3'),
+                      t('landKathakitaabFeat4'), t('landKathakitaabFeat5'), t('landKathakitaabFeat6'),
+                    ].map((feat) => (
+                      <span
+                        key={feat}
+                        className="rounded-full border border-[#f97316]/20 bg-[#f97316]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#fb923c]"
+                      >
+                        {feat}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* CTA */}
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <a
+                      href="https://kathakitaab-ai.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#f97316] px-6 py-3 text-sm font-bold text-white shadow-[0_0_30px_rgba(249,115,22,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#fb923c] hover:shadow-[0_0_40px_rgba(249,115,22,0.4)]"
+                    >
+                      {t('landKathakitaabCta1')}
+                      <ExternalLink size={14} />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Right: Story preview mockup */}
+                <div className="space-y-5">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.7, ease }}
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#080400] text-[11px] sm:text-[13px]"
+                  >
+                    <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]/80" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]/80" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#27c93f]/80" />
+                      <span className="ml-auto text-[10px] text-[#7a9ab8]">kathakitaab.ai</span>
+                    </div>
+                    <div className="space-y-2 p-5 font-sans">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">{t('landKathakitaabEditorLabel')}</p>
+                      <p className="text-[15px] font-semibold leading-snug text-white">{t('landKathakitaabEditorTitle')}</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-[#9aafc6]">{t('landKathakitaabEditorExcerpt')}</p>
+                      <motion.div
+                        className="mt-3 rounded-xl border border-[#f97316]/25 bg-[#f97316]/10 px-4 py-3 text-[#fb923c] text-[12px]"
+                        animate={{ opacity: [0.6, 1, 0.6] }}
+                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                      >
+                        <Sparkles size={13} className="mr-1.5 inline text-[#f97316]" />
+                        {t('landKathakitaabEditorOutput')}
+                      </motion.div>
+                    </div>
+                  </motion.div>
+
+                  {/* Feature highlights */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.7, delay: 0.1, ease }}
+                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.04]"
+                  >
+                    {[
+                      { icon: '📖', label: t('landKathakitaabHl1') },
+                      { icon: '🎙️', label: t('landKathakitaabHl2') },
+                      { icon: '🌐', label: t('landKathakitaabHl3') },
+                      { icon: '✨', label: t('landKathakitaabHl4') },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-3 px-5 py-3 text-[12px] text-[#a8bfd4]">
+                        <span className="text-base">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </div>
+                    ))}
+                  </motion.div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
       {/* ═══════════════ PHORING SPOTLIGHT ═══════════════ */}
       <Reveal id="phoring" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
@@ -1489,219 +1619,6 @@ const Landing: React.FC = () => {
                 >
                   <PhoringScenarioGraph reduceMotion={reduceMotion} />
                 </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Reveal>
-
-      <div className="landing-seam" aria-hidden="true" />
-
-      {/* ═══════════════ CODEIN SPOTLIGHT ═══════════════ */}
-      <Reveal id="codein" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="relative overflow-hidden rounded-[28px] border border-[#6366f1]/20 bg-gradient-to-br from-[#0a0c1e] via-[#080a18] to-[#050710]">
-            {/* Ambient glows */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(99,102,241,0.18),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(139,92,246,0.12),transparent 50%)' }}
-            />
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.04]"
-              style={{ backgroundImage: 'linear-gradient(to right,rgba(99,102,241,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(99,102,241,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
-            />
-
-            <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
-              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
-                {/* Left */}
-                <div>
-                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#6366f1]/30 bg-[#6366f1]/10">
-                      <img src="/codein-logo.svg" alt="CodeIn logo" className="h-6 w-6 object-contain" />
-                    </div>
-                    <span className="rounded-full border border-[#6366f1]/30 bg-[#6366f1]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#818cf8]">
-                      {t('landCodeinBadgeOpen')}
-                    </span>
-                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/8 px-3 py-1 text-[10px] font-bold text-emerald-400">
-                      v1.0.3-beta
-                    </span>
-                  </div>
-
-                  <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    {t('landCodeinTitle')}
-                    <br />
-                    <span className="bg-gradient-to-r from-[#818cf8] via-[#c4b5fd] to-[#e0e7ff] bg-clip-text text-transparent">
-                      {t('landCodeinTitle2')}
-                    </span>
-                  </h2>
-
-                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    {t('landCodeinDesc')}
-                  </p>
-
-                  {/* Stats */}
-                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {([
-                      { val: '22', label: t('landCodeinStat1') },
-                      { val: '60+', label: t('landCodeinStat2') },
-                      { val: '46', label: t('landCodeinStat3') },
-                      { val: '$0', label: t('landCodeinStat4') },
-                    ] as const).map((stat, i) => (
-                      <motion.div
-                        key={stat.label}
-                        custom={i}
-                        variants={itemReveal}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        className="rounded-xl border border-[#6366f1]/15 bg-[#6366f1]/[0.05] p-3.5 text-center"
-                      >
-                        <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Feature chips */}
-                  <div className="mt-6 flex flex-wrap gap-1.5">
-                    {[
-                      t('landCodeinFeat1'), t('landCodeinFeat2'), t('landCodeinFeat3'),
-                      t('landCodeinFeat4'), t('landCodeinFeat5'), t('landCodeinFeat6'),
-                      t('landCodeinFeat7'), t('landCodeinFeat8'), t('landCodeinFeat9'),
-                    ].map((feat) => (
-                      <span
-                        key={feat}
-                        className="rounded-full border border-[#6366f1]/20 bg-[#6366f1]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#a5b4fc]"
-                      >
-                        {feat}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Savings callout */}
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/20 bg-[#f59f4f]/[0.06] px-4 py-2.5 text-sm text-[#fcd084]">
-                    <Zap size={14} className="flex-shrink-0 text-[#f59f4f]" />
-                    {t('landCodeinVs')}
-                  </div>
-
-                  {/* CTAs */}
-                  <div className="mt-8 flex flex-wrap gap-3">
-                    <a
-                      href="https://codein.pro"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#6366f1] px-6 py-3 text-sm font-bold text-white shadow-[0_0_30px_rgba(99,102,241,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#818cf8] hover:shadow-[0_0_40px_rgba(99,102,241,0.4)]"
-                    >
-                      {t('landCodeinCta1')}
-                      <ExternalLink size={14} />
-                    </a>
-                    <a
-                      href="https://github.com/inbharat-ai/codein.pro/releases/latest"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
-                    >
-                      <Download size={14} />
-                      {t('landCodeinCta2')}
-                    </a>
-                    <a
-                      href="https://github.com/inbharat-ai/codein.pro"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#9aafc6] transition-all hover:text-white"
-                    >
-                      <Github size={14} />
-                      {t('landCodeinCta3')}
-                    </a>
-                  </div>
-                </div>
-
-                {/* Right: Editor mockup + comparison */}
-                <div className="space-y-5">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#060810] font-mono text-[11px] sm:text-[13px]"
-                  >
-                    <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#ff5f56]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#ffbd2e]/80" />
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#27c93f]/80" />
-                      <span className="ml-auto text-[10px] text-[#7a9ab8]">project/main.py</span>
-                    </div>
-                    <div className="space-y-1.5 p-5">
-                      <p className="text-[#7a9ab8]"># {t('landCodeinEditorComment')}</p>
-                      <p>
-                        <span className="text-[#818cf8]">from</span>{' '}
-                        <span className="text-[#10b981]">codein</span>{' '}
-                        <span className="text-[#818cf8]">import</span>{' '}
-                        <span className="text-white">Agent</span>
-                      </p>
-                      <p className="mt-2">
-                        <span className="text-[#f59f4f]">agent</span>
-                        {' = '}
-                        <span className="text-white">Agent</span>
-                        {'(lang='}
-                        <span className="text-[#22d3ee]">"hi"</span>
-                        {')'}
-                      </p>
-                      <p>
-                        <span className="text-[#f59f4f]">agent</span>
-                        {'.build('}
-                        <span className="text-[#22d3ee]">"dashboard with auth"</span>
-                        {')'}
-                        <span className="typing-cursor" />
-                      </p>
-                      <motion.div
-                        className="mt-3 rounded-xl border border-[#6366f1]/25 bg-[#6366f1]/10 px-4 py-3 text-[#a5b4fc]"
-                        animate={{ opacity: [0.6, 1, 0.6] }}
-                        transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                      >
-                        <Code2 size={13} className="mr-1.5 inline text-[#6366f1]" />
-                        {t('landCodeinEditorOutput')}
-                      </motion.div>
-                    </div>
-                  </motion.div>
-
-                  {/* Comparison table */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, delay: 0.1, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
-                  >
-                    <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#96b0c8]">
-                        {t('landCodeinVsTitle')}
-                      </p>
-                      <div className="flex gap-5 text-[10px] font-bold">
-                        <span className="text-[#818cf8]">{t('landCodeinVsCodeinCol')}</span>
-                        <span className="text-[#7a9ab8]">{t('landCodeinVsOthersCol')}</span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-white/[0.04]">
-                      {[
-                        { f: t('landCodeinCompRow1'), ci: '\u2713', o: '\u2717' },
-                        { f: t('landCodeinCompRow2'), ci: '\u2713', o: '\u2717' },
-                        { f: t('landCodeinCompRow3'), ci: '\u2713', o: '\u2717' },
-                        { f: t('landCodeinCompRow4'), ci: '\u2713', o: '\u2717' },
-                        { f: t('landCodeinCompRow5'), ci: '\u2713', o: '\u2717' },
-                        { f: t('landCodeinCompRow6'), ci: t('landCodeinCompRow6Ci'), o: t('landCodeinCompRow6Others') },
-                      ].map((row) => (
-                        <div key={row.f} className="flex items-center justify-between px-5 py-2.5 text-[12px]">
-                          <span className="text-[#a8bfd4]">{row.f}</span>
-                          <div className="flex gap-8">
-                            <span className="font-bold text-emerald-400">{row.ci}</span>
-                            <span className={`font-bold ${row.o === '\u2717' ? 'text-[#7a9ab8]' : 'text-[#f59f4f]'}`}>{row.o}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                </div>
               </div>
             </div>
           </div>
