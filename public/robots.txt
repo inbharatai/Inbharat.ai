@@ -1,12 +1,48 @@
+# InBharat AI — robots.txt
+# Reviewed 2026-05-12.
+#
+# Policy: legitimate search and AI-search crawlers are welcome. /api is the
+# only path blocked (it's the backend, not user-facing content).
+
+# ── OpenAI ChatGPT / Search ──
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+# ── Perplexity ──
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# ── Anthropic Claude ──
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# ── Google AI (separate from Googlebot search) ──
+User-agent: Google-Extended
+Allow: /
+
+# ── Common Crawl (powers many open-source models) ──
+User-agent: CCBot
+Allow: /
+
+# ── Apple AI ──
+User-agent: Applebot-Extended
+Allow: /
+
+# ── Default for everything else (Googlebot, Bingbot, etc.) ──
 User-agent: *
 Allow: /
-
-# Sitemap
-Sitemap: https://inbharat.ai/sitemap.xml
-
-# Block internal/API routes from indexing
 Disallow: /api/
-Disallow: /app/
 
-# Allow landing page
-Allow: /
+Sitemap: https://inbharat.ai/sitemap.xml

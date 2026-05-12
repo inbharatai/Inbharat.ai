@@ -11,12 +11,15 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
+  ChevronDown,
   Code2,
   Download,
   ExternalLink,
   FileText,
   Github,
   Globe,
+  Instagram,
+  Linkedin,
   Menu,
   MessageCircle,
   Monitor,
@@ -27,10 +30,13 @@ import {
   Share2,
   Sparkles,
   Target,
+  Twitter,
   Users,
   X,
   Zap,
 } from 'lucide-react';
+import { SITE } from '../seo.config';
+import { trackEvent } from '../lib/analytics';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -839,7 +845,7 @@ type ProductLogoProps = {
 
 const ProductLogo: React.FC<ProductLogoProps> = ({ logo, name, color, icon: Icon }) => {
   if (logo) {
-    return <img src={logo} alt={`${name} logo`} className="h-10 w-10 object-contain opacity-95" />;
+    return <img src={logo} alt={`${name} logo`} className="h-10 w-10 object-contain opacity-95" width={40} height={40} loading="lazy" decoding="async" />;
   }
   if (Icon) {
     return <Icon size={40} color={color} className="opacity-90" />;
@@ -1019,7 +1025,7 @@ const Landing: React.FC = () => {
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
             <div className="logo-badge flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0f18] shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition-all duration-400 group-hover:border-[#f59f4f]/40 group-hover:shadow-[0_12px_36px_rgba(245,159,79,0.15)]">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5.5 w-5.5 object-contain" />
+              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5.5 w-5.5 object-contain" width={22} height={22} />
             </div>
             <div>
               <p className="text-[13px] font-semibold tracking-[0.2em] text-white">INBHARAT</p>
@@ -1201,6 +1207,7 @@ const Landing: React.FC = () => {
             >
               <Link
                 to="/app"
+                onClick={() => trackEvent('cta_hero_try_app')}
                 className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
               >
                 {t('landHeroCta1')}
@@ -1496,11 +1503,18 @@ const Landing: React.FC = () => {
                       </div>
                     </div>
                     <div className="relative h-48 overflow-hidden bg-black/40">
-                      <img 
-                        src="/kathakitaab/scene_ayodhya_intro.png" 
-                        alt="Ramayana Ayodhya scene" 
-                        className="h-full w-full object-cover"
-                      />
+                      <picture>
+                        <source srcSet="/kathakitaab/scene_ayodhya_intro.webp" type="image/webp" />
+                        <img
+                          src="/kathakitaab/scene_ayodhya_intro.png"
+                          alt="Ramayana — opening scene of Ayodhya rendered for the KathaKitaab.AI living storybook"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          width={1536}
+                          height={1024}
+                        />
+                      </picture>
                       <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-40" />
                     </div>
                   </motion.div>
@@ -1514,11 +1528,18 @@ const Landing: React.FC = () => {
                     className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
                   >
                     <div className="relative h-40 overflow-hidden bg-black/30">
-                      <img 
-                        src="/kathakitaab/scene_mithila_bow.png" 
-                        alt="Scene showcase" 
-                        className="h-full w-full object-cover"
-                      />
+                      <picture>
+                        <source srcSet="/kathakitaab/scene_mithila_bow.webp" type="image/webp" />
+                        <img
+                          src="/kathakitaab/scene_mithila_bow.png"
+                          alt="Ramayana — Mithila bow scene rendered for the KathaKitaab.AI living storybook"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          width={1536}
+                          height={1024}
+                        />
+                      </picture>
                       <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-50" />
                     </div>
                     <div className="divide-y divide-white/[0.04]">
@@ -1564,7 +1585,7 @@ const Landing: React.FC = () => {
                 <div>
                   <div className="mb-6 flex flex-wrap items-center gap-2.5">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#10b981]/30 bg-[#10b981]/10">
-                      <img src="/phoring-logo.png" alt="Phoring logo" className="h-6 w-6 rounded object-contain" />
+                      <img src="/phoring-logo.png" alt="Phoring logo" className="h-6 w-6 rounded object-contain" width={24} height={24} loading="lazy" decoding="async" />
                     </div>
                     <span className="rounded-full border border-[#10b981]/30 bg-[#10b981]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#34d399]">
                       {t('landPhoringBadgeOpen')}
@@ -1871,6 +1892,46 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
+      {/* ═══════════════ FAQ ═══════════════ */}
+      <Reveal id="faq" className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-4xl px-5 sm:px-6 lg:px-10">
+          <div className="text-center">
+            <p className="eyebrow-line justify-center text-[#96b0c8]">{t('landFaqLabel')}</p>
+            <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px]">
+              {t('landFaqTitle')}
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-[1.7] text-[#9aafc6]">
+              {t('landFaqDesc')}
+            </p>
+          </div>
+
+          <div className="mt-12 space-y-3">
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <details
+                key={n}
+                className="group rounded-2xl border border-white/[0.06] bg-white/[0.025] px-5 py-4 transition-colors open:border-[#f59f4f]/30 open:bg-white/[0.04]"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
+                  <span className="text-[15px] font-semibold text-white sm:text-[16px]">
+                    {t(`faqQ${n}` as const)}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    aria-hidden="true"
+                    className="shrink-0 text-[#9aafc6] transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <p className="mt-3 text-[14px] leading-[1.7] text-[#b4c8de]">
+                  {t(`faqA${n}` as const)}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
       {/* ═══════════════ CONTACT ═══════════════ */}
       <Reveal id="contact" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
@@ -1889,6 +1950,7 @@ const Landing: React.FC = () => {
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Link
                   to="/app"
+                  onClick={() => trackEvent('cta_contact_try_app')}
                   className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
                 >
                   {t('landContactCta1')}
@@ -1898,6 +1960,7 @@ const Landing: React.FC = () => {
                   href="https://github.com/inbharatai"
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEvent('cta_contact_github')}
                   className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
                 >
                   {t('landContactCta2')}
@@ -1922,20 +1985,64 @@ const Landing: React.FC = () => {
       </div>
 
       {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer className="relative z-10 border-t border-white/[0.05] py-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-5 sm:flex-row sm:px-6 lg:px-10">
-          <div className="flex items-center gap-2.5">
-            <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">InBharat.ai</p>
+      <footer className="relative z-10 border-t border-white/[0.05] py-10">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 sm:px-6 lg:px-10">
+          <div className="flex flex-col items-center justify-between gap-5 sm:flex-row">
+            <div className="flex items-center gap-2.5">
+              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" width={20} height={20} />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">InBharat.ai</p>
+            </div>
+            <p className="text-[11px] text-[#7a9ab8] sm:text-center">{t('landFooterTagline')}</p>
+            <div className="flex items-center gap-2 text-[#96b0c8]">
+              <a
+                href={SITE.social.instagram}
+                target="_blank"
+                rel="noopener noreferrer me"
+                aria-label="InBharat on Instagram"
+                onClick={() => trackEvent('footer_social_instagram')}
+                className="rounded-full p-2 transition-colors hover:bg-white/[0.04] hover:text-white"
+              >
+                <Instagram size={16} aria-hidden="true" />
+              </a>
+              <a
+                href={SITE.social.linkedin}
+                target="_blank"
+                rel="noopener noreferrer me"
+                aria-label="Reeturaj Goswami on LinkedIn"
+                onClick={() => trackEvent('footer_social_linkedin')}
+                className="rounded-full p-2 transition-colors hover:bg-white/[0.04] hover:text-white"
+              >
+                <Linkedin size={16} aria-hidden="true" />
+              </a>
+              <a
+                href={SITE.social.twitter}
+                target="_blank"
+                rel="noopener noreferrer me"
+                aria-label="InBharat on X"
+                onClick={() => trackEvent('footer_social_x')}
+                className="rounded-full p-2 transition-colors hover:bg-white/[0.04] hover:text-white"
+              >
+                <Twitter size={16} aria-hidden="true" />
+              </a>
+              <a
+                href={SITE.social.github}
+                target="_blank"
+                rel="noopener noreferrer me"
+                aria-label="InBharat on GitHub"
+                onClick={() => trackEvent('footer_social_github')}
+                className="rounded-full p-2 transition-colors hover:bg-white/[0.04] hover:text-white"
+              >
+                <Github size={16} aria-hidden="true" />
+              </a>
+            </div>
           </div>
-          <p className="text-[11px] text-[#7a9ab8]">{t('landFooterTagline')}</p>
-          <div className="flex items-center gap-5 text-[11px] text-[#96b0c8]">
-            <a href="https://github.com/inbharatai" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">
-              {t('landFooterGithub')}
-            </a>
-            <Link to="/app" className="transition-colors hover:text-white">
-              {t('landFooterInbharat')}
-            </Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/[0.04] pt-5 text-[11px] text-[#7a9ab8]">
+            <Link to="/about" className="transition-colors hover:text-white">{t('navAbout')}</Link>
+            <Link to="/contact" className="transition-colors hover:text-white">{t('navContact')}</Link>
+            <Link to="/privacy" className="transition-colors hover:text-white">{t('navPrivacy')}</Link>
+            <Link to="/terms" className="transition-colors hover:text-white">{t('navTerms')}</Link>
+            <Link to="/app" className="transition-colors hover:text-white">{t('landFooterInbharat')}</Link>
+            <span className="text-[#5a738f]">©  InBharat AI</span>
           </div>
         </div>
       </footer>

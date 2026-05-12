@@ -1,0 +1,336 @@
+/**
+ * Post-build SEO step. Run via `tsx` (see package.json `build` script).
+ *
+ *   1. Emit per-route HTML shells (`dist/<route>/index.html`) with route-specific
+ *      <title>, meta description, canonical, OG/Twitter, hreflang, and JSON-LD.
+ *      Vercel serves these as static files BEFORE the SPA rewrite fires —
+ *      crawlers get unique metadata, the React Router SPA still hydrates
+ *      identically for users.
+ *   2. Emit a fresh `dist/sitemap.xml` with current lastmod + hreflang
+ *      alternates for all 11 languages on multilingual routes.
+ *   3. Emit a 1200×630 `dist/og-image.png` composited from the existing
+ *      1024-px logo + brand text (so social previews stop being broken).
+ *   4. Convert the three large Ramayana scene PNGs to WebP siblings (~80%
+ *      smaller) for the <picture> tags in Landing.tsx.
+ *
+ * Pure Node + sharp (already a devDependency). No new packages required.
+ */
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
+import { ROUTES, SITE, GLOBAL_SCHEMA, SUPPORTED_LANGS } from '../seo.config';
+import type { SeoRoute } from '../seo.config';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+const DIST = path.join(ROOT, 'dist');
+
+/* ------------------------------------------------------------------ */
+/*                         HTML shell rewriting                       */
+/* ------------------------------------------------------------------ */
+
+type Site = typeof SITE;
+type Schema = Record<string, unknown>;
+
+function escapeAttr(s: string): string {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeText(s: string): string {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildHeadInjection(
+  route: SeoRoute,
+  site: Site,
+  globalSchema: Schema[],
+  supportedLangs: readonly string[],
+): string {
+  const fullUrl = site.url + (route.path === '/' ? '/' : route.path);
+  const ogImage = route.ogImage ? site.url + route.ogImage : site.url + site.ogImage;
+
+  const hreflangLinks = route.multilingual
+    ? supportedLangs
+        .map((lang) => {
+          const href =
+            lang === 'en'
+              ? `${site.url}${route.path === '/' ? '/' : route.path}`
+              : `${site.url}${route.path === '/' ? '/' : route.path}?lang=${lang}`;
+          return `    <link rel="alternate" hreflang="${lang}" href="${escapeAttr(href)}" />`;
+        })
+        .concat([
+          `    <link rel="alternate" hreflang="x-default" href="${escapeAttr(site.url + (route.path === '/' ? '/' : route.path))}" />`,
+        ])
+        .join('\n')
+    : '';
+
+  const schemaScripts = [...globalSchema, ...(route.extraSchema ?? [])]
+    .map(
+      (obj) =>
+        `    <script type="application/ld+json">${JSON.stringify(obj)}</script>`,
+    )
+    .join('\n');
+
+  return [
+    `    <title>${escapeText(route.title)}</title>`,
+    `    <meta name="description" content="${escapeAttr(route.description)}" />`,
+    `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
+    `    <link rel="canonical" href="${escapeAttr(fullUrl)}" />`,
+    `    <meta property="og:type" content="website" />`,
+    `    <meta property="og:url" content="${escapeAttr(fullUrl)}" />`,
+    `    <meta property="og:title" content="${escapeAttr(route.title)}" />`,
+    `    <meta property="og:description" content="${escapeAttr(route.description)}" />`,
+    `    <meta property="og:image" content="${escapeAttr(ogImage)}" />`,
+    `    <meta property="og:image:width" content="1200" />`,
+    `    <meta property="og:image:height" content="630" />`,
+    `    <meta property="og:site_name" content="${escapeAttr(site.name)}" />`,
+    `    <meta property="og:locale" content="${escapeAttr(site.locale)}" />`,
+    `    <meta name="twitter:card" content="${escapeAttr(site.twitterCard)}" />`,
+    `    <meta name="twitter:title" content="${escapeAttr(route.title)}" />`,
+    `    <meta name="twitter:description" content="${escapeAttr(route.description)}" />`,
+    `    <meta name="twitter:image" content="${escapeAttr(ogImage)}" />`,
+    hreflangLinks,
+    schemaScripts,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Replace the SEO-relevant tags in the built index.html with route-specific ones.
+ * Strategy: keep everything in index.html (Vite-injected scripts, fonts, etc.),
+ * but blow away the existing title/description/canonical/OG/Twitter/JSON-LD/robots
+ * and inject the route's values in their place.
+ */
+function rewriteShell(
+  baseHtml: string,
+  route: SeoRoute,
+  site: Site,
+  globalSchema: Schema[],
+  supportedLangs: readonly string[],
+): string {
+  let html = baseHtml;
+
+  // 1. Strip the existing SEO surface — keep viewport, charset, theme-color,
+  //    favicons, fonts, Vite-injected <script>/<link>, etc.
+  const stripPatterns = [
+    /<title>[\s\S]*?<\/title>\s*/i,
+    /<meta\s+name=["']description["'][^>]*>\s*/gi,
+    /<meta\s+name=["']keywords["'][^>]*>\s*/gi,
+    /<meta\s+name=["']robots["'][^>]*>\s*/gi,
+    /<link\s+rel=["']canonical["'][^>]*>\s*/gi,
+    /<meta\s+property=["']og:[^"']+["'][^>]*>\s*/gi,
+    /<meta\s+name=["']twitter:[^"']+["'][^>]*>\s*/gi,
+    /<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi,
+    /<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi,
+  ];
+  for (const pat of stripPatterns) html = html.replace(pat, '');
+
+  // 2. Inject the new SEO block right before </head>.
+  const injection = buildHeadInjection(route, site, globalSchema, supportedLangs);
+  html = html.replace(/<\/head>/i, `\n${injection}\n  </head>`);
+
+  // 3. Make sure manifest is linked (added once on the root shell, repeated everywhere).
+  if (!/rel=["']manifest["']/i.test(html)) {
+    html = html.replace(
+      /<\/head>/i,
+      `    <link rel="manifest" href="/manifest.json" />\n  </head>`,
+    );
+  }
+
+  return html;
+}
+
+/* ------------------------------------------------------------------ */
+/*                              sitemap                               */
+/* ------------------------------------------------------------------ */
+
+function buildSitemap(
+  routes: SeoRoute[],
+  site: Site,
+  supportedLangs: readonly string[],
+): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = routes
+    .map((r) => {
+      const loc = site.url + (r.path === '/' ? '/' : r.path);
+      const alts = r.multilingual
+        ? supportedLangs
+            .map((lang) => {
+              const href =
+                lang === 'en'
+                  ? loc
+                  : `${loc}${loc.includes('?') ? '&' : '?'}lang=${lang}`;
+              return `    <xhtml:link rel="alternate" hreflang="${lang}" href="${escapeAttr(href)}" />`;
+            })
+            .concat([
+              `    <xhtml:link rel="alternate" hreflang="x-default" href="${escapeAttr(loc)}" />`,
+            ])
+            .join('\n')
+        : '';
+      return [
+        '  <url>',
+        `    <loc>${escapeText(loc)}</loc>`,
+        `    <lastmod>${today}</lastmod>`,
+        `    <changefreq>${r.changefreq}</changefreq>`,
+        `    <priority>${r.priority.toFixed(1)}</priority>`,
+        alts,
+        '  </url>',
+      ]
+        .filter(Boolean)
+        .join('\n');
+    })
+    .join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls}
+</urlset>
+`;
+}
+
+/* ------------------------------------------------------------------ */
+/*                            og-image.png                            */
+/* ------------------------------------------------------------------ */
+
+async function buildOgImage() {
+  const W = 1200;
+  const H = 630;
+  const logoPath = path.join(ROOT, 'public', 'inbharat-logo-1024.png');
+
+  // Background gradient (dark, matches site theme).
+  const bgSvg = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0d1117"/>
+          <stop offset="50%" stop-color="#11161f"/>
+          <stop offset="100%" stop-color="#1a0d05"/>
+        </linearGradient>
+        <radialGradient id="glow" cx="0.5" cy="0.35" r="0.6">
+          <stop offset="0%" stop-color="#f59f4f" stop-opacity="0.18"/>
+          <stop offset="60%" stop-color="#f59f4f" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <rect width="${W}" height="${H}" fill="url(#g)"/>
+      <rect width="${W}" height="${H}" fill="url(#glow)"/>
+      <rect x="0" y="${H - 6}" width="${W}" height="6" fill="#f59f4f"/>
+    </svg>
+  `);
+
+  const textSvg = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+      <style>
+        .brand { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-weight: 800; fill: #ffffff; }
+        .tag   { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; font-weight: 500; fill: #a8bfd4; }
+        .accent{ fill: #f59f4f; }
+      </style>
+      <text x="600" y="320" text-anchor="middle" class="brand" font-size="78">InBharat AI</text>
+      <text x="600" y="380" text-anchor="middle" class="tag" font-size="30">Affordable AI tools built for Bharat</text>
+      <text x="600" y="450" text-anchor="middle" class="tag" font-size="20" opacity="0.7">11 Indian languages · voice-first · open</text>
+      <circle cx="240" cy="520" r="3" class="accent"/>
+      <text x="260" y="528" class="tag" font-size="18" opacity="0.85">inbharat.ai</text>
+    </svg>
+  `);
+
+  type Layer = { input: Buffer; top: number; left: number };
+  let logoLayer: Layer | null = null;
+  try {
+    const logoBuf = await sharp(logoPath)
+      .resize(180, 180, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer();
+    logoLayer = { input: logoBuf, top: 110, left: Math.round(W / 2) - 90 };
+  } catch {
+    /* logo missing — text-only fallback */
+  }
+
+  const composite: Layer[] = [{ input: textSvg, top: 0, left: 0 }];
+  if (logoLayer) composite.unshift(logoLayer);
+
+  await sharp(bgSvg)
+    .composite(composite)
+    .png({ quality: 90, compressionLevel: 9 })
+    .toFile(path.join(DIST, 'og-image.png'));
+}
+
+/* ------------------------------------------------------------------ */
+/*                       WebP for big PNG scenes                      */
+/* ------------------------------------------------------------------ */
+
+async function buildSceneWebPs() {
+  const sceneDir = path.join(DIST, 'kathakitaab');
+  try {
+    const entries = await fs.readdir(sceneDir);
+    for (const name of entries) {
+      if (!name.endsWith('.png')) continue;
+      const inPath = path.join(sceneDir, name);
+      const outPath = path.join(sceneDir, name.replace(/\.png$/, '.webp'));
+      try {
+        await sharp(inPath).webp({ quality: 78, effort: 5 }).toFile(outPath);
+      } catch (err) {
+        console.warn(
+          `[build-seo] WebP conversion failed for ${name}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  } catch {
+    /* directory missing in dist — nothing to do */
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*                                main                                */
+/* ------------------------------------------------------------------ */
+
+async function main() {
+  const distExists = await fs
+    .stat(DIST)
+    .then((s) => s.isDirectory())
+    .catch(() => false);
+  if (!distExists) {
+    console.error('[build-seo] dist/ does not exist — did `vite build` run?');
+    process.exit(1);
+  }
+
+  const baseHtmlPath = path.join(DIST, 'index.html');
+  const baseHtml = await fs.readFile(baseHtmlPath, 'utf8');
+
+  let shellsWritten = 0;
+  for (const route of ROUTES) {
+    const html = rewriteShell(
+      baseHtml,
+      route,
+      SITE,
+      GLOBAL_SCHEMA as Schema[],
+      SUPPORTED_LANGS,
+    );
+    if (route.path === '/') {
+      await fs.writeFile(baseHtmlPath, html, 'utf8');
+    } else {
+      const dir = path.join(DIST, route.path.replace(/^\//, ''));
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'index.html'), html, 'utf8');
+    }
+    shellsWritten++;
+  }
+
+  const sitemap = buildSitemap(ROUTES as SeoRoute[], SITE, SUPPORTED_LANGS);
+  await fs.writeFile(path.join(DIST, 'sitemap.xml'), sitemap, 'utf8');
+
+  await buildOgImage();
+  await buildSceneWebPs();
+
+  console.log(
+    `[build-seo] wrote ${shellsWritten} HTML shell(s), sitemap.xml, og-image.png, and WebP siblings.`,
+  );
+}
+
+main().catch((err) => {
+  console.error('[build-seo] failed:', err);
+  process.exit(1);
+});

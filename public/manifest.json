@@ -1,0 +1,47 @@
+{
+  "name": "InBharat AI",
+  "short_name": "InBharat",
+  "description": "Affordable AI tools built for Bharat — agentic search, coding, education, and business automation in 11 Indian languages.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#030508",
+  "theme_color": "#0d1117",
+  "lang": "en-IN",
+  "categories": ["productivity", "education", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/inbharat-logo-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Open InBharat AI",
+      "short_name": "AI",
+      "description": "Go straight to the InBharat AI console.",
+      "url": "/app",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
+    }
+  ]
+}

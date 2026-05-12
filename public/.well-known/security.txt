@@ -1,0 +1,4 @@
+Contact: mailto:reetu004@gmail.com
+Expires: 2027-05-12T23:59:59.000Z
+Preferred-Languages: en, hi
+Canonical: https://inbharat.ai/.well-known/security.txt
