@@ -23,7 +23,7 @@ const About: React.FC = () => (
         Our flagship product is <Link to="/app" className="text-[#f59f4f] underline-offset-4 hover:underline">InBharat AI</Link> —
         an agentic search and reasoning console with multiple specialised modes (research, coding,
         education, executive workflows, shopping) and live web search. Around it sits a family of
-        focused tools — UniAssist.ai for education, UniBot on WhatsApp, KathaKitaab.AI for
+        focused tools — UniAssist.ai for education, UniBot on WhatsApp, KathaKitaab for
         interactive stories, and Phoring for decision intelligence — explored in detail on the
         homepage.
       </p>

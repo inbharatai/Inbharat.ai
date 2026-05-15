@@ -337,7 +337,7 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
    ═══════════════════════════════════════════════════════ */
 
 const TICKER_NAMES = [
-  'InBharat AI', 'KathaKitaab.AI', 'Agent Arcade', 'Phoring',
+  'InBharat AI', 'KathaKitaab', 'Agent Arcade', 'Phoring',
   'Sahaayak AI', 'UniAssist', 'TestsPrep.in', 'UniBot',
   'SocialFlow', 'OpenClawFix', 'SahaayakSeva',
 ];
@@ -635,7 +635,7 @@ type OrbitalModule = {
 const ORBITAL_MODULES: OrbitalModule[] = [
   // Ring 1 — flagships
   { label: 'InBharat AI',    color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
-  { label: 'KathaKitaab.AI', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
+  { label: 'KathaKitaab', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
   { label: 'Sahaayak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
   // Ring 2 — ecosystem
   { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
@@ -872,7 +872,7 @@ const TypeBadge: React.FC<{ children: React.ReactNode; color: string }> = ({ chi
 
 const PRODUCT_DEFS = [
   { name: 'InBharat AI', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
-  { name: 'KathaKitaab.AI', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://kathakitaab-ai.vercel.app/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
+  { name: 'KathaKitaab', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
   { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://phoring.onrender.com', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
   { name: 'Sahaayak AI', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
@@ -1465,7 +1465,7 @@ const Landing: React.FC = () => {
                   {/* CTAs */}
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
-                      href="https://kathakitaab-ai.vercel.app/"
+                      href="https://www.kathakitaab.com/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full bg-[#f97316] px-6 py-3 text-sm font-bold text-white shadow-[0_0_30px_rgba(249,115,22,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#fb923c] hover:shadow-[0_0_40px_rgba(249,115,22,0.4)]"
@@ -1474,7 +1474,7 @@ const Landing: React.FC = () => {
                       <ExternalLink size={14} />
                     </a>
                     <a
-                      href="https://kathakitaab-ai.vercel.app/books/ramayana/movie"
+                      href="https://www.kathakitaab.com/books/ramayana/movie"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
@@ -1507,7 +1507,7 @@ const Landing: React.FC = () => {
                         <source srcSet="/kathakitaab/scene_ayodhya_intro.webp" type="image/webp" />
                         <img
                           src="/kathakitaab/scene_ayodhya_intro.png"
-                          alt="Ramayana — opening scene of Ayodhya rendered for the KathaKitaab.AI living storybook"
+                          alt="Ramayana — opening scene of Ayodhya rendered for the KathaKitaab living storybook"
                           className="h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"
@@ -1532,7 +1532,7 @@ const Landing: React.FC = () => {
                         <source srcSet="/kathakitaab/scene_mithila_bow.webp" type="image/webp" />
                         <img
                           src="/kathakitaab/scene_mithila_bow.png"
-                          alt="Ramayana — Mithila bow scene rendered for the KathaKitaab.AI living storybook"
+                          alt="Ramayana — Mithila bow scene rendered for the KathaKitaab living storybook"
                           className="h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"
