@@ -31,6 +31,6 @@ test("chat page loads; send works with mocked search API when input is visible",
     return;
   }
   await input.fill("Hello");
-  await page.locator("button").filter({ has: page.locator("svg") }).last().click();
+  await input.press("Enter");
   await expect(page.locator("text=Hello").first()).toBeVisible({ timeout: 20000 });
 });
