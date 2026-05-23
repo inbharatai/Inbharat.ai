@@ -1,6 +1,6 @@
-﻿import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useReducedMotion, useScroll, useTransform, useInView } from 'motion/react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
@@ -12,8 +12,6 @@ import {
   BookOpen,
   Brain,
   ChevronDown,
-  Code2,
-  Download,
   ExternalLink,
   FileText,
   Github,
@@ -23,9 +21,7 @@ import {
   Menu,
   MessageCircle,
   Monitor,
-  Network,
   Play,
-  Search,
   ShieldCheck,
   Share2,
   Sparkles,
@@ -33,7 +29,6 @@ import {
   Twitter,
   Users,
   X,
-  Zap,
 } from 'lucide-react';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
@@ -52,13 +47,6 @@ const revealSection = {
     opacity: 1,
     y: 0,
     transition: { duration: 0.85, ease },
-  },
-};
-
-const staggerChildren = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.1 },
   },
 };
 
@@ -612,10 +600,10 @@ const PhoringScenarioGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotio
 /* ═══════════════════════════════════════════════════════
    ECOSYSTEM ORBITAL — Premium 3-ring system map
 
-   Layout logic:
-   - Ring 1 (r=28%): 3 flagship products, speed 0.06 rad/s
-   - Ring 2 (r=38%): 4 ecosystem tools, speed -0.04 rad/s
-   - Ring 3 (r=46%): 4 supporting tools, speed 0.025 rad/s
+  Layout logic:
+  - Ring 1 (r=28%): 3 flagship products, speed 0.06 rad/s
+  - Ring 2 (r=38%): 5 ecosystem tools, speed -0.04 rad/s
+  - Ring 3 (r=46%): 4 supporting tools, speed 0.025 rad/s
    - All positions computed from polar coordinates
    - Pills stay upright (no rotation), only translate
    - Differential ring speeds create depth parallax
@@ -630,7 +618,7 @@ type OrbitalModule = {
 };
 
 // Ring 1: 3 flagships, evenly spaced at 120 degrees
-// Ring 2: 4 ecosystem, evenly spaced at 90 degrees
+// Ring 2: 5 ecosystem modules, evenly spaced at 72 degrees
 // Ring 3: 4 supporting, evenly spaced at 90 degrees
 const ORBITAL_MODULES: OrbitalModule[] = [
   // Ring 1 — flagships
@@ -639,9 +627,10 @@ const ORBITAL_MODULES: OrbitalModule[] = [
   { label: 'Sahaayak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
   // Ring 2 — ecosystem
   { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
-  { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 90 },
-  { label: 'TestsPrep',    color: '#f43f5e', ring: 2, baseAngle: 180 },
-  { label: 'Phoring',      color: '#10b981', ring: 2, baseAngle: 270 },
+  { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 72 },
+  { label: 'TestsPrep',    color: '#f43f5e', ring: 2, baseAngle: 144 },
+  { label: 'Phoring',      color: '#10b981', ring: 2, baseAngle: 216 },
+  { label: 'JAK Swarm',    color: '#ef4444', ring: 2, baseAngle: 288 },
   // Ring 3 — supporting
   { label: 'Agent Arcade',  color: '#4C8BF5', ring: 3, baseAngle: 45 },
   { label: 'SocialFlow',    color: '#7C3AED', ring: 3, baseAngle: 135 },
@@ -873,8 +862,9 @@ const TypeBadge: React.FC<{ children: React.ReactNode; color: string }> = ({ chi
 const PRODUCT_DEFS = [
   { name: 'InBharat AI', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
   { name: 'KathaKitaab', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
-  { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
+  { name: 'JAK Swarm', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://jakswarm.com/', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
   { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://phoring.onrender.com', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
+  { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   { name: 'Sahaayak AI', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
   { name: 'SahaayakSeva', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://github.com/inbharatai/SahaayakSeva', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
   { name: 'UniAssist.ai', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },

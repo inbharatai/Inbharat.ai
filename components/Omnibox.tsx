@@ -36,7 +36,7 @@ const indianLanguages = [
 ];
 
 const Omnibox: React.FC<OmniboxProps> = ({ 
-  onSearch, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange 
+  onSearch, onSpeakToType, isLoading, disabled = false, language, setLanguage, initialMode, onModeChange: _onModeChange 
 }) => {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');

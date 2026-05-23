@@ -15,7 +15,7 @@ import SettingsPanel from './components/SettingsPanel';
 import AuthPanel from './components/AuthPanel';
 import {
   Menu, Share2, MoreHorizontal, Hash, Terminal, Globe, BookOpen, Sparkles, Briefcase, ShoppingBag, Settings, X,
-  Bot, Zap, BarChart2, Send, Phone, Wrench, TrendingUp, MessageCircle
+  Bot, BarChart2, Send, Wrench, TrendingUp
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -269,14 +269,11 @@ const App: React.FC = () => {
         hasStarted = true;
       };
 
-      let streamedStatus = "";
-
       await new Promise<void>((resolve, reject) => {
         const streamController = streamChat(
           query, mode, language || appLanguage,
           {
             onStatus: (status) => {
-              streamedStatus = status;
               // Show the status in the placeholder message before content arrives
               const statusMsg: Message = {
                 id: assistantMsgId,
@@ -462,7 +459,7 @@ const App: React.FC = () => {
       abortRef.current = null;
       setIsLoading(false);
     }
-  }, [currentSessionId, appLanguage, isSignedIn, authLoading, user, guestSession]);
+  }, [currentSessionId, appLanguage, isSignedIn, authLoading, user, guestSession, t]);
 
   const handleRegenerate = useCallback((query: string, mode: AgentMode, language: string, imageUrl?: string) => {
     if (!isLoading) handleSearch(query, mode, language, imageUrl);

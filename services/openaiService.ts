@@ -92,7 +92,7 @@ async function callChat(messages: unknown[], signal?: AbortSignal, mode?: string
 }
 
 /** Stream chat response via Server-Sent Events. */
-async function streamChat(messages: unknown[], signal?: AbortSignal, mode?: string): Promise<AsyncIterable<string>> {
+async function _streamChat(messages: unknown[], signal?: AbortSignal, mode?: string): Promise<AsyncIterable<string>> {
   const token = await getAccessToken();
   const res = await fetch("/api/chat", {
     method: "POST",

@@ -24,7 +24,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   isOpen, onClose, sessions, sessionsLoading = false, currentSessionId, onSessionSelect, 
-  onNewChat, onDiscovery, searchQuery, onSearchChange, activeLanguage: _activeLanguage 
+  onNewChat, onDiscovery: _onDiscovery, searchQuery, onSearchChange, activeLanguage: _activeLanguage 
 }) => {
   const { isSignedIn, user, signOut } = useAuth();
   const { t } = useTranslation();
