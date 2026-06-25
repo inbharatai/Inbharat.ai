@@ -2050,7 +2050,7 @@ const Landing: React.FC = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 status-pulse" />
             {t('landStatusOperational')}
           </span>
-          <span className="text-[#7a9ab8]">22 Languages</span>
+          <span className="text-[#7a9ab8]">11 Languages</span>
           <span className="text-[#7a9ab8]">{ALL_PRODUCTS.length} Products</span>
         </div>
       </div>

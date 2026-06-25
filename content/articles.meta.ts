@@ -406,27 +406,27 @@ export const ARTICLES: ArticleMeta[] = [
   },
   {
     slug: 'inbharat-ecosystem',
-    title: '9 Products, One Mission: The InBharat.ai Story',
+    title: '12 Products, One Mission: The InBharat.ai Story',
     description:
-      'Why InBharat builds an ecosystem of nine connected AI products—language, voice, agriculture, healthcare, finance, commerce, supply chain, education, manufacturing—for India’s interlocked problems.',
+      'Why InBharat builds an ecosystem of twelve connected AI products—agentic search, interactive storybooks, a company OS, a personal AI OS, a field health app, education tools, a WhatsApp bot, decision intelligence, agent observability, social automation, and a developer installer—for India’s interlocked problems.',
     category: 'InBharat',
     datePublished: '2026-06-03',
     readMinutes: 7,
     // No dedicated visual yet — falls back to the branded OG image.
     abstract:
-      'The InBharat.ai ecosystem is a portfolio of interconnected AI products—language, voice, agriculture, healthcare, finance, commerce, supply chain, education, and manufacturing—built for India because Indian problems are interlocked: a farmer needs credit, market info, and learning together. One product can’t serve those needs; nine that share an identity and data layer can.',
+      'The InBharat.ai ecosystem is a portfolio of twelve interconnected AI products—agentic search, interactive storybooks, a company OS, a personal AI OS, a field health app, education tools, a WhatsApp bot, decision intelligence, agent observability, social automation, and a developer installer—built for India because Indian problems are interlocked: a farmer needs credit, market info, and learning together. One product can’t serve those needs; twelve that share an identity and data layer can.',
     faq: [
       {
-        q: 'Why build nine products instead of focusing on one?',
-        a: 'India’s problems are interconnected—a farmer needs agricultural AI plus credit, market access, and learning. Serving one need in isolation doesn’t work in India. An ecosystem of connected products serves the same user across domains.',
+        q: 'Why build twelve products instead of focusing on one?',
+        a: 'India’s problems are interconnected—a farmer needs credit, market access, and learning together; a student needs stories, guidance, test prep, and a bot that answers at midnight. Serving one need in isolation doesn’t work in India. An ecosystem of connected products serves the same user across a decade of needs.',
       },
       {
-        q: 'What are the nine products in the InBharat ecosystem?',
-        a: 'Language foundation models, voice intelligence, agricultural intelligence, healthcare intelligence, financial intelligence, e-commerce intelligence, supply chain intelligence, education intelligence, and manufacturing intelligence—all for Indian context and constraints.',
+        q: 'What are the twelve products in the InBharat ecosystem?',
+        a: 'InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahaayak AI (personal AI OS), SahaayakSeva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.',
       },
       {
         q: 'How do the products connect?',
-        a: 'A shared, consent-based identity layer (one user across all products), a shared data layer where models learn across domains, and shared local-first infrastructure—data and processing stay in India—so the agricultural AI understands the financial context, and so on.',
+        a: 'A shared, consent-based identity layer (one user across all products), a shared data layer where models learn across the full scope of Indian life, and shared local-first infrastructure—data and processing stay in India—so the search agent understands the education context, the health app understands the local language, and so on.',
       },
       {
         q: 'Isn’t a multi-product approach unfocused?',
@@ -434,7 +434,7 @@ export const ARTICLES: ArticleMeta[] = [
       },
       {
         q: 'What’s the current state of the ecosystem?',
-        a: 'Early but live—language and voice models are working, agricultural AI is live in several states, healthcare AI is piloting in clinics, and financial systems are in testing. It’s being built now, not a five-year vision.',
+        a: 'Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, SahaayakSeva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It’s being built right now, not on a five-year roadmap.',
       },
     ],
     hashtags: ['InBharat', 'DeshKaAI', 'AIForBharat', 'IndianStartup', 'AIEcosystem', 'BuildingBharat'],

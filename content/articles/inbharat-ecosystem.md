@@ -1,6 +1,6 @@
-> The InBharat.ai ecosystem is a portfolio of interconnected AI products—language, voice, agriculture, healthcare, finance, commerce, supply chain, education, and manufacturing—built for India because Indian problems are interlocked: a farmer needs credit, market info, and learning together. One product can't serve those needs; nine that share an identity and data layer can.
+> The InBharat.ai ecosystem is a portfolio of twelve interconnected AI products—agentic search, interactive storybooks, a company OS, a personal AI OS, a field health app, education tools, a WhatsApp bot, decision intelligence, agent observability, social automation, and a developer installer—built for India because Indian problems are interlocked: a farmer needs credit, market info, and learning together. One product can't serve those needs; twelve that share an identity and data layer can.
 
-I get asked a lot: what's the strategy? Why nine different products? Why not focus on one thing?
+I get asked a lot: what's the strategy? Why twelve different products? Why not focus on one thing?
 
 The answer is India. India's problems aren't one thing. They're interconnected. They're systemic. You can't solve one without touching the others. So we've built not a product company. We've built an ecosystem.
 
@@ -16,49 +16,45 @@ It doesn't work the same way in India.
 
 In India, you need to think about problems ecologically. The problems are interlocked. The solutions are interlocked. The users are the same people. You can't serve a farmer with just one product because a farmer's needs span multiple domains.
 
-## The Nine Products
+## The Twelve Products
 
 I'll walk through what we're building, but I want you to understand the connective tissue. How they work together.
 
-**Language Foundation:** We're building foundational models in Indian languages. Hindi. Tamil. Telugu. Kannada. Bengali. These models understand Indian context. They can generate text. Understand text. They're the foundation everything else is built on.
+**Agentic search and voice:** InBharat AI is the flagship—a multi-agent agentic search and chat platform, voice-first and multilingual, with specialist agents for coding, education, research, shopping, and enterprise. It's the front door. Sahaayak AI extends that idea into a multilingual personal AI OS for 1.4B Indians—chat, voice, OCR, translation, smart notes, email intelligence, live news. UniBot meets people where they already are: a conversational AI support bot on WhatsApp, multilingual, for helpdesk and guidance.
 
-**Voice Intelligence:** Voice is how 500 million offline Indians interact with technology. We're building voice recognition, voice generation, voice understanding in Indian languages. Voice-first AI for people who can't type. Who don't have data connectivity for typing.
+**Education:** KathaKitaab turns Indian epics into living, interactive storybooks with verb-aware AI animation and Indian-language narration. UniAssist.ai guides students through international admissions—university matching, PR prediction, scholarship discovery. TestsPrep.in does adaptive exam preparation—practice tests, performance analytics, focused pathways. Three products, one learner, from childhood stories to competitive exams.
 
-**Agricultural Intelligence:** We're building AI for farming. Crop optimization. Water management. Soil analysis. Pest detection. Market pricing. A farmer uses one app but it connects to soil sensors, weather data, market information, government schemes. The AI helps them make decisions.
+**Public services and health:** SahaayakSeva is a field AI app for India's Anganwadi workers—WHO-standard child growth tracking, GPT-4o Vision OCR, maternal risk scoring, and government scheme lookup. It's where AI meets the last mile of public health.
 
-**Healthcare Intelligence:** AI for diagnosis support. For rural areas where doctors are scarce. Understanding Indian diseases. Indian healthcare infrastructure. Patient data in Indian languages. Medical records that work with Aadhaar. Systems that work in hospitals with limited infrastructure.
+**Enterprise and agents:** JAK Swarm is an open-source, self-hostable closed-loop company OS—evidence graph, drift detection, executable specs, and risk-gated agent approvals with audit trails. Agent Arcade is the observability layer—a live dashboard, session replay, and cost analytics across 29 models. Together they let a company run AI agents with proof.
 
-**Financial Intelligence:** Payment systems. Lending systems. Insurance. Risk assessment. All the financial infrastructure that 500 million Indians need to access formal finance. Working with UPI. Working with microfinance institutions. Understanding financial behavior that doesn't show up in credit scores.
+**Decision intelligence:** Phoring turns documents into a knowledge graph, runs multi-agent simulations, and returns source-cited forecasts. It's the thinking tool for people who need to reason about outcomes, not just retrieve them.
 
-**E-Commerce Intelligence:** We're building recommendation systems, inventory optimization, pricing intelligence. But built for how Indian e-commerce actually works. For small merchants. For regional variations. For informal sellers.
+**Builder tools:** SocialFlow is open-source AI social-media automation—generate and publish to 12 platforms, with AES-256 local credentials so your data never leaves your machine. OpenClawFix is a one-click installer for the OpenClaw IDE via Docker, auto-configuring gateway tokens and 16 AI providers. These are the tools that make the rest faster to build and ship.
 
-**Supply Chain Intelligence:** Logistics optimization. Inventory management. For Indian businesses. Understanding regional supply chains. Understanding informal logistics. How goods actually move in India.
-
-**Education Intelligence:** Personalized learning. Adaptive content. Content generation in Indian languages. For online learning. For offline learning. For people who've never been to school. Understanding how Indians actually learn.
-
-**Manufacturing Intelligence:** Quality control. Process optimization. Predictive maintenance. Built for Indian manufacturing constraints. Factories with limited data infrastructure. Manufacturing floors that don't have perfect sensor systems.
+Twelve products. One identity layer. One data layer. One mission.
 
 ## Why This Portfolio Makes Sense
 
-A farmer doesn't just need agricultural AI. They need to understand financial products to get credit for seeds. They need to access market information. They need to learn new techniques. They need to transact money. The agricultural product connects to the financial product, the education product, and the marketplace product.
+A farmer doesn't just need agricultural AI. They need to understand financial products to get credit for seeds. They need to access market information. They need to learn new techniques. They need to transact money. A single app can't carry all of that—but a connected ecosystem can, and the same user moves across it.
 
-A small merchant on Flipkart doesn't just need e-commerce tools. They need to understand supply chain to manage inventory. They need financial products to manage cash flow. They need to hire and train people so they need education tools. They need to understand pricing and demand.
+A student doesn't just need test prep. They need stories that build language early. They need guidance on where to study. They need a bot that answers questions on WhatsApp at midnight. KathaKitaab, UniAssist.ai, TestsPrep.in, and UniBot serve one learner across a decade.
 
-A healthcare worker in a rural clinic needs diagnostic support. They need to share patient records across facilities. They need to access education to stay current. They need to understand the financial realities of rural medicine.
+A frontline health worker needs diagnostic support, record sharing across facilities, and education to stay current. SahaayakSeva and the education products meet them together.
 
-One product doesn't serve these needs. But nine products that work together do.
+One product doesn't serve these needs. But twelve products that work together do.
 
 ## The Connective Architecture
 
 This only works if the products actually connect. If they share data intelligently. If they understand each other.
 
-We're building a shared identity layer on top of Aadhaar. You're one user across all nine products. Your agricultural data connects to your financial data. Your health data connects to your education history. Your e-commerce transactions inform pricing intelligence.
+We're building a shared identity layer on top of Aadhaar. You're one user across all twelve products. Your learning data connects to your search history. Your health records connect to your education. Your commerce activity informs what the agents recommend.
 
 This is privacy-preserving. This is consent-based. But it's the connective tissue that makes the ecosystem work.
 
-We're building a shared data layer. Language models trained on data from all nine domains. So the agricultural AI understands the financial context. The education AI understands the healthcare context. The AI systems learn from the full scope of Indian life, not narrow domains.
+We're building a shared data layer. Language models trained across the full scope of Indian life, not narrow domains. So the search agent understands the education context. The health app understands the local-language context. The models learn from the whole, not the slice.
 
-We're building shared infrastructure. Local-first infrastructure. Data stays in India. Processing happens in India. The nine products all run on the same core infrastructure, which means we can operate at scale that one product couldn't achieve.
+We're building shared infrastructure. Local-first infrastructure. Data stays in India. Processing happens in India. The twelve products run on the same core, which means we can operate at a scale that one product never could.
 
 ## The Strategic Angle
 
@@ -72,7 +68,7 @@ Alibaba didn't win by building a shopping app. It won by building an ecosystem. 
 
 ## The Current Reality
 
-We're in the early stages. The language models are working. The voice systems are working. Agricultural AI is live in several states. Healthcare AI is being piloted in clinics. Financial systems are in testing.
+We're past vision and into shipping. InBharat AI is live—agentic search, voice, and the specialist agents are working. KathaKitaab is live with interactive storybooks in Indian languages. JAK Swarm is open-source and self-hostable today, with the evidence graph and JAK Shield risk gating. SahaayakSeva is in the field with Anganwadi workers. UniAssist.ai, TestsPrep.in, and UniBot are serving students. Phoring, Agent Arcade, SocialFlow, and OpenClawFix are the builder layer, all usable now.
 
 This isn't a five-year vision. This is being built right now.
 
@@ -88,24 +84,24 @@ And you'll own something. You'll build something that's India's. That works for 
 
 I believe India will be built on Indian infrastructure. Indian companies. Indian talent. Not because of nationalism. Because it's the only way to solve Indian problems well. Because it's the only way to reach India's 500 million unconnected people. Because it's the only way to build something that's defensible.
 
-Nine products. One mission. Build AI for Bharat.
+Twelve products. One mission. Build AI for Bharat.
 
 ## Frequently Asked Questions
 
-**Why build nine products instead of focusing on one?**
-India's problems are interconnected—a farmer needs agricultural AI plus credit, market access, and learning. Serving one need in isolation doesn't work in India. An ecosystem of connected products serves the same user across domains.
+**Why build twelve products instead of focusing on one?**
+India's problems are interconnected—a farmer needs credit, market access, and learning together; a student needs stories, guidance, test prep, and a bot that answers at midnight. Serving one need in isolation doesn't work in India. An ecosystem of connected products serves the same user across a decade of needs.
 
-**What are the nine products in the InBharat ecosystem?**
-Language foundation models, voice intelligence, agricultural intelligence, healthcare intelligence, financial intelligence, e-commerce intelligence, supply chain intelligence, education intelligence, and manufacturing intelligence—all for Indian context and constraints.
+**What are the twelve products in the InBharat ecosystem?**
+InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahaayak AI (personal AI OS), SahaayakSeva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.
 
 **How do the products connect?**
-A shared, consent-based identity layer (one user across all products), a shared data layer where models learn across domains, and shared local-first infrastructure—data and processing stay in India—so the agricultural AI understands the financial context, and so on.
+A shared, consent-based identity layer (one user across all products), a shared data layer where models learn across the full scope of Indian life, and shared local-first infrastructure—data and processing stay in India—so the search agent understands the education context, the health app understands the local language, and so on.
 
 **Isn't a multi-product approach unfocused?**
 It's the defensible model. A single product going global gets absorbed competing with American companies on their terms. An ecosystem built deeply for India—like Alibaba for China—is hard to compete with because it's built for problems American companies don't understand.
 
 **What's the current state of the ecosystem?**
-Early but live—language and voice models are working, agricultural AI is live in several states, healthcare AI is piloting in clinics, and financial systems are in testing. It's being built now, not a five-year vision.
+Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, SahaayakSeva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It's being built right now, not on a five-year roadmap.
 
 ---
 

@@ -255,9 +255,9 @@ export const founderPerson = {
 };
 
 /**
- * InBharat product suite — public live products as an ItemList so search and
- * AI engines see JAK Swarm, KathaKitaab, and TestsPrep as part of one
- * InBharat entity network. Only public live sites are listed.
+ * InBharat product suite — all 12 ecosystem products as an ItemList so search
+ * and AI engines see the full InBharat entity network (public sites + public
+ * open-source repos), matching the landing-page product grid.
  */
 const productSuite = {
   '@context': 'https://schema.org',
@@ -269,10 +269,10 @@ const productSuite = {
       position: 1,
       item: {
         '@type': 'WebApplication',
-        name: 'JAK Swarm',
-        url: 'https://jakswarm.com',
+        name: 'InBharat AI',
+        url: SITE.url + '/app',
         description:
-          'Open-source, self-hostable agentic company OS with an evidence graph, drift detection, and JAK Shield risk gating.',
+          'Flagship multi-agent agentic search and chat platform — voice-first, multilingual, with specialist agents for coding, education, research, shopping, and enterprise.',
       },
     },
     {
@@ -282,7 +282,8 @@ const productSuite = {
         '@type': 'WebApplication',
         name: 'KathaKitaab',
         url: 'https://www.kathakitaab.com',
-        description: 'AI-powered interactive storybooks for children in Indian languages.',
+        description:
+          'Interactive storybook platform that brings Indian epics to life as living books with verb-aware AI animation and Indian-language narration.',
       },
     },
     {
@@ -290,9 +291,109 @@ const productSuite = {
       position: 3,
       item: {
         '@type': 'WebApplication',
-        name: 'TestsPrep',
+        name: 'JAK Swarm',
+        url: 'https://jakswarm.com',
+        description:
+          'Open-source, self-hostable closed-loop company OS — evidence graph, drift detection, executable specs, and risk-gated agent approvals with audit trails.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 4,
+      item: {
+        '@type': 'WebApplication',
+        name: 'Phoring',
+        url: 'https://github.com/inbharatai/phoring',
+        description:
+          'Decision-intelligence engine: documents to knowledge graph to multi-agent simulation to source-cited forecasts.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 5,
+      item: {
+        '@type': 'WebApplication',
+        name: 'Agent Arcade',
+        url: 'https://github.com/inbharatai/agent-arcade-gateway',
+        description:
+          'Open-source agent observability — live dashboard, session replay, and cost analytics across 29 models.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 6,
+      item: {
+        '@type': 'WebApplication',
+        name: 'Sahaayak AI',
+        url: 'https://github.com/inbharatai/sahaayak-ai',
+        description:
+          'Multilingual personal AI OS for 1.4B Indians — chat, voice, OCR, translation, smart notes, email intelligence, and live news.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 7,
+      item: {
+        '@type': 'WebApplication',
+        name: 'SahaayakSeva',
+        url: 'https://github.com/inbharatai/SahaayakSeva',
+        description:
+          "Field AI app for India's Anganwadi workers — WHO-standard child growth tracking, GPT-4o Vision OCR, maternal risk scoring, and government scheme lookup.",
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 8,
+      item: {
+        '@type': 'WebApplication',
+        name: 'UniAssist.ai',
+        url: 'https://www.uniassist.ai',
+        description:
+          'AI student guidance for international admissions — university matching, PR prediction, and scholarship discovery.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 9,
+      item: {
+        '@type': 'WebApplication',
+        name: 'TestsPrep.in',
         url: 'https://testsprep.in',
-        description: 'AI-driven adaptive test-preparation analytics.',
+        description:
+          'AI exam-prep platform — focused pathways, practice tests, performance analytics, and adaptive learning.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 10,
+      item: {
+        '@type': 'WebApplication',
+        name: 'UniBot',
+        url: SITE.url + '/#chatbot',
+        description:
+          'Conversational AI support bot on WhatsApp for multilingual helpdesk and guidance.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 11,
+      item: {
+        '@type': 'WebApplication',
+        name: 'SocialFlow',
+        url: 'https://github.com/inbharatai/SocialFlow',
+        description:
+          'Open-source AI social-media automation — generate and publish to 12 platforms; AES-256 local credentials.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 12,
+      item: {
+        '@type': 'WebApplication',
+        name: 'OpenClawFix',
+        url: 'https://openclawfix.pro',
+        description:
+          'One-click installer for the OpenClaw IDE via Docker — auto-configures gateway tokens and 16 AI providers.',
       },
     },
   ],
