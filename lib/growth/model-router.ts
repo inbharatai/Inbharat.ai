@@ -83,7 +83,7 @@ export async function logUsage(rec: ModelUsageRecord): Promise<void> {
   console.info("[growth-model-usage]", JSON.stringify(rec));
 }
 
-/** Estimate cost from token counts. */
+/** Estimate cost from token counts. usdPer1k is USD per 1k tokens. */
 export function estimateCost(choice: ModelChoice, totalTokens: number): number {
-  return Math.round(totalTokens * choice.usdPer1k * 1_000_000) / 1_000_000;
+  return Math.round((totalTokens / 1000) * choice.usdPer1k * 1_000_000) / 1_000_000;
 }

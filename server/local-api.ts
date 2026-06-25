@@ -118,6 +118,8 @@ const growthHandlers = {
   "/api/growth/audit": () => import("../api/growth/audit.ts"),
   "/api/growth/crawl": () => import("../api/growth/crawl.ts"),
   "/api/growth/performance": () => import("../api/growth/performance.ts"),
+  "/api/growth/promote": () => import("../api/growth/promote.ts"),
+  "/api/growth/approvals": () => import("../api/growth/approvals.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
@@ -126,6 +128,9 @@ app.get("/api/growth/runs", (req, res) => runHandler("/api/growth/runs", req, re
 app.post("/api/growth/audit", (req, res) => runHandler("/api/growth/audit", req, res));
 app.post("/api/growth/crawl", (req, res) => runHandler("/api/growth/crawl", req, res));
 app.get("/api/growth/performance", (req, res) => runHandler("/api/growth/performance", req, res));
+app.post("/api/growth/promote", (req, res) => runHandler("/api/growth/promote", req, res));
+app.get("/api/growth/approvals", (req, res) => runHandler("/api/growth/approvals", req, res));
+app.post("/api/growth/approvals", (req, res) => runHandler("/api/growth/approvals", req, res));
 app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 
 // 404 for other /api

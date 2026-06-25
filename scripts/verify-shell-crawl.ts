@@ -54,5 +54,47 @@ assert("No 'Missing H1' SEO issue", !seo.issues.some((i) => i.field === "h1"));
 // the auditor correctly distinguishes thin vs light vs healthy.
 assert("No HIGH-severity 'thin content' issue (<300 words)", !seo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
 
+// ─── Built article shell (dist/learn-ai-with-reeturaj/rag/index.html) ───
+// The build bakes the full rendered article body into the crawlable <section>
+// so AI-search crawlers see the complete article (not just an abstract). This
+// block confirms that pipeline: H1 + TechArticle + FAQPage schema, ≥600
+// crawlable words, correct canonical, no thin-content flag.
+const articlePath = resolve(__dirname, "..", "dist", "learn-ai-with-reeturaj", "rag", "index.html");
+const articleUrl = "https://inbharat.ai/learn-ai-with-reeturaj/rag";
+let articleHtml = "";
+try {
+  articleHtml = readFileSync(articlePath, "utf8");
+} catch {
+  console.log(`\n=== Built article shell (rag) — NOT FOUND at ${articlePath} ===`);
+  assert("article shell built (dist/learn-ai-with-reeturaj/rag/index.html exists)", false);
+  console.log(`\n${failures === 0 ? "ALL ACCURACY CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
+const aMeta = parsePage(articleHtml, articleUrl);
+const aSeo = scoreSeo(aMeta);
+const aGeo = scoreGeo(aMeta);
+
+console.log("\n=== Built article shell (rag) — crawler/auditor readout ===");
+console.log("title:        ", aMeta.title);
+console.log("h1:           ", aMeta.h1);
+console.log("wordCount:    ", aMeta.wordCount);
+console.log("h2Count:      ", aMeta.h2Count);
+console.log("canonical:    ", aMeta.canonical);
+console.log("schemaTypes:  ", aMeta.schemaTypes?.join(", "));
+console.log("SEO score:    ", aSeo.score);
+console.log("GEO score:    ", aGeo.score);
+
+console.log("\n=== Article-shell assertions ===");
+assert("article H1 present (non-empty)", !!aMeta.h1 && aMeta.h1.length > 0);
+assert("TechArticle schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("TechArticle")));
+assert("FAQPage schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("FAQ")));
+assert("BreadcrumbList schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("Breadcrumb")));
+assert("article canonical set correctly", aMeta.canonical === articleUrl);
+assert("article body baked (wordCount ≥ 600 — full content crawlable)", (aMeta.wordCount ?? 0) >= 600);
+assert("article has multiple H2 sections", (aMeta.h2Count ?? 0) >= 3);
+assert("article SEO score healthy (≥ 70)", aSeo.score >= 70);
+assert("article no HIGH-severity thin-content issue", !aSeo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
+
 console.log(`\n${failures === 0 ? "ALL ACCURACY CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

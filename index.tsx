@@ -13,6 +13,8 @@ const About = lazy(() => import('./pages/About.tsx'));
 const Contact = lazy(() => import('./pages/Contact.tsx'));
 const Privacy = lazy(() => import('./pages/Privacy.tsx'));
 const Terms = lazy(() => import('./pages/Terms.tsx'));
+const LearnAIWithReeturaj = lazy(() => import('./pages/LearnAIWithReeturaj.tsx'));
+const ArticlePage = lazy(() => import('./pages/ArticlePage.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
 // InBharat Growth Agent admin (audit-only). Client-gated by RequireAdmin;
@@ -61,6 +63,8 @@ root.render(
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/learn-ai-with-reeturaj" element={<LearnAIWithReeturaj />} />
+            <Route path="/learn-ai-with-reeturaj/:slug" element={<ArticlePage />} />
             <Route path="/admin/growth" element={<AdminGrowthLayout />}>
               <Route index element={<GrowthOverview />} />
               <Route path="sites" element={<GrowthSites />} />

@@ -179,6 +179,47 @@ export async function fetchSitemapContains(url: string, timeoutMs = 8000): Promi
   }
 }
 
+/**
+ * Network: fetch /sitemap.xml and return every <loc> URL listed in it. Used by
+ * the audit runner to seed targets (so article slugs in the sitemap are
+ * auto-audited) and by the promoter to discover newly-published article URLs.
+ * Handles sitemap-index files (one level of nested <sitemap><loc> children).
+ * Returns [] on any failure (callers treat "no sitemap" as "no extra targets").
+ */
+export async function fetchSitemapUrls(originOrUrl: string, timeoutMs = 8000): Promise<string[]> {
+  const base = safeOrigin(originOrUrl);
+  if (!base) return [];
+  const seen = new Set<string>();
+  const locs: string[] = [];
+
+  const fetchSitemap = async (sitemapUrl: string, depth: number): Promise<void> => {
+    if (depth > 1 || seen.has(sitemapUrl)) return; // cap nesting at one level
+    seen.add(sitemapUrl);
+    try {
+      const res = await fetch(sitemapUrl, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) return;
+      const txt = await res.text();
+      // Pull every <loc>…</loc> value (covers both <url><loc> and <sitemap><loc>).
+      const matches = txt.match(/<loc>\s*([^<]+?)\s*<\/loc>/gi) || [];
+      for (const m of matches) {
+        const loc = m.replace(/<\/?loc>/gi, "").trim();
+        if (!loc) continue;
+        // Nested sitemap index → fetch one level deeper.
+        if (/\.xml(\?|$)/i.test(loc) && depth === 0) {
+          await fetchSitemap(loc, depth + 1);
+        } else {
+          locs.push(loc);
+        }
+      }
+    } catch {
+      // network/parse failure for one sitemap → skip it
+    }
+  };
+
+  await fetchSitemap(`${base}/sitemap.xml`, 0);
+  return locs;
+}
+
 /** Crawl a single authorized URL end-to-end. Throws AuthorizationError if not allowed. */
 export async function crawlUrl(url: string): Promise<PageMeta> {
   if (!isDomainAuthorized(url)) {

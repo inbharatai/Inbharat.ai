@@ -21,6 +21,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import { toHtml } from 'hast-util-to-html';
 import { ROUTES, SITE, GLOBAL_SCHEMA, SUPPORTED_LANGS } from '../seo.config';
 import type { SeoRoute } from '../seo.config';
 
@@ -166,15 +171,58 @@ function buildHeadInjection(
  * faithful H1 + summary of what the app renders — no cloaking. JS-rendering
  * crawlers (Googlebot) see the real React content instead.
  */
-function buildBodyInjection(route: SeoRoute): string {
+/**
+ * Strip the leading `>` blockquote run from an article markdown body. The
+ * article files open with the abstract as a blockquote (also surfaced as the
+ * on-page direct-answer callout + schema abstract + seoBody paragraph 1), so
+ * removing it here keeps the abstract from appearing twice in the crawlable
+ * shell. Mirrors stripLeadingBlockquote in pages/ArticlePage.tsx.
+ */
+function stripLeadingBlockquote(md: string): string {
+  const lines = md.split('\n');
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === '') i++;
+  if (i >= lines.length || !lines[i].trimStart().startsWith('>')) return md;
+  while (i < lines.length && lines[i].trimStart().startsWith('>')) i++;
+  if (i < lines.length && lines[i].trim() === '') i++;
+  return lines.slice(i).join('\n');
+}
+
+const markdownProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype);
+
+/**
+ * Render an article markdown body to safe HTML for the crawlable shell.
+ * hast-util-to-html escapes raw HTML by default, so this is safe to inject.
+ * Bodies are read at build time only — they never enter the client bundle
+ * (ArticlePage loads them lazily via import.meta.glob at runtime).
+ */
+async function renderArticleBody(slug: string): Promise<string> {
+  const file = path.join(ROOT, 'content', 'articles', `${slug}.md`);
+  const md = await fs.readFile(file, 'utf8');
+  const mdast = markdownProcessor.parse(stripLeadingBlockquote(md));
+  const hast = await markdownProcessor.run(mdast);
+  const rendered = toHtml(hast);
+  // Indent each line by 4 spaces so it nests cleanly inside the <section>.
+  return rendered
+    .split('\n')
+    .map((l) => (l ? `    ${l}` : l))
+    .join('\n');
+}
+
+function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
   if (!route.seoBody) return '';
   const parts = [
     `    <h1>${escapeText(route.seoBody.h1)}</h1>`,
     ...route.seoBody.paragraphs.map((p) => `    <p>${escapeText(p)}</p>`),
-  ].join('\n');
+  ];
+  if (bodyHtml) parts.push(bodyHtml);
+  const joined = parts.join('\n');
   // Visually-hidden (sr-only) inline style so no CSS dependency; aria-hidden so
-  // screen-reader users don't hear a duplicate of the React app.
-  return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${parts}\n  </section>\n`;
+  // screen-reader users don't hear a duplicate of the React app. The full
+  // rendered article body is included so non-JS / AI-search crawlers (Perplexity,
+  // ChatGPT, CCBot) see the real content — the React app renders the same
+  // markdown, so this is not cloaking.
+  return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${joined}\n  </section>\n`;
 }
 
 /**
@@ -183,13 +231,13 @@ function buildBodyInjection(route: SeoRoute): string {
  * but blow away the existing title/description/canonical/OG/Twitter/JSON-LD/robots
  * and inject the route's values in their place.
  */
-function rewriteShell(
+async function rewriteShell(
   baseHtml: string,
   route: SeoRoute,
   site: Site,
   globalSchema: Schema[],
   supportedLangs: readonly string[],
-): string {
+): Promise<string> {
   let html = baseHtml;
 
   // 1. Strip the existing SEO surface — keep viewport, charset, theme-color,
@@ -220,8 +268,12 @@ function rewriteShell(
   }
 
   // 4. Inject crawlable body content before #root so non-JS / AI-search
-  //    crawlers see real text (H1 + summary) instead of an empty shell.
-  const bodyInjection = buildBodyInjection(route);
+  //    crawlers see real text (H1 + summary) instead of an empty shell. For
+  //    article routes, the full rendered markdown body is included so AI-search
+  //    crawlers see the complete article (the React app renders the same
+  //    markdown — no cloaking).
+  const bodyHtml = route.articleSlug ? await renderArticleBody(route.articleSlug) : '';
+  const bodyInjection = buildBodyInjection(route, bodyHtml);
   if (bodyInjection) {
     html = html.replace(/<div id="root">/i, `${bodyInjection}  <div id="root">`);
   }
@@ -392,7 +444,7 @@ async function main() {
 
   let shellsWritten = 0;
   for (const route of ROUTES) {
-    const html = rewriteShell(
+    const html = await rewriteShell(
       baseHtml,
       route,
       SITE,

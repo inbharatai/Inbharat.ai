@@ -11,11 +11,13 @@
 import type { CrawlRun, GrowthPage } from "./types.js";
 import { assertAuthorized, logInfo } from "./authorization.js";
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
-import { crawlUrl, extractInternalLinks, fetchPage } from "./crawler.js";
+import { crawlUrl, extractInternalLinks, fetchPage, fetchSitemapUrls } from "./crawler.js";
 import { scoreSeo } from "./seo-auditor.js";
 import { scoreGeo } from "./geo-auditor.js";
 
-const MAX_PAGES_PER_DOMAIN = 25;
+// Raised from 25 → 60 so the daily cron covers the homepage + hub + 12
+// "Build AI with Reeturaj" articles + the existing static pages in one run.
+const MAX_PAGES_PER_DOMAIN = 60;
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
@@ -55,6 +57,19 @@ export async function auditDomain(domain: string): Promise<CrawlRun> {
     }
   } catch {
     // homepage fetch failed — still try the root URL via crawlUrl below
+  }
+
+  // Seed: merge URLs from /sitemap.xml so article slugs (and any other pages
+  // not linked from the homepage) are auto-audited by the daily cron. The
+  // sitemap is the authoritative discovery source for the article series.
+  try {
+    for (const loc of await fetchSitemapUrls(rootUrl)) {
+      if (targets.size >= MAX_PAGES_PER_DOMAIN) break;
+      // Only same-origin URLs (sitemap could theoretically list external URLs).
+      if (domainOf(loc) === scope) targets.add(loc);
+    }
+  } catch {
+    // no sitemap or unreachable → continue with homepage-seeded targets
   }
 
   for (const url of targets) {

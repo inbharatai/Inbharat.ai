@@ -7,7 +7,20 @@
  *
  * Add a new public route here ➜ it shows up in sitemap.xml, gets a pre-built
  * SEO shell (`dist/<path>/index.html`), and works with useDocumentHead.
+ *
+ * The "Build AI with Reeturaj" article routes are generated from the article
+ * manifest in content/articles.meta.ts (one SeoRoute per article, with
+ * TechArticle + FAQPage + BreadcrumbList schema + a crawlable seoBody). The
+ * manifest is body-free, so this file stays safe to import client-side.
  */
+
+import {
+  ARTICLES,
+  ARTICLE_HUB_PATH,
+  articlePath,
+  articleVisualPath,
+} from './content/articles.meta';
+import { buildArticleSchemas } from './content/article-schema';
 
 export const SITE = {
   url: 'https://inbharat.ai',
@@ -43,6 +56,15 @@ export type SeoRoute = {
   changefreq: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
   /** Whether to add hreflang alternates for all 11 languages. */
   multilingual: boolean;
+  /**
+   * For "Build AI with Reeturaj" article routes only: the article slug. When
+   * set, scripts/build-seo.ts reads content/articles/<slug>.md at build time
+   * and bakes the full rendered body into the crawlable shell so AI-search
+   * crawlers see the complete article. The client bundle never imports bodies
+   * (ArticlePage loads them lazily via import.meta.glob) — this is build-time
+   * only. The React app renders the same markdown, so this is not cloaking.
+   */
+  articleSlug?: string;
   /** Extra schema.org JSON-LD objects to inject on this shell (Organization + WebSite always present). */
   extraSchema?: Array<Record<string, unknown>>;
   /**
@@ -217,7 +239,9 @@ const softwareApplication = {
   inLanguage: SUPPORTED_LANGS.slice(),
 };
 
-const founderPerson = {
+// Exported so ArticlePage.tsx can reuse the same author entity for its
+// client-side JSON-LD (kept in sync with the baked shell schema).
+export const founderPerson = {
   '@context': 'https://schema.org',
   '@type': 'Person',
   name: 'Reeturaj Goswami',
@@ -273,6 +297,68 @@ const productSuite = {
     },
   ],
 };
+
+const founderLearningPage = {
+  '@context': 'https://schema.org',
+  '@type': 'ProfilePage',
+  name: 'Learn AI with Reeturaj Goswami',
+  description:
+    'Founder-led practical AI learning hub from Reeturaj Goswami with build logs, videos, workshops, and implementation lessons from real products.',
+  url: SITE.url + '/learn-ai-with-reeturaj',
+  about: {
+    '@type': 'Person',
+    name: 'Reeturaj Goswami',
+    worksFor: {
+      '@type': 'Organization',
+      name: SITE.name,
+      url: SITE.url,
+    },
+    sameAs: ORG_SAMEAS,
+  },
+};
+
+/**
+ * ItemList of the "Build AI with Reeturaj" articles, attached to the hub shell
+ * so search + AI engines see the series as one collection (and so the hub isn't
+ * a thin ProfilePage). Only public article URLs — no admin/private routes.
+ */
+const founderArticleList = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'Build AI with Reeturaj — practical AI article series',
+  itemListElement: ARTICLES.map((a, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    url: SITE.url + articlePath(a.slug),
+    name: a.title,
+  })),
+};
+
+/** Audience line appended to every article's crawlable seoBody (paragraph 2). */
+const ARTICLE_AUDIENCE_LINE =
+  'A practical, jargon-free guide for Indian engineering teams and founders — part of the Learn AI with Reeturaj series on InBharat AI.';
+
+/**
+ * One SeoRoute per article: TechArticle + FAQPage + BreadcrumbList schema
+ * (built in content/article-schema.ts), a per-article OG image, and a
+ * crawlable seoBody (the direct-answer abstract + the audience line). Spread
+ * into ROUTES below so build-seo emits one shell + one sitemap entry per slug.
+ */
+const ARTICLE_ROUTES: SeoRoute[] = ARTICLES.map((meta) => ({
+  path: articlePath(meta.slug),
+  title: meta.title,
+  description: meta.description,
+  ogImage: articleVisualPath(meta),
+  priority: 0.6,
+  changefreq: 'monthly',
+  multilingual: false,
+  articleSlug: meta.slug,
+  extraSchema: buildArticleSchemas(meta, SITE, founderPerson),
+  seoBody: {
+    h1: meta.title,
+    paragraphs: [meta.abstract, ARTICLE_AUDIENCE_LINE],
+  },
+}));
 
 export const ROUTES: SeoRoute[] = [
   {
@@ -334,6 +420,31 @@ export const ROUTES: SeoRoute[] = [
       ],
     },
   },
+  {
+    path: '/learn-ai-with-reeturaj',
+    title: 'Learn AI with Reeturaj Goswami — Founder-Led Practical AI | InBharat AI',
+    description:
+      'Practical AI learning from Reeturaj Goswami, founder of InBharat.ai. In-depth articles on AI agents, RAG, vibe coding, prompt engineering, CI/CD, DevSecOps, and Desh Ka AI — built for Bharat.',
+    priority: 0.7,
+    changefreq: 'weekly',
+    multilingual: false,
+    extraSchema: [
+      breadcrumb('Learn AI with Reeturaj', '/learn-ai-with-reeturaj'),
+      founderPerson,
+      founderLearningPage,
+      founderArticleList,
+    ],
+    seoBody: {
+      h1: 'Learn AI with Reeturaj Goswami — Practical AI for Bharat',
+      paragraphs: [
+        'Learn AI with Reeturaj Goswami is a founder-led practical AI learning hub from the founder of InBharat.ai. It publishes in-depth, accuracy-reviewed articles on AI agents, retrieval-augmented generation (RAG), vibe coding, agentic AI, prompt engineering, generative AI, CI/CD, infrastructure as code, DevSecOps, software supply chain security, the InBharat ecosystem, and Desh Ka AI — each written for Indian engineering teams, founders, and learners, with a Bharat-first angle.',
+        'Every article is a direct, jargon-free breakdown: a direct-answer summary, a numbered explanation of how the technology works, comparison tables where options differ, and a frequently-asked-questions section. Topics span AI Foundations, AI Tools, Engineering, DevOps, Security, and InBharat — the InBharat.ai mission to build AI in India, for India, by Indians.',
+        'No hype. No jargon. Learn AI by building real tools for real problems. Follow the build journey on LinkedIn, and try the InBharat AI console for voice-first agentic AI across 11 Indian languages.',
+      ],
+    },
+  },
+  // One route per "Build AI with Reeturaj" article (12 in Phase 1).
+  ...ARTICLE_ROUTES,
   {
     path: '/contact',
     title: 'Contact InBharat AI — Get in Touch',

@@ -8,9 +8,10 @@
  */
 import { canPerform, isDomainAuthorized, isRepoAuthorized, normalizeDomain } from "../lib/growth/authorization.js";
 import { containsSecret, redact, isForbiddenPath } from "../lib/growth/redaction.js";
-import { parsePage, extractInternalLinks } from "../lib/growth/crawler.js";
+import { parsePage, extractInternalLinks, fetchSitemapUrls } from "../lib/growth/crawler.js";
 import { scoreSeo } from "../lib/growth/seo-auditor.js";
 import { scoreGeo } from "../lib/growth/geo-auditor.js";
+import { promoteArticle } from "../lib/growth/promoter.js";
 
 let pass = 0;
 let fail = 0;
@@ -102,9 +103,126 @@ check("GEO score 70-100 (answerable page)", geo.score >= 70 && geo.score <= 100,
 const thinGeo = scoreGeo({ ...meta, wordCount: 50, h1: undefined, metaDescription: "short", faqPresent: false, proofPresent: false, audienceSignal: false, schemaTypes: [] });
 check("thin GEO scores low (<55)", thinGeo.score < 55, `got ${thinGeo.score}`);
 
+// ─── fetchSitemapUrls (network mocked; no real I/O) ───
+console.log("\nCrawler (fetchSitemapUrls, mocked fetch):");
+const origFetch = globalThis.fetch;
+type FakeRes = { ok: boolean; status: number; text: () => Promise<string> };
+function fakeRes(body: string, ok = true, status = 200): FakeRes {
+  return { ok, status, text: () => Promise.resolve(body) };
+}
+try {
+  // Case 1: plain urlset with article slugs + one external URL.
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const u = typeof input === "string" ? input : (input as Request).url;
+    if (u.endsWith("/sitemap.xml")) {
+      return Promise.resolve(
+        fakeRes(
+          '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+            "<url><loc>https://inbharat.ai/</loc></url>" +
+            "<url><loc>https://inbharat.ai/learn-ai-with-reeturaj/rag</loc></url>" +
+            "<url><loc>https://inbharat.ai/learn-ai-with-reeturaj/cicd</loc></url>" +
+            "<url><loc>https://example.com/external</loc></url>" +
+            "</urlset>",
+        ),
+      );
+    }
+    return Promise.resolve(fakeRes("", false, 404));
+  }) as typeof globalThis.fetch;
+
+  const urls = await fetchSitemapUrls("https://inbharat.ai/sitemap.xml");
+  check("returns all <loc> entries", urls.length === 4, `got ${urls.length}`);
+  check("includes article slug", urls.includes("https://inbharat.ai/learn-ai-with-reeturaj/rag"));
+  check("includes external loc verbatim (caller filters same-origin)", urls.includes("https://example.com/external"));
+
+  // Unreachable sitemap → empty list (callers treat as "no extra targets").
+  globalThis.fetch = ((_i: RequestInfo | URL) => Promise.resolve(fakeRes("", false, 500))) as typeof globalThis.fetch;
+  check("unreachable sitemap → []", (await fetchSitemapUrls("https://inbharat.ai/")).length === 0);
+
+  // Case 2: sitemap index → nested child sitemap (one level of recursion).
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const u = typeof input === "string" ? input : (input as Request).url;
+    if (u.endsWith("/sitemap.xml")) {
+      return Promise.resolve(
+        fakeRes(
+          '<?xml version="1.0"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+            "<sitemap><loc>https://inbharat.ai/sitemap-articles.xml</loc></sitemap>" +
+            "</sitemapindex>",
+        ),
+      );
+    }
+    if (u.endsWith("/sitemap-articles.xml")) {
+      return Promise.resolve(
+        fakeRes(
+          '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+            "<url><loc>https://inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai</loc></url>" +
+            "</urlset>",
+        ),
+      );
+    }
+    return Promise.resolve(fakeRes("", false, 404));
+  }) as typeof globalThis.fetch;
+  const nested = await fetchSitemapUrls("https://inbharat.ai/");
+  check("follows sitemap index to child urls", nested.includes("https://inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai"), `got ${JSON.stringify(nested)}`);
+} finally {
+  globalThis.fetch = origFetch;
+}
+
+// ─── Promoter (model + DB mocked; no real network or Supabase) ───
+console.log("\nPromoter (mocked model, no DB):");
+const origFetch2 = globalThis.fetch;
+const origGeminiKey = process.env.GEMINI_API_KEY;
+try {
+  process.env.GEMINI_API_KEY = "test-key";
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const u = typeof input === "string" ? input : (input as Request).url;
+    if (u.includes("generativelanguage.googleapis.com")) {
+      return Promise.resolve(
+        fakeJson({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: '{"caption":"RAG lets an LLM cite your own docs instead of guessing. Read the full breakdown.","internalLinks":["https://inbharat.ai/learn-ai-with-reeturaj/rag","https://inbharat.ai/learn-ai-with-reeturaj/vibe-coding"]}',
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      );
+    }
+    return Promise.resolve(fakeJson({}, false, 404));
+  }) as typeof globalThis.fetch;
+
+  const draft = await promoteArticle("https://inbharat.ai/learn-ai-with-reeturaj/rag", {
+    title: "RAG: How Indian AI Teams Make LLMs Actually Useful",
+    description: "Retrieval-augmented generation explained.",
+  });
+  check("promoter returns pending status", draft.status === "pending", `got ${draft.status}`);
+  check("promoter returns a caption", typeof draft.caption === "string" && draft.caption.length > 0, `got ${String(draft.caption)}`);
+  check("promoter returns 1–3 internal links", draft.internalLinks.length >= 1 && draft.internalLinks.length <= 3, `got ${draft.internalLinks.length}`);
+  check("promoter internal links are http(s) URLs", draft.internalLinks.every((l) => /^https?:\/\//.test(l)));
+
+  // No model configured → caption null, note set, still pending (task + draft still created).
+  process.env.GEMINI_API_KEY = "";
+  const draft2 = await promoteArticle("https://inbharat.ai/learn-ai-with-reeturaj/cicd", { title: "CI/CD" });
+  check("no model → null caption", draft2.caption === null);
+  check("no model → still pending status", draft2.status === "pending");
+  check("no model → note explains why", typeof draft2.note === "string" && draft2.note.length > 0, `got ${String(draft2.note)}`);
+} finally {
+  globalThis.fetch = origFetch2;
+  if (origGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = origGeminiKey;
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");
   process.exit(1);
 }
 void approx;
+
+function fakeJson(obj: unknown, ok = true, status = 200): { ok: boolean; status: number; json: () => Promise<unknown> } {
+  return { ok, status, json: () => Promise.resolve(obj) };
+}
