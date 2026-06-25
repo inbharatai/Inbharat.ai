@@ -38,7 +38,16 @@ export function initAnalytics(): void {
   if (!ENABLED || initialised) return;
   initialised = true;
 
-  // Inject GA loader (deferred so it never blocks LCP).
+  // If the static HTML shell already baked in the gtag (build-seo.ts injects the
+  // loader + config into <head> when VITE_GA_MEASUREMENT_ID is set), reuse that
+  // loader + window.gtag instead of double-injecting. The shell's config call
+  // already ran `gtag('config', ID, { send_page_view: false })`, so all we need
+  // here is to confirm window.gtag exists — page_view events are fired below by
+  // trackPageView as the SPA navigates.
+  if (typeof window.gtag === 'function') return;
+
+  // No shell-injected gtag (e.g. SPA-only render) — inject the GA loader now
+  // (deferred so it never blocks LCP).
   const s = document.createElement('script');
   s.async = true;
   s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(MEASUREMENT_ID!)}`;

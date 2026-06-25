@@ -17,6 +17,7 @@
  */
 
 import fs from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
@@ -40,6 +41,49 @@ function escapeAttr(s: string): string {
 
 function escapeText(s: string): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Load .env from project root into process.env (only keys not already set), so
+ * build-seo can read VITE_GA_MEASUREMENT_ID locally. On Vercel, env vars are
+ * already in process.env. No keys are logged — secrets stay out of output.
+ */
+function loadEnvDefaults(): void {
+  try {
+    const content = readFileSync(path.join(ROOT, '.env'), 'utf8');
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      const key = trimmed.slice(0, eq).trim();
+      const value = trimmed.slice(eq + 1).trim().replace(/^["']|["']$/g, '');
+      if (!process.env[key]) process.env[key] = value;
+    }
+  } catch {
+    // .env optional
+  }
+}
+
+/**
+ * The GA4 Measurement ID to bake into static shells, or '' if unset/invalid.
+ * Validated strictly (G-XXXX… / UA-XXXX…) so a malformed env value can never
+ * inject arbitrary markup into the HTML. Baking the gtag into the static shell
+ * means non-JS tag detectors (e.g. Google's setup wizard raw fetch) see it,
+ * while analytics.ts reuses it for SPA page_view events (no double-inject).
+ */
+function getGaMeasurementId(): string {
+  const raw = (process.env.VITE_GA_MEASUREMENT_ID || '').trim();
+  return /^[A-Z]{1,3}-[A-Z0-9_-]+$/i.test(raw) ? raw : '';
+}
+
+function buildGtagSnippet(gaId: string): string {
+  if (!gaId) return '';
+  return [
+    '    <!-- Google tag (gtag.js) — GA4, baked into the static shell so tag detectors see it -->',
+    `    <script async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>`,
+    `    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}',{send_page_view:false});</script>`,
+  ].join('\n');
 }
 
 function buildHeadInjection(
@@ -77,11 +121,19 @@ function buildHeadInjection(
     )
     .join('\n');
 
+  // GA4 gtag baked into the static shell so raw-HTML tag detectors (Google's
+  // setup wizard, GTM preview) see it without executing JS. analytics.ts still
+  // reuses window.gtag for SPA page_view events — dedup guard prevents a second
+  // loader. Empty string when no valid measurement ID is configured.
+  const gtagSnippet = buildGtagSnippet(getGaMeasurementId());
+
   return [
     // GSC verification must be in <head>; inject first so it's never lost.
     gscVerification
       ? `    <meta name="google-site-verification" content="${escapeAttr(gscVerification)}" />`
       : '',
+    // GA4 tag — high in <head> so detectors + first-hit page_view fire ASAP.
+    gtagSnippet,
     `    <title>${escapeText(route.title)}</title>`,
     `    <meta name="description" content="${escapeAttr(route.description)}" />`,
     `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
@@ -322,6 +374,10 @@ async function buildSceneWebPs() {
 /* ------------------------------------------------------------------ */
 
 async function main() {
+  // Make VITE_GA_MEASUREMENT_ID / GSC_SITE_VERIFICATION available at build time
+  // locally (from .env); on Vercel they are already in process.env.
+  loadEnvDefaults();
+
   const distExists = await fs
     .stat(DIST)
     .then((s) => s.isDirectory())
