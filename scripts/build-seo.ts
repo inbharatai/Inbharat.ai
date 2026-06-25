@@ -50,6 +50,10 @@ function buildHeadInjection(
 ): string {
   const fullUrl = site.url + (route.path === '/' ? '/' : route.path);
   const ogImage = route.ogImage ? site.url + route.ogImage : site.url + site.ogImage;
+  // Google Search Console ownership verification token (build-time env). When
+  // set, every shell gets the verification meta so you can claim the property
+  // in GSC without a separate deploy. Leave unset until you generate a token.
+  const gscVerification = (process.env.GSC_SITE_VERIFICATION || '').trim();
 
   const hreflangLinks = route.multilingual
     ? supportedLangs
@@ -74,6 +78,10 @@ function buildHeadInjection(
     .join('\n');
 
   return [
+    // GSC verification must be in <head>; inject first so it's never lost.
+    gscVerification
+      ? `    <meta name="google-site-verification" content="${escapeAttr(gscVerification)}" />`
+      : '',
     `    <title>${escapeText(route.title)}</title>`,
     `    <meta name="description" content="${escapeAttr(route.description)}" />`,
     `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
@@ -96,6 +104,25 @@ function buildHeadInjection(
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+/**
+ * Build the crawlable body section for a shell. The React app mounts into
+ * #root, so non-JS / AI-search crawlers (Perplexity, ChatGPT, CCBot, …) that
+ * don't execute JS would otherwise see an empty page. This injects a
+ * visually-hidden, screen-reader-skipped (aria-hidden) <section> with a
+ * faithful H1 + summary of what the app renders — no cloaking. JS-rendering
+ * crawlers (Googlebot) see the real React content instead.
+ */
+function buildBodyInjection(route: SeoRoute): string {
+  if (!route.seoBody) return '';
+  const parts = [
+    `    <h1>${escapeText(route.seoBody.h1)}</h1>`,
+    ...route.seoBody.paragraphs.map((p) => `    <p>${escapeText(p)}</p>`),
+  ].join('\n');
+  // Visually-hidden (sr-only) inline style so no CSS dependency; aria-hidden so
+  // screen-reader users don't hear a duplicate of the React app.
+  return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${parts}\n  </section>\n`;
 }
 
 /**
@@ -138,6 +165,13 @@ function rewriteShell(
       /<\/head>/i,
       `    <link rel="manifest" href="/manifest.json" />\n  </head>`,
     );
+  }
+
+  // 4. Inject crawlable body content before #root so non-JS / AI-search
+  //    crawlers see real text (H1 + summary) instead of an empty shell.
+  const bodyInjection = buildBodyInjection(route);
+  if (bodyInjection) {
+    html = html.replace(/<div id="root">/i, `${bodyInjection}  <div id="root">`);
   }
 
   return html;

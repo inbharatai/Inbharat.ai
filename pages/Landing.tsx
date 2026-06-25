@@ -125,6 +125,9 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
 
     let raf: number;
     let time = 0;
+    // Pause the rAF loop when the canvas scrolls out of view (CWV + battery
+    // guard for low-end devices). Resumes automatically on re-entry.
+    let paused = false;
 
     // Particles orbiting the core
     const particles: { angle: number; radius: number; speed: number; size: number; color: string; trail: number }[] = [];
@@ -292,10 +295,26 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
       ctx.arc(cx, cy, coreRadius * pulse2Scale, 0, Math.PI * 2);
       ctx.stroke();
 
-      raf = requestAnimationFrame(draw);
+      if (!paused) raf = requestAnimationFrame(draw);
     };
 
     raf = requestAnimationFrame(draw);
+    if (typeof IntersectionObserver !== 'undefined') {
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          const wasPaused = paused;
+          paused = !entry.isIntersecting;
+          if (wasPaused && !paused) raf = requestAnimationFrame(draw);
+        },
+        { threshold: 0 },
+      );
+      io.observe(canvas);
+      return () => {
+        io.disconnect();
+        cancelAnimationFrame(raf);
+        window.removeEventListener('resize', resize);
+      };
+    }
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
@@ -487,6 +506,8 @@ const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }
     }
 
     const startTime = performance.now();
+    // Pause when offscreen; resume on re-entry (CWV + battery guard).
+    let paused = false;
 
     const animate = (time: number) => {
       const elapsed = time - startTime;
@@ -588,10 +609,22 @@ const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }
         ]) { const [r, g, b] = st.color; ctx.fillStyle = `rgba(${r},${g},${b},${ra * 0.55})`; ctx.fillText(st.label, 6, ny(st.y) + 3); }
       }
 
-      raf = requestAnimationFrame(animate);
+      if (!paused) raf = requestAnimationFrame(animate);
     };
 
     raf = requestAnimationFrame(animate);
+    if (typeof IntersectionObserver !== 'undefined') {
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          const wasPaused = paused;
+          paused = !entry.isIntersecting;
+          if (wasPaused && !paused) raf = requestAnimationFrame(animate);
+        },
+        { threshold: 0 },
+      );
+      io.observe(canvas);
+      return () => { io.disconnect(); cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+    }
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, [reduceMotion]);
 
@@ -662,7 +695,11 @@ const EcosystemOrbital: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion })
     let raf: number;
     let t = 0;
 
+    // Pause the orbital animation when offscreen (CWV + battery guard; this
+    // loop drives ~60 React re-renders/sec via setPositions, so pausing matters).
+    let paused = false;
     const tick = () => {
+      if (paused) return;
       t += 0.016; // ~60fps
       const next = ORBITAL_MODULES.map((m) => {
         const cfg = RING_CONFIG[m.ring];
@@ -676,7 +713,19 @@ const EcosystemOrbital: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion })
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    let io: IntersectionObserver | undefined;
+    if (typeof IntersectionObserver !== 'undefined' && containerRef.current) {
+      io = new IntersectionObserver(
+        ([entry]) => {
+          const wasPaused = paused;
+          paused = !entry.isIntersecting;
+          if (wasPaused && !paused) raf = requestAnimationFrame(tick);
+        },
+        { threshold: 0 },
+      );
+      io.observe(containerRef.current);
+    }
+    return () => { io?.disconnect(); cancelAnimationFrame(raf); };
   }, [reduceMotion]);
 
   return (

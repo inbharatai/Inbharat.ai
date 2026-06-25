@@ -45,6 +45,13 @@ export type SeoRoute = {
   multilingual: boolean;
   /** Extra schema.org JSON-LD objects to inject on this shell (Organization + WebSite always present). */
   extraSchema?: Array<Record<string, unknown>>;
+  /**
+   * Crawlable body content injected into the static shell (visually hidden,
+   * screen-reader available) so non-JS and AI-search crawlers see real text
+   * instead of an empty #root. MUST stay a faithful summary of what the React
+   * app renders (no cloaking). `h1` anchors the page for AI answers.
+   */
+  seoBody?: { h1: string; paragraphs: string[] };
 };
 
 // All 11 supported languages — kept in sync with lib/i18n.ts supportedLanguages.
@@ -62,7 +69,19 @@ export const SUPPORTED_LANGS = [
   'as',
 ] as const;
 
-const ORG_SAMEAS = [SITE.social.instagram, SITE.social.linkedin, SITE.social.twitter];
+// Public live product sites + the public GitHub org. Wires the InBharat
+// product "universe" as one entity network for Google/AI engines. Only
+// public live sites + the public GitHub org — never private repo URLs,
+// RHCF Seva, or UniGurus (per project constraints).
+const ORG_SAMEAS = [
+  SITE.social.instagram,
+  SITE.social.linkedin,
+  SITE.social.twitter,
+  SITE.social.github,
+  'https://jakswarm.com',
+  'https://www.kathakitaab.com',
+  'https://testsprep.in',
+];
 
 const baseOrganization = {
   '@context': 'https://schema.org',
@@ -211,6 +230,50 @@ const founderPerson = {
   sameAs: ORG_SAMEAS,
 };
 
+/**
+ * InBharat product suite — public live products as an ItemList so search and
+ * AI engines see JAK Swarm, KathaKitaab, and TestsPrep as part of one
+ * InBharat entity network. Only public live sites are listed.
+ */
+const productSuite = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'InBharat AI product suite',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      item: {
+        '@type': 'WebApplication',
+        name: 'JAK Swarm',
+        url: 'https://jakswarm.com',
+        description:
+          'Open-source, self-hostable agentic company OS with an evidence graph, drift detection, and JAK Shield risk gating.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      item: {
+        '@type': 'WebApplication',
+        name: 'KathaKitaab',
+        url: 'https://www.kathakitaab.com',
+        description: 'AI-powered interactive storybooks for children in Indian languages.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 3,
+      item: {
+        '@type': 'WebApplication',
+        name: 'TestsPrep',
+        url: 'https://testsprep.in',
+        description: 'AI-driven adaptive test-preparation analytics.',
+      },
+    },
+  ],
+};
+
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
@@ -218,8 +281,24 @@ export const ROUTES: SeoRoute[] = [
     description: SITE.description,
     priority: 1.0,
     changefreq: 'weekly',
-    multilingual: true,
-    extraSchema: [homepageFAQ],
+    // hreflang disabled until real localized route shells (/hi/, /bn/ …) exist:
+    // ?lang= alternates canonicalize to the en URL, so they were inert and only
+    // added GSC "alternate page with proper canonical tag" noise. The 11-language
+    // UI switch still works via ?lang= — it's a UX feature, not an SEO one.
+    multilingual: false,
+    extraSchema: [homepageFAQ, productSuite],
+    seoBody: {
+      h1: 'InBharat AI — Affordable AI Tools Built for Bharat',
+      paragraphs: [
+        'InBharat AI is an independent AI product studio building affordable, voice-first, multilingual AI tools for India. Our tools run in 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese — and work on any modern phone, tablet, or desktop with nothing to install.',
+        'The InBharat product suite includes JAK Swarm, an open-source self-hostable agentic company OS with an evidence graph, drift detection, and JAK Shield risk gating; KathaKitaab, AI-powered interactive storybooks for children in Indian languages; and TestsPrep, AI-driven adaptive test-preparation analytics.',
+        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes. You can try it free on the web with a few messages before signing in — no credit card required.',
+        'InBharat AI is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
+        'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The studio favours open-source, self-hostable components so teams keep control of their data.',
+        'InBharat AI is an independent studio founded by Reeturaj Goswami, on a mission to make practical AI affordable and accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of tools designed around how Bharat actually works.',
+        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or custom AI tooling for Indian businesses.`,
+      ],
+    },
   },
   {
     path: '/app',
@@ -230,6 +309,13 @@ export const ROUTES: SeoRoute[] = [
     changefreq: 'monthly',
     multilingual: false,
     extraSchema: [softwareApplication],
+    seoBody: {
+      h1: 'InBharat AI Console — Agentic Search & Multi-Modal AI',
+      paragraphs: [
+        'The InBharat AI Console is a voice-first agentic AI for Bharat. It runs research, coding, education, executive, and shopper modes with multi-language support across 11 Indian languages.',
+        'Try it free on the web — no install needed and no credit card required. The console is fully responsive and works on phones, tablets, and desktops.',
+      ],
+    },
   },
   {
     path: '/about',
@@ -240,6 +326,13 @@ export const ROUTES: SeoRoute[] = [
     changefreq: 'monthly',
     multilingual: false,
     extraSchema: [breadcrumb('About', '/about'), founderPerson],
+    seoBody: {
+      h1: 'About InBharat AI — Building Practical AI for India',
+      paragraphs: [
+        'InBharat is an independent AI product studio building voice-first, multilingual tools designed around Indian languages, devices, and workflows.',
+        'InBharat AI was founded by Reeturaj Goswami. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation.',
+      ],
+    },
   },
   {
     path: '/contact',
@@ -250,6 +343,13 @@ export const ROUTES: SeoRoute[] = [
     changefreq: 'yearly',
     multilingual: false,
     extraSchema: [breadcrumb('Contact', '/contact')],
+    seoBody: {
+      h1: 'Contact InBharat AI',
+      paragraphs: [
+        "Reach out about InBharat AI's products, partnerships, or feedback.",
+        `Email ${SITE.contactEmail}. Find InBharat AI on Instagram, LinkedIn, X, and GitHub at ${SITE.social.github}.`,
+      ],
+    },
   },
   {
     path: '/privacy',
@@ -260,6 +360,13 @@ export const ROUTES: SeoRoute[] = [
     changefreq: 'yearly',
     multilingual: false,
     extraSchema: [breadcrumb('Privacy Policy', '/privacy')],
+    seoBody: {
+      h1: 'Privacy Policy — InBharat AI',
+      paragraphs: [
+        'How InBharat AI handles your data, what we store, what we do not, and how authentication and chat history work.',
+        'InBharat collects as little as possible: account email and auth state if you sign in, chat history if signed in, a language preference in your browser, and short-lived server logs. We do not sell your data, train models on your chat content, or run third-party advertising trackers.',
+      ],
+    },
   },
   {
     path: '/terms',
@@ -270,6 +377,12 @@ export const ROUTES: SeoRoute[] = [
     changefreq: 'yearly',
     multilingual: false,
     extraSchema: [breadcrumb('Terms of Service', '/terms')],
+    seoBody: {
+      h1: 'Terms of Service — InBharat AI',
+      paragraphs: [
+        "The terms covering use of InBharat AI's products, including content, accounts, and acceptable-use rules.",
+      ],
+    },
   },
 ];
 

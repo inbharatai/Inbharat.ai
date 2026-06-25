@@ -69,8 +69,12 @@ const Privacy: React.FC = () => (
         <li><strong>Vercel</strong> — hosts the website and serverless API routes.</li>
       </ul>
       <p>
-        We may add a privacy-respecting analytics provider (Google Analytics 4 or Plausible) later.
-        If we do, this page will be updated before it goes live.
+        InBharat AI integrates Google Analytics 4 for privacy-respecting traffic
+        measurement. It is inactive until a measurement ID is configured — until then,
+        no analytics script loads and no data is sent. When enabled, GA4 receives
+        first-party page-view and event data using Google&apos;s default measurement
+        cookies; we do not enable Google Ads or cross-site advertising tracking. You can
+        review Google&apos;s data-retention and privacy terms at analytics.google.com.
       </p>
     </section>
 
