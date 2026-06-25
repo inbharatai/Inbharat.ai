@@ -15,6 +15,17 @@ const Privacy = lazy(() => import('./pages/Privacy.tsx'));
 const Terms = lazy(() => import('./pages/Terms.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
+// InBharat Growth Agent admin (audit-only). Client-gated by RequireAdmin;
+// real enforcement is server-side in api/lib/requireAdmin.ts. Excluded from
+// the public sitemap (not listed in seo.config ROUTES) + forces noindex.
+const AdminGrowthLayout = lazy(() => import('./pages/admin/growth/AdminGrowthLayout.tsx'));
+const GrowthOverview = lazy(() => import('./pages/admin/growth/Overview.tsx'));
+const GrowthSites = lazy(() => import('./pages/admin/growth/Sites.tsx'));
+const GrowthRepos = lazy(() => import('./pages/admin/growth/Repos.tsx'));
+const GrowthIssues = lazy(() => import('./pages/admin/growth/Issues.tsx'));
+const GrowthPerformance = lazy(() => import('./pages/admin/growth/Performance.tsx'));
+const GrowthSettings = lazy(() => import('./pages/admin/growth/Settings.tsx'));
+
 const StaticLoader: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#030508] text-[#9aafc6]" aria-live="polite">
     <span className="text-[12px] font-semibold uppercase tracking-[0.3em]">Loading…</span>
@@ -50,6 +61,14 @@ root.render(
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
+            <Route path="/admin/growth" element={<AdminGrowthLayout />}>
+              <Route index element={<GrowthOverview />} />
+              <Route path="sites" element={<GrowthSites />} />
+              <Route path="repos" element={<GrowthRepos />} />
+              <Route path="issues" element={<GrowthIssues />} />
+              <Route path="performance" element={<GrowthPerformance />} />
+              <Route path="settings" element={<GrowthSettings />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

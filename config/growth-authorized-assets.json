@@ -1,0 +1,67 @@
+{
+  "_comment": "InBharat Growth Agent — Authorization Registry. Deny by default: only assets listed here may be touched, and only with the flags granted below. canPublishDirectly must stay false; publishing always requires human approval + PR. Edit this file, then redeploy — no DB needed for the guard.",
+  "version": 1,
+  "defaultMode": "audit-only",
+  "assets": [
+    {
+      "domain": "inbharat.ai",
+      "name": "InBharat.ai",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "Primary site + this repo. Canonical source of truth for product claims."
+    },
+    {
+      "domain": "jakswarm.com",
+      "name": "JAK Swarm",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "Closed-loop company OS. Canonical repo: inbharatai/jak-swarm."
+    },
+    {
+      "domain": "kathakitaab.com",
+      "name": "KathaKitaab",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "Interactive storybooks. Canonical repo: inbharatai/kathakitaab.ai."
+    },
+    {
+      "domain": "testsprep.in",
+      "name": "TestsPrep",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "Exam prep. Canonical repo: inbharat-ai/testsprep.in (private)."
+    },
+    {
+      "domain": "sahayaakseva.in",
+      "name": "Sahayaak Seva",
+      "status": "planned",
+      "canCrawl": false,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "Healthcare / field-assistance positioning. NOT live yet — crawl disabled until pages exist. RHCF Seva must never be exposed publicly under its own name; this brand absorbs all healthcare/field positioning."
+    }
+  ]
+}

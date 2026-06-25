@@ -56,6 +56,10 @@ const app = express();
 app.use(express.json({ limit: "1mb" }));
 
 const PORT = Number(process.env.LOCAL_API_PORT) || 3001;
+// Mark the local-dev shim so api/lib/requireAdmin.ts can recognize local dev
+// (LOCAL_API_PORT is the shared signal it checks) and allow-through admin
+// endpoints without a configured Supabase service role. Never set in prod.
+process.env.LOCAL_API_PORT = String(PORT);
 
 async function runHandler(
   path: string,
@@ -85,6 +89,11 @@ async function runHandler(
       const handler = mod.default;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await handler(vercelStyleReq, res as any);
+    } else if (growthHandlers[path as keyof typeof growthHandlers]) {
+      const mod = await growthHandlers[path as keyof typeof growthHandlers]();
+      const handler = mod.default;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await handler(vercelStyleReq, res as any);
     } else {
       res.status(404).json({ ok: false, code: "SERVER_ERROR" });
     }
@@ -101,12 +110,30 @@ async function runHandler(
 app.post("/api/chat", (req, res) => runHandler("/api/chat", req, res));
 app.post("/api/search", (req, res) => runHandler("/api/search", req, res));
 
+// InBharat Growth Agent routes (additive; chat/search untouched).
+const growthHandlers = {
+  "/api/growth/status": () => import("../api/growth/status.ts"),
+  "/api/growth/pages": () => import("../api/growth/pages.ts"),
+  "/api/growth/runs": () => import("../api/growth/runs.ts"),
+  "/api/growth/audit": () => import("../api/growth/audit.ts"),
+  "/api/growth/crawl": () => import("../api/growth/crawl.ts"),
+  "/api/growth/performance": () => import("../api/growth/performance.ts"),
+  "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
+};
+app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
+app.get("/api/growth/pages", (req, res) => runHandler("/api/growth/pages", req, res));
+app.get("/api/growth/runs", (req, res) => runHandler("/api/growth/runs", req, res));
+app.post("/api/growth/audit", (req, res) => runHandler("/api/growth/audit", req, res));
+app.post("/api/growth/crawl", (req, res) => runHandler("/api/growth/crawl", req, res));
+app.get("/api/growth/performance", (req, res) => runHandler("/api/growth/performance", req, res));
+app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
+
 // 404 for other /api
 app.use("/api", (_, res) => res.status(404).json({ ok: false, code: "SERVER_ERROR" }));
 
 createServer(app).listen(PORT, () => {
   console.log(`Local API server: http://localhost:${PORT}`);
-  console.log("  POST /api/chat, POST /api/search");
+  console.log("  POST /api/chat, POST /api/search, /api/growth/* (admin)");
   if (!process.env.OPENAI_API_KEY) console.warn("  OPENAI_API_KEY not set — chat will fail.");
   if (!process.env.SERPER_API_KEY) console.warn("  SERPER_API_KEY not set — search will fail.");
 });
