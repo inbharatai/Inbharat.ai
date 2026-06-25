@@ -155,7 +155,7 @@ async function persistRun(run: CrawlRun): Promise<void> {
     const runId = data.id as string;
     // Persist pages (lightweight subset to keep rows small).
     const rows = (run.pages || []).map((p) => ({
-      run_id: runId,
+      crawl_run_id: runId,
       url: p.url,
       domain: p.domain,
       http_status: p.httpStatus ?? null,
@@ -179,24 +179,24 @@ async function persistRun(run: CrawlRun): Promise<void> {
 async function persistPage(domain: string, page: GrowthPage): Promise<void> {
   if (!supabaseAdmin) return;
   try {
-    await supabaseAdmin.from("growth_pages").upsert(
-      {
-        url: page.url,
-        domain,
-        http_status: page.httpStatus ?? null,
-        title: page.title ?? null,
-        meta_description: page.metaDescription ?? null,
-        canonical: page.canonical ?? null,
-        h1: page.h1 ?? null,
-        word_count: page.wordCount ?? null,
-        seo_score: page.seoScore,
-        geo_score: page.geoScore,
-        issues: page.issues,
-        meta: page.meta,
-        crawled_at: page.crawledAt,
-      },
-      { onConflict: "url" }
-    );
+    // Plain insert: growth_pages has no unique constraint on url (a URL may
+    // be audited across multiple runs), so upsert-on-url is invalid. The
+    // Issues view orders by crawled_at desc, so the latest audit surfaces.
+    await supabaseAdmin.from("growth_pages").insert({
+      url: page.url,
+      domain,
+      http_status: page.httpStatus ?? null,
+      title: page.title ?? null,
+      meta_description: page.metaDescription ?? null,
+      canonical: page.canonical ?? null,
+      h1: page.h1 ?? null,
+      word_count: page.wordCount ?? null,
+      seo_score: page.seoScore,
+      geo_score: page.geoScore,
+      issues: page.issues,
+      meta: page.meta,
+      crawled_at: page.crawledAt,
+    });
   } catch {
     // DB optional
   }
