@@ -45,9 +45,40 @@ export function isModelConfigured(choice: ModelChoice): boolean {
   return !!process.env.GEMINI_API_KEY;
 }
 
-/** Monthly budget cap in USD (default 20). Throws when exceeded. */
-export function monthlyBudgetUsd(): number {
-  return Number(process.env.GROWTH_MONTHLY_BUDGET_USD || 20);
+/** Monthly budget cap in USD. Reads the live value from growth_settings
+ *  (so the admin UI can change it without a redeploy), falling back to the
+ *  GROWTH_MONTHLY_BUDGET_USD env var, then 20. Cached for the current calendar
+ *  month; call bustBudgetCache() after an admin edit so the next check re-reads.
+ *  Returns the cap + where it came from (db|env|default) for the dashboard. */
+let budgetCache: { month: string; cap: number; source: "db" | "env" | "default" } | null = null;
+
+export async function monthlyBudgetUsd(): Promise<{ cap: number; source: "db" | "env" | "default" }> {
+  const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+  if (budgetCache && budgetCache.month === month) return { cap: budgetCache.cap, source: budgetCache.source };
+  const envVal = Number(process.env.GROWTH_MONTHLY_BUDGET_USD);
+  const envCap = Number.isFinite(envVal) && envVal > 0 ? envVal : 20;
+  if (supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("growth_settings")
+        .select("monthly_budget_usd")
+        .eq("id", 1)
+        .maybeSingle();
+      if (!error && data && Number.isFinite(Number(data.monthly_budget_usd))) {
+        budgetCache = { month, cap: Number(data.monthly_budget_usd), source: "db" };
+        return { cap: budgetCache.cap, source: "db" };
+      }
+    } catch {
+      // fall through to env/default
+    }
+  }
+  budgetCache = { month, cap: envCap, source: Number.isFinite(envVal) && envVal > 0 ? "env" : "default" };
+  return { cap: envCap, source: budgetCache.source };
+}
+
+/** Invalidate the cached budget cap after an admin edit (next withinBudget re-reads). */
+export function bustBudgetCache(): void {
+  budgetCache = null;
 }
 
 let monthSpentCache: { month: string; spent: number } | null = null;
@@ -74,7 +105,8 @@ export async function monthSpentUsd(): Promise<number> {
 }
 
 export async function withinBudget(): Promise<boolean> {
-  return (await monthSpentUsd()) < monthlyBudgetUsd();
+  const { cap } = await monthlyBudgetUsd();
+  return (await monthSpentUsd()) < cap;
 }
 
 /** Record a usage row (best-effort). Maps the camelCase ModelUsageRecord to the
@@ -92,6 +124,8 @@ export async function logUsage(rec: ModelUsageRecord): Promise<void> {
         total_tokens: rec.totalTokens,
         cost_usd: rec.costUsd,
         status: rec.status,
+        context_url: rec.contextUrl ?? null,
+        provider: rec.provider ?? null,
       });
       return;
     } catch (e) {

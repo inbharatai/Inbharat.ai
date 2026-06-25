@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAdminApi } from "../../../lib/growth/adminApi";
 
 interface Repo {
   productName: string;
@@ -13,6 +14,11 @@ interface Repo {
   hasPrivateRepo: boolean;
 }
 
+interface StatusResp {
+  ok: boolean;
+  repos?: Repo[];
+}
+
 const STATUS_COLOR: Record<string, string> = {
   canonical_private: "bg-sky-500/15 text-sky-300",
   public_mirror_current: "bg-emerald-500/15 text-emerald-300",
@@ -23,25 +29,24 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const Repos: React.FC = () => {
+  const { fetchJson } = useAdminApi();
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/growth/status", { headers: { accept: "application/json" } })
-      .then(async (r) => {
-        if (cancelled) return;
-        if (!r.ok) throw new Error(`status ${r.status}`);
-        const data = await r.json();
-        setRepos(data.repos || []);
-      })
-      .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+    (async () => {
+      const { data, error } = await fetchJson<StatusResp>("/api/growth/status");
+      if (cancelled) return;
+      if (error) setError(error);
+      else setRepos(data?.repos || []);
+      setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchJson]);
 
   if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
   if (error) return <p className="text-[13px] text-rose-300">Failed to load: {error}</p>;

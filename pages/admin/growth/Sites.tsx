@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAdminApi } from "../../../lib/growth/adminApi";
 
 interface Asset {
   domain: string;
@@ -18,6 +19,7 @@ interface StatusResp {
 }
 
 const Sites: React.FC = () => {
+  const { fetchJson } = useAdminApi();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,42 +28,33 @@ const Sites: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/growth/status", { headers: { accept: "application/json" } })
-      .then(async (r) => {
-        if (cancelled) return;
-        if (!r.ok) throw new Error(`status ${r.status}`);
-        const data: StatusResp = await r.json();
-        setAssets(data.assets || []);
-      })
-      .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+    (async () => {
+      const { data, error } = await fetchJson<StatusResp>("/api/growth/status");
+      if (cancelled) return;
+      if (error) setError(error);
+      else setAssets(data?.assets || []);
+      setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchJson]);
 
   async function runAudit(domain: string) {
     setBusy(domain);
     setAuditMsg((m) => ({ ...m, [domain]: "Auditing…" }));
-    try {
-      const token = (window as any).__growthAccessToken;
-      const res = await fetch("/api/growth/audit", {
-        method: "POST",
-        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ domain }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      const run = data?.run;
-      setAuditMsg((m) => ({
-        ...m,
-        [domain]: `Done — ${run?.pagesCount ?? 0} pages · avg SEO ${run?.avgSeoScore ?? "—"} · avg GEO ${run?.avgGeoScore ?? "—"}`,
-      }));
-    } catch (e) {
-      setAuditMsg((m) => ({ ...m, [domain]: `Failed: ${(e as Error).message}` }));
-    } finally {
-      setBusy(null);
-    }
+    const { data, error } = await fetchJson<{ run?: { pagesCount?: number; avgSeoScore?: number; avgGeoScore?: number } }>(
+      "/api/growth/audit",
+      { method: "POST", body: JSON.stringify({ domain }) },
+    );
+    const run = data?.run;
+    setAuditMsg((m) => ({
+      ...m,
+      [domain]: error
+        ? `Failed: ${error}`
+        : `Done — ${run?.pagesCount ?? 0} pages · avg SEO ${run?.avgSeoScore ?? "—"} · avg GEO ${run?.avgGeoScore ?? "—"}`,
+    }));
+    setBusy(null);
   }
 
   if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;

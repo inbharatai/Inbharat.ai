@@ -101,3 +101,52 @@ export function methodNotAllowed(res: VercelResponse, requestId: string, allowed
   res.setHeader("Allow", allowed);
   res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed", requestId });
 }
+
+// ─── Cron auth ────────────────────────────────────────────────────────────
+//
+// Vercel's scheduled cron invokes the endpoint with an HTTP GET and identifies
+// itself via `user-agent: vercel-cron/1.0` + an `x-vercel-cron-schedule` header
+// (it can NOT send a shared secret header). So a cron invocation is authorized
+// by that Vercel signature. Two more paths: an external scheduler carrying a
+// CRON_SECRET, and an authenticated admin (the dashboard "Run now" button).
+
+export type CronAuthOk = {
+  ok: true;
+  requestId: string;
+  source: "vercel-cron" | "cron-secret" | "admin" | "local-dev";
+  userId?: string;
+};
+export type CronAuthResult = CronAuthOk | AdminErr;
+
+export function isCronAuthErr(a: CronAuthResult): a is AdminErr {
+  return a.ok === false;
+}
+
+/** Authenticate a daily-cron invocation. Order: Vercel signature → CRON_SECRET → admin. */
+export async function authorizeCron(req: VercelRequest): Promise<CronAuthResult> {
+  const requestId = getRequestId(req);
+
+  // 1. Vercel's scheduled cron (GET, vercel-cron UA / schedule header).
+  const ua = (req.headers?.["user-agent"] as string | undefined) || "";
+  const hasSchedule = !!req.headers?.["x-vercel-cron-schedule"];
+  if (/vercel-cron/i.test(ua) || hasSchedule) {
+    return { ok: true, requestId, source: "vercel-cron" };
+  }
+
+  // 2. External scheduler with a shared secret (x-cron-secret or Bearer).
+  const secret = process.env.CRON_SECRET;
+  const provided =
+    (req.headers?.["x-cron-secret"] as string | undefined) ||
+    (req.headers?.["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
+  if (secret && provided && provided === secret) {
+    return { ok: true, requestId, source: "cron-secret" };
+  }
+
+  // 3. Authenticated admin (dashboard "Run now"). Returns the admin's userId.
+  const admin = await requireAdmin(req);
+  if (admin.ok) return { ok: true, requestId, source: "admin", userId: admin.userId };
+
+  // No path matched. Allow in local dev so cron tests work without secrets.
+  if (isLocalDev()) return { ok: true, requestId, source: "local-dev" };
+  return admin; // AdminErr (401/403/500)
+}

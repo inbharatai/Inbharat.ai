@@ -159,4 +159,8 @@ export interface ModelUsageRecord {
   totalTokens: number;
   costUsd: number;
   status: string;
+  /** Which article/URL this call served (for the "where used" dashboard). Null for system/audit calls. */
+  contextUrl?: string;
+  /** Which provider served this call (openai|gemini). Derivable from model but stored for clean grouping. */
+  provider?: "openai" | "gemini";
 }

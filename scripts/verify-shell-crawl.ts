@@ -96,5 +96,39 @@ assert("article has multiple H2 sections", (aMeta.h2Count ?? 0) >= 3);
 assert("article SEO score healthy (≥ 70)", aSeo.score >= 70);
 assert("article no HIGH-severity thin-content issue", !aSeo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
 
+// ─── Admin console shells (private: noindex + excluded from sitemap) ───
+// The admin routes get prebuilt shells ONLY so the SPA boots (the catch-all
+// rewrite does not serve the SPA for shell-less routes — the root cause of the
+// /admin/growth 404). They must be noindex and absent from sitemap.xml.
+const adminShellPath = resolve(__dirname, "..", "dist", "admin", "growth", "index.html");
+const adminUsageShellPath = resolve(__dirname, "..", "dist", "admin", "growth", "usage", "index.html");
+const sitemapPath = resolve(__dirname, "..", "dist", "sitemap.xml");
+let adminHtml = "";
+try {
+  adminHtml = readFileSync(adminShellPath, "utf8");
+} catch {
+  console.log(`\n=== Admin shell — NOT FOUND at ${adminShellPath} ===`);
+  assert("admin shell built (dist/admin/growth/index.html exists — fixes the 404)", false);
+  console.log(`\n${failures === 0 ? "ALL ACCURACY CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);
+  process.exit(failures === 0 ? 0 : 1);
+}
+
+console.log("\n=== Admin-shell (private) assertions ===");
+assert("admin shell built (dist/admin/growth/index.html exists — fixes the 404)", adminHtml.length > 0);
+assert("admin shell is noindex,nofollow", /name="robots"\s+content="noindex,\s*nofollow"/i.test(adminHtml));
+try {
+  const usageShell = readFileSync(adminUsageShellPath, "utf8");
+  assert("usage sub-route shell built (dist/admin/growth/usage/index.html)", usageShell.length > 0);
+  assert("usage shell is noindex,nofollow", /name="robots"\s+content="noindex,\s*nofollow"/i.test(usageShell));
+} catch {
+  assert("usage sub-route shell built (dist/admin/growth/usage/index.html)", false);
+}
+try {
+  const sitemap = readFileSync(sitemapPath, "utf8");
+  assert("no admin/growth URL in sitemap.xml (private, excluded)", !/admin\/growth/i.test(sitemap));
+} catch {
+  assert("sitemap.xml readable", false);
+}
+
 console.log(`\n${failures === 0 ? "ALL ACCURACY CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);
 process.exit(failures === 0 ? 0 : 1);

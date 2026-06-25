@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAdminApi } from "../../../lib/growth/adminApi";
 
 interface Issue {
   severity: "critical" | "high" | "normal" | "low";
@@ -39,6 +40,7 @@ const SEV_COLOR: Record<string, string> = {
 const ARTICLE_PREFIX = "/learn-ai-with-reeturaj/";
 
 const Issues: React.FC = () => {
+  const { fetchJson } = useAdminApi();
   const [pages, setPages] = useState<GrowthPageRow[]>([]);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,32 +53,21 @@ const Issues: React.FC = () => {
 
   async function load() {
     setLoading(true);
-    try {
-      const res = await fetch("/api/growth/pages", { headers: { accept: "application/json" } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setPages(data.pages || []);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await fetchJson<{ pages?: GrowthPageRow[] }>("/api/growth/pages");
+    if (error) setError(error);
+    else setPages(data?.pages || []);
+    setLoading(false);
   }
 
   async function loadDrafts() {
-    try {
-      const res = await fetch("/api/growth/approvals", { headers: { accept: "application/json" } });
-      if (!res.ok) return;
-      const data = await res.json();
-      setDrafts(data.drafts || []);
-    } catch {
-      // drafts are best-effort UI
-    }
+    const { data } = await fetchJson<{ drafts?: DraftRow[] }>("/api/growth/approvals");
+    setDrafts(data?.drafts || []);
   }
 
   useEffect(() => {
     load();
     loadDrafts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function auditUrl(e: React.FormEvent) {
@@ -84,59 +75,44 @@ const Issues: React.FC = () => {
     if (!url.trim()) return;
     setAuditing(true);
     setAuditMsg(null);
-    try {
-      const res = await fetch("/api/growth/crawl", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setAuditMsg(`Audited ${url.trim()} — SEO ${data.page?.seoScore ?? "?"} · GEO ${data.page?.geoScore ?? "?"}`);
-      await load();
-    } catch (e) {
-      setAuditMsg(`Failed: ${(e as Error).message}`);
-    } finally {
-      setAuditing(false);
-    }
+    const { data, error } = await fetchJson<{ page?: { seoScore?: number; geoScore?: number } }>("/api/growth/crawl", {
+      method: "POST",
+      body: JSON.stringify({ url: url.trim() }),
+    });
+    setAuditMsg(
+      error
+        ? `Failed: ${error}`
+        : `Audited ${url.trim()} — SEO ${data?.page?.seoScore ?? "?"} · GEO ${data?.page?.geoScore ?? "?"}`,
+    );
+    setAuditing(false);
+    if (!error) await load();
   }
 
   async function promote(page: GrowthPageRow) {
     setPromotingUrl(page.url);
     setDraftMsg(null);
-    try {
-      const res = await fetch("/api/growth/promote", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: page.url, title: page.title || undefined, description: undefined }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setDraftMsg(
-        data?.draft?.status === "skipped"
+    const { data, error } = await fetchJson<{ draft?: { status?: string } }>("/api/growth/promote", {
+      method: "POST",
+      body: JSON.stringify({ url: page.url, title: page.title || undefined, description: undefined }),
+    });
+    setDraftMsg(
+      error
+        ? `Promote failed: ${error}`
+        : data?.draft?.status === "skipped"
           ? `Already has a pending draft for ${page.url}.`
           : `Drafted LinkedIn caption for ${page.url}.`,
-      );
-      await loadDrafts();
-    } catch (e) {
-      setDraftMsg(`Promote failed: ${(e as Error).message}`);
-    } finally {
-      setPromotingUrl(null);
-    }
+    );
+    setPromotingUrl(null);
+    if (!error) await loadDrafts();
   }
 
   async function decideDraft(draftId: string, decision: "approved" | "rejected") {
-    try {
-      const res = await fetch("/api/growth/approvals", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ draftId, decision }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      await loadDrafts();
-    } catch (e) {
-      setDraftMsg(`Decision failed: ${(e as Error).message}`);
-    }
+    const { error } = await fetchJson("/api/growth/approvals", {
+      method: "POST",
+      body: JSON.stringify({ draftId, decision }),
+    });
+    if (error) setDraftMsg(`Decision failed: ${error}`);
+    else await loadDrafts();
   }
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");

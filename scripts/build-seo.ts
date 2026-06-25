@@ -141,7 +141,11 @@ function buildHeadInjection(
     gtagSnippet,
     `    <title>${escapeText(route.title)}</title>`,
     `    <meta name="description" content="${escapeAttr(route.description)}" />`,
-    `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
+    // Private/admin routes (noIndex) get noindex,nofollow so they're never
+    // indexed even though they have a prebuilt shell; public routes stay indexable.
+    route.noIndex
+      ? `    <meta name="robots" content="noindex, nofollow" />`
+      : `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
     `    <link rel="canonical" href="${escapeAttr(fullUrl)}" />`,
     `    <meta property="og:type" content="website" />`,
     `    <meta property="og:url" content="${escapeAttr(fullUrl)}" />`,
@@ -302,6 +306,7 @@ function buildSitemap(
 ): string {
   const today = new Date().toISOString().slice(0, 10);
   const urls = routes
+    .filter((r) => !r.excludeFromSitemap)
     .map((r) => {
       const loc = site.url + (r.path === '/' ? '/' : r.path);
       const alts = r.multilingual

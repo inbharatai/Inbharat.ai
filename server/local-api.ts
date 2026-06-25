@@ -73,6 +73,7 @@ async function runHandler(
     method: req.method,
     headers: req.headers as Record<string, string | string[] | undefined>,
     body: req.body,
+    query: req.query,
   } as any;
   try {
     if (path === "/api/chat") {
@@ -120,6 +121,10 @@ const growthHandlers = {
   "/api/growth/performance": () => import("../api/growth/performance.ts"),
   "/api/growth/promote": () => import("../api/growth/promote.ts"),
   "/api/growth/approvals": () => import("../api/growth/approvals.ts"),
+  "/api/growth/whoami": () => import("../api/growth/whoami.ts"),
+  "/api/growth/usage": () => import("../api/growth/usage.ts"),
+  "/api/growth/budget": () => import("../api/growth/budget.ts"),
+  "/api/growth/insights": () => import("../api/growth/insights.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
@@ -131,6 +136,13 @@ app.get("/api/growth/performance", (req, res) => runHandler("/api/growth/perform
 app.post("/api/growth/promote", (req, res) => runHandler("/api/growth/promote", req, res));
 app.get("/api/growth/approvals", (req, res) => runHandler("/api/growth/approvals", req, res));
 app.post("/api/growth/approvals", (req, res) => runHandler("/api/growth/approvals", req, res));
+app.get("/api/growth/whoami", (req, res) => runHandler("/api/growth/whoami", req, res));
+app.get("/api/growth/usage", (req, res) => runHandler("/api/growth/usage", req, res));
+app.get("/api/growth/budget", (req, res) => runHandler("/api/growth/budget", req, res));
+app.patch("/api/growth/budget", (req, res) => runHandler("/api/growth/budget", req, res));
+app.get("/api/growth/insights", (req, res) => runHandler("/api/growth/insights", req, res));
+// Cron accepts GET (Vercel scheduled cron) + POST (manual/admin "Run now").
+app.get("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 
 // 404 for other /api

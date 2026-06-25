@@ -1,23 +1,33 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getRequestId, isCronErr, requireCron } from "../../lib/requireAdmin.js";
+import { getRequestId, isCronAuthErr, authorizeCron } from "../../lib/requireAdmin.js";
 import { auditDomain } from "../../../lib/growth/audit-runner.js";
 import { getAuthorizedAssets, logInfo } from "../../../lib/growth/authorization.js";
 import { promoteArticle } from "../../../lib/growth/promoter.js";
 
 const ARTICLE_PATH_PREFIX = "/learn-ai-with-reeturaj/";
 
-/** POST /api/growth/cron/daily — daily audit of all authorized domains + enqueue human-gated promotion drafts for "Build AI with Reeturaj" articles. */
+/**
+ * Daily Growth Agent run — audits every authorized domain and enqueues
+ * human-gated promotion drafts for "Build AI with Reeturaj" articles.
+ *
+ * Invoked three ways, all authenticated by authorizeCron:
+ *   - Vercel's scheduled cron (GET, user-agent vercel-cron) — the daily run.
+ *   - An external scheduler carrying CRON_SECRET.
+ *   - An authenticated admin hitting "Run now" in the dashboard (POST).
+ */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+  if (req.method !== "GET" && req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed", requestId });
   }
-  const cron = requireCron(req);
-  if (isCronErr(cron)) return res.status(cron.status).json(cron.body);
+  const cron = await authorizeCron(req);
+  if (isCronAuthErr(cron)) return res.status(cron.status).json(cron.body);
+
+  await logInfo("cron-daily-start", "global", `trigger=${cron.source}`);
 
   const assets = getAuthorizedAssets().filter((a) => a.canAudit && a.canCrawl && a.status !== "planned");
-  const results: { domain: string; status: string; pages?: number; error?: string; promoted?: number }[] = [];
+  const results: { domain: string; status: string; pages?: number; promoted?: number; error?: string }[] = [];
 
   for (const asset of assets) {
     try {
@@ -31,7 +41,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  return res.status(200).json({ ok: true, requestId: cron.requestId, results });
+  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length}`);
+
+  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results });
 }
 
 /**

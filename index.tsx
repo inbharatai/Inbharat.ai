@@ -22,6 +22,7 @@ const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 // the public sitemap (not listed in seo.config ROUTES) + forces noindex.
 const AdminGrowthLayout = lazy(() => import('./pages/admin/growth/AdminGrowthLayout.tsx'));
 const GrowthOverview = lazy(() => import('./pages/admin/growth/Overview.tsx'));
+const GrowthUsage = lazy(() => import('./pages/admin/growth/Usage.tsx'));
 const GrowthSites = lazy(() => import('./pages/admin/growth/Sites.tsx'));
 const GrowthRepos = lazy(() => import('./pages/admin/growth/Repos.tsx'));
 const GrowthIssues = lazy(() => import('./pages/admin/growth/Issues.tsx'));
@@ -67,6 +68,7 @@ root.render(
             <Route path="/learn-ai-with-reeturaj/:slug" element={<ArticlePage />} />
             <Route path="/admin/growth" element={<AdminGrowthLayout />}>
               <Route index element={<GrowthOverview />} />
+              <Route path="usage" element={<GrowthUsage />} />
               <Route path="sites" element={<GrowthSites />} />
               <Route path="repos" element={<GrowthRepos />} />
               <Route path="issues" element={<GrowthIssues />} />

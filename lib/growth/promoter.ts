@@ -222,6 +222,9 @@ async function generatePromotionDraft(
       totalTokens,
       costUsd: estimateCost(choice, totalTokens),
       status: caption ? "ok" : "parse_failed",
+      // So the admin "where used" view can attribute spend to this article.
+      contextUrl: url,
+      provider: choice.provider,
     });
     if (!caption) return { caption: null, internalLinks, note: "model returned no usable caption" };
     return { caption, internalLinks };

@@ -121,9 +121,9 @@ After deploying to Vercel, confirm static assets are public:
 | `OPENAI_API_KEY` | Chat* | OpenAI key (server-only) for chat, TTS, STT. Set in Vercel env. |
 | `GEMINI_API_KEY` | Growth | Gemini key for the Growth Agent's draft model (separate from chat). |
 | `GROWTH_OPENAI_API_KEY` | Growth | Optional OpenAI key for growth drafts (never falls back to `OPENAI_API_KEY`). |
-| `GROWTH_MONTHLY_BUDGET_USD` | No | Growth Agent monthly model spend cap (default 20). |
-| `GROWTH_ADMIN_USER_IDS` | Admin | Comma-separated Supabase user ids allowed to view `/admin/growth`. |
-| `CRON_SECRET` | Cron | Shared secret Vercel cron sends to authenticate `/api/growth/cron/daily`. |
+| `GROWTH_MONTHLY_BUDGET_USD` | No | Growth Agent monthly model spend cap fallback (default 20). Overridden at runtime by the `growth_settings` row edited live from the admin dashboard — no redeploy. |
+| `GROWTH_ADMIN_USER_IDS` | Admin | Comma-separated Supabase user ids allowed to view `/admin/growth`. (Alternative: set the user's `app_metadata.role = "admin"` in Supabase — no env/redeploy.) |
+| `CRON_SECRET` | No | Optional shared secret for an external scheduler to authenticate `/api/growth/cron/daily`. The Vercel scheduled cron (identified by its `vercel-cron` user-agent) and the admin "Run now" button work without it. |
 | `VITE_SUPABASE_URL` | Auth | Supabase project URL for browser auth. |
 | `VITE_SUPABASE_ANON_KEY` | Auth | Supabase anon key for browser auth. |
 | `SUPABASE_URL` | Auth | Supabase project URL for serverless auth verification. |
@@ -162,17 +162,17 @@ After deploying to Vercel, confirm static assets are public:
 ├── api/
 │   ├── chat.ts            # Chat endpoint (chat backend)
 │   ├── lib/serverLLM.ts   # Chat LLM selection (chat backend)
-│   └── growth/            # Growth Agent endpoints: audit, promote, approvals, cron/daily
+│   └── growth/            # Growth Agent endpoints: audit, promote, approvals, cron/daily, whoami, usage, budget, insights
 ├── scripts/
-│   ├── build-seo.ts       # Build-time per-route HTML shells + sitemap + OG image + baked article bodies
-│   ├── test-growth.ts     # Hermetic Growth Agent unit checks
-│   └── verify-shell-crawl.ts  # Accuracy check: crawler/auditor over built shells
+│   ├── build-seo.ts       # Build-time per-route HTML shells + sitemap + OG image + baked article bodies (admin shells are noindex)
+│   ├── test-growth.ts     # Hermetic Growth Agent unit checks (auth, redaction, crawler, auditor, promoter, cron auth, budget)
+│   └── verify-shell-crawl.ts  # Accuracy check: crawler/auditor over built shells + admin noindex/sitemap hygiene
 ├── components/            # Omnibox, ChatView, LiveConversation, Sidebar, NewsFeed, SourceCard, AgentWidgets, TricolourStar
 ├── pages/
 │   ├── Landing.tsx        # Landing: hero, 12-product grid, sections (PRODUCT_DEFS)
 │   ├── LearnAIWithReeturaj.tsx  # Article hub (searchable grid)
 │   ├── ArticlePage.tsx    # Per-article reading page (lazy)
-│   └── admin/growth/      # Growth Agent admin UI (Issues, Repos)
+│   └── admin/growth/      # Growth Agent admin UI (Overview, Usage, Sites, Repos, Issues, Performance, Settings)
 ├── locales/               # 10 Indian-language + English i18n bundles
 └── public/                # Static assets (logos, per-article visuals)
 ```
@@ -183,12 +183,22 @@ After deploying to Vercel, confirm static assets are public:
 
 A standalone SEO/GEO auditing + content-promotion system that is **completely separate from the chat backend** (it uses `GEMINI_API_KEY` / `GROWTH_OPENAI_API_KEY`, never the chat LLM path).
 
-- **Daily cron** (`/api/growth/cron/daily`, scheduled in `vercel.json`) audits every authorized domain via sitemap discovery (`fetchSitemapUrls`), then enqueues a human-gated LinkedIn promotion draft for each "Learn AI with Reeturaj" article.
+- **Daily cron** (`/api/growth/cron/daily`, scheduled in `vercel.json`) audits every authorized domain via sitemap discovery (`fetchSitemapUrls`), then enqueues a human-gated LinkedIn promotion draft for each "Learn AI with Reeturaj" article. Accepts **GET** (Vercel's scheduled cron, identified by its `vercel-cron` user-agent / `x-vercel-cron-schedule` header) **and** POST (the admin "Run now" button); an optional `CRON_SECRET` covers external schedulers. `authorizeCron` is the single auth path (Vercel signature | `CRON_SECRET` | authenticated admin).
 - **Promotion loop** (`lib/growth/promoter.ts`): generates a LinkedIn caption + 2–3 internal-link suggestions (budget-capped via `growth_model_usage`, redaction-gated before any model call, idempotent so re-runs only draft new articles). `canPublishDirectly` is false and `requiresHumanApproval` is true — nothing auto-publishes.
 - **Human gate**: an admin reviews pending drafts at `/admin/growth/issues` and approves/rejects via `/api/growth/approvals`.
 - **Token efficiency**: idempotency bounds total model calls to one per article; `maxOutputTokens` caps completions; the sibling-link candidate list is trimmed to 8 and category-ranked.
 
 Authorization is deny-by-default (`lib/growth/authorization.ts`); only allow-listed domains may be crawled/audited/drafted.
+
+### Admin dashboard (`/admin/growth`) — private, founder-only
+
+A single private console for the founder to see **what's going on**, **which AI API is used where**, and **edit the monthly spend cap live**. Reachable only to the founder; the admin gate is **server-verified** (`api/lib/requireAdmin.ts` → `GROWTH_ADMIN_USER_IDS` env **or** Supabase `app_metadata.role === "admin"`), never a build-time client allowlist.
+
+- **Overview** — live ops snapshot from `GET /api/growth/insights`: last cron run, pages audited, open issues, pending drafts, this-month spend vs cap, integration-health dots (booleans only — secret values never leave the server), a recent-activity feed, and a **"Run daily audit now"** button that POSTs the cron on demand.
+- **Usage** (`GET /api/growth/usage?days=N`) — the centerpiece: this-month spend vs cap + projected + a live **budget editor** (`PATCH /api/growth/budget` → `growth_settings.monthly_budget_usd`, `$1–$500`, takes effect on the next `withinBudget()` check with **no redeploy**), a Gemini/OpenAI provider split, per-model / per-task / **where-used (per article)** tables, a 30-day spend bar chart, and a recent-calls table. `growth_model_usage` records `context_url` + `provider` so spend is attributable to the exact article and API.
+- **Sites / Repos / Issues / Performance / Settings** — the existing management views, now using the authenticated `useAdminApi` helper (`lib/growth/adminApi.ts`) so their calls no longer 401; Settings shows live integration flags + the confirmed admin identity from `GET /api/growth/whoami`.
+
+Admin routes ship as prebuilt **noindex** shells (so the SPA boots and the `/admin/growth` 404 is fixed) and are **excluded from `sitemap.xml`** — verified by `scripts/verify-shell-crawl.ts`. The `20260625000001_growth_usage_context.sql` migration adds the `context_url`/`provider` columns and the `growth_settings` singleton table (RLS deny-all, service_role only).
 
 ---
 

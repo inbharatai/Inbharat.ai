@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useAdminApi } from "../../../lib/growth/adminApi";
 
 interface MetricsResult {
   configured: boolean;
@@ -13,24 +14,24 @@ interface PerfResp {
 }
 
 const Performance: React.FC = () => {
+  const { fetchJson } = useAdminApi();
   const [data, setData] = useState<PerfResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/growth/performance", { headers: { accept: "application/json" } })
-      .then(async (r) => {
-        if (cancelled) return;
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        setData(await r.json());
-      })
-      .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+    (async () => {
+      const { data: body, error } = await fetchJson<PerfResp>("/api/growth/performance");
+      if (cancelled) return;
+      if (error) setError(error);
+      else setData(body);
+      setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [fetchJson]);
 
   if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
   if (error) return <p className="text-[13px] text-rose-300">Failed: {error}</p>;

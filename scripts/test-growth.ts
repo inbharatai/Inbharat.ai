@@ -12,6 +12,9 @@ import { parsePage, extractInternalLinks, fetchSitemapUrls } from "../lib/growth
 import { scoreSeo } from "../lib/growth/seo-auditor.js";
 import { scoreGeo } from "../lib/growth/geo-auditor.js";
 import { promoteArticle } from "../lib/growth/promoter.js";
+import { monthlyBudgetUsd, bustBudgetCache, logUsage } from "../lib/growth/model-router.js";
+import { authorizeCron, isCronAuthErr } from "../api/lib/requireAdmin.js";
+import type { VercelRequest } from "@vercel/node";
 
 let pass = 0;
 let fail = 0;
@@ -232,6 +235,123 @@ try {
   globalThis.fetch = origFetch2;
   if (origGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
   else process.env.GEMINI_API_KEY = origGeminiKey;
+}
+
+// ─── authorizeCron (Vercel signature | CRON_SECRET | admin | local-dev) ───
+// Pure, hermetic: requireAdmin returns early (no network) when supabaseAdmin is
+// null (no SUPABASE env in the test process), so the admin/local-dev branches
+// are exercised without any real Supabase call.
+console.log("\nCron auth (authorizeCron):");
+function fakeReq(headers: Record<string, string>): VercelRequest {
+  return { method: "GET", headers } as unknown as VercelRequest;
+}
+const origCronSecret = process.env.CRON_SECRET;
+const origLocalPort = process.env.LOCAL_API_PORT;
+const origNodeEnv = process.env.NODE_ENV;
+try {
+  // 1. Vercel scheduled cron identifies itself via the vercel-cron user-agent.
+  let r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0" }));
+  check("vercel-cron UA allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron", JSON.stringify(r));
+
+  // 2. … or via the x-vercel-cron-schedule header.
+  r = await authorizeCron(fakeReq({ "x-vercel-cron-schedule": "0 6 * * *" }));
+  check("x-vercel-cron-schedule header allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron");
+
+  // 3. External scheduler carrying the shared CRON_SECRET (x-cron-secret).
+  process.env.CRON_SECRET = "topsecret";
+  r = await authorizeCron(fakeReq({ "x-cron-secret": "topsecret" }));
+  check("CRON_SECRET via x-cron-secret allowed", r.ok === true && !isCronAuthErr(r) && r.source === "cron-secret");
+
+  // 4. Same secret via Authorization: Bearer.
+  r = await authorizeCron(fakeReq({ authorization: "Bearer topsecret" }));
+  check("CRON_SECRET via Bearer allowed", r.ok === true && !isCronAuthErr(r) && r.source === "cron-secret");
+
+  // 5. Wrong secret → not cron-secret → requireAdmin (supabaseAdmin null, not
+  //    local dev) → 500. Denied.
+  r = await authorizeCron(fakeReq({ "x-cron-secret": "wrong" }));
+  check("wrong CRON_SECRET denied", r.ok === false, JSON.stringify(r));
+
+  // 6. Bare external request (no signature, no secret) → denied.
+  r = await authorizeCron(fakeReq({ "user-agent": "Mozilla/5.0" }));
+  check("bare external request denied", r.ok === false, JSON.stringify(r));
+
+  // 7. Local dev (LOCAL_API_PORT set, not production) → allowed as local-dev.
+  process.env.LOCAL_API_PORT = "3001";
+  process.env.NODE_ENV = "development";
+  r = await authorizeCron(fakeReq({ "user-agent": "Mozilla/5.0" }));
+  // In local dev the admin branch short-circuits (requireAdmin allow-through),
+  // so the source is "admin" (userId local-dev) — either way it must be allowed.
+  check("local dev allowed without secret", r.ok === true && !isCronAuthErr(r), JSON.stringify(r));
+} finally {
+  if (origCronSecret === undefined) delete process.env.CRON_SECRET;
+  else process.env.CRON_SECRET = origCronSecret;
+  if (origLocalPort === undefined) delete process.env.LOCAL_API_PORT;
+  else process.env.LOCAL_API_PORT = origLocalPort;
+  if (origNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = origNodeEnv;
+}
+
+// ─── Monthly budget cap (env fallback + default + cache bust) ───
+// supabaseAdmin is null in the test process (no SUPABASE env), so monthlyBudgetUsd
+// exercises the env → default fallback path (the DB path is covered by the
+// local manual run + e2e, since supabaseAdmin is a build-time singleton that
+// can't be re-pointed at runtime without a refactor).
+console.log("\nMonthly budget cap (monthlyBudgetUsd):");
+const origBudgetEnv = process.env.GROWTH_MONTHLY_BUDGET_USD;
+try {
+  bustBudgetCache();
+  delete process.env.GROWTH_MONTHLY_BUDGET_USD;
+  let b = await monthlyBudgetUsd();
+  check("no env → default $20", b.cap === 20 && b.source === "default", JSON.stringify(b));
+
+  process.env.GROWTH_MONTHLY_BUDGET_USD = "7";
+  bustBudgetCache();
+  b = await monthlyBudgetUsd();
+  check("env $7 → cap 7, source env", b.cap === 7 && b.source === "env", JSON.stringify(b));
+
+  // Cache: a second read without busting returns the same (env) value even if
+  // the env var changes underneath — proves the cache is honored this month.
+  process.env.GROWTH_MONTHLY_BUDGET_USD = "99";
+  b = await monthlyBudgetUsd();
+  check("cached cap honored (still 7, not 99)", b.cap === 7, JSON.stringify(b));
+
+  // bustBudgetCache forces a re-read of the new env value.
+  bustBudgetCache();
+  b = await monthlyBudgetUsd();
+  check("bustBudgetCache re-reads env (99)", b.cap === 99 && b.source === "env", JSON.stringify(b));
+
+  // Non-numeric / zero / negative env → default 20, source default.
+  process.env.GROWTH_MONTHLY_BUDGET_USD = "not-a-number";
+  bustBudgetCache();
+  b = await monthlyBudgetUsd();
+  check("non-numeric env → default $20", b.cap === 20 && b.source === "default", JSON.stringify(b));
+} finally {
+  if (origBudgetEnv === undefined) delete process.env.GROWTH_MONTHLY_BUDGET_USD;
+  else process.env.GROWTH_MONTHLY_BUDGET_USD = origBudgetEnv;
+  bustBudgetCache();
+}
+
+// ─── logUsage (no-throw with supabaseAdmin null) ───
+// With supabaseAdmin null, logUsage falls through to a console.info log of the
+// record and never throws. The context_url/provider write into growth_model_usage
+// is verified by the build + local manual run (the columns exist via the
+// 20260625000001 migration and model-router writes them — read-verified).
+console.log("\nlogUsage (no Supabase → no-throw):");
+try {
+  await logUsage({
+    model: "gemini-flash-latest",
+    task: "draft",
+    promptTokens: 100,
+    completionTokens: 50,
+    totalTokens: 150,
+    costUsd: 0.00002,
+    status: "ok",
+    contextUrl: "https://inbharat.ai/learn-ai-with-reeturaj/rag",
+    provider: "gemini",
+  });
+  check("logUsage resolves (no throw) when Supabase unset", true);
+} catch (e) {
+  check("logUsage resolves (no throw) when Supabase unset", false, (e as Error).message);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

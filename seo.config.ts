@@ -57,6 +57,18 @@ export type SeoRoute = {
   /** Whether to add hreflang alternates for all 11 languages. */
   multilingual: boolean;
   /**
+   * When true, the shell head emits `<meta name="robots" content="noindex,nofollow">`.
+   * Used for private/admin routes that still need a prebuilt shell so the SPA boots
+   * (the catch-all rewrite does NOT serve the SPA for shell-less routes), but must
+   * never be indexed. Implies excludeFromSitemap.
+   */
+  noIndex?: boolean;
+  /**
+   * When true, build-seo skips the sitemap `<url>` entry for this route.
+   * Set for admin routes and any other non-public route that has a shell.
+   */
+  excludeFromSitemap?: boolean;
+  /**
    * For "Build AI with Reeturaj" article routes only: the article slug. When
    * set, scripts/build-seo.ts reads content/articles/<slug>.md at build time
    * and bakes the full rendered body into the crawlable shell so AI-search
@@ -461,6 +473,37 @@ const ARTICLE_ROUTES: SeoRoute[] = ARTICLES.map((meta) => ({
   },
 }));
 
+/**
+ * Prebuilt noindex shells for the private Growth Agent admin console. These
+ * exist purely so the SPA boots at these paths (the catch-all rewrite does not
+ * serve the SPA for shell-less routes — the root cause of the /admin/growth
+ * 404). They are noindex + excluded from the sitemap; RequireAdmin gates the
+ * content client-side and /api/growth/whoami is the real server authority.
+ */
+const ADMIN_GROWTH_PATHS = [
+  '/admin/growth',
+  '/admin/growth/usage',
+  '/admin/growth/sites',
+  '/admin/growth/repos',
+  '/admin/growth/issues',
+  '/admin/growth/performance',
+  '/admin/growth/settings',
+];
+const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
+  path,
+  title: 'InBharat Growth Agent — Admin',
+  description: 'Restricted admin console for the InBharat Growth Agent.',
+  priority: 0.1,
+  changefreq: 'never' as const,
+  multilingual: false,
+  noIndex: true,
+  excludeFromSitemap: true,
+  seoBody: {
+    h1: 'InBharat Growth Agent — Admin',
+    paragraphs: ['Restricted admin console for the InBharat Growth Agent.'],
+  },
+}));
+
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
@@ -596,6 +639,15 @@ export const ROUTES: SeoRoute[] = [
       ],
     },
   },
+  // ─── Private admin console (Growth Agent) ─────────────────────────────────
+  //
+  // These shells exist ONLY so the SPA boots at these paths — the catch-all
+  // rewrite in vercel.json does not serve the SPA for routes without a prebuilt
+  // shell, which was the root cause of the /admin/growth 404. Each is noindex +
+  // excluded from the sitemap (private). RequireAdmin gates the content
+  // client-side after hydration; the server gate (/api/growth/whoami) is the
+  // real authority. seoBody is a minimal placeholder (never indexed).
+  ...adminGrowthRoutes,
 ];
 
 /** Lookup helper used by useDocumentHead. */
