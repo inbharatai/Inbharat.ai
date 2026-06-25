@@ -101,15 +101,32 @@ export async function promoteArticle(
   };
 }
 
-/** Fetch <title> + meta description from the live URL (best-effort). */
+/** Fetch <title> + meta description from the live URL (best-effort).
+ *  SSRF guard: assertAuthorized checked the input URL, but fetchPage follows
+ *  redirects. If the final destination lands on a different registrable domain
+ *  (e.g. an open redirect on an authorized host → internal/cloud-metadata URL),
+ *  refuse to parse it. */
 async function fetchArticleContext(url: string): Promise<ArticlePageMeta> {
   try {
-    const { html, status } = await fetchPage(url);
+    const { html, status, finalUrl } = await fetchPage(url);
     if (status >= 400) return {};
-    const meta = parsePage(html, url);
+    if (finalUrl && normalizeDomain(finalUrl) !== normalizeDomain(url)) {
+      await logInfo("promote-ssrf-guard", new URL(url).hostname, `redirect ${url} → ${finalUrl} blocked`);
+      return {};
+    }
+    const meta = parsePage(html, finalUrl || url);
     return { title: meta.title, description: meta.metaDescription };
   } catch {
     return {};
+  }
+}
+
+/** Strip scheme + path + leading www. for same-registrable-domain comparison. */
+function normalizeDomain(u: string): string {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
   }
 }
 
@@ -153,9 +170,16 @@ async function generatePromotionDraft(
   }
 
   const slug = url.includes(ARTICLE_PATH_PREFIX) ? url.split(ARTICLE_PATH_PREFIX)[1]?.replace(/\/+$/, "") : "";
-  const siblings = SIBLING_ARTICLES.filter((s) => !slug || !s.url.endsWith(`/${slug}`))
-    .slice(0, 12)
-    .map((s) => `- ${s.title} → ${s.url}`)
+  const cat = ARTICLES.find((a) => a.slug === slug)?.category;
+  // Token efficiency: prefer same-category siblings, then fill, cap at 8 (not
+  // all 11) so the candidate list stays lean. Idempotency already bounds total
+  // model calls to one per article, so this trims each call's prompt ~30%.
+  const siblings = SIBLING_ARTICLES
+    .filter((s) => !slug || !s.url.endsWith(`/${slug}`))
+    .map((s) => ({ s, sameCat: s.category === cat }))
+    .sort((a, b) => Number(b.sameCat) - Number(a.sameCat))
+    .slice(0, 8)
+    .map(({ s }) => `- ${s.title} → ${s.url}`)
     .join("\n");
 
   const system =
@@ -221,7 +245,7 @@ async function callModel(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.6 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320 },
       }),
       signal: AbortSignal.timeout(20000),
     });
@@ -231,9 +255,9 @@ async function callModel(
     if (typeof text !== "string") throw new Error("gemini empty response");
     return text;
   }
-  // openai
-  const key = process.env.GROWTH_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY / OPENAI_API_KEY not set");
+  // openai — Growth Agent uses its OWN key (never the chat backend's OPENAI_API_KEY).
+  const key = process.env.GROWTH_OPENAI_API_KEY;
+  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
@@ -245,6 +269,7 @@ async function callModel(
       ],
       response_format: { type: "json_object" },
       temperature: 0.6,
+      max_tokens: 320,
     }),
     signal: AbortSignal.timeout(20000),
   });

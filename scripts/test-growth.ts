@@ -204,6 +204,24 @@ try {
   check("promoter returns 1–3 internal links", draft.internalLinks.length >= 1 && draft.internalLinks.length <= 3, `got ${draft.internalLinks.length}`);
   check("promoter internal links are http(s) URLs", draft.internalLinks.every((l) => /^https?:\/\//.test(l)));
 
+  // Redaction gate: a secret in the article title aborts BEFORE the model call.
+  // (Runs with the key still set + fetch mocked, so the only abort reason is redaction.)
+  const secretDraft = await promoteArticle("https://inbharat.ai/learn-ai-with-reeturaj/rag", {
+    title: "RAG config leak: AKIAIOSFODNN7EXAMPLE found in logs",
+    description: "Retrieval-augmented generation explained.",
+  });
+  check("redaction aborts model call on secret in title", secretDraft.caption === null, `got ${String(secretDraft.caption)}`);
+  check("redaction note explains abort", typeof secretDraft.note === "string" && /redact/i.test(secretDraft.note), `got ${String(secretDraft.note)}`);
+
+  // Unauthorized domain: assertAuthorized throws before any model/DB work.
+  let threwAuthz = false;
+  try {
+    await promoteArticle("https://evil.example.com/learn-ai-with-reeturaj/rag", { title: "x" });
+  } catch (e) {
+    threwAuthz = (e as Error).constructor.name === "AuthorizationError" || /not authorized/i.test((e as Error).message);
+  }
+  check("unauthorized domain throws before model call", threwAuthz);
+
   // No model configured → caption null, note set, still pending (task + draft still created).
   process.env.GEMINI_API_KEY = "";
   const draft2 = await promoteArticle("https://inbharat.ai/learn-ai-with-reeturaj/cicd", { title: "CI/CD" });

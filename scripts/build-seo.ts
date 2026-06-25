@@ -198,7 +198,17 @@ const markdownProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRe
  */
 async function renderArticleBody(slug: string): Promise<string> {
   const file = path.join(ROOT, 'content', 'articles', `${slug}.md`);
-  const md = await fs.readFile(file, 'utf8');
+  let md: string;
+  try {
+    md = await fs.readFile(file, 'utf8');
+  } catch {
+    // Missing/stale .md must NOT kill the whole build (sitemap + og-image + all
+    // other shells). Degrade to empty — the shell still emits the h1 + abstract
+    // seoBody, and verify-shell-crawl will flag a silently-empty body for rag.
+    // eslint-disable-next-line no-console
+    console.warn(`[build-seo] article body missing for "${slug}" — shell will use seoBody only`);
+    return '';
+  }
   const mdast = markdownProcessor.parse(stripLeadingBlockquote(md));
   const hast = await markdownProcessor.run(mdast);
   const rendered = toHtml(hast);

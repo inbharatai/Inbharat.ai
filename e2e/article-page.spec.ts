@@ -75,6 +75,14 @@ test("article page renders body, hero, FAQ, and related links", async ({ page })
   const naturalWidth = await hero.evaluate((el) => (el as HTMLImageElement).naturalWidth);
   expect(naturalWidth).toBeGreaterThan(0);
 
+  // ReactMarkdown body ACTUALLY rendered (not just the baked shell): assert a
+  // body-only H2 that exists only in the markdown body, not in meta/title/abstract.
+  // The baked shell's copy is aria-hidden, so getByRole excludes it — this match
+  // proves React mounted and rendered the markdown. Also confirm the loading /
+  // unavailable fallbacks are gone.
+  await expect(page.getByRole("heading", { name: "How RAG Works Under the Hood", exact: true })).toBeVisible();
+  await expect(page.getByText(/Loading article|content is unavailable/i)).toHaveCount(0);
+
   // ReactMarkdown body rendered: the FAQ section is present with at least one <details>.
   await expect(page.getByRole("heading", { name: /Frequently asked questions/i })).toBeVisible();
   const faqItems = page.locator("details");

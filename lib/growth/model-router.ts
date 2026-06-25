@@ -38,7 +38,10 @@ export function pickModel(task: GrowthTask): ModelChoice {
 }
 
 export function isModelConfigured(choice: ModelChoice): boolean {
-  if (choice.provider === "openai") return !!(process.env.GROWTH_OPENAI_API_KEY || process.env.OPENAI_API_KEY);
+  // Growth Agent must use its OWN key path — never the chat backend's
+  // OPENAI_API_KEY (would conflate spend + violate isolation). Only
+  // GROWTH_OPENAI_API_KEY is accepted for growth tasks.
+  if (choice.provider === "openai") return !!process.env.GROWTH_OPENAI_API_KEY;
   return !!process.env.GEMINI_API_KEY;
 }
 
@@ -74,10 +77,27 @@ export async function withinBudget(): Promise<boolean> {
   return (await monthSpentUsd()) < monthlyBudgetUsd();
 }
 
-/** Record a usage row (best-effort). */
+/** Record a usage row (best-effort). Maps the camelCase ModelUsageRecord to the
+ *  snake_case growth_model_usage columns — a mismatch here silently breaks the
+ *  monthly budget cap (inserts 400, get swallowed, table stays empty, withinBudget
+ *  always true → unbounded spend), so surface the error instead of swallowing. */
 export async function logUsage(rec: ModelUsageRecord): Promise<void> {
   if (supabaseAdmin) {
-    try { await supabaseAdmin.from("growth_model_usage").insert(rec); return; } catch { /* fall through */ }
+    try {
+      await supabaseAdmin.from("growth_model_usage").insert({
+        model: rec.model,
+        task: rec.task,
+        prompt_tokens: rec.promptTokens,
+        completion_tokens: rec.completionTokens,
+        total_tokens: rec.totalTokens,
+        cost_usd: rec.costUsd,
+        status: rec.status,
+      });
+      return;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[growth-model-usage] insert failed:", (e as Error).message);
+    }
   }
   // eslint-disable-next-line no-console
   console.info("[growth-model-usage]", JSON.stringify(rec));

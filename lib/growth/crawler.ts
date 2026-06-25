@@ -118,8 +118,10 @@ export function parsePage(html: string, url: string): PageMeta {
   };
 }
 
-/** Network: fetch a URL and return { html, status }. Throws on non-2xx after following redirects. */
-export async function fetchPage(url: string, timeoutMs = 12000): Promise<{ html: string; status: number }> {
+/** Network: fetch a URL and return { html, status, finalUrl }. Follows redirects;
+ *  finalUrl is the resolved destination so callers can guard against SSRF via an
+ *  authorized-host open redirect. Throws on abort/timeout. */
+export async function fetchPage(url: string, timeoutMs = 12000): Promise<{ html: string; status: number; finalUrl: string }> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -129,7 +131,7 @@ export async function fetchPage(url: string, timeoutMs = 12000): Promise<{ html:
       signal: controller.signal,
     });
     const html = await res.text();
-    return { html, status: res.status };
+    return { html, status: res.status, finalUrl: res.url || url };
   } finally {
     clearTimeout(t);
   }

@@ -80,7 +80,10 @@ function toEmbedUrl(url: string): string {
 }
 
 const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
-  a: ({ href, children, ...rest }) => {
+  // react-markdown v9 passes a hast `node` prop — pull it out so it isn't spread
+  // onto the DOM <a> as an invalid attribute.
+  a: ({ node, href, children, ...rest }) => {
+    void node;
     const external = href?.startsWith('http');
     return external ? (
       <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>

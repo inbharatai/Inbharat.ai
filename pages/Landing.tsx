@@ -2051,7 +2051,7 @@ const Landing: React.FC = () => {
             {t('landStatusOperational')}
           </span>
           <span className="text-[#7a9ab8]">22 Languages</span>
-          <span className="text-[#7a9ab8]">11 Products</span>
+          <span className="text-[#7a9ab8]">{ALL_PRODUCTS.length} Products</span>
         </div>
       </div>
 
