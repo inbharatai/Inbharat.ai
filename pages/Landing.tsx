@@ -26,6 +26,7 @@ import {
   Share2,
   Sparkles,
   Target,
+  Trophy,
   Twitter,
   Users,
   X,
@@ -393,14 +394,14 @@ const CountUp: React.FC<{ target: string; reduceMotion: boolean }> = ({ target, 
 };
 
 /* ═══════════════════════════════════════════════════════
-   PHORING SCENARIO GRAPH — Animated intelligence pipeline
-   Adapted from phoring.in's ScenarioGraph canvas visualization.
-   Renders the real data-flow: Documents → Knowledge Graph →
-   Multi-Agent Simulation → Source-Cited Intelligence Report
+   JAK SWARM FLOW GRAPH — Animated closed-loop agent pipeline
+   Renders the JAK Swarm data-flow: Sources → Evidence Graph →
+   Agent Work → Drift Detection → JAK Shield (risk gate) →
+   Tamper-Evident Audit Trail → Approved Artifact
    ═══════════════════════════════════════════════════════ */
 
-const GRAPH_BLUE: [number, number, number] = [16, 185, 129];   // emerald
-const GRAPH_CYAN: [number, number, number] = [34, 211, 238];
+const GRAPH_BLUE: [number, number, number] = [239, 68, 68];     // jak red #ef4444
+const GRAPH_CYAN: [number, number, number] = [56, 189, 248];
 const GRAPH_AMBER: [number, number, number] = [245, 159, 79];
 const GRAPH_GREEN: [number, number, number] = [52, 211, 153];
 const GRAPH_PURPLE: [number, number, number] = [147, 51, 234];
@@ -411,17 +412,17 @@ interface GEdge { from: number; to: number }
 interface GSignal { edgeIdx: number; progress: number; speed: number; size: number }
 
 const G_NODES: GNode[] = [
-  { x: 0.50, y: 0.92, r: 9, color: GRAPH_BLUE, label: 'DOCUMENTS', tech: 'PDF · MD · TXT', baseAlpha: 1.0 },
-  { x: 0.30, y: 0.76, r: 6, color: GRAPH_CYAN, label: 'ONTOLOGY', tech: 'LLM', baseAlpha: 0.85 },
-  { x: 0.70, y: 0.76, r: 7, color: GRAPH_BLUE, label: 'ZEP GRAPH', tech: 'Zep Cloud', baseAlpha: 0.9 },
-  { x: 0.12, y: 0.55, r: 4.5, color: GRAPH_GREEN, label: 'ENTITIES', tech: 'Zep', baseAlpha: 0.7 },
-  { x: 0.37, y: 0.52, r: 5, color: GRAPH_PURPLE, label: 'PROFILES', tech: 'LLM + OASIS', baseAlpha: 0.75 },
-  { x: 0.63, y: 0.52, r: 5, color: GRAPH_AMBER, label: 'WEB INTEL', tech: 'Serper · News', baseAlpha: 0.75 },
-  { x: 0.88, y: 0.55, r: 4.5, color: GRAPH_CYAN, label: 'CONFIG', tech: 'LLM', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.36, r: 8, color: GRAPH_AMBER, label: 'SIMULATION', tech: 'OASIS · CAMEL', baseAlpha: 0.9 },
-  { x: 0.32, y: 0.20, r: 5.5, color: GRAPH_GREEN, label: 'REPORT AGENT', tech: 'ReACT Loop', baseAlpha: 0.8 },
-  { x: 0.68, y: 0.20, r: 4.5, color: GRAPH_BLUE, label: 'ZEP TOOLS', tech: 'Search · Query', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.08, r: 6, color: GRAPH_ROSE, label: 'CONSENSUS', tech: 'Multi-AI', baseAlpha: 0.85 },
+  { x: 0.50, y: 0.92, r: 9, color: GRAPH_BLUE, label: 'SOURCES', tech: 'Context · Docs · Code', baseAlpha: 1.0 },
+  { x: 0.30, y: 0.76, r: 6, color: GRAPH_CYAN, label: 'INGEST', tech: 'Parse + Embed', baseAlpha: 0.85 },
+  { x: 0.70, y: 0.76, r: 7, color: GRAPH_BLUE, label: 'EVIDENCE GRAPH', tech: 'Graph DB', baseAlpha: 0.9 },
+  { x: 0.12, y: 0.55, r: 4.5, color: GRAPH_GREEN, label: 'ENTITIES', tech: 'Nodes + Edges', baseAlpha: 0.7 },
+  { x: 0.37, y: 0.52, r: 5, color: GRAPH_PURPLE, label: 'PLANS', tech: 'Specs + Tasks', baseAlpha: 0.75 },
+  { x: 0.63, y: 0.52, r: 5, color: GRAPH_AMBER, label: 'TOOLS', tech: 'Sandboxed Run', baseAlpha: 0.75 },
+  { x: 0.88, y: 0.55, r: 4.5, color: GRAPH_CYAN, label: 'POLICY', tech: 'Risk Config', baseAlpha: 0.7 },
+  { x: 0.50, y: 0.36, r: 8, color: GRAPH_AMBER, label: 'AGENT WORK', tech: 'Executes Specs', baseAlpha: 0.9 },
+  { x: 0.32, y: 0.20, r: 5.5, color: GRAPH_GREEN, label: 'DRIFT DETECT', tech: 'Diff vs Spec', baseAlpha: 0.8 },
+  { x: 0.68, y: 0.20, r: 4.5, color: GRAPH_BLUE, label: 'JAK SHIELD', tech: 'Risk Gate', baseAlpha: 0.7 },
+  { x: 0.50, y: 0.08, r: 6, color: GRAPH_ROSE, label: 'AUDIT TRAIL', tech: 'Approved Artifact', baseAlpha: 0.85 },
 ];
 
 const G_EDGES: GEdge[] = [
@@ -438,7 +439,7 @@ function gBezier(ax: number, ay: number, bx: number, by: number, t: number) {
   return { x: u * u * ax + 2 * u * t * mx + t * t * bx, y: u * u * ay + 2 * u * t * my + t * t * by };
 }
 
-const PhoringScenarioGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
+const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -579,11 +580,11 @@ const PhoringScenarioGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotio
         ctx.textAlign = 'left';
         for (const st of [
           { y: 0.92, label: 'INPUT', color: GRAPH_BLUE },
-          { y: 0.76, label: 'STAGE 1 · KNOWLEDGE GRAPH', color: GRAPH_CYAN },
-          { y: 0.53, label: 'STAGE 2 · ENVIRONMENT', color: GRAPH_PURPLE },
-          { y: 0.36, label: 'STAGE 3 · MULTI-AGENT SIM', color: GRAPH_AMBER },
-          { y: 0.20, label: 'STAGE 4 · REPORT', color: GRAPH_GREEN },
-          { y: 0.08, label: 'OUTPUT · VALIDATION', color: GRAPH_ROSE },
+          { y: 0.76, label: 'STAGE 1 · EVIDENCE GRAPH', color: GRAPH_CYAN },
+          { y: 0.53, label: 'STAGE 2 · PLANNING', color: GRAPH_PURPLE },
+          { y: 0.36, label: 'STAGE 3 · AGENT WORK', color: GRAPH_AMBER },
+          { y: 0.20, label: 'STAGE 4 · DRIFT & SHIELD', color: GRAPH_GREEN },
+          { y: 0.08, label: 'OUTPUT · AUDIT TRAIL', color: GRAPH_ROSE },
         ]) { const [r, g, b] = st.color; ctx.fillStyle = `rgba(${r},${g},${b},${ra * 0.55})`; ctx.fillText(st.label, 6, ny(st.y) + 3); }
       }
 
@@ -863,7 +864,7 @@ const PRODUCT_DEFS = [
   { name: 'InBharat AI', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
   { name: 'KathaKitaab', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
   { name: 'JAK Swarm', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://jakswarm.com/', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
-  { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://phoring.onrender.com', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
+  { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://github.com/inbharatai/phoring', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
   { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   { name: 'Sahaayak AI', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
   { name: 'SahaayakSeva', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://github.com/inbharatai/SahaayakSeva', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
@@ -931,7 +932,7 @@ const Landing: React.FC = () => {
     () => [
       { href: '#ecosystem', label: t('landNavEcosystem') },
       { href: '#kathakitaab', label: t('landNavKathakitaab') },
-      { href: '#phoring', label: t('landNavPhoring') },
+      { href: '#jakswarm', label: t('landNavJak') },
       { href: '#products', label: t('landNavProducts') },
       { href: '#why', label: t('landNavWhy') },
       { href: '#mission', label: t('landNavMission') },
@@ -1062,6 +1063,14 @@ const Landing: React.FC = () => {
               ))}
             </select>
 
+            <Link
+              to="/learn-ai-with-reeturaj"
+              onClick={() => trackEvent('cta_nav_build_ai_with_reeturaj')}
+              className="hidden rounded-full border border-[#f59f4f]/35 bg-[#f59f4f]/[0.12] px-4 py-1.5 text-[11px] font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/60 hover:bg-[#f59f4f]/[0.2] hover:text-[#ffe2bf] lg:inline-flex"
+            >
+              Build AI with Reeturaj
+            </Link>
+
             {isSignedIn ? (
               <>
                 <div className="hidden rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-[#7a8da8] md:block">
@@ -1104,6 +1113,16 @@ const Landing: React.FC = () => {
             className="border-t border-white/[0.06] bg-[#050810]/98 px-5 py-4 backdrop-blur-2xl lg:hidden"
           >
             <div className="grid gap-1">
+              <Link
+                to="/learn-ai-with-reeturaj"
+                onClick={() => {
+                  trackEvent('cta_nav_mobile_build_ai_with_reeturaj');
+                  setMobileOpen(false);
+                }}
+                className="mb-1 rounded-xl border border-[#f59f4f]/30 bg-[#f59f4f]/[0.08] px-4 py-2.5 text-sm font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/55 hover:bg-[#f59f4f]/[0.16]"
+              >
+                Build AI with Reeturaj
+              </Link>
               {navItems.map((item) => (
                 <a
                   key={item.href}
@@ -1167,6 +1186,19 @@ const Landing: React.FC = () => {
                   className="inline-block h-1.5 w-1.5 rounded-full bg-[#f59f4f] shadow-[0_0_8px_rgba(245,159,79,0.5)]"
                 />
                 {t('landHeroBadge')}
+              </span>
+            </motion.div>
+
+            {/* Hyperagent Founding 500 award badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.25, ease }}
+              className="mt-4"
+            >
+              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-gradient-to-r from-amber-400/10 to-amber-500/5 px-4 py-1.5 text-[11px] font-bold tracking-wide text-amber-300 backdrop-blur-sm">
+                <Trophy size={14} className="text-amber-400" />
+                {t('landHeroAward')}
               </span>
             </motion.div>
 
@@ -1555,18 +1587,18 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
-      {/* ═══════════════ PHORING SPOTLIGHT ═══════════════ */}
-      <Reveal id="phoring" className="relative z-10 py-24 sm:py-32">
+      {/* ═══════════════ JAK SWARM SPOTLIGHT ═══════════════ */}
+      <Reveal id="jakswarm" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="relative overflow-hidden rounded-[28px] border border-[#10b981]/20 bg-gradient-to-br from-[#041f18] via-[#060f12] to-[#040a10]">
+          <div className="relative overflow-hidden rounded-[28px] border border-[#ef4444]/20 bg-gradient-to-br from-[#1a0606] via-[#0b0708] to-[#04060a]">
             {/* Ambient glows */}
             <div
               className="pointer-events-none absolute inset-0"
-              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(16,185,129,0.16),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(6,182,212,0.10),transparent 50%)' }}
+              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(239,68,68,0.16),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(245,159,79,0.10),transparent 50%)' }}
             />
             <div
               className="pointer-events-none absolute inset-0 opacity-[0.04]"
-              style={{ backgroundImage: 'linear-gradient(to right,rgba(16,185,129,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(16,185,129,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
+              style={{ backgroundImage: 'linear-gradient(to right,rgba(239,68,68,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(239,68,68,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
             />
 
             <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
@@ -1574,36 +1606,36 @@ const Landing: React.FC = () => {
                 {/* Left */}
                 <div>
                   <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#10b981]/30 bg-[#10b981]/10">
-                      <img src="/phoring-logo.png" alt="Phoring logo" className="h-6 w-6 rounded object-contain" width={24} height={24} loading="lazy" decoding="async" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/10">
+                      <ShieldCheck size={22} className="text-[#ef4444]" />
                     </div>
-                    <span className="rounded-full border border-[#10b981]/30 bg-[#10b981]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#34d399]">
-                      {t('landPhoringBadgeOpen')}
+                    <span className="rounded-full border border-[#ef4444]/30 bg-[#ef4444]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#f87171]">
+                      {t('landJakBadge')}
                     </span>
-                    <span className="rounded-full border border-cyan-500/30 bg-cyan-500/8 px-3 py-1 text-[10px] font-bold text-cyan-400">
-                      Scenario Engine
+                    <span className="rounded-full border border-amber-500/30 bg-amber-500/8 px-3 py-1 text-[10px] font-bold text-amber-400">
+                      Evidence Engine
                     </span>
                   </div>
 
                   <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    {t('landPhoringTitle')}
+                    {t('landJakTitle')}
                     <br />
-                    <span className="bg-gradient-to-r from-[#34d399] via-[#a7f3d0] to-[#d1fae5] bg-clip-text text-transparent">
-                      {t('landPhoringTitle2')}
+                    <span className="bg-gradient-to-r from-[#f87171] via-[#fca5a5] to-[#fecaca] bg-clip-text text-transparent">
+                      {t('landJakTitle2')}
                     </span>
                   </h2>
 
                   <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    {t('landPhoringDesc')}
+                    {t('landJakDesc')}
                   </p>
 
                   {/* Stats */}
                   <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {([
-                      { val: '4', label: t('landPhoringStat1') },
-                      { val: '3', label: t('landPhoringStat2') },
-                      { val: '100%', label: t('landPhoringStat3') },
-                      { val: '11', label: t('landPhoringStat4') },
+                      { val: '6', label: t('landJakStat1') },
+                      { val: '100%', label: t('landJakStat2') },
+                      { val: '0', label: t('landJakStat3') },
+                      { val: '1', label: t('landJakStat4') },
                     ] as const).map((stat, i) => (
                       <motion.div
                         key={stat.label}
@@ -1612,7 +1644,7 @@ const Landing: React.FC = () => {
                         initial="hidden"
                         whileInView="visible"
                         viewport={{ once: true }}
-                        className="rounded-xl border border-[#10b981]/15 bg-[#10b981]/[0.05] p-3.5 text-center"
+                        className="rounded-xl border border-[#ef4444]/15 bg-[#ef4444]/[0.05] p-3.5 text-center"
                       >
                         <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
                         <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
@@ -1623,13 +1655,13 @@ const Landing: React.FC = () => {
                   {/* Feature chips */}
                   <div className="mt-6 flex flex-wrap gap-1.5">
                     {[
-                      t('landPhoringFeat1'), t('landPhoringFeat2'), t('landPhoringFeat3'),
-                      t('landPhoringFeat4'), t('landPhoringFeat5'), t('landPhoringFeat6'),
-                      t('landPhoringFeat7'), t('landPhoringFeat8'), t('landPhoringFeat9'),
+                      t('landJakFeat1'), t('landJakFeat2'), t('landJakFeat3'),
+                      t('landJakFeat4'), t('landJakFeat5'), t('landJakFeat6'),
+                      t('landJakFeat7'), t('landJakFeat8'), t('landJakFeat9'),
                     ].map((feat) => (
                       <span
                         key={feat}
-                        className="rounded-full border border-[#10b981]/20 bg-[#10b981]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#6ee7b7]"
+                        className="rounded-full border border-[#ef4444]/20 bg-[#ef4444]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#fca5a5]"
                       >
                         {feat}
                       </span>
@@ -1637,52 +1669,52 @@ const Landing: React.FC = () => {
                   </div>
 
                   {/* Use cases callout */}
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#06b6d4]/20 bg-[#06b6d4]/[0.06] px-4 py-2.5 text-sm text-[#67e8f9]">
-                    <Target size={14} className="flex-shrink-0 text-[#06b6d4]" />
-                    {t('landPhoringUseCases')}
+                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-2.5 text-sm text-amber-300">
+                    <Target size={14} className="flex-shrink-0 text-amber-500" />
+                    {t('landJakUseCases')}
                   </div>
 
                   {/* CTAs */}
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
-                      href="https://phoring.in"
+                      href="https://jakswarm.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#10b981] px-6 py-3 text-sm font-bold text-[#022c22] shadow-[0_0_30px_rgba(16,185,129,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#34d399] hover:shadow-[0_0_40px_rgba(16,185,129,0.4)]"
+                      className="inline-flex items-center gap-2 rounded-full bg-[#ef4444] px-6 py-3 text-sm font-bold text-[#1a0606] shadow-[0_0_30px_rgba(239,68,68,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#f87171] hover:shadow-[0_0_40px_rgba(239,68,68,0.4)]"
                     >
-                      {t('landPhoringCta1')}
+                      {t('landJakCta1')}
                       <ExternalLink size={14} />
                     </a>
                     <a
-                      href="https://phoring.in"
+                      href="https://jakswarm.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
                     >
                       <Sparkles size={14} />
-                      {t('landPhoringCta2')}
+                      {t('landJakCta2')}
                     </a>
                     <a
-                      href="https://github.com/inbharatai/phoring"
+                      href="https://github.com/inbharatai/jak-swarm"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#9aafc6] transition-all hover:text-white"
                     >
                       <Github size={14} />
-                      {t('landPhoringCta3')}
+                      {t('landJakCta3')}
                     </a>
                   </div>
                 </div>
 
-                {/* Right: Scenario Intelligence Graph — live pipeline visualization */}
+                {/* Right: JAK Swarm Flow Graph — live closed-loop pipeline visualization */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.9, delay: 0.1, ease }}
-                  className="relative overflow-hidden rounded-2xl border border-[#10b981]/15 bg-[#030808] min-h-[400px] lg:min-h-0 lg:self-stretch"
+                  className="relative overflow-hidden rounded-2xl border border-[#ef4444]/15 bg-[#030608] min-h-[400px] lg:min-h-0 lg:self-stretch"
                 >
-                  <PhoringScenarioGraph reduceMotion={reduceMotion} />
+                  <JakSwarmFlowGraph reduceMotion={reduceMotion} />
                 </motion.div>
               </div>
             </div>
