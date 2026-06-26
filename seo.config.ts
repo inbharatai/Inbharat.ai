@@ -40,7 +40,7 @@ export const SITE = {
     twitter: 'https://x.com/reetur_aj',
     github: 'https://github.com/inbharatai',
   },
-  contactEmail: 'reetu004@gmail.com',
+  contactEmail: 'info@inbharat.ai',
 } as const;
 
 export type SeoRoute = {
