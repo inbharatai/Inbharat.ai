@@ -10,7 +10,8 @@ import {
   logDeniedAttempt,
   logInfo,
 } from "../../lib/growth/authorization.js";
-import { redactAsset, redactRepo } from "../../lib/growth/redactRegistry.js";
+import { adminAssetView, adminRepoView } from "../../lib/growth/redactRegistry.js";
+import { mapAssetRow, mapRepoRow } from "../../lib/growth/authorization.js";
 
 /**
  * /api/growth/registry — live-editable repo/asset registry (the founder's
@@ -145,12 +146,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (isAdminErr(admin)) return res.status(admin.status).json(admin.body);
 
   if (req.method === "GET") {
+    // Authed edit surface: return FULL rows (incl. canonicalPrivateRepo, so the
+    // founder can edit private-repo links) + source/editor_locked/verify cols.
+    // This is runtime data behind requireAdmin — never baked into the static
+    // bundle. Falls back to the JSON seed (no source/lock/verify) when the DB
+    // or the migration is absent.
+    if (supabaseAdmin) {
+      const [reposRes, assetsRes] = await Promise.all([
+        supabaseAdmin.from("growth_repo_registry").select("*"),
+        supabaseAdmin.from("growth_authorized_assets").select("*"),
+      ]);
+      if (!reposRes.error && !assetsRes.error) {
+        const repos = (reposRes.data ?? []).map((row: Record<string, unknown>) =>
+          adminRepoView(mapRepoRow(row), {
+            source: (row.source as "seed" | "ui") ?? "seed",
+            editorLocked: Boolean(row.editor_locked),
+            lastCommitSha: (row.last_commit_sha as string | null) ?? null,
+            lastCommitAt: (row.last_commit_at as string | null) ?? null,
+            lastPrState: (row.last_pr_state as string | null) ?? null,
+            lastCheckedAt: (row.last_checked_at as string | null) ?? null,
+          }),
+        );
+        const assets = (assetsRes.data ?? []).map((row: Record<string, unknown>) =>
+          adminAssetView(mapAssetRow(row), {
+            source: (row.source as "seed" | "ui") ?? "seed",
+            editorLocked: Boolean(row.editor_locked),
+          }),
+        );
+        return res.status(200).json({ ok: true, requestId, repos, assets });
+      }
+    }
+    // DB absent / not migrated → seed (read-only view, no lock/verify cols).
     await ensureRegistryLoaded();
     return res.status(200).json({
       ok: true,
       requestId,
-      assets: getAuthorizedAssets().map(redactAsset),
-      repos: getRepoRegistry().map((r) => redactRepo(r)),
+      repos: getRepoRegistry().map((r) => adminRepoView(r)),
+      assets: getAuthorizedAssets().map((a) => adminAssetView(a)),
+      note: "DB not configured — showing seed (read-only).",
     });
   }
 

@@ -85,3 +85,46 @@ export function redactAsset(a: AuthorizedAsset): AssetPublicView {
     notes: a.notes,
   };
 }
+
+// ─── Admin views (authed edit surface only) ──────────────────────────────
+// Returned ONLY by /api/growth/registry GET (requireAdmin-gated, runtime data —
+// never baked into the static client bundle/sitemap/SEO shells). The founder
+// needs the canonical private repo name here to grant/edit private-repo access;
+// the /status GET that Overview/Issues load stays redacted. canPublishDirectly
+// is included so the founder can see it is always false (it is not writable).
+
+export interface RepoAdminView extends RepoEntry {
+  source: "seed" | "ui";
+  editorLocked: boolean;
+  lastCommitSha: string | null;
+  lastCommitAt: string | null;
+  lastPrState: string | null;
+  lastCheckedAt: string | null;
+}
+
+export interface AssetAdminView extends AuthorizedAsset {
+  source: "seed" | "ui";
+  editorLocked: boolean;
+}
+
+export function adminRepoView(
+  r: RepoEntry,
+  x: { source?: "seed" | "ui"; editorLocked?: boolean } & RepoVerifyCache = {},
+): RepoAdminView {
+  return {
+    ...r,
+    source: x.source ?? "seed",
+    editorLocked: x.editorLocked ?? false,
+    lastCommitSha: x.lastCommitSha ?? null,
+    lastCommitAt: x.lastCommitAt ?? null,
+    lastPrState: x.lastPrState ?? null,
+    lastCheckedAt: x.lastCheckedAt ?? null,
+  };
+}
+
+export function adminAssetView(
+  a: AuthorizedAsset,
+  x: { source?: "seed" | "ui"; editorLocked?: boolean } = {},
+): AssetAdminView {
+  return { ...a, source: x.source ?? "seed", editorLocked: x.editorLocked ?? false };
+}
