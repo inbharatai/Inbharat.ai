@@ -3,6 +3,7 @@ import { getRequestId, isCronAuthErr, authorizeCron } from "../../lib/requireAdm
 import { auditDomain } from "../../../lib/growth/audit-runner.js";
 import { getAuthorizedAssets, logInfo } from "../../../lib/growth/authorization.js";
 import { promoteArticle } from "../../../lib/growth/promoter.js";
+import { ingestPendingInbox } from "../../../lib/growth/inbox.js";
 
 const ARTICLE_PATH_PREFIX = "/learn-ai-with-reeturaj/";
 
@@ -41,9 +42,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length}`);
+  // Ingest any dropped inbox content (Phase 2). Wrapped so a storage/DB hiccup
+  // never aborts the audit+promote run above — one bad file won't either.
+  let inbox = { ingested: 0, errored: 0, skipped: 0 };
+  try {
+    inbox = await ingestPendingInbox();
+  } catch (e) {
+    await logInfo("cron-daily-inbox-fail", "global", (e as Error).message).catch(() => undefined);
+  }
 
-  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results });
+  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored}`);
+
+  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox });
 }
 
 /**

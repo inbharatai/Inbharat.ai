@@ -29,6 +29,7 @@ const GrowthIssues = lazy(() => import('./pages/admin/growth/Issues.tsx'));
 const GrowthPerformance = lazy(() => import('./pages/admin/growth/Performance.tsx'));
 const GrowthSettings = lazy(() => import('./pages/admin/growth/Settings.tsx'));
 const GrowthRules = lazy(() => import('./pages/admin/growth/Rules.tsx'));
+const GrowthInbox = lazy(() => import('./pages/admin/growth/Inbox.tsx'));
 
 const StaticLoader: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#030508] text-[#9aafc6]" aria-live="polite">
@@ -76,6 +77,7 @@ root.render(
               <Route path="performance" element={<GrowthPerformance />} />
               <Route path="settings" element={<GrowthSettings />} />
               <Route path="rules" element={<GrowthRules />} />
+              <Route path="inbox" element={<GrowthInbox />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

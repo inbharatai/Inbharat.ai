@@ -486,6 +486,7 @@ const ADMIN_GROWTH_PATHS = [
   '/admin/growth/sites',
   '/admin/growth/repos',
   '/admin/growth/rules',
+  '/admin/growth/inbox',
   '/admin/growth/issues',
   '/admin/growth/performance',
   '/admin/growth/settings',
