@@ -63,6 +63,20 @@ export interface RepoRegistry {
   repos: RepoEntry[];
 }
 
+/** Founder-authored rule injected into the promoter's system prompt (agent "memory"). */
+export type AgentRuleScope = "repo" | "domain" | "global";
+export type AgentRuleKind = "do" | "dont" | "voice" | "schedule";
+
+export interface AgentRule {
+  id: string;
+  scope: AgentRuleScope;
+  /** repo slug | domain | null for global rules. */
+  scopeKey: string | null;
+  kind: AgentRuleKind;
+  ruleText: string;
+  enabled: boolean;
+}
+
 export type IssueSeverity = "critical" | "high" | "normal" | "low";
 
 export interface AuditIssue {

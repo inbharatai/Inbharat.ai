@@ -25,10 +25,99 @@ import type {
 // that crashed every endpoint pulling in the crawler/auditor (audit, promote,
 // cron/daily). createRequire loads JSON without an import attribute and is
 // traced by Vercel's bundler the same as the previous static import.
+import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
+
 const cfgRequire = createRequire(import.meta.url);
+/** Seed + fallback. Used when the DB registry is absent/not yet loaded, so the
+ *  pipeline never breaks and hermetic tests with no Supabase stay green. */
 const assetsConfig = cfgRequire("../../config/growth-authorized-assets.json") as AuthorizedAssetsConfig;
 const reposConfig = cfgRequire("../../config/repo-registry.json") as RepoRegistry;
-import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
+
+/**
+ * DB-backed registry cache. Populated by reloadRegistry() (admin/cron handlers
+ * call ensureRegistryLoaded()). While null, the sync guards fall back to the
+ * JSON seed — so a cold request before the first reload still serves correct
+ * (seed) data, and tests with no DB are unaffected.
+ */
+let registryCache: { assets: AuthorizedAsset[]; repos: RepoEntry[] } | null = null;
+
+/** Map a growth_repo_registry row (snake_case) → RepoEntry (camelCase). */
+export function mapRepoRow(r: Record<string, unknown>): RepoEntry {
+  return {
+    productName: String(r.product_name ?? ""),
+    productSlug: String(r.product_slug ?? ""),
+    canonicalPrivateRepo: (r.canonical_private_repo as string | null) ?? null,
+    publicRepo: (r.public_repo as string | null) ?? null,
+    websitePath: (r.website_path as string | null) ?? null,
+    sourceOfTruth: (r.source_of_truth as RepoEntry["sourceOfTruth"]) ?? "canonical_private",
+    publicRepoStatus: (r.public_repo_status as RepoEntry["publicRepoStatus"]) ?? "public_mirror_current",
+    crawlPrivateRepo: Boolean(r.crawl_private_repo),
+    crawlPublicRepo: Boolean(r.crawl_public_repo),
+    allowAgentRead: Boolean(r.allow_agent_read),
+    allowAgentPR: Boolean(r.allow_agent_pr),
+    notes: (r.notes as string | undefined) ?? undefined,
+  };
+}
+
+/** Map a growth_authorized_assets row (snake_case) → AuthorizedAsset (camelCase). */
+export function mapAssetRow(a: Record<string, unknown>): AuthorizedAsset {
+  return {
+    domain: String(a.domain ?? ""),
+    name: String(a.name ?? ""),
+    status: String(a.status ?? "active"),
+    canCrawl: Boolean(a.can_crawl),
+    canAudit: Boolean(a.can_audit),
+    canDraft: Boolean(a.can_draft),
+    canCreatePR: Boolean(a.can_create_pr),
+    canPublishDirectly: Boolean(a.can_publish_directly),
+    requiresHumanApproval: a.requires_human_approval === false ? false : true,
+    notes: (a.notes as string | undefined) ?? undefined,
+  };
+}
+
+/** Reload the registry from the DB into the cache. Never throws — on any error
+ *  or empty (unseeded) DB it keeps the JSON seed (pipeline must never break). */
+export async function reloadRegistry(): Promise<void> {
+  if (!supabaseAdmin) { registryCache = null; return; }
+  try {
+    const [reposRes, assetsRes] = await Promise.all([
+      supabaseAdmin.from("growth_repo_registry").select("*"),
+      supabaseAdmin.from("growth_authorized_assets").select("*"),
+    ]);
+    if (reposRes.error || assetsRes.error) { registryCache = null; return; }
+    const repos = (reposRes.data ?? []).map(mapRepoRow);
+    const assets = (assetsRes.data ?? []).map(mapAssetRow);
+    // Only adopt the DB view if it has rows; a freshly-migrated-but-unseeded DB
+    // would otherwise blank out the registry.
+    if (repos.length === 0 && assets.length === 0) { registryCache = null; return; }
+    registryCache = { assets, repos };
+  } catch {
+    registryCache = null;
+  }
+}
+
+/** Invalidate the cache after an admin registry edit. The next guard read re-seeds
+ *  from JSON until the next ensureRegistryLoaded()/reloadRegistry(). */
+export function bustRegistryCache(): void {
+  registryCache = null;
+}
+
+/** Ensure the DB registry is loaded into the cache. Idempotent (no-op if loaded).
+ *  Call at the top of admin/cron handlers that need fresh DB state. */
+export async function ensureRegistryLoaded(): Promise<void> {
+  if (registryCache) return;
+  await reloadRegistry();
+}
+
+/** Current assets: DB cache if loaded, else JSON seed. */
+function currentAssets(): AuthorizedAsset[] {
+  return registryCache?.assets ?? assetsConfig.assets;
+}
+
+/** Current repos: DB cache if loaded, else JSON seed. */
+function currentRepos(): RepoEntry[] {
+  return registryCache?.repos ?? reposConfig.repos;
+}
 
 /** Normalize a URL/host to a bare hostname (lowercased, no www prefix for compare). */
 export function normalizeDomain(input: string): string {
@@ -42,21 +131,21 @@ export function normalizeDomain(input: string): string {
 }
 
 export function getAuthorizedAssets(): AuthorizedAsset[] {
-  return assetsConfig.assets;
+  return currentAssets();
 }
 
 export function getRepoRegistry(): RepoEntry[] {
-  return reposConfig.repos;
+  return currentRepos();
 }
 
 /** Find the authorized asset for a domain (or URL). Returns undefined if not authorized. */
 export function findAsset(domainOrUrl: string): AuthorizedAsset | undefined {
   const d = normalizeDomain(domainOrUrl);
-  return assetsConfig.assets.find((a) => normalizeDomain(a.domain) === d);
+  return currentAssets().find((a) => normalizeDomain(a.domain) === d);
 }
 
 export function findRepo(repo: string): RepoEntry | undefined {
-  const r = reposConfig.repos.find((x) => x.canonicalPrivateRepo === repo || x.publicRepo === repo);
+  const r = currentRepos().find((x) => x.canonicalPrivateRepo === repo || x.publicRepo === repo);
   return r;
 }
 
