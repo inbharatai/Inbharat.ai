@@ -375,6 +375,21 @@ console.log("\nAgent rules (no Supabase → empty, formatter pure):");
   bustRulesCache();
 }
 
+// ─── GitHub deny gate (hermetic: gate runs before token/network) ───
+// The per-repo deny gate is enforced before GITHUB_TOKEN is checked, so with no
+// token + no network we can assert: RHCF-Seva is refused (denied:true), while
+// the canonical Sahayaak Seva repo passes the gate (fails only on missing token).
+const { verifyRepo, fetchReadme } = await import("../lib/growth/github.js");
+console.log("\nGitHub deny gate (no token / no network):");
+{
+  const denied = await verifyRepo("inbharatai/RHCF-Seva");
+  check("RHCF-Seva verify refused by gate", denied.ok === false && denied.denied === true);
+  const deniedRm = await fetchReadme("inbharatai/RHCF-Seva");
+  check("RHCF-Seva readme refused by gate", deniedRm.ok === false && deniedRm.denied === true);
+  const allowed = await verifyRepo("inbharatai/sahayaak-Seva");
+  check("Sahayaak Seva passes gate (fails on missing token, not denied)", allowed.ok === false && allowed.denied === undefined && /GITHUB_TOKEN/.test(allowed.error || ""));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");
