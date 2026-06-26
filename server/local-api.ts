@@ -129,6 +129,7 @@ const growthHandlers = {
   "/api/growth/rules": () => import("../api/growth/rules.ts"),
   "/api/growth/github": () => import("../api/growth/github.ts"),
   "/api/growth/inbox": () => import("../api/growth/inbox.ts"),
+  "/api/growth/publish": () => import("../api/growth/publish.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
@@ -157,6 +158,7 @@ app.post("/api/growth/github", (req, res) => runHandler("/api/growth/github", re
 app.get("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, res));
 app.post("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, res));
 app.delete("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, res));
+app.post("/api/growth/publish", (req, res) => runHandler("/api/growth/publish", req, res));
 // Cron accepts GET (Vercel scheduled cron) + POST (manual/admin "Run now").
 app.get("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));

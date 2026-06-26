@@ -50,6 +50,9 @@ const Issues: React.FC = () => {
   const [auditMsg, setAuditMsg] = useState<string | null>(null);
   const [promotingUrl, setPromotingUrl] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
+  const [companyId, setCompanyId] = useState("");
 
   async function load() {
     setLoading(true);
@@ -116,6 +119,35 @@ const Issues: React.FC = () => {
   }
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
+  const approvedDrafts = drafts.filter((d) => d.status === "approved");
+
+  async function publishDraft(d: DraftRow) {
+    if (publishMode === "company" && !companyId.trim()) {
+      setDraftMsg("Enter a LinkedIn company ID for company mode.");
+      return;
+    }
+    setPublishingId(d.id);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{ ok: boolean; shareUrl?: string; summary?: string; error?: string }>("/api/growth/publish", {
+      method: "POST",
+      body: JSON.stringify({ draftId: d.id, mode: publishMode, companyId: publishMode === "company" ? companyId.trim() : undefined }),
+    });
+    setPublishingId(null);
+    if (error || !data?.ok || !data.shareUrl) {
+      setDraftMsg(`Publish failed: ${error || "no share URL"}`);
+      return;
+    }
+    // Human-gated one-click: copy the approved caption + open LinkedIn's official
+    // share deep-link (prefilled with the article URL). No auto-publish, no API.
+    try {
+      await navigator.clipboard.writeText(data.summary || d.body_md || d.title || "");
+    } catch {
+      // clipboard may be blocked; the caption is still visible above to copy manually
+    }
+    window.open(data.shareUrl, "_blank", "noopener");
+    setDraftMsg(`Published — caption copied to clipboard; LinkedIn share opened in a new tab.`);
+    await loadDrafts();
+  }
 
   return (
     <div>
@@ -183,6 +215,64 @@ const Issues: React.FC = () => {
                     className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
                   >
                     Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {approvedDrafts.length > 0 && (
+        <section className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
+          <h2 className="text-[15px] font-bold text-white">Approved — ready to publish ({approvedDrafts.length})</h2>
+          <p className="mt-1 text-[12px] text-[#9fb2c6]">
+            One-click LinkedIn share (human-gated). Clicking copies the caption to your clipboard and opens the official
+            LinkedIn share page prefilled with the article URL — you post it yourself. Nothing auto-publishes.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="flex rounded-lg border border-white/10 p-0.5">
+              <button
+                onClick={() => setPublishMode("personal")}
+                className={`rounded-md px-3 py-1 text-[11px] font-semibold ${publishMode === "personal" ? "bg-[#f59f4f] text-black" : "text-[#c8d6e8]"}`}
+              >
+                Personal
+              </button>
+              <button
+                onClick={() => setPublishMode("company")}
+                className={`rounded-md px-3 py-1 text-[11px] font-semibold ${publishMode === "company" ? "bg-[#f59f4f] text-black" : "text-[#c8d6e8]"}`}
+              >
+                Company
+              </button>
+            </div>
+            {publishMode === "company" && (
+              <input
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                placeholder="LinkedIn company ID (e.g. 12345)"
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-1.5 text-[12px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
+              />
+            )}
+          </div>
+          <div className="mt-3 space-y-3">
+            {approvedDrafts.map((d) => (
+              <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <p className="truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
+                {d.body_md && <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>}
+                {d.schema_json?.internalLinks && d.schema_json.internalLinks.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {d.schema_json.internalLinks.map((l) => (
+                      <li key={l} className="truncate text-[11px] text-[#7ab9e6]">↳ {l}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => publishDraft(d)}
+                    disabled={publishingId === d.id}
+                    className="rounded-md bg-[#0a66c2] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0a66c2]/90 disabled:opacity-40"
+                  >
+                    {publishingId === d.id ? "Opening…" : "Publish to LinkedIn"}
                   </button>
                 </div>
               </div>
