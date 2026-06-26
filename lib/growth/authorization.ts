@@ -10,6 +10,7 @@
  * testable. logDeniedAttempt() persists to growth_agent_logs when Supabase is
  * configured, else falls back to console.
  */
+import { createRequire } from "node:module";
 import type {
   AuthorizedAsset,
   AuthorizedAssetsConfig,
@@ -18,12 +19,16 @@ import type {
   RepoRegistry,
   AuthorizationDecision,
 } from "./types.js";
-import authorizedAssetsConfig from "../../config/growth-authorized-assets.json";
-import repoRegistryConfig from "../../config/repo-registry.json";
+// Load the JSON config via createRequire (not a static `import ... from "*.json"`).
+// Vercel's serverless functions run strict ESM Node, which rejects a JSON import
+// without a `with { type: "json" }` attribute (ERR_IMPORT_ATTRIBUTE_MISSING) —
+// that crashed every endpoint pulling in the crawler/auditor (audit, promote,
+// cron/daily). createRequire loads JSON without an import attribute and is
+// traced by Vercel's bundler the same as the previous static import.
+const cfgRequire = createRequire(import.meta.url);
+const assetsConfig = cfgRequire("../../config/growth-authorized-assets.json") as AuthorizedAssetsConfig;
+const reposConfig = cfgRequire("../../config/repo-registry.json") as RepoRegistry;
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
-
-const assetsConfig = authorizedAssetsConfig as AuthorizedAssetsConfig;
-const reposConfig = repoRegistryConfig as RepoRegistry;
 
 /** Normalize a URL/host to a bare hostname (lowercased, no www prefix for compare). */
 export function normalizeDomain(input: string): string {

@@ -36,3 +36,4 @@ agent-arcade/
 playwright-report/
 test-results/
 .vercel
+.env*.local
