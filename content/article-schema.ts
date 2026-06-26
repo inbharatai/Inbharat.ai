@@ -12,8 +12,8 @@
  *                            but keeping the builder here lets the page render
  *                            its own canonical block if needed).
  */
-import type { ArticleMeta } from './articles.meta';
-import { ARTICLE_HUB_PATH, articlePath, articleVisualPath } from './articles.meta';
+import type { ArticleMeta } from './articles.meta.js';
+import { ARTICLE_HUB_PATH, articlePath, articleVisualPath } from './articles.meta.js';
 
 type Schema = Record<string, unknown>;
 

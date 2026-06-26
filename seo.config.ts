@@ -19,8 +19,8 @@ import {
   ARTICLE_HUB_PATH,
   articlePath,
   articleVisualPath,
-} from './content/articles.meta';
-import { buildArticleSchemas } from './content/article-schema';
+} from './content/articles.meta.js';
+import { buildArticleSchemas } from './content/article-schema.js';
 
 export const SITE = {
   url: 'https://inbharat.ai',
