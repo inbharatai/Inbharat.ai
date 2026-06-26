@@ -354,6 +354,27 @@ try {
   check("logUsage resolves (no throw) when Supabase unset", false, (e as Error).message);
 }
 
+// ─── Agent rules (no DB → empty; formatter groups by kind) ───
+// With supabaseAdmin null, loadRulesForUrl returns [] (pre-migration / DB
+// absent), so the promoter's rules block is "" and its prompt is unchanged.
+// The formatter is pure and verified directly here.
+const { loadRulesForUrl, formatRulesBlock, bustRulesCache } = await import("../lib/growth/rules.js");
+console.log("\nAgent rules (no Supabase → empty, formatter pure):");
+{
+  const rules = await loadRulesForUrl("https://inbharat.ai/learn-ai-with-reeturaj/rag");
+  check("loadRulesForUrl returns [] with no DB", Array.isArray(rules) && rules.length === 0);
+  check("formatRulesBlock([]) is empty string", formatRulesBlock([]) === "");
+  const block = formatRulesBlock([
+    { id: "1", scope: "global", scopeKey: null, kind: "dont", ruleText: "Never mention UniGurus.", enabled: true },
+    { id: "2", scope: "global", scopeKey: null, kind: "voice", ruleText: "Founder first-person voice.", enabled: true },
+    { id: "3", scope: "global", scopeKey: null, kind: "do", ruleText: "Lead with user benefit.", enabled: true },
+  ]);
+  check("rules block labels each kind", block.includes("DON'T:") && block.includes("VOICE:") && block.includes("DO:"));
+  check("rules block orders dont before do", block.indexOf("DON'T:") < block.indexOf("DO:"));
+  check("rules block includes the founder instruction text", block.includes("Never mention UniGurus."));
+  bustRulesCache();
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");

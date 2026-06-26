@@ -19,6 +19,7 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { fetchPage, parsePage } from "./crawler.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -182,11 +183,18 @@ async function generatePromotionDraft(
     .map(({ s }) => `- ${s.title} → ${s.url}`)
     .join("\n");
 
+  // Founder-authored rules (agent "memory") — global + this URL's domain.
+  // Appended to the system prompt BEFORE redact() so they ride inside the
+  // redacted payload (never sent raw if a secret sneaks in). Empty when no
+  // rules exist yet (pre-migration / DB absent) — prompt is unchanged.
+  const rulesBlock = formatRulesBlock(await loadRulesForUrl(url));
+
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
     "You write concise, practical, hype-free LinkedIn post drafts that tease a founder-authored article and drive clicks to the article URL. " +
     "You also suggest 2–3 internal links (other InBharat article URLs or the hub) to weave into the post. " +
-    "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}.";
+    "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
+    (rulesBlock ? `\n\n${rulesBlock}` : "");
 
   const user =
     `Article URL: ${url}\n` +
