@@ -79,6 +79,20 @@ const Issues: React.FC = () => {
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
   const [companyId, setCompanyId] = useState("");
+  // Per-draft publish outcome so the founder completes the LinkedIn post from a
+  // REAL click gesture (Open LinkedIn ↗) instead of a popup the browser may block
+  // after the await — the old "blank tab opens and closes" symptom. Cleared per
+  // action; only one draft's result/error shows at a time.
+  const [publishResult, setPublishResult] = useState<{ draftId: string; shareUrl: string; caption: string } | null>(null);
+  const [publishError, setPublishError] = useState<{ draftId: string; reason: string } | null>(null);
+  const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+
+  /** Open the LinkedIn share URL from a fresh user gesture (button click), so the
+   *  popup is never blocked. Falls back to a same-tab navigation if blocked. */
+  function openShare(shareUrl: string) {
+    const w = window.open(shareUrl, "_blank", "noopener,noreferrer");
+    if (!w) window.location.href = shareUrl;
+  }
 
   async function load() {
     setLoading(true);
@@ -155,15 +169,19 @@ const Issues: React.FC = () => {
       setDraftMsg("Enter a LinkedIn company ID for company mode.");
       return;
     }
-    // Open the LinkedIn tab SYNCHRONOUSLY inside the click gesture. Browsers block
-    // window.open() that happens after an `await` (no active user-gesture), which is
-    // why "Publish to LinkedIn" used to do nothing — the API call ran first, then the
-    // popup was silently killed. We open about:blank now, then redirect it to the
-    // share URL once the backend returns it (and close it if publish fails).
-    const popup = window.open("about:blank", "_blank");
+    // NOTE: we do NOT open a popup here. The old flow opened `about:blank`
+    // synchronously, awaited the backend, then redirected the popup on success or
+    // closed it on failure — which is exactly why "a blank tab opens and closes
+    // and nothing happens": any backend non-ok (or a popup-blocked post-await
+    // redirect) left the founder staring at a blank tab. Now we just fetch; on
+    // success we surface the share URL + caption INLINE and the founder clicks
+    // "Open LinkedIn ↗" from a REAL user gesture (never blocked); on failure we
+    // show a prominent inline error banner with the real backend reason.
     setPublishingId(d.id);
     setDraftMsg(null);
-    const { data, error } = await fetchJson<{ ok: boolean; shareUrl?: string; summary?: string; error?: string; code?: string }>("/api/growth/publish", {
+    setPublishError(null);
+    setPublishResult(null);
+    const { data, error } = await fetchJson<{ ok: boolean; shareUrl?: string; summary?: string; title?: string; error?: string; code?: string }>("/api/growth/publish", {
       method: "POST",
       body: JSON.stringify({ draftId: d.id, mode: publishMode, companyId: publishMode === "company" ? companyId.trim() : undefined }),
     });
@@ -171,29 +189,42 @@ const Issues: React.FC = () => {
     if (error || !data?.ok || !data.shareUrl) {
       // Surface the REAL backend reason. The old code printed only the fetch-level
       // `error` (or "no share URL"), so a backend `error` object rendered as
-      // "[object Object]" and the founder couldn't see why publish failed (and
-      // because it was treated as failed, LinkedIn never opened). Read both the
-      // fetch error and the body's `error`/`code`, and stringify objects safely.
-      popup?.close();
+      // "[object Object]" and the founder couldn't see why publish failed. Read
+      // both the fetch error and the body's `error`/`code`, stringify objects
+      // safely, and pin it to THIS draft so the banner shows next to it.
       const reason = strError(error) || strError(data?.error) || data?.code || "no share URL returned";
+      setPublishError({ draftId: d.id, reason });
       setDraftMsg(`Publish failed: ${reason}`);
       return;
     }
-    // Human-gated one-click: copy the approved caption + open LinkedIn's official
-    // share deep-link (prefilled with the article URL). No auto-publish, no API.
+    const caption = data.summary || d.body_md || d.title || "";
+    // Copy the approved caption to the clipboard now (best-effort) and surface the
+    // share URL inline so the founder can open LinkedIn from a real click gesture.
     try {
-      await navigator.clipboard.writeText(data.summary || d.body_md || d.title || "");
+      await navigator.clipboard.writeText(caption);
     } catch {
-      // clipboard may be blocked; the caption is still visible above to copy manually
+      // clipboard may be blocked; the caption is shown inline to copy manually
     }
-    if (popup) {
-      popup.location.href = data.shareUrl;
-    } else {
-      // Popup was blocked after all — fall back to a same-tab navigation so the
-      // founder still lands on the LinkedIn share page (then Back returns here).
-      window.location.href = data.shareUrl;
+    setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption });
+    setDraftMsg("Ready — caption copied to clipboard. Click “Open LinkedIn ↗” to post it yourself.");
+    await loadDrafts();
+  }
+
+  async function regenerateCover(d: DraftRow) {
+    if (!confirm("Regenerate this cover? It will create a fresh pending draft (the current one stays until you reject it).")) return;
+    setRegeneratingId(d.id);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{ ok: boolean; draftId?: string; note?: string; error?: string; code?: string }>("/api/growth/cover/regenerate", {
+      method: "POST",
+      body: JSON.stringify({ draftId: d.id }),
+    });
+    setRegeneratingId(null);
+    if (error || !data?.ok) {
+      const reason = strError(error) || strError(data?.error) || data?.code || "regenerate failed";
+      setDraftMsg(`Regenerate failed: ${reason}`);
+      return;
     }
-    setDraftMsg(`Published — caption copied to clipboard; LinkedIn share opened in a new tab.`);
+    setDraftMsg(data.draftId ? "Cover regenerated — a fresh pending draft is in the review queue." : `No new draft: ${data.note || "nothing to regenerate"}`);
     await loadDrafts();
   }
 
@@ -370,22 +401,71 @@ const Issues: React.FC = () => {
                     )}
                   </>
                 )}
+                {/* Inline publish result — LinkedIn share URL + caption, opened from a
+                    REAL click gesture so the popup is never blocked (fixes "blank tab
+                    opens and closes"). The caption was already copied to clipboard. */}
+                {publishResult?.draftId === d.id && (
+                  <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/[0.08] p-2.5">
+                    <p className="text-[11px] font-semibold text-emerald-300">✓ Ready to post — caption copied to clipboard.</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => openShare(publishResult.shareUrl)}
+                        className="rounded-md bg-[#0a66c2] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0a66c2]/90"
+                      >
+                        Open LinkedIn ↗
+                      </button>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(publishResult.caption).then(() => setDraftMsg("Caption copied to clipboard."))}
+                        className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
+                      >
+                        Copy caption
+                      </button>
+                      <button
+                        onClick={() => setPublishResult(null)}
+                        className="rounded-md border border-white/10 px-3 py-1.5 text-[11px] text-[#7a9ab8] hover:border-white/25"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {/* Prominent inline error banner — the real backend reason, pinned to
+                    this draft so the founder sees WHY publish failed (old flow just
+                    closed the popup → "nothing happens"). */}
+                {publishError?.draftId === d.id && (
+                  <div className="mt-3 rounded-md border border-red-500/40 bg-red-500/[0.08] p-2.5">
+                    <p className="text-[11px] font-semibold text-red-300">✗ Publish failed: {publishError.reason}</p>
+                    <p className="mt-1 text-[10px] text-[#9fb2c6]">
+                      The draft was not marked published. Check the reason above, fix it (e.g. a company ID), and retry.
+                    </p>
+                    <button onClick={() => setPublishError(null)} className="mt-1.5 text-[10px] text-[#7a9ab8] hover:text-[#c8d6e8]">Dismiss</button>
+                  </div>
+                )}
                 <div className="mt-3 flex gap-2">
                   {d.kind === "cover" ? (
-                    <button
-                      onClick={() => publishCover(d)}
-                      disabled={publishingId === d.id}
-                      className="rounded-md bg-[#f59f4f] px-3 py-1.5 text-[11px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90 disabled:opacity-40"
-                    >
-                      {publishingId === d.id ? "Committing…" : "Publish cover"}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => publishCover(d)}
+                        disabled={publishingId === d.id}
+                        className="rounded-md bg-[#f59f4f] px-3 py-1.5 text-[11px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90 disabled:opacity-40"
+                      >
+                        {publishingId === d.id ? "Committing…" : "Publish cover"}
+                      </button>
+                      <button
+                        onClick={() => regenerateCover(d)}
+                        disabled={regeneratingId === d.id}
+                        className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30 disabled:opacity-40"
+                      >
+                        {regeneratingId === d.id ? "Regenerating…" : "Regenerate"}
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={() => publishDraft(d)}
                       disabled={publishingId === d.id}
                       className="rounded-md bg-[#0a66c2] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#0a66c2]/90 disabled:opacity-40"
                     >
-                      {publishingId === d.id ? "Opening…" : "Publish to LinkedIn"}
+                      {publishingId === d.id ? "Preparing…" : "Publish to LinkedIn"}
                     </button>
                   )}
                 </div>
