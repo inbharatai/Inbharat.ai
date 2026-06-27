@@ -134,10 +134,12 @@ function mapCols(patch: Record<string, unknown>, cols: Record<string, string>): 
 
 async function audit(adminId: string, action: string, scope: string, detail: string): Promise<void> {
   if (!supabaseAdmin) return;
+  // Postgrest builders are PromiseLike (.then) but NOT Promises — .catch throws
+  // synchronously; use .then(onFulfilled, onRejected) for the best-effort swallow.
   await supabaseAdmin
     .from("growth_agent_logs")
     .insert({ level: "info", action, scope, detail })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

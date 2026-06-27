@@ -59,22 +59,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Order matters for the never-auto-publish guarantee: insert the audit row
+    // FIRST, then flip the draft status. If the audit insert fails we return an
+    // error and the draft stays in its prior status (safe to retry) instead of
+    // leaving an approved draft with no approval record. A successful 200 means
+    // BOTH landed; a failure leaves the draft state unchanged.
+    const { error: insErr } = await supabaseAdmin.from("growth_approvals").insert({
+      draft_id: parsed.draftId,
+      reviewer: admin.userId,
+      decision: parsed.decision,
+      note: parsed.note || null,
+    });
+    if (insErr) {
+      return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to record approval", requestId: admin.requestId });
+    }
+
     // Flip the draft status. status flows: pending → approved|rejected.
     const { error: updErr } = await supabaseAdmin
       .from("growth_drafts")
       .update({ status: parsed.decision })
       .eq("id", parsed.draftId);
     if (updErr) {
-      return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to update draft", requestId: admin.requestId });
+      // The approval row was inserted but the status flip failed — the draft stays
+      // pending so the founder can re-approve. The orphan audit row is harmless.
+      return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to update draft (approval recorded; re-approve to retry)", requestId: admin.requestId });
     }
-
-    // Audit trail row.
-    await supabaseAdmin.from("growth_approvals").insert({
-      draft_id: parsed.draftId,
-      reviewer: admin.userId,
-      decision: parsed.decision,
-      note: parsed.note || null,
-    });
 
     return res.status(200).json({ ok: true, requestId: admin.requestId, draftId: parsed.draftId, decision: parsed.decision });
   } catch {

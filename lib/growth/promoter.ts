@@ -22,6 +22,7 @@ import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, typ
 import { callGemini } from "./gemini.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
+import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { critiqueAndRevise } from "./critique.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
@@ -213,12 +214,16 @@ async function generatePromotionDraft(
   // unchanged. Loaded root-wide (every fed folder) so a draft can draw on any
   // asset the founder marked available.
   const inboxBlock = formatInboxBlock(await loadInboxContext());
+  // Phase D: founder's CMO strategy (positioning/ICP/voice) — keeps every draft
+  // on-brand. Empty when no strategy is set — prompt unchanged.
+  const strategyBlock = formatStrategyBlock(await loadStrategy());
 
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
     "You write concise, practical, hype-free LinkedIn post drafts that tease a founder-authored article and drive clicks to the article URL. " +
     "You also suggest 2–3 internal links (other InBharat article URLs or the hub) to weave into the post. " +
     "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
+    (strategyBlock ? `\n\n${strategyBlock}` : "") +
     (rulesBlock ? `\n\n${rulesBlock}` : "") +
     (inboxBlock ? `\n\n${inboxBlock}` : "");
 
@@ -271,6 +276,7 @@ async function generatePromotionDraft(
       context: { url, kind: "linkedin", title },
       rulesBlock,
       inboxBlock,
+      strategyBlock,
     });
     const finalCaption = crit.revised ?? caption;
     return {
@@ -359,7 +365,11 @@ async function persistDraft(
     if (draftInsert.data?.id) draftId = draftInsert.data.id as string;
 
     // Append-only transparency log for the critique pass (full candidate +
-    // revised text live only here, never in the client bundle).
+    // revised text live only here, never in the client bundle). .then(onFulfilled,
+    // onRejected) — NOT .catch: a Postgrest builder is PromiseLike (.then) but NOT
+    // a Promise, so .catch is undefined and throws synchronously. That throw used
+    // to land in the outer catch below and return {taskId:null, draftId:null} even
+    // though BOTH rows were already inserted — silently losing the IDs + the log.
     if (draftId && critique) {
       await supabaseAdmin
         .from("growth_critique_log")
@@ -375,7 +385,7 @@ async function persistDraft(
           status: critique.status,
           note: critique.note,
         })
-        .catch(() => undefined);
+        .then(() => undefined, () => undefined);
     }
 
     return { taskId, draftId };

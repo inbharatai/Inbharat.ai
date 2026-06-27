@@ -49,6 +49,7 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
     "You are a critical reviewer for InBharat AI LinkedIn drafts. Compare the candidate to the founder's voice and the founder-authored rules. " +
     "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs; keep it 60–90 words. " +
     "Respond ONLY with compact JSON: {\"revised\": string, \"weaknesses\": [{\"severity\":\"critical|major|minor\",\"area\": string,\"fix\": string}]}." +
+    (input.strategyBlock ? `\n\n${input.strategyBlock}` : "") +
     (input.rulesBlock ? `\n\n${input.rulesBlock}` : "") +
     (input.inboxBlock ? `\n\n${input.inboxBlock}` : "");
 

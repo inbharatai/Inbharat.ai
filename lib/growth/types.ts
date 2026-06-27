@@ -98,6 +98,8 @@ export interface CritiqueInput {
   rulesBlock?: string;
   /** Pre-formatted founder-fed inbox assets block (reuse formatInboxBlock output). */
   inboxBlock?: string;
+  /** Pre-formatted founder CMO strategy block (reuse formatStrategyBlock output). */
+  strategyBlock?: string;
 }
 
 /** Result of the self-critique + revision pass. */

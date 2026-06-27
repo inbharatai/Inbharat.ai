@@ -89,10 +89,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Mark published + audit. NO LinkedIn API call — only our row + a deep-link.
   const { error: upErr } = await supabaseAdmin.from("growth_drafts").update({ status: "published" }).eq("id", draftId);
   if (upErr) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB update failed", requestId });
+  // .then(onFulfilled,onRejected) — NOT .catch (Postgrest builders are
+  // PromiseLike, .catch throws synchronously after the row is already published).
   await supabaseAdmin
     .from("growth_agent_logs")
     .insert({ level: "info", action: "publish-linkedin", scope: articleUrl, detail: `mode=${mode} draftId=${draftId}` })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 
   // Seed the outcome baseline so the daily cron can later measure the article's
   // SEO/GEO delta from this publish point. Publishes nothing; never throws.
@@ -162,7 +164,7 @@ async function publishCover(
   await supabaseAdmin!
     .from("growth_agent_logs")
     .insert({ level: "info", action: "publish-cover", scope: draftUrl ?? filename, detail: `file=${filePath} pngSha=${pngRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId}` })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 
   const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${filename}`;
   return res.status(200).json({

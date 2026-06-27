@@ -49,10 +49,12 @@ function toRow(p: { scope: AgentRuleScope; scopeKey?: string | null; kind: Agent
 
 async function audit(userId: string, action: string, detail: string): Promise<void> {
   if (!supabaseAdmin) return;
+  // Postgrest builders are PromiseLike (.then) but NOT Promises — .catch throws
+  // synchronously; use .then(onFulfilled, onRejected) for the best-effort swallow.
   await supabaseAdmin
     .from("growth_agent_logs")
     .insert({ level: "info", action, scope: userId, detail })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

@@ -13,6 +13,7 @@ import { scoreSeo } from "../lib/growth/seo-auditor.js";
 import { scoreGeo } from "../lib/growth/geo-auditor.js";
 import { promoteArticle } from "../lib/growth/promoter.js";
 import { inboxPath, sanitizeFolder, formatInboxBlock, type InboxContextItem } from "../lib/growth/inbox.js";
+import { formatStrategyBlock, type Strategy } from "../lib/growth/strategy.js";
 import { monthlyBudgetUsd, bustBudgetCache, logUsage } from "../lib/growth/model-router.js";
 import { authorizeCron, isCronAuthErr } from "../api/lib/requireAdmin.js";
 import type { VercelRequest } from "@vercel/node";
@@ -574,6 +575,20 @@ console.log("\nInbox folders (sanitize/path/block, no DB):");
   check("formatInboxBlock labels text excerpt", block.includes("[text/md] brief.md"));
   check("formatInboxBlock labels media asset", block.includes("[media/image]"));
   check("formatInboxBlock cites founder-fed guidance", /review and use wisely/i.test(block));
+}
+
+// ─── Strategy block (Phase D) — pure formatter checks ───
+console.log("\nStrategy block (formatStrategyBlock, no DB):");
+{
+  const empty: Strategy = { positioning: null, icp: null, audience: null, voice: null, competitiveDiff: null, goals: null };
+  check("formatStrategyBlock empty → ''", formatStrategyBlock(empty) === "");
+  const s: Strategy = { positioning: "India's AI infra studio.", icp: "Indian SMB engineering teams.", audience: "Hands-on builders.", voice: "Concise, hype-free.", competitiveDiff: null, goals: "Ship 3 reference articles/qtr." };
+  const block = formatStrategyBlock(s);
+  check("formatStrategyBlock has STRATEGY header", /^STRATEGY/.test(block));
+  check("formatStrategyBlock includes positioning", block.includes("POSITIONING:\nIndia's AI infra studio."));
+  check("formatStrategyBlock omits empty competitiveDiff", !block.includes("COMPETITIVE DIFFERENCE"));
+  check("formatStrategyBlock labels ICP/audience/voice", block.includes("ICP (ideal customer profile)") && block.includes("AUDIENCE") && block.includes("VOICE"));
+  check("formatStrategyBlock obeys-on-brand guidance present", /on-brand/i.test(block));
 }
 
 // ─── Outcomes (Phase 1) — pure diff math + no-DB graceful no-throw ───

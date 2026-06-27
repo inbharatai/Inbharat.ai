@@ -25,10 +25,13 @@ const PostBody = z.object({
 
 async function audit(userId: string, action: string, detail: string): Promise<void> {
   if (!supabaseAdmin) return;
+  // Postgrest builders are PromiseLike (.then) but NOT Promises — .catch is
+  // undefined and throws synchronously, surfacing a 500 AFTER a successful write.
+  // .then(onFulfilled, onRejected) is the correct non-throwing best-effort swallow.
   await supabaseAdmin
     .from("growth_agent_logs")
     .insert({ level: "info", action, scope: userId, detail })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -95,7 +98,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq("draft_id", draftId);
     if (upErr) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB update failed", requestId });
     bustOutcomesCache();
-    await audit(admin.userId, "outcome-linkedin", draftId, JSON.stringify(engagement));
+    await audit(admin.userId, "outcome-linkedin", `draft=${draftId} engagement=${JSON.stringify(engagement)}`);
     return res.status(200).json({ ok: true, requestId });
   }
 

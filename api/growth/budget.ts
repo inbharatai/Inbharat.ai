@@ -65,11 +65,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB update failed", requestId });
       }
       bustBudgetCache();
-      // Audit trail for the budget change.
+      // Audit trail for the budget change. .then(onFulfilled,onRejected) — NOT
+      // .catch (Postgrest builders are PromiseLike, .catch throws synchronously).
       await supabaseAdmin
         .from("growth_agent_logs")
         .insert({ level: "info", action: "budget-change", scope: admin.userId, detail: `$${before.cap} → $${newCap}` })
-        .catch(() => undefined);
+        .then(() => undefined, () => undefined);
       return res.status(200).json({ ok: true, requestId, capUsd: newCap, source: "db", ...(await monthBlock()) });
     } catch {
       return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Unexpected error", requestId });

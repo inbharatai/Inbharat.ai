@@ -24,6 +24,7 @@ import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, typ
 import { callGemini } from "./gemini.js";
 import { critiqueAndRevise } from "./critique.js";
 import { loadGlobalRules, formatRulesBlock } from "./rules.js";
+import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 
 export type InboxKind = "md" | "txt" | "image" | "video";
 
@@ -236,6 +237,7 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
       context: { url: null, kind: "inbox-outline", sourceName: name },
       rulesBlock: formatRulesBlock(await loadGlobalRules()),
       inboxBlock: formatInboxBlock(await loadInboxContext()),
+      strategyBlock: formatStrategyBlock(await loadStrategy()),
     });
     const finalCaption = crit.revised ?? caption;
     return {
@@ -306,6 +308,9 @@ async function logCritique(
   c: NonNullable<DraftResult["critique"]>,
 ): Promise<void> {
   if (!supabaseAdmin) return;
+  // .then(onFulfilled, onRejected) — NOT .catch (Postgrest builders are
+  // PromiseLike, .catch throws synchronously; that throw propagated to ingestOne's
+  // caller and marked the item 'error' even though the draft was already created).
   await supabaseAdmin
     .from("growth_critique_log")
     .insert({
@@ -320,7 +325,7 @@ async function logCritique(
       status: c.status,
       note: c.note,
     })
-    .catch(() => undefined);
+    .then(() => undefined, () => undefined);
 }
 
 async function markIngested(itemId: string, draftId: string | null): Promise<void> {

@@ -23,7 +23,7 @@ import type { ModelUsageRecord } from "./types.js";
  * no code change. Override any task with GROWTH_<TASK>_MODEL /
  * GROWTH_<TASK>_PROVIDER env vars (no redeploy needed for the founder).
  */
-export type GrowthTask = "audit" | "metadata" | "summary" | "draft" | "review" | "cover";
+export type GrowthTask = "audit" | "metadata" | "summary" | "draft" | "review" | "cover" | "strategy";
 
 export interface ModelChoice {
   provider: "openai" | "gemini";
@@ -41,6 +41,9 @@ const DEFAULTS: Record<GrowthTask, ModelChoice> = {
   // Image generation — the ONLY Gemini model that can output images. Text
   // models (gemini-2.5-flash/-lite) return finishReason NO_IMAGE / no inlineData.
   cover: { provider: "gemini", model: "gemini-2.5-flash-image", usdPer1k: 0.1 },
+  // Strategy drafting (Phase D): synthesize positioning/ICP/voice from recent
+  // learnings + outcomes. Flash is plenty; the founder reviews + edits the result.
+  strategy: { provider: "gemini", model: "gemini-2.5-flash", usdPer1k: 0.00015 },
 };
 
 export function pickModel(task: GrowthTask): ModelChoice {
@@ -176,6 +179,12 @@ export async function logUsage(rec: ModelUsageRecord): Promise<void> {
         context_url: rec.contextUrl ?? null,
         provider: rec.provider ?? null,
       });
+      // Bust the spend cache so the next withinBudget() re-reads spend INCLUDING
+      // this row. Without this, a long cron run that starts just under the cap
+      // could draft several more items (covers ~$0.04 each) past the cap before the
+      // stale cache catches up — a soft budget bypass. Cheap (one extra query per
+      // draft) and removes the window.
+      monthSpentCache = null;
       return;
     } catch (e) {
       // eslint-disable-next-line no-console
