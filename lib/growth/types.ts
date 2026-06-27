@@ -66,6 +66,9 @@ export interface RepoRegistry {
 /** Founder-authored rule injected into the promoter's system prompt (agent "memory"). */
 export type AgentRuleScope = "repo" | "domain" | "global";
 export type AgentRuleKind = "do" | "dont" | "voice" | "schedule";
+/** Who authored the rule: the founder (UI), the seed script, or the agent's
+ *  weekly distill pass (proposed enabled=false for founder approval). */
+export type AgentRuleSource = "founder" | "seed" | "learned";
 
 export interface AgentRule {
   id: string;
@@ -75,6 +78,44 @@ export interface AgentRule {
   kind: AgentRuleKind;
   ruleText: string;
   enabled: boolean;
+  source: AgentRuleSource;
+  /** For learned rules: the outcome deltas that produced this proposal. */
+  evidence?: unknown;
+}
+
+/** A weakness the critique pass found in a candidate draft. */
+export interface CritiqueWeakness {
+  severity: "critical" | "major" | "minor";
+  area: string;
+  fix: string;
+}
+
+/** Input to the self-critique + revision pass. */
+export interface CritiqueInput {
+  draftBody: string;
+  context: { url: string | null; kind: string; title?: string | null; sourceName?: string | null };
+  /** Pre-formatted founder rules block (reuse formatRulesBlock output). */
+  rulesBlock?: string;
+}
+
+/** Result of the self-critique + revision pass. */
+export interface CritiqueResult {
+  /** Revised body; null = keep the candidate unchanged. */
+  revised: string | null;
+  weaknesses: CritiqueWeakness[];
+  note: string;
+  status: "ok" | "skipped" | "redacted" | "parse_failed" | "model_error";
+  model: string;
+  provider: string;
+  costUsd: number;
+}
+
+/** Full-site discovery diff (new / changed / orphaned vs the known pages). */
+export interface DiscoveryDiff {
+  discovered: string[];
+  new: string[];
+  changed: { url: string; field: string; before: unknown; after: unknown }[];
+  orphaned: { url: string; reason: string }[];
 }
 
 export type IssueSeverity = "critical" | "high" | "normal" | "low";

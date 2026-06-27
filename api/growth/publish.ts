@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
+import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
 
 /**
  * /api/growth/publish — LinkedIn one-click publish (HUMAN-GATED). Admin-only.
@@ -66,6 +67,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .from("growth_agent_logs")
     .insert({ level: "info", action: "publish-linkedin", scope: articleUrl, detail: `mode=${mode} draftId=${draftId}` })
     .catch(() => undefined);
+
+  // Seed the outcome baseline so the daily cron can later measure the article's
+  // SEO/GEO delta from this publish point. Publishes nothing; never throws.
+  await seedOutcomeOnPublish(draftId, articleUrl, String(draft.kind)).catch(() => undefined);
 
   return res.status(200).json({ ok: true, requestId, shareUrl, summary: (draft.body_md as string | null) ?? "", title: (draft.title as string | null) ?? "" });
 }

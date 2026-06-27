@@ -4,6 +4,10 @@ import { auditDomain } from "../../../lib/growth/audit-runner.js";
 import { getAuthorizedAssets, logInfo } from "../../../lib/growth/authorization.js";
 import { promoteArticle } from "../../../lib/growth/promoter.js";
 import { ingestPendingInbox } from "../../../lib/growth/inbox.js";
+import { measureOutcomes } from "../../../lib/growth/outcomes.js";
+import { distillLearnings } from "../../../lib/growth/learning.js";
+import { supabaseAdmin } from "../../../api/lib/supabaseAdmin.js";
+import { discoverSitePages } from "../../../lib/growth/discovery.js";
 
 const ARTICLE_PATH_PREFIX = "/learn-ai-with-reeturaj/";
 
@@ -35,6 +39,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const run = await auditDomain(asset.domain);
       const promoted = asset.canDraft ? await enqueueArticlePromotions(run.pages || []) : 0;
       results.push({ domain: asset.domain, status: run.status, pages: run.pagesCount, promoted });
+      // Full-site discovery (sitemap-driven, wider than the homepage-link seed):
+      // keeps the site picture current and feeds outcome baselines. Wrapped so an
+      // auth-denied domain or a sitemap hiccup never aborts the audit+promote run.
+      if (asset.canCrawl) {
+        try {
+          await discoverSitePages(asset.domain);
+        } catch (e) {
+          await logInfo("cron-daily-discovery-fail", asset.domain, (e as Error).message).catch(() => undefined);
+        }
+      }
     } catch (e) {
       const msg = (e as Error).message;
       results.push({ domain: asset.domain, status: "failed", error: msg });
@@ -51,9 +65,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await logInfo("cron-daily-inbox-fail", "global", (e as Error).message).catch(() => undefined);
   }
 
-  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored}`);
+  // Re-audit published articles and record SEO/GEO deltas vs their publish-time
+  // baseline (the learning signal). Capped at 20/run; never throws.
+  let outcomes = { measured: 0, errors: 0 };
+  try {
+    outcomes = await measureOutcomes();
+  } catch (e) {
+    await logInfo("cron-daily-outcomes-fail", "global", (e as Error).message).catch(() => undefined);
+  }
 
-  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox });
+  // Weekly learning distill: turn recent measured outcomes into PROPOSED rules
+  // (enabled=false, source='learned') for founder approval. Gated to once per
+  // 7 days via the latest growth_agent_logs 'learning-distill' row — no schema
+  // change (growth_settings is a fixed-column singleton). distillLearnings emits
+  // its own 'learning-distill' log row, which becomes the next gate's marker.
+  let learning = { proposed: 0 };
+  if (await shouldRunWeeklyDistill()) {
+    try {
+      learning = await distillLearnings();
+    } catch (e) {
+      await logInfo("cron-daily-learning-fail", "global", (e as Error).message).catch(() => undefined);
+    }
+  }
+
+  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored} outcomes=${outcomes.measured}/${outcomes.errors} learned=${learning.proposed}`);
+
+  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox, outcomes, learning });
+}
+
+/**
+ * Weekly gate for the learning distill pass. True when there is no prior
+ * 'learning-distill' log row, or the most recent one is ≥ 7 days old. No schema
+ * change — the marker is the log row distillLearnings() itself emits. False when
+ * Supabase is absent (distill needs the DB). Never throws.
+ */
+async function shouldRunWeeklyDistill(): Promise<boolean> {
+  if (!supabaseAdmin) return false;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_agent_logs")
+      .select("created_at")
+      .eq("action", "learning-distill")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return true; // no prior run → eligible
+    const last = (data as { created_at?: string }).created_at;
+    if (!last) return true;
+    const ageMs = Date.now() - new Date(last).getTime();
+    return ageMs >= 7 * 86400000;
+  } catch {
+    return false;
+  }
 }
 
 /**

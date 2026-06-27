@@ -14,7 +14,7 @@
  */
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { normalizeDomain } from "./authorization.js";
-import type { AgentRule, AgentRuleKind } from "./types.js";
+import type { AgentRule, AgentRuleKind, AgentRuleSource } from "./types.js";
 
 /** Row shape from growth_agent_rules (snake_case). */
 interface RuleRow {
@@ -24,6 +24,8 @@ interface RuleRow {
   kind: AgentRuleKind;
   rule_text: string;
   enabled: boolean;
+  source: AgentRuleSource;
+  evidence: unknown;
 }
 
 function mapRuleRow(r: RuleRow): AgentRule {
@@ -34,6 +36,8 @@ function mapRuleRow(r: RuleRow): AgentRule {
     kind: r.kind,
     ruleText: r.rule_text,
     enabled: r.enabled,
+    source: r.source ?? "founder",
+    evidence: r.evidence,
   };
 }
 
@@ -53,7 +57,7 @@ async function loadRulesFor(key: CacheKey, scope: "global" | "domain" | "repo", 
       // Global rules always apply. For domain/repo scopes, also pull the
       // matching scope_key. Two clean queries (avoids PostgREST dotted-value
       // or-filter edge cases with domains like "inbharat.ai").
-      const cols = "id,scope,scope_key,kind,rule_text,enabled" as const;
+      const cols = "id,scope,scope_key,kind,rule_text,enabled,source,evidence" as const;
       const globalQ = supabaseAdmin.from("growth_agent_rules").select(cols).eq("enabled", true).eq("scope", "global");
       const scopedQ =
         scope === "global"
@@ -89,6 +93,13 @@ export async function loadRulesForUrl(url: string): Promise<AgentRule[]> {
 /** Rules that apply when reading/PR-ing a repo: global + the repo slug. */
 export async function loadRulesForRepo(repoSlug: string): Promise<AgentRule[]> {
   return loadRulesFor(`repo:${repoSlug}`, "repo", repoSlug);
+}
+
+/** Global rules only (no domain/repo scope). Used by the inbox critique pass,
+ *  which has no URL to scope against — the founder's global voice rules still
+ *  shape dropped content. Cached under the "global" key (same loader path). */
+export async function loadGlobalRules(): Promise<AgentRule[]> {
+  return loadRulesFor("global", "global", null);
 }
 
 const KIND_LABEL: Record<AgentRuleKind, string> = {

@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!supabaseAdmin) return res.status(200).json({ ok: true, requestId, rules: [] });
     const { data, error } = await supabaseAdmin
       .from("growth_agent_rules")
-      .select("id,scope,scope_key,kind,rule_text,enabled,created_at,updated_at")
+      .select("id,scope,scope_key,kind,rule_text,enabled,source,evidence,created_at,updated_at")
       .order("created_at", { ascending: false });
     if (error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB read failed", requestId });
     const rules = (data ?? []).map((r: Record<string, unknown>) => ({
@@ -74,6 +74,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       kind: r.kind,
       ruleText: r.rule_text,
       enabled: r.enabled,
+      source: r.source ?? "founder",
+      evidence: r.evidence ?? null,
     }));
     return res.status(200).json({ ok: true, requestId, rules });
   }

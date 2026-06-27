@@ -127,3 +127,55 @@ export async function getGscMetrics(days = 28): Promise<MetricsResult> {
     return { configured: true, error: String(e) };
   }
 }
+
+/** Per-URL GSC: clicks/impressions/ctr/position broken down by page, over the
+ *  last N days. Same auth path as getGscMetrics but with dimensions:["page"]
+ *  + a higher rowLimit. Used by the outcome loop (real ranking/CTR ground
+ *  truth per published article) when GSC env is provisioned. */
+export interface GscPageRow {
+  url: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+export async function getGscPageMetrics(
+  days = 28,
+  rowLimit = 50,
+): Promise<MetricsResult & { pages?: GscPageRow[] }> {
+  const siteUrl = env("GSC_SITE_URL");
+  const clientEmail = env("GSC_CLIENT_EMAIL");
+  const privateKey = fmtKey(env("GSC_PRIVATE_KEY"));
+  if (!siteUrl || !clientEmail || !privateKey) return { configured: false };
+  try {
+    const token = await getServiceAccountToken(clientEmail, privateKey, "https://www.googleapis.com/auth/webmasters.readonly");
+    const start = isoDaysAgo(days);
+    const end = isoDaysAgo(1);
+    const encoded = encodeURIComponent(siteUrl);
+    const res = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encoded}/searchAnalytics/query`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        startDate: start,
+        endDate: end,
+        dimensions: ["page"],
+        rowLimit,
+      }),
+    });
+    if (!res.ok) {
+      return { configured: true, error: `GSC ${res.status}: ${(await res.text()).slice(0, 300)}` };
+    }
+    const json = (await res.json()) as any;
+    const rows: any[] = json?.rows ?? [];
+    const pages: GscPageRow[] = rows.map((r) => ({
+      url: String(r.keys?.[0] ?? ""),
+      clicks: Number(r.clicks ?? 0),
+      impressions: Number(r.impressions ?? 0),
+      ctr: Number(r.ctr ?? 0),
+      position: Number(r.position ?? 0),
+    }));
+    return { configured: true, data: { range: `${start}…${end}`, pages }, pages };
+  } catch (e) {
+    return { configured: true, error: String(e) };
+  }
+}

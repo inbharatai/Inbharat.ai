@@ -390,6 +390,154 @@ console.log("\nGitHub deny gate (no token / no network):");
   check("Sahayaak Seva passes gate (fails on missing token, not denied)", allowed.ok === false && allowed.denied === undefined && /GITHUB_TOKEN/.test(allowed.error || ""));
 }
 
+// ─── Critique + revision (Phase 2) — hermetic: review model mocked via fetch ───
+// critique.ts reuses pickModel('review') (openai gpt-4.1-mini) + withinBudget +
+// logUsage, none of which hit fetch when supabaseAdmin is null (budget=env/default,
+// spent=0, logUsage=console.info). So the ONLY fetch is the model call — letting us
+// assert the ok / parse_failed / skipped / redacted branches with a call counter.
+const { critiqueAndRevise } = await import("../lib/growth/critique.js");
+console.log("\nCritique + revision (mocked review model):");
+const origFetchCrit = globalThis.fetch;
+const origOaKey = process.env.GROWTH_OPENAI_API_KEY;
+try {
+  // ok: model returns a revised draft + a weakness → status ok, revised differs, cost>0.
+  let critCalls = 0;
+  globalThis.fetch = ((_i: RequestInfo | URL) => {
+    critCalls++;
+    return Promise.resolve(
+      fakeJson({
+        choices: [
+          { message: { content: JSON.stringify({ revised: "RAG lets your team cite real docs, not guesses — here's the 90-second version.", weaknesses: [{ severity: "major", area: "hook", fix: "lead with the user benefit, not the acronym" }] }) } },
+        ],
+      }),
+    );
+  }) as typeof globalThis.fetch;
+  process.env.GROWTH_OPENAI_API_KEY = "test-oa-key";
+  const ok = await critiqueAndRevise({ draftBody: "RAG is retrieval-augmented generation.", context: { url: "https://inbharat.ai/learn-ai-with-reeturaj/rag", kind: "linkedin", title: "RAG" } });
+  check("critique ok → status ok", ok.status === "ok", `got ${ok.status}`);
+  check("critique ok → revised differs from candidate", typeof ok.revised === "string" && ok.revised !== "RAG is retrieval-augmented generation.", `got ${String(ok.revised)}`);
+  check("critique ok → weaknesses populated", ok.weaknesses.length >= 1, `got ${ok.weaknesses.length}`);
+  check("critique ok → costUsd > 0", ok.costUsd > 0, `got ${ok.costUsd}`);
+  check("critique ok → model populated", typeof ok.model === "string" && ok.model.length > 0, `got ${String(ok.model)}`);
+  check("critique ok → fetch was called once", critCalls === 1, `got ${critCalls}`);
+
+  // parse_failed: model returns non-JSON → keep candidate, status parse_failed.
+  critCalls = 0;
+  globalThis.fetch = ((_i: RequestInfo | URL) => {
+    critCalls++;
+    return Promise.resolve(fakeJson({ choices: [{ message: { content: "sorry, I cannot help with that." } }] }));
+  }) as typeof globalThis.fetch;
+  const pf = await critiqueAndRevise({ draftBody: "Some draft.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
+  check("critique parse_failed → status parse_failed", pf.status === "parse_failed", `got ${pf.status}`);
+  check("critique parse_failed → keeps candidate (revised null)", pf.revised === null);
+
+  // skipped: review model unconfigured (no key) → status skipped, no fetch.
+  critCalls = 0;
+  delete process.env.GROWTH_OPENAI_API_KEY;
+  const sk = await critiqueAndRevise({ draftBody: "Some draft.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
+  check("critique unconfigured → status skipped", sk.status === "skipped", `got ${sk.status}`);
+  check("critique unconfigured → no fetch", critCalls === 0, `got ${critCalls}`);
+
+  // redacted: secret in the draft body → status redacted, no fetch (even with key set).
+  process.env.GROWTH_OPENAI_API_KEY = "test-oa-key";
+  critCalls = 0;
+  globalThis.fetch = ((_i: RequestInfo | URL) => {
+    critCalls++;
+    return Promise.resolve(fakeJson({ choices: [{ message: { content: '{"revised":"x","weaknesses":[]}' } }] }));
+  }) as typeof globalThis.fetch;
+  const rd = await critiqueAndRevise({ draftBody: "Leaked key: AKIAIOSFODNN7EXAMPLE in the config.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
+  check("critique secret in body → status redacted", rd.status === "redacted", `got ${rd.status}`);
+  check("critique secret in body → no fetch (aborted before call)", critCalls === 0, `got ${critCalls}`);
+  check("critique secret in body → keeps candidate (revised null)", rd.revised === null);
+} finally {
+  globalThis.fetch = origFetchCrit;
+  if (origOaKey === undefined) delete process.env.GROWTH_OPENAI_API_KEY;
+  else process.env.GROWTH_OPENAI_API_KEY = origOaKey;
+}
+
+// ─── Outcomes (Phase 1) — pure diff math + no-DB graceful no-throw ───
+const { diffOutcomes, seedOutcomeOnPublish, measureOutcomes, bustOutcomesCache } = await import("../lib/growth/outcomes.js");
+console.log("\nOutcomes (diffOutcomes math + no-DB no-throw):");
+{
+  const a = (s: string, f: string, m: string) => ({ severity: s, field: f, message: m }) as unknown as import("../lib/growth/types.js").AuditIssue;
+  const delta = diffOutcomes(
+    { seo: 60, geo: 50, issues: [a("high", "title", "x"), a("low", "desc", "y"), a("high", "h1", "z")] },
+    { seo: 72, geo: 50, issues: [a("high", "title", "x")] },
+  );
+  check("diffOutcomes seoDelta = +12", delta.seoDelta === 12, `got ${delta.seoDelta}`);
+  check("diffOutcomes geoDelta = 0", delta.geoDelta === 0, `got ${delta.geoDelta}`);
+  check("diffOutcomes issuesResolved = 2", delta.issuesResolved === 2, `got ${delta.issuesResolved}`);
+  check("diffOutcomes issuesNew = 0", delta.issuesNew === 0, `got ${delta.issuesNew}`);
+
+  // null side → null deltas, issue counts still computed from present side.
+  const nullBase = diffOutcomes({ seo: null, geo: null, issues: null }, { seo: 80, geo: 70, issues: [a("high", "t", "m")] });
+  check("diffOutcomes null baseline → seoDelta null", nullBase.seoDelta === null);
+  check("diffOutcomes null baseline → issuesNew counts measured side", nullBase.issuesNew === 1, `got ${nullBase.issuesNew}`);
+
+  // No DB (supabaseAdmin null in the test process) → seed + measure never throw.
+  let seedThrew = false;
+  try {
+    await seedOutcomeOnPublish("draft-1", "https://inbharat.ai/learn-ai-with-reeturaj/rag", "linkedin");
+  } catch (e) {
+    seedThrew = true;
+    void e;
+  }
+  check("seedOutcomeOnPublish no-throw when Supabase unset", seedThrew === false);
+
+  const measured = await measureOutcomes();
+  check("measureOutcomes returns {0,0} when Supabase unset", measured.measured === 0 && measured.errors === 0, JSON.stringify(measured));
+  bustOutcomesCache();
+}
+
+// ─── Learning (Phase 1) — no-DB graceful path ───
+// distillLearnings early-returns {proposed:0} when supabaseAdmin is null (before
+// any model call), so it is asserted here on the no-DB path. The insert path
+// (enabled=false, source='learned', evidence jsonb) is verified by the build +
+// local manual run — same framing the monthlyBudgetUsd/logUsage checks above use,
+// since supabaseAdmin is a build-time singleton that can't be re-pointed at runtime.
+const { distillLearnings } = await import("../lib/growth/learning.js");
+console.log("\nLearning (distillLearnings no-DB graceful):");
+{
+  const r = await distillLearnings();
+  check("distillLearnings no-DB → proposed 0", r.proposed === 0, JSON.stringify(r));
+  check("distillLearnings no-DB → no error field", r.error === undefined, JSON.stringify(r));
+}
+
+// ─── Discovery (Phase 3) — pure diffSitePages on fixtures ───
+const { diffSitePages } = await import("../lib/growth/discovery.js");
+console.log("\nDiscovery (diffSitePages pure fixtures):");
+{
+  const A = "https://inbharat.ai/a", B = "https://inbharat.ai/b", C = "https://inbharat.ai/c";
+  // new: sitemap [a,b,c] vs known [a] → new [b,c]
+  const dNew = diffSitePages([A, B, C], [{ url: A, wordCount: 200, seoScore: 80, title: "A", internalLinks: 2 }]);
+  check("discovery new = [b,c]", dNew.new.length === 2 && dNew.new.includes(B) && dNew.new.includes(C), JSON.stringify(dNew.new));
+  check("discovery discovered echoes sitemap", dNew.discovered.length === 3);
+
+  // orphaned: known [a,b] not in sitemap [a] → orphaned [{b, "not in sitemap"}]
+  const dOrph = diffSitePages([A], [{ url: A, wordCount: 200, seoScore: 80, title: "A", internalLinks: 2 }, { url: B, wordCount: 100, seoScore: 70, title: "B", internalLinks: 1 }]);
+  check("discovery orphaned-not-in-sitemap = [{b, 'not in sitemap'}]", dOrph.orphaned.length === 1 && dOrph.orphaned[0].url === B && dOrph.orphaned[0].reason === "not in sitemap", JSON.stringify(dOrph.orphaned));
+
+  // orphaned: known c in sitemap but internalLinks 0 → [{c, "no internal links"}]
+  const dOrph2 = diffSitePages([C], [{ url: C, wordCount: 300, seoScore: 90, title: "C", internalLinks: 0 }]);
+  check("discovery orphaned-no-internal-links = [{c, 'no internal links'}]", dOrph2.orphaned.length === 1 && dOrph2.orphaned[0].url === C && dOrph2.orphaned[0].reason === "no internal links", JSON.stringify(dOrph2.orphaned));
+
+  // changed: known word_count 200 vs fresh 400 (delta 200 > 50) → changed [{field:'word_count',before:200,after:400}]
+  const dChg = diffSitePages(
+    [A],
+    [{ url: A, wordCount: 200, seoScore: 80, title: "A", internalLinks: 2 }],
+    [{ url: A, wordCount: 400, seoScore: null, title: "A" }],
+  );
+  check("discovery changed word_count = [{field,before:200,after:400}]", dChg.changed.length === 1 && dChg.changed[0].field === "word_count" && dChg.changed[0].before === 200 && dChg.changed[0].after === 400, JSON.stringify(dChg.changed));
+
+  // small word_count delta (10) + same score/title → NOT changed
+  const dNoChg = diffSitePages(
+    [A],
+    [{ url: A, wordCount: 200, seoScore: 80, title: "A", internalLinks: 2 }],
+    [{ url: A, wordCount: 210, seoScore: 80, title: "A" }],
+  );
+  check("discovery small word_count delta → not changed", dNoChg.changed.length === 0, JSON.stringify(dNoChg.changed));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");

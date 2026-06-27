@@ -20,6 +20,7 @@ import { fetchPage, parsePage } from "./crawler.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
+import { critiqueAndRevise } from "./critique.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -81,13 +82,16 @@ export async function promoteArticle(
   const generated = await generatePromotionDraft(url, title, description, abstract);
 
   // Persist a growth_tasks row + a growth_drafts row.
-  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, generated.note);
+  const surfacedNote = generated.critique
+    ? `${generated.note || ""}${generated.note ? " " : ""}(critique: ${generated.critique.status}${generated.critique.revised ? "; revised" : ""})`.trim()
+    : generated.note;
+  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, surfacedNote, generated.critique);
 
   await logInfo(
     "promote-draft",
     scope,
     generated.caption
-      ? `drafted linkedin caption for ${url} (${generated.internalLinks.length} internal links)`
+      ? `drafted linkedin caption for ${url} (${generated.internalLinks.length} internal links${generated.critique ? `; critique ${generated.critique.status}` : ""})`
       : `created pending draft for ${url} (caption needs manual write: ${generated.note || "model unavailable"})`,
   );
 
@@ -98,7 +102,7 @@ export async function promoteArticle(
     caption: generated.caption,
     internalLinks: generated.internalLinks,
     status: "pending",
-    note: generated.note,
+    note: surfacedNote,
   };
 }
 
@@ -150,6 +154,20 @@ interface GeneratedDraft {
   caption: string | null;
   internalLinks: string[];
   note?: string;
+  /** Self-critique pass metadata (null when the candidate had no caption or
+   *  critique was skipped). Full candidate/revised text is logged to
+   *  growth_critique_log by persistDraft; only weaknesses+status ride in
+   *  schema_json for the admin UI. */
+  critique?: {
+    candidate: string;
+    revised: string | null;
+    weaknesses: { severity: string; area: string; fix: string }[];
+    model: string;
+    provider: string;
+    costUsd: number;
+    status: string;
+    note: string;
+  } | null;
 }
 
 /**
@@ -235,7 +253,31 @@ async function generatePromotionDraft(
       provider: choice.provider,
     });
     if (!caption) return { caption: null, internalLinks, note: "model returned no usable caption" };
-    return { caption, internalLinks };
+
+    // Self-critique + revision pass (Phase 2). Reuses pickModel('review') and
+    // redacts LAST before its model call (inside critiqueAndRevise). When the
+    // review model is absent/budget exhausted/redacted, the candidate is kept
+    // unchanged (status 'skipped'|'redacted') — the pipeline never breaks.
+    const crit = await critiqueAndRevise({
+      draftBody: caption,
+      context: { url, kind: "linkedin", title },
+      rulesBlock,
+    });
+    const finalCaption = crit.revised ?? caption;
+    return {
+      caption: finalCaption,
+      internalLinks,
+      critique: {
+        candidate: caption,
+        revised: crit.revised,
+        weaknesses: crit.weaknesses,
+        model: crit.model,
+        provider: crit.provider,
+        costUsd: crit.costUsd,
+        status: crit.status,
+        note: crit.note,
+      },
+    };
   } catch (e) {
     return { caption: null, internalLinks: [], note: `model call failed: ${(e as Error).message}` };
   }
@@ -256,7 +298,7 @@ async function callModel(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320, thinkingConfig: { thinkingBudget: 0 } },
       }),
       signal: AbortSignal.timeout(20000),
     });
@@ -306,13 +348,15 @@ function safeParseJson(raw: string): { caption?: unknown; internalLinks?: unknow
   }
 }
 
-/** Insert a growth_tasks row + a linked growth_drafts row. Best-effort persistence. */
+/** Insert a growth_tasks row + a linked growth_drafts row, and (when a
+ *  critique pass ran) append-only log it to growth_critique_log. Best-effort. */
 async function persistDraft(
   url: string,
   title: string,
   caption: string | null,
   internalLinks: string[],
   note?: string,
+  critique?: GeneratedDraft["critique"],
 ): Promise<{ taskId: string | null; draftId: string | null }> {
   if (!supabaseAdmin) return { taskId: null, draftId: null };
   try {
@@ -342,12 +386,38 @@ async function persistDraft(
         url,
         title,
         body_md: caption,
-        schema_json: { internalLinks, note: note || null },
+        schema_json: {
+          internalLinks,
+          note: note || null,
+          critique: critique
+            ? { weaknesses: critique.weaknesses, revised: critique.revised !== null, status: critique.status, note: critique.note }
+            : null,
+        },
         status: "pending",
       })
       .select("id")
       .single();
     if (draftInsert.data?.id) draftId = draftInsert.data.id as string;
+
+    // Append-only transparency log for the critique pass (full candidate +
+    // revised text live only here, never in the client bundle).
+    if (draftId && critique) {
+      await supabaseAdmin
+        .from("growth_critique_log")
+        .insert({
+          draft_id: draftId,
+          task: "review",
+          candidate: critique.candidate,
+          revised: critique.revised,
+          weaknesses: critique.weaknesses,
+          model: critique.model,
+          provider: critique.provider,
+          cost_usd: critique.costUsd,
+          status: critique.status,
+          note: critique.note,
+        })
+        .catch(() => undefined);
+    }
 
     return { taskId, draftId };
   } catch {

@@ -8,6 +8,8 @@ interface Rule {
   kind: "do" | "dont" | "voice" | "schedule";
   ruleText: string;
   enabled: boolean;
+  source: "founder" | "seed" | "learned";
+  evidence?: unknown;
 }
 
 interface RulesResp {
@@ -41,6 +43,7 @@ const Rules: React.FC = () => {
     ruleText: "",
   });
   const [saving, setSaving] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState<"all" | "founder" | "seed" | "learned">("all");
 
   async function load() {
     setLoading(true);
@@ -148,9 +151,23 @@ const Rules: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <h2 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">All rules</h2>
+        <select
+          className="rounded-lg border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-[#c0cfe0] focus:border-[#f59f4f]/50 focus:outline-none"
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value as typeof sourceFilter)}
+        >
+          <option value="all">All sources</option>
+          <option value="founder">Founder</option>
+          <option value="seed">Seed</option>
+          <option value="learned">Learned</option>
+        </select>
+      </div>
+
+      <div className="mt-3 space-y-2">
         {rules.length === 0 && <p className="text-[13px] text-[#7a9ab8]">No rules yet.</p>}
-        {rules.map((r) => (
+        {rules.filter((r) => sourceFilter === "all" || r.source === sourceFilter).map((r) => (
           <div key={r.id} className={`rounded-lg border p-3 ${r.enabled ? "border-white/10 bg-white/[0.02]" : "border-white/5 bg-transparent opacity-60"}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -158,8 +175,14 @@ const Rules: React.FC = () => {
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${KIND_COLOR[r.kind]}`}>{r.kind}</span>
                   <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] uppercase text-[#9fb2c6]">{r.scope}</span>
                   {r.scopeKey && <span className="text-[11px] text-[#f59f4f]">{r.scopeKey}</span>}
+                  {r.source === "learned" && (
+                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-300" title="Proposed by the agent's weekly learning pass">learned</span>
+                  )}
                 </div>
                 <p className="text-[13px] leading-relaxed text-white">{r.ruleText}</p>
+                {r.source === "learned" && r.evidence && (
+                  <p className="mt-1 text-[11px] text-[#7a9ab8]">Proposed from outcome evidence · enable to apply it to future drafts.</p>
+                )}
               </div>
               <div className="flex shrink-0 gap-2">
                 <button onClick={() => toggle(r)} className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] text-[#c0cfe0] hover:border-white/25">

@@ -21,6 +21,8 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { redact } from "./redaction.js";
 import { logInfo } from "./authorization.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { critiqueAndRevise } from "./critique.js";
+import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 
 export type InboxKind = "md" | "txt" | "image" | "video";
 
@@ -115,9 +117,18 @@ async function ingestOne(item: InboxItem): Promise<void> {
       url: null,
       title: item.original_name || "Inbox drop",
       body_md: draft.caption,
-      schema_json: { inboxPath: item.storage_path, note: draft.note ?? null },
+      schema_json: {
+        inboxPath: item.storage_path,
+        note: draft.note ?? null,
+        critique: draft.critique
+          ? { weaknesses: draft.critique.weaknesses, revised: draft.critique.revised !== null, status: draft.critique.status, note: draft.critique.note }
+          : null,
+      },
       status: "pending",
     });
+    if (draftId && draft.critique) {
+      await logCritique(draftId, draft.critique);
+    }
     await markIngested(item.id, draftId);
     return;
   }
@@ -147,6 +158,16 @@ async function blobToText(blob: Blob): Promise<string> {
 interface DraftResult {
   caption: string | null;
   note?: string;
+  critique?: {
+    candidate: string;
+    revised: string | null;
+    weaknesses: { severity: string; area: string; fix: string }[];
+    model: string;
+    provider: string;
+    costUsd: number;
+    status: string;
+    note: string;
+  } | null;
 }
 
 /**
@@ -188,7 +209,30 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
       provider: choice.provider,
     });
     if (!caption) return { caption: excerpt.slice(0, 600) || null, note: "model returned no caption; stored raw excerpt" };
-    return { caption };
+
+    // Self-critique + revision pass (Phase 2). Inbox drops have no URL scope,
+    // so the founder's GLOBAL rules shape the critique. Redacts LAST before its
+    // model call (inside critiqueAndRevise). Keeps the candidate when the
+    // review model is absent/budget exhausted/redacted.
+    const crit = await critiqueAndRevise({
+      draftBody: caption,
+      context: { url: null, kind: "inbox-outline", sourceName: name },
+      rulesBlock: formatRulesBlock(await loadGlobalRules()),
+    });
+    const finalCaption = crit.revised ?? caption;
+    return {
+      caption: finalCaption,
+      critique: {
+        candidate: caption,
+        revised: crit.revised,
+        weaknesses: crit.weaknesses,
+        model: crit.model,
+        provider: crit.provider,
+        costUsd: crit.costUsd,
+        status: crit.status,
+        note: crit.note,
+      },
+    };
   } catch (e) {
     return { caption: excerpt.slice(0, 600) || null, note: `model call failed: ${(e as Error).message}` };
   }
@@ -209,7 +253,7 @@ async function callDraftModel(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320 },
+        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320, thinkingConfig: { thinkingBudget: 0 } },
       }),
       signal: AbortSignal.timeout(20000),
     });
@@ -281,6 +325,30 @@ async function createDraft(row: {
   } catch {
     return null;
   }
+}
+
+/** Append-only transparency log for the inbox critique pass (full candidate +
+ *  revised text live only here, never in the client bundle). Best-effort. */
+async function logCritique(
+  draftId: string,
+  c: NonNullable<DraftResult["critique"]>,
+): Promise<void> {
+  if (!supabaseAdmin) return;
+  await supabaseAdmin
+    .from("growth_critique_log")
+    .insert({
+      draft_id: draftId,
+      task: "review",
+      candidate: c.candidate,
+      revised: c.revised,
+      weaknesses: c.weaknesses,
+      model: c.model,
+      provider: c.provider,
+      cost_usd: c.costUsd,
+      status: c.status,
+      note: c.note,
+    })
+    .catch(() => undefined);
 }
 
 async function markIngested(itemId: string, draftId: string | null): Promise<void> {

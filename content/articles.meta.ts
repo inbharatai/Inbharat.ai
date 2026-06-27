@@ -474,6 +474,41 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['InBharat', 'DeshKaAI', 'AIForBharat', 'IndianLeadership', 'BuildingAI', 'BharatPehle'],
   },
+  {
+    slug: 'harness-engineering',
+    title: 'Harness Engineering: Building Safe and Reliable AI Agent Systems',
+    description:
+      'Learn how harness engineering secures AI agents in production, featuring a deep dive into the JAKSwarm.com orchestration and risk-gate architecture.',
+    category: 'Engineering',
+    datePublished: '2026-06-27',
+    readMinutes: 7,
+    // No dedicated visual yet — falls back to the branded OG image.
+    abstract:
+      'Harness engineering is the practice of wrapping autonomous AI agents in structured, deterministic software wrappers—or harnesses—to control execution, validate outputs, and manage risks. By decoupling raw LLM generation from execution gates, engineers ensure that agentic workflows remain predictable, secure, and fully auditable in high-stakes production environments.',
+    faq: [
+      {
+        q: 'What is Harness Engineering in the context of AI agents?',
+        a: 'Harness engineering is the practice of building deterministic software wrappers around non-deterministic AI agents. It intercepts, validates, monitors, and controls the inputs, outputs, and tool executions of LLMs to ensure they operate within safe, predictable parameters.',
+      },
+      {
+        q: 'How does JAKSwarm.com implement a production-grade agent harness?',
+        a: 'JAKSwarm.com acts as an evidence engine and agent-orchestration platform. It wraps agents behind the JAK Shield risk gate, tracking actions in an evidence graph, managing execution, and using drift detection to ensure agents do not deviate from their intended operational boundaries.',
+      },
+      {
+        q: 'Why is a risk gate like JAK Shield necessary for enterprise AI?',
+        a: 'A risk gate acts as a final, deterministic firewall. Even if an LLM generates an incorrect or unsafe instruction, the risk gate intercepts the command, evaluates it against strict safety policies, and blocks execution before any real-world harm or system corruption occurs.',
+      },
+      {
+        q: 'How does drift detection protect AI agents over time?',
+        a: 'Drift detection monitors agent behavior, prompt performance, and LLM output distributions over time. If an underlying model update or a change in user data causes the agent’s actions to shift away from established safety and accuracy baselines, the harness flags the system for review.',
+      },
+      {
+        q: 'How does harness engineering apply to critical sectors like Indian healthcare?',
+        a: 'In critical services like Sahayaak Seva, a harness ensures that AI-driven triage or administrative agents cannot bypass human-in-the-loop validation or violate medical safety guidelines, so every AI recommendation is backed by verifiable clinical evidence before deployment.',
+      },
+    ],
+    hashtags: ['InBharat', 'DeshKaAI', 'HarnessEngineering', 'AIAgents', 'SoftwareEngineering', 'LLMOps', 'TechIndia'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
