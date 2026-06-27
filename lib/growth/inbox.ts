@@ -21,6 +21,7 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { redact } from "./redaction.js";
 import { logInfo } from "./authorization.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { callGemini } from "./gemini.js";
 import { critiqueAndRevise } from "./critique.js";
 import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 
@@ -193,7 +194,7 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
   }
 
   try {
-    const raw = await callDraftModel(choice, system, user);
+    const raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 320 });
     const parsed = safeJson(raw);
     const caption = typeof parsed?.caption === "string" && parsed.caption.trim() ? parsed.caption.trim() : null;
     const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
@@ -236,52 +237,6 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
   } catch (e) {
     return { caption: excerpt.slice(0, 600) || null, note: `model call failed: ${(e as Error).message}` };
   }
-}
-
-/** Call Gemini or OpenAI directly (mirrors promoter.ts; Growth Agent's own key). */
-async function callDraftModel(
-  choice: ReturnType<typeof pickModel>,
-  system: string,
-  user: string,
-): Promise<string> {
-  if (choice.provider === "gemini") {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("GEMINI_API_KEY not set");
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${choice.model}:generateContent?key=${key}`;
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== "string") throw new Error("gemini empty response");
-    return text;
-  }
-  const key = process.env.GROWTH_OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: choice.model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      response_format: { type: "json_object" },
-      temperature: 0.6,
-      max_tokens: 320,
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`openai HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("openai empty response");
-  return text;
 }
 
 function safeJson(raw: string): { caption?: unknown } | null {

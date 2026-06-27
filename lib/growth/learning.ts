@@ -20,6 +20,7 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { redact } from "./redaction.js";
 import { logInfo } from "./authorization.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { callGemini } from "./gemini.js";
 import { bustRulesCache } from "./rules.js";
 import { diffOutcomes } from "./outcomes.js";
 import type { AgentRuleKind, AgentRuleScope, AuditIssue, CritiqueWeakness } from "./types.js";
@@ -114,7 +115,7 @@ export async function distillLearnings(): Promise<{ proposed: number; error?: st
 
   let raw: string;
   try {
-    raw = await callDistillModel(choice, system, user);
+    raw = await callGemini(choice, system, user, { temperature: 0.5, maxOutputTokens: 700 });
   } catch (e) {
     void logUsage({
       model: choice.model, task,
@@ -182,52 +183,6 @@ export async function distillLearnings(): Promise<{ proposed: number; error?: st
   bustRulesCache();
   await logInfo("learning-distill", "global", `proposed=${proposed} of ${validRules.length} candidates (from ${outcomes.length} outcomes)`).catch(() => undefined);
   return { proposed };
-}
-
-/** Call the review model directly (mirrors critique.ts callReviewModel). */
-async function callDistillModel(
-  choice: ReturnType<typeof pickModel>,
-  system: string,
-  user: string,
-): Promise<string> {
-  if (choice.provider === "gemini") {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("GEMINI_API_KEY not set");
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${choice.model}:generateContent?key=${key}`;
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 700, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== "string") throw new Error("gemini empty response");
-    return text;
-  }
-  const key = process.env.GROWTH_OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: choice.model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      response_format: { type: "json_object" },
-      temperature: 0.5,
-      max_tokens: 700,
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`openai HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("openai empty response");
-  return text;
 }
 
 interface ProposedRule {

@@ -482,7 +482,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'Engineering',
     datePublished: '2026-06-27',
     readMinutes: 7,
-    // No dedicated visual yet — falls back to the branded OG image.
+    visual: 'harness-engineering.png',
     abstract:
       'Harness engineering is the practice of wrapping autonomous AI agents in structured, deterministic software wrappers—or harnesses—to control execution, validate outputs, and manage risks. By decoupling raw LLM generation from execution gates, engineers ensure that agentic workflows remain predictable, secure, and fully auditable in high-stakes production environments.',
     faq: [

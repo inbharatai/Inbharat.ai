@@ -9,8 +9,8 @@
  * authorized-assets registry; a human approves via /api/growth/approvals.
  *
  * Completely separate from the chat backend: uses the Growth Agent's own
- * model-router (pickModel('draft')) + GROWTH_OPENAI_API_KEY / GEMINI_API_KEY,
- * never api/lib/serverLLM.ts. Runs redaction.ts before any model call.
+ * model-router (pickModel('draft'), Gemini-only) + GEMINI_API_KEY, never
+ * api/lib/serverLLM.ts. Runs redaction.ts before any model call.
  *
  * Server-only. Never touches the chat backend.
  */
@@ -19,6 +19,7 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { fetchPage, parsePage } from "./crawler.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { callGemini } from "./gemini.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
 import { critiqueAndRevise } from "./critique.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
@@ -232,7 +233,7 @@ async function generatePromotionDraft(
   }
 
   try {
-    const raw = await callModel(choice, system, user);
+    const raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 320 });
     const parsed = safeParseJson(raw);
     const caption = typeof parsed?.caption === "string" && parsed.caption.trim() ? parsed.caption.trim() : null;
     const internalLinks = Array.isArray(parsed?.internalLinks)
@@ -281,56 +282,6 @@ async function generatePromotionDraft(
   } catch (e) {
     return { caption: null, internalLinks: [], note: `model call failed: ${(e as Error).message}` };
   }
-}
-
-/** Call Gemini or OpenAI directly (separate from the chat backend's serverLLM). */
-async function callModel(
-  choice: ReturnType<typeof pickModel>,
-  system: string,
-  user: string,
-): Promise<string> {
-  if (choice.provider === "gemini") {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("GEMINI_API_KEY not set");
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${choice.model}:generateContent?key=${key}`;
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.6, maxOutputTokens: 320, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== "string") throw new Error("gemini empty response");
-    return text;
-  }
-  // openai — Growth Agent uses its OWN key (never the chat backend's OPENAI_API_KEY).
-  const key = process.env.GROWTH_OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: choice.model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.6,
-      max_tokens: 320,
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`openai HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("openai empty response");
-  return text;
 }
 
 function safeParseJson(raw: string): { caption?: unknown; internalLinks?: unknown } | null {

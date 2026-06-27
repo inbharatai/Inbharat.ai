@@ -391,14 +391,15 @@ console.log("\nGitHub deny gate (no token / no network):");
 }
 
 // ─── Critique + revision (Phase 2) — hermetic: review model mocked via fetch ───
-// critique.ts reuses pickModel('review') (openai gpt-4.1-mini) + withinBudget +
-// logUsage, none of which hit fetch when supabaseAdmin is null (budget=env/default,
-// spent=0, logUsage=console.info). So the ONLY fetch is the model call — letting us
-// assert the ok / parse_failed / skipped / redacted branches with a call counter.
+// critique.ts is Gemini-only now: pickModel('review') → gemini-2.5-flash, gated on
+// GEMINI_API_KEY. withinBudget + logUsage hit no fetch when supabaseAdmin is null
+// (budget=env/default, spent=0/queryOk=true, logUsage=console.info). So the ONLY
+// fetch is callGemini — letting us assert ok / parse_failed / skipped / redacted
+// branches with a call counter. Mocks return Gemini-shaped responses.
 const { critiqueAndRevise } = await import("../lib/growth/critique.js");
 console.log("\nCritique + revision (mocked review model):");
 const origFetchCrit = globalThis.fetch;
-const origOaKey = process.env.GROWTH_OPENAI_API_KEY;
+const origGeminiKeyCrit = process.env.GEMINI_API_KEY;
 try {
   // ok: model returns a revised draft + a weakness → status ok, revised differs, cost>0.
   let critCalls = 0;
@@ -406,13 +407,21 @@ try {
     critCalls++;
     return Promise.resolve(
       fakeJson({
-        choices: [
-          { message: { content: JSON.stringify({ revised: "RAG lets your team cite real docs, not guesses — here's the 90-second version.", weaknesses: [{ severity: "major", area: "hook", fix: "lead with the user benefit, not the acronym" }] }) } },
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({ revised: "RAG lets your team cite real docs, not guesses — here's the 90-second version.", weaknesses: [{ severity: "major", area: "hook", fix: "lead with the user benefit, not the acronym" }] }),
+                },
+              ],
+            },
+          },
         ],
       }),
     );
   }) as typeof globalThis.fetch;
-  process.env.GROWTH_OPENAI_API_KEY = "test-oa-key";
+  process.env.GEMINI_API_KEY = "test-key";
   const ok = await critiqueAndRevise({ draftBody: "RAG is retrieval-augmented generation.", context: { url: "https://inbharat.ai/learn-ai-with-reeturaj/rag", kind: "linkedin", title: "RAG" } });
   check("critique ok → status ok", ok.status === "ok", `got ${ok.status}`);
   check("critique ok → revised differs from candidate", typeof ok.revised === "string" && ok.revised !== "RAG is retrieval-augmented generation.", `got ${String(ok.revised)}`);
@@ -421,11 +430,11 @@ try {
   check("critique ok → model populated", typeof ok.model === "string" && ok.model.length > 0, `got ${String(ok.model)}`);
   check("critique ok → fetch was called once", critCalls === 1, `got ${critCalls}`);
 
-  // parse_failed: model returns non-JSON → keep candidate, status parse_failed.
+  // parse_failed: model returns non-JSON text → keep candidate, status parse_failed.
   critCalls = 0;
   globalThis.fetch = ((_i: RequestInfo | URL) => {
     critCalls++;
-    return Promise.resolve(fakeJson({ choices: [{ message: { content: "sorry, I cannot help with that." } }] }));
+    return Promise.resolve(fakeJson({ candidates: [{ content: { parts: [{ text: "sorry, I cannot help with that." }] } }] }));
   }) as typeof globalThis.fetch;
   const pf = await critiqueAndRevise({ draftBody: "Some draft.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
   check("critique parse_failed → status parse_failed", pf.status === "parse_failed", `got ${pf.status}`);
@@ -433,17 +442,17 @@ try {
 
   // skipped: review model unconfigured (no key) → status skipped, no fetch.
   critCalls = 0;
-  delete process.env.GROWTH_OPENAI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
   const sk = await critiqueAndRevise({ draftBody: "Some draft.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
   check("critique unconfigured → status skipped", sk.status === "skipped", `got ${sk.status}`);
   check("critique unconfigured → no fetch", critCalls === 0, `got ${critCalls}`);
 
   // redacted: secret in the draft body → status redacted, no fetch (even with key set).
-  process.env.GROWTH_OPENAI_API_KEY = "test-oa-key";
+  process.env.GEMINI_API_KEY = "test-key";
   critCalls = 0;
   globalThis.fetch = ((_i: RequestInfo | URL) => {
     critCalls++;
-    return Promise.resolve(fakeJson({ choices: [{ message: { content: '{"revised":"x","weaknesses":[]}' } }] }));
+    return Promise.resolve(fakeJson({ candidates: [{ content: { parts: [{ text: '{"revised":"x","weaknesses":[]}' }] } }] }));
   }) as typeof globalThis.fetch;
   const rd = await critiqueAndRevise({ draftBody: "Leaked key: AKIAIOSFODNN7EXAMPLE in the config.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
   check("critique secret in body → status redacted", rd.status === "redacted", `got ${rd.status}`);
@@ -451,8 +460,96 @@ try {
   check("critique secret in body → keeps candidate (revised null)", rd.revised === null);
 } finally {
   globalThis.fetch = origFetchCrit;
-  if (origOaKey === undefined) delete process.env.GROWTH_OPENAI_API_KEY;
-  else process.env.GROWTH_OPENAI_API_KEY = origOaKey;
+  if (origGeminiKeyCrit === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = origGeminiKeyCrit;
+}
+
+// ─── Cover drafting (auto-cover via gemini-2.5-flash-image) — hermetic ───
+// generateCoverDraft is Gemini-only (pickModel('cover')), gated on GEMINI_API_KEY.
+// supabaseAdmin is null here → hasExistingCoverDraft returns false (no idempotency
+// skip), withinBudget passes (spent=0/queryOk=true), persistCoverDraft is a no-op
+// (returns null ids). So we can assert the happy path + the prompt is text-free +
+// graceful skip when unconfigured, with the image model mocked via fetch.
+const { generateCoverDraft } = await import("../lib/growth/cover.js");
+import type { ArticleMeta } from "../content/articles.meta.js";
+console.log("\nCover drafting (mocked image model):");
+const origFetchCover = globalThis.fetch;
+const origGeminiKeyCover = process.env.GEMINI_API_KEY;
+try {
+  const fakeMeta = {
+    slug: "harness-engineering",
+    title: "Harness Engineering: Building Safe and Reliable AI Agent Systems",
+    description: "x",
+    category: "Engineering",
+    datePublished: "2026-06-27",
+    readMinutes: 7,
+    abstract: "Harness engineering wraps autonomous AI agents in deterministic software wrappers.",
+    faq: [],
+  } as ArticleMeta;
+
+  // ok: image model returns inlineData PNG → status pending, filename <slug>.png.
+  let coverCalls = 0;
+  let capturedPrompt = "";
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    coverCalls++;
+    const u = typeof input === "string" ? input : (input as Request).url;
+    if (u.includes("generativelanguage.googleapis.com")) {
+      return Promise.resolve(
+        fakeJson({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  { inlineData: { data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAwCBMWQAA" }, mimeType: "image/png" },
+                ],
+              },
+            },
+          ],
+        }),
+      );
+    }
+    return Promise.resolve(fakeJson({}, false, 404));
+  }) as typeof globalThis.fetch;
+  process.env.GEMINI_API_KEY = "test-key";
+  const cov = await generateCoverDraft(fakeMeta);
+  check("cover ok → status pending", cov.status === "pending", `got ${cov.status}`);
+  check("cover ok → filename is <slug>.png", cov.filename === "harness-engineering.png", `got ${cov.filename}`);
+  check("cover ok → image model called once", coverCalls === 1, `got ${coverCalls}`);
+
+  // unconfigured: no GEMINI_API_KEY → status skipped, no fetch.
+  coverCalls = 0;
+  delete process.env.GEMINI_API_KEY;
+  const covSkip = await generateCoverDraft(fakeMeta);
+  check("cover unconfigured → status skipped", covSkip.status === "skipped", `got ${covSkip.status}`);
+  check("cover unconfigured → no fetch", coverCalls === 0, `got ${coverCalls}`);
+
+  // prompt is text-free: buildCoverPrompt is not exported, so assert via a
+  // second mock that captures the request body text and checks it forbids text.
+  process.env.GEMINI_API_KEY = "test-key";
+  coverCalls = 0;
+  capturedPrompt = "";
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    coverCalls++;
+    if (init?.body && typeof init.body === "string") {
+      try {
+        const parsed = JSON.parse(init.body) as { contents?: { parts?: { text?: string }[] }[] };
+        capturedPrompt = parsed.contents?.[0]?.parts?.[0]?.text ?? "";
+      } catch { /* ignore */ }
+    }
+    return Promise.resolve(
+      fakeJson({
+        candidates: [{ content: { parts: [{ inlineData: { data: "iVBORw0KGgo=", mimeType: "image/png" } }] } }],
+      }),
+    );
+  }) as typeof globalThis.fetch;
+  await generateCoverDraft(fakeMeta);
+  check("cover prompt → forbids text in image", /NO TEXT/i.test(capturedPrompt), "prompt should forbid text in the image");
+  check("cover prompt → includes the topic title", /Harness Engineering/i.test(capturedPrompt), "prompt should name the topic");
+  check("cover prompt → specifies 1200x630", /1200x630/i.test(capturedPrompt), "prompt should specify dimensions");
+} finally {
+  globalThis.fetch = origFetchCover;
+  if (origGeminiKeyCover === undefined) delete process.env.GEMINI_API_KEY;
+  else process.env.GEMINI_API_KEY = origGeminiKeyCover;
 }
 
 // ─── Outcomes (Phase 1) — pure diff math + no-DB graceful no-throw ───

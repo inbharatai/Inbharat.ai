@@ -6,6 +6,8 @@ import { promoteArticle } from "../../../lib/growth/promoter.js";
 import { ingestPendingInbox } from "../../../lib/growth/inbox.js";
 import { measureOutcomes } from "../../../lib/growth/outcomes.js";
 import { distillLearnings } from "../../../lib/growth/learning.js";
+import { generateCoverDraft } from "../../../lib/growth/cover.js";
+import { ARTICLES } from "../../../content/articles.meta.js";
 import { supabaseAdmin } from "../../../api/lib/supabaseAdmin.js";
 import { discoverSitePages } from "../../../lib/growth/discovery.js";
 
@@ -88,9 +90,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored} outcomes=${outcomes.measured}/${outcomes.errors} learned=${learning.proposed}`);
+  // Draft on-brand cover images for articles that have no `visual` set
+  // (human-gated, kind:'cover'). Idempotent per article. Wrapped so one image-gen
+  // failure never aborts the run; the budget cap + withinBudget gate live in cover.ts.
+  let covers = { drafted: 0, skipped: 0 };
+  try {
+    covers = await enqueueCoverDrafts();
+  } catch (e) {
+    await logInfo("cron-daily-covers-fail", "global", (e as Error).message).catch(() => undefined);
+  }
 
-  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox, outcomes, learning });
+  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored} outcomes=${outcomes.measured}/${outcomes.errors} learned=${learning.proposed} covers=${covers.drafted}/${covers.skipped}`);
+
+  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox, outcomes, learning, covers });
 }
 
 /**
@@ -141,4 +153,33 @@ async function enqueueArticlePromotions(
     }
   }
   return drafted;
+}
+
+/**
+ * For every "Build AI with Reeturaj" article that has no `visual` set, draft an
+ * on-brand cover image (human-gated, kind 'cover'). generateCoverDraft is
+ * idempotent (skips articles that already have a cover draft), so re-running
+ * the cron only drafts covers for newly-published visual-less articles. Each
+ * call is wrapped so one image-gen failure doesn't abort the rest. Returns the
+ * count of newly drafted vs skipped. ARTICLES is the full article manifest
+ * (already imported by promoter.ts at runtime), so this runs over every article
+ * regardless of whether today's audit happened to crawl it.
+ */
+async function enqueueCoverDrafts(): Promise<{ drafted: number; skipped: number }> {
+  let drafted = 0;
+  let skipped = 0;
+  for (const meta of ARTICLES) {
+    // Skip articles that already have a wired visual — they need no cover.
+    if (meta.visual) { skipped++; continue; }
+    try {
+      const draft = await generateCoverDraft(meta);
+      if (draft.status === "pending") drafted++;
+      else skipped++;
+    } catch (e) {
+      // image-gen / persist failure for one article → log + continue
+      await logInfo("cron-cover-fail", meta.slug, (e as Error).message).catch(() => undefined);
+      skipped++;
+    }
+  }
+  return { drafted, skipped };
 }

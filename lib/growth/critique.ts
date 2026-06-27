@@ -7,11 +7,11 @@
  * growth_drafts; the critique (candidate, revised, weaknesses) is logged to
  * growth_critique_log for transparency.
  *
- * Reuses the Growth Agent's own model-router — pickModel('review') (openai
- * gpt-4.1-mini by default, currently unused until now), withinBudget, logUsage,
- * estimateCost — never the chat backend. Redaction runs LAST, immediately
- * before the model call (project rule), re-redacting the combined prompt
- * defensively even though the draft pass already redacted the candidate.
+ * Reuses the Growth Agent's own model-router — pickModel('review') (Gemini
+ * gemini-2.5-flash), withinBudget, logUsage, estimateCost — never the chat
+ * backend. Redaction runs LAST, immediately before the model call (project
+ * rule), re-redacting the combined prompt defensively even though the draft
+ * pass already redacted the candidate.
  *
  * Graceful: when the review model isn't configured or the budget is exhausted,
  * the candidate is kept unchanged (status 'skipped') — the pipeline must never
@@ -21,6 +21,7 @@
  */
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { callGemini } from "./gemini.js";
 import type { CritiqueInput, CritiqueResult, CritiqueWeakness } from "./types.js";
 
 /**
@@ -69,7 +70,7 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
 
   let raw: string;
   try {
-    raw = await callReviewModel(choice, system, user);
+    raw = await callGemini(choice, system, user, { temperature: 0.4, maxOutputTokens: 700 });
   } catch (e) {
     void logUsage({
       model: choice.model,
@@ -122,52 +123,6 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
     provider: choice.provider,
     costUsd,
   };
-}
-
-/** Call the review model directly (mirrors promoter.ts callModel / inbox.ts callDraftModel). */
-async function callReviewModel(
-  choice: ReturnType<typeof pickModel>,
-  system: string,
-  user: string,
-): Promise<string> {
-  if (choice.provider === "gemini") {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) throw new Error("GEMINI_API_KEY not set");
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${choice.model}:generateContent?key=${key}`;
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: `${system}\n\n${user}` }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.4, maxOutputTokens: 700, thinkingConfig: { thinkingBudget: 0 } },
-      }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) throw new Error(`gemini HTTP ${res.status}`);
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== "string") throw new Error("gemini empty response");
-    return text;
-  }
-  const key = process.env.GROWTH_OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: choice.model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      response_format: { type: "json_object" },
-      temperature: 0.4,
-      max_tokens: 700,
-    }),
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) throw new Error(`openai HTTP ${res.status}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("openai empty response");
-  return text;
 }
 
 function safeParseCritique(raw: string): { revised?: unknown; weaknesses?: unknown } | null {
