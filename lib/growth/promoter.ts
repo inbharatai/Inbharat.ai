@@ -21,6 +21,7 @@ import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
 import { callGemini } from "./gemini.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
+import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { critiqueAndRevise } from "./critique.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
@@ -207,13 +208,19 @@ async function generatePromotionDraft(
   // redacted payload (never sent raw if a secret sneaks in). Empty when no
   // rules exist yet (pre-migration / DB absent) — prompt is unchanged.
   const rulesBlock = formatRulesBlock(await loadRulesForUrl(url));
+  // Phase B: founder-fed inbox assets (folders of reference material the agent
+  // can "access, review, and use wisely"). Empty when nothing is fed — prompt
+  // unchanged. Loaded root-wide (every fed folder) so a draft can draw on any
+  // asset the founder marked available.
+  const inboxBlock = formatInboxBlock(await loadInboxContext());
 
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
     "You write concise, practical, hype-free LinkedIn post drafts that tease a founder-authored article and drive clicks to the article URL. " +
     "You also suggest 2–3 internal links (other InBharat article URLs or the hub) to weave into the post. " +
     "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
-    (rulesBlock ? `\n\n${rulesBlock}` : "");
+    (rulesBlock ? `\n\n${rulesBlock}` : "") +
+    (inboxBlock ? `\n\n${inboxBlock}` : "");
 
   const user =
     `Article URL: ${url}\n` +
@@ -263,6 +270,7 @@ async function generatePromotionDraft(
       draftBody: caption,
       context: { url, kind: "linkedin", title },
       rulesBlock,
+      inboxBlock,
     });
     const finalCaption = crit.revised ?? caption;
     return {

@@ -12,6 +12,7 @@ import { parsePage, extractInternalLinks, fetchSitemapUrls } from "../lib/growth
 import { scoreSeo } from "../lib/growth/seo-auditor.js";
 import { scoreGeo } from "../lib/growth/geo-auditor.js";
 import { promoteArticle } from "../lib/growth/promoter.js";
+import { inboxPath, sanitizeFolder, formatInboxBlock, type InboxContextItem } from "../lib/growth/inbox.js";
 import { monthlyBudgetUsd, bustBudgetCache, logUsage } from "../lib/growth/model-router.js";
 import { authorizeCron, isCronAuthErr } from "../api/lib/requireAdmin.js";
 import type { VercelRequest } from "@vercel/node";
@@ -550,6 +551,29 @@ try {
   globalThis.fetch = origFetchCover;
   if (origGeminiKeyCover === undefined) delete process.env.GEMINI_API_KEY;
   else process.env.GEMINI_API_KEY = origGeminiKeyCover;
+}
+
+// ─── Inbox folders (Phase B) — pure path/sanitize/block-formatter checks ───
+console.log("\nInbox folders (sanitize/path/block, no DB):");
+{
+  check("sanitizeFolder strips unsafe chars", sanitizeFolder("campaigns/launch!") === "campaigns/launch");
+  check("sanitizeFolder root → ''", sanitizeFolder("") === "");
+  check("sanitizeFolder collapses empty segments", sanitizeFolder("a//b") === "a/b");
+  check("inboxPath root → <sha>/<file>", inboxPath("abc123", "my file.md") === "abc123/my_file.md");
+  check("inboxPath folder → <folder>/<sha>/<file>", inboxPath("abc123", "img.png", "campaigns/launch") === "campaigns/launch/abc123/img.png");
+  check("inboxPath folder is sanitized", inboxPath("abc123", "f.txt", "../evil") === "evil/abc123/f.txt");
+  check("formatInboxBlock empty → ''", formatInboxBlock([]) === "");
+  const items: InboxContextItem[] = [
+    { id: "1", folder: "campaigns/launch", kind: "md", originalName: "brief.md", excerpt: "Position InBharat as the  AI infra partner.", mediaNote: null },
+    { id: "2", folder: "campaigns/launch", kind: "image", originalName: "ref.png", excerpt: null, mediaNote: "image asset (ref.png) — available for the vision/cover task to analyze on command" },
+    { id: "3", folder: "", kind: "txt", originalName: "notes.txt", excerpt: "Reeturaj founded InBharat.ai.", mediaNote: null },
+  ];
+  const block = formatInboxBlock(items);
+  check("formatInboxBlock has INBOX ASSETS header", /^INBOX ASSETS/.test(block));
+  check("formatInboxBlock groups by folder label", block.includes("Folder: campaigns/launch") && block.includes("Folder: (root)"));
+  check("formatInboxBlock labels text excerpt", block.includes("[text/md] brief.md"));
+  check("formatInboxBlock labels media asset", block.includes("[media/image]"));
+  check("formatInboxBlock cites founder-fed guidance", /review and use wisely/i.test(block));
 }
 
 // ─── Outcomes (Phase 1) — pure diff math + no-DB graceful no-throw ───

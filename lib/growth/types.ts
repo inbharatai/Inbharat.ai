@@ -96,6 +96,8 @@ export interface CritiqueInput {
   context: { url: string | null; kind: string; title?: string | null; sourceName?: string | null };
   /** Pre-formatted founder rules block (reuse formatRulesBlock output). */
   rulesBlock?: string;
+  /** Pre-formatted founder-fed inbox assets block (reuse formatInboxBlock output). */
+  inboxBlock?: string;
 }
 
 /** Result of the self-critique + revision pass. */

@@ -51,10 +51,23 @@ export function sha256Hex(data: string | Buffer | ArrayBuffer): string {
   return createHash("sha256").update(typeof data === "string" ? data : Buffer.from(data)).digest("hex");
 }
 
-/** Storage path for a dropped file: growth-inbox/<sha>/<filename>. */
-export function inboxPath(sha: string, filename: string): string {
+/** Storage path for a dropped file: growth-inbox/<folder>/<sha>/<filename>.
+ *  `folder` is a sanitized relative path ('' = root). Each segment is stripped to
+ *  [\w.-] so a founder-supplied folder name can't escape the bucket prefix. */
+export function inboxPath(sha: string, filename: string, folder: string = ""): string {
   const safe = filename.replace(/[^\w.-]+/g, "_").slice(-80) || "file";
-  return `${sha}/${safe}`;
+  const folderSeg = sanitizeFolder(folder);
+  return folderSeg ? `${folderSeg}/${sha}/${safe}` : `${sha}/${safe}`;
+}
+
+/** Sanitize a folder path to safe storage segments: 'campaigns/launch!' →
+ *  'campaigns/launch'. Empty string = root (no folder segment). */
+export function sanitizeFolder(folder: string): string {
+  return folder
+    .split("/")
+    .map((s) => s.replace(/[^\w.-]+/g, "_").replace(/^[._-]+/g, "").replace(/[._-]+$/g, "").slice(-40))
+    .filter(Boolean)
+    .join("/");
 }
 
 interface InboxItem {
@@ -64,6 +77,8 @@ interface InboxItem {
   original_name: string | null;
   status: string;
   sha256: string | null;
+  folder: string | null;
+  fed_to_agent: boolean | null;
   linked_draft_id: string | null;
   error: string | null;
 }
@@ -79,7 +94,7 @@ export async function ingestPendingInbox(): Promise<{ ingested: number; errored:
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_inbox_items")
-      .select("id,storage_path,kind,original_name,status,sha256,linked_draft_id,error")
+      .select("id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,linked_draft_id,error")
       .eq("status", "pending")
       .order("created_at", { ascending: true })
       .limit(25);
@@ -214,11 +229,13 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
     // Self-critique + revision pass (Phase 2). Inbox drops have no URL scope,
     // so the founder's GLOBAL rules shape the critique. Redacts LAST before its
     // model call (inside critiqueAndRevise). Keeps the candidate when the
-    // review model is absent/budget exhausted/redacted.
+    // review model is absent/budget exhausted/redacted. Phase B: also feed the
+    // founder-fed inbox assets so the critique can cross-reference sibling drops.
     const crit = await critiqueAndRevise({
       draftBody: caption,
       context: { url: null, kind: "inbox-outline", sourceName: name },
       rulesBlock: formatRulesBlock(await loadGlobalRules()),
+      inboxBlock: formatInboxBlock(await loadInboxContext()),
     });
     const finalCaption = crit.revised ?? caption;
     return {
@@ -317,4 +334,132 @@ async function markIngested(itemId: string, draftId: string | null): Promise<voi
 async function markError(itemId: string, error: string): Promise<void> {
   if (!supabaseAdmin) return;
   await supabaseAdmin.from("growth_inbox_items").update({ status: "error", error }).eq("id", itemId);
+}
+
+// ─── Phase B: folder context the agent can access, review, and use ─────────────
+
+export interface InboxContextItem {
+  id: string;
+  folder: string;
+  kind: string;
+  originalName: string | null;
+  /** Ingested text excerpt for md/txt drops (from the linked draft's body_md);
+   *  null for media candidates. Capped for prompt budget. */
+  excerpt: string | null;
+  /** For image/video: a note that it's a media asset (the bytes are NOT inlined
+   *  here — the C4 vision task reads them on demand via a signed URL). */
+  mediaNote: string | null;
+}
+
+/**
+ * Load the inbox assets the founder has marked "fed to agent" as context. When
+ * `folder` is given, returns that folder AND its sub-folders (recursive), so a
+ * top-level folder drop feeds every nested asset. Joins to growth_drafts via
+ * linked_draft_id to recover the ingested text excerpt (media candidates have no
+ * excerpt). Never throws; returns [] when the DB is absent / nothing is fed.
+ *
+ * Server-only. Used by the promoter + critique + agent system prompts.
+ */
+export async function loadInboxContext(folder?: string): Promise<InboxContextItem[]> {
+  if (!supabaseAdmin) return [];
+  try {
+    const folderSeg = sanitizeFolder(folder ?? "");
+    // Recursive: this folder or any sub-folder (folder = '<f>' OR folder LIKE '<f>/%').
+    const base = supabaseAdmin
+      .from("growth_inbox_items")
+      .select("id,folder,kind,original_name,linked_draft_id,draft:growth_drafts(body_md)")
+      .eq("fed_to_agent", true)
+      .eq("status", "ingested");
+    let q;
+    if (folderSeg) {
+      // Two OR conditions via Postgrest `or`: folder.eq or folder.like (sub-folders).
+      q = base.or(`folder.eq.${folderSeg},folder.like.${folderSeg}/%`);
+    } else {
+      q = base; // root call → every fed item regardless of folder
+    }
+    const { data, error } = await q.limit(60);
+    if (error || !Array.isArray(data)) return [];
+    const out: InboxContextItem[] = [];
+    for (const r of data as Array<{ id: string; folder: string; kind: string; original_name: string | null; linked_draft_id: string | null; draft: { body_md: string | null } | null }>) {
+      const isMedia = r.kind === "image" || r.kind === "video";
+      const bodyMd = Array.isArray(r.draft) ? r.draft[0]?.body_md : r.draft?.body_md;
+      out.push({
+        id: r.id,
+        folder: r.folder ?? "",
+        kind: r.kind,
+        originalName: r.original_name,
+        excerpt: !isMedia && typeof bodyMd === "string" ? bodyMd.slice(0, 800) : null,
+        mediaNote: isMedia ? `${r.kind} asset (${r.original_name ?? "untitled"}) — available for the vision/cover task to analyze on command` : null,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Format fed inbox assets into a system-prompt block. Returns "" when there are
+ * no assets so the prompt is unchanged (mirrors formatRulesBlock). The block
+ * groups by folder and labels media vs text so the critique pass can judge which
+ * asset facts belong in a draft.
+ */
+export function formatInboxBlock(items: InboxContextItem[]): string {
+  if (items.length === 0) return "";
+  const byFolder = new Map<string, string[]>();
+  for (const it of items) {
+    const list = byFolder.get(it.folder) ?? [];
+    if (it.excerpt) {
+      list.push(`- [text/${it.kind}] ${it.originalName ?? "untitled"}: ${it.excerpt.replace(/\s+/g, " ").trim()}`);
+    } else if (it.mediaNote) {
+      list.push(`- [media/${it.kind}] ${it.mediaNote}`);
+    }
+    byFolder.set(it.folder, list);
+  }
+  const sections = Array.from(byFolder.entries()).map(([folder, lines]) => {
+    const label = folder || "(root)";
+    return `Folder: ${label}\n${lines.join("\n")}`;
+  });
+  return `INBOX ASSETS (founder-fed reference material — review and use wisely; cite facts, ignore anything off-brand):\n${sections.join("\n\n")}`;
+}
+
+/**
+ * Mark every (non-ingested or ingested) item in a folder — and its sub-folders —
+ * as fed to the agent (available context). Called from the admin "Feed to agent"
+ * action. Returns the count updated. Never throws.
+ */
+export async function markFolderFedToAgent(folder: string): Promise<number> {
+  if (!supabaseAdmin) return 0;
+  const folderSeg = sanitizeFolder(folder);
+  if (!folderSeg) return 0;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_inbox_items")
+      .update({ fed_to_agent: true })
+      .or(`folder.eq.${folderSeg},folder.like.${folderSeg}/%`)
+      .eq("status", "ingested")
+      .select("id");
+    if (error || !Array.isArray(data)) return 0;
+    return data.length;
+  } catch {
+    return 0;
+  }
+}
+
+/** Un-feed a folder (hide its assets from agent context). Symmetric opt-out. */
+export async function unmarkFolderFedToAgent(folder: string): Promise<number> {
+  if (!supabaseAdmin) return 0;
+  const folderSeg = sanitizeFolder(folder);
+  if (!folderSeg) return 0;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_inbox_items")
+      .update({ fed_to_agent: false })
+      .or(`folder.eq.${folderSeg},folder.like.${folderSeg}/%`)
+      .select("id");
+    if (error || !Array.isArray(data)) return 0;
+    return data.length;
+  } catch {
+    return 0;
+  }
 }
