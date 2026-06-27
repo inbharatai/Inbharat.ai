@@ -591,6 +591,59 @@ console.log("\nStrategy block (formatStrategyBlock, no DB):");
   check("formatStrategyBlock obeys-on-brand guidance present", /on-brand/i.test(block));
 }
 
+// ─── Phase C: conversational agent tools + vision + Auto Mode (no DB / no key) ───
+console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB/key):");
+{
+  const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
+  const names = AGENT_TOOLS.map((t) => t.name);
+  check("agent tools registry has 5 tools", AGENT_TOOLS.length === 5, `got ${names.join(",")}`);
+  check("agent tools include the CMO command set",
+    ["list_recent_drafts", "redraft_caption", "generate_cover", "list_inbox_folder", "analyze_attachment"].every((n) => names.includes(n)),
+    JSON.stringify(names));
+  check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
+
+  // dispatchTool: unknown tool → ok:false (never throws).
+  const unknown = await dispatchTool("does_not_exist", {});
+  check("dispatchTool unknown tool → ok:false", unknown.ok === false, JSON.stringify(unknown));
+
+  // dispatchTool: list_recent_drafts on no-DB → graceful ok:false.
+  const lrd = await dispatchTool("list_recent_drafts", { limit: 5 });
+  check("list_recent_drafts no-DB → ok:false", lrd.ok === false, JSON.stringify(lrd));
+
+  // dispatchTool: generate_cover with a fake slug → ok:false "no article found" (pure, no DB).
+  const badSlug = await dispatchTool("generate_cover", { slug: "this-slug-does-not-exist-xyz" });
+  check("generate_cover bad slug → ok:false", badSlug.ok === false && /no article found/i.test(badSlug.message ?? ""), JSON.stringify(badSlug));
+
+  // dispatchTool: generate_cover with a real slug but no key → ok:false skipped (no model).
+  const realSlug = await dispatchTool("generate_cover", { slug: "rag" });
+  check("generate_cover real slug no-key → ok:false (skipped)", realSlug.ok === false, JSON.stringify(realSlug));
+
+  // dispatchTool: list_inbox_folder no-DB → ok:true with empty items (never throws).
+  const lif = await dispatchTool("list_inbox_folder", {});
+  check("list_inbox_folder no-DB → ok:true empty", lif.ok === true && Array.isArray(lif.items) && lif.items.length === 0, JSON.stringify(lif));
+
+  // Gemini agent + vision helpers fail fast + clearly when the key is absent
+  // (the only model-touching path that's safe to assert hermetically — it throws
+  // before any fetch). This guards the Gemini-only constraint: no key → no call.
+  const { callGeminiAgent, callGeminiVision } = await import("../lib/growth/gemini.js");
+  const choice = { provider: "gemini" as const, model: "gemini-2.5-flash", usdPer1k: 0.00015 };
+  let agentThrew = false;
+  try { await callGeminiAgent(choice, "sys", [], [], { temperature: 0.5, maxOutputTokens: 10 }); } catch (e) { agentThrew = (e as Error).message.includes("GEMINI_API_KEY not set"); }
+  check("callGeminiAgent throws when GEMINI_API_KEY absent", agentThrew);
+  let visionThrew = false;
+  try { await callGeminiVision(choice, "describe", "AAAA", "image/png"); } catch (e) { visionThrew = (e as Error).message.includes("GEMINI_API_KEY not set"); }
+  check("callGeminiVision throws when GEMINI_API_KEY absent", visionThrew);
+
+  // Auto Mode: no-DB load → DEFAULTS (OFF); runAutoLoop → no-op "disabled".
+  const { loadAutoMode, runAutoLoop } = await import("../lib/growth/autoMode.js");
+  const mode = await loadAutoMode();
+  check("loadAutoMode no-DB → enabled false", mode.enabled === false, JSON.stringify(mode));
+  check("loadAutoMode no-DB → autoApprove false (default off)", mode.autoApprove === false, JSON.stringify(mode));
+  check("loadAutoMode no-DB → cadence 30 / cap 5 defaults", mode.cadenceMinutes === 30 && mode.maxTasksPerRun === 5, JSON.stringify(mode));
+  const run = await runAutoLoop();
+  check("runAutoLoop disabled → ran false", run.ran === false && run.reason === "disabled", JSON.stringify(run));
+}
+
 // ─── Outcomes (Phase 1) — pure diff math + no-DB graceful no-throw ───
 const { diffOutcomes, seedOutcomeOnPublish, measureOutcomes, bustOutcomesCache } = await import("../lib/growth/outcomes.js");
 console.log("\nOutcomes (diffOutcomes math + no-DB no-throw):");

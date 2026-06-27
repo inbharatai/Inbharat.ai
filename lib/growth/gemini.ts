@@ -225,6 +225,176 @@ function firstText(data: unknown): string | undefined {
   return undefined;
 }
 
+// ─── Phase C: function-calling (agent) + multimodal (vision) ─────────────────
+
+/** One function declaration the agent can call. `parameters` is a JSON-Schema
+ *  object (Gemini accepts OpenAPI-style schemas). Optional when a tool takes
+ *  no args. Keep descriptions precise — they steer the model's tool choice. */
+export interface GeminiFunctionDeclaration {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
+}
+
+export interface GeminiToolCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+export interface GeminiAgentResult {
+  /** Concatenated text parts the model emitted (null when it only called tools). */
+  text: string | null;
+  /** Function calls the model requested, in order. Empty when it answered in text. */
+  toolCalls: GeminiToolCall[];
+  finishReason: string | null;
+}
+
+/**
+ * Call a Gemini text model in function-calling mode (Phase C agent). `contents`
+ * is the full multi-turn history (user/model turns with text, functionCall, or
+ * functionResponse parts) — the caller appends each tool result as a `model`-then-
+ * `user` functionResponse turn. `system` is passed as systemInstruction (NOT a
+ * contents part), so it doesn't pollute the history. Returns the candidate's text
+ * + any function calls so the caller can dispatch tools and loop. Retries like
+ * callGemini. Never parses JSON — the agent turn loop owns persistence.
+ */
+export async function callGeminiAgent(
+  choice: ModelChoice,
+  system: string,
+  contents: unknown[],
+  tools: GeminiFunctionDeclaration[],
+  opts: { temperature: number; maxOutputTokens: number },
+): Promise<GeminiAgentResult> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents,
+    tools: [{ functionDeclarations: tools }],
+    generationConfig: {
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxOutputTokens,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${endpoint(choice.model)}?key=${key}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        signal: AbortSignal.timeout(45000),
+      });
+      if (!res.ok) {
+        if (isRetryable(res.status, undefined)) {
+          lastErr = new Error(`gemini-agent HTTP ${res.status}`);
+          await backoff(attempt);
+          continue;
+        }
+        await throwHttpError(res, "gemini-agent");
+      }
+      const data = await res.json();
+      // Function-calling responses can finish with STOP (text) or carry
+      // functionCall parts; both are usable. Only throw on hard blocks.
+      assertUsable(data, "gemini-agent");
+      const parts = (data as { candidates?: { finishReason?: string; content?: { parts?: unknown[] } }[] })?.candidates?.[0]?.content?.parts;
+      const finishReason = (data as { candidates?: { finishReason?: string }[] })?.candidates?.[0]?.finishReason ?? null;
+      const textParts: string[] = [];
+      const toolCalls: GeminiToolCall[] = [];
+      if (Array.isArray(parts)) {
+        for (const p of parts as Array<Record<string, unknown>>) {
+          if (typeof p?.text === "string" && p.text.length > 0) textParts.push(p.text);
+          const fc = p?.functionCall as { name?: string; args?: Record<string, unknown> } | undefined;
+          if (fc && typeof fc.name === "string") {
+            toolCalls.push({ name: fc.name, args: fc.args ?? {} });
+          }
+        }
+      }
+      const text = textParts.length > 0 ? textParts.join("\n") : null;
+      if (text === null && toolCalls.length === 0) {
+        throw new Error(`gemini-agent empty response (finishReason=${finishReason ?? "unknown"})`);
+      }
+      return { text, toolCalls, finishReason };
+    } catch (e) {
+      lastErr = e;
+      const aborted = (e as Error)?.name === "AbortError" || (e as Error)?.name === "TimeoutError";
+      const netRetry = isRetryable(undefined, e) || aborted;
+      if (!netRetry || attempt === MAX_RETRIES) throw e;
+      await backoff(attempt);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("gemini-agent call failed");
+}
+
+/**
+ * Call gemini-2.5-flash (multimodal) with an inline image + an instruction
+ * (Phase C4 vision). `imageBase64` is raw base64 (no data: prefix); `mimeType`
+ * must be a type Gemini accepts (image/png, image/jpeg, image/webp, image/gif).
+ * Returns the model's text answer. Used ONLY by the Growth Agent's
+ * analyzeAttachment tool — the image bytes never touch the chat backend.
+ */
+export async function callGeminiVision(
+  choice: ModelChoice,
+  instruction: string,
+  imageBase64: string,
+  mimeType: string,
+): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error("GEMINI_API_KEY not set");
+  const body = JSON.stringify({
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: instruction },
+          { inlineData: { mimeType, data: imageBase64 } },
+        ],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.4,
+      maxOutputTokens: 800,
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(`${endpoint(choice.model)}?key=${key}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+        signal: AbortSignal.timeout(45000),
+      });
+      if (!res.ok) {
+        if (isRetryable(res.status, undefined)) {
+          lastErr = new Error(`gemini-vision HTTP ${res.status}`);
+          await backoff(attempt);
+          continue;
+        }
+        await throwHttpError(res, "gemini-vision");
+      }
+      const data = await res.json();
+      assertUsable(data, "gemini-vision");
+      const text = firstText(data);
+      if (typeof text !== "string" || !text.trim()) {
+        throw new Error(`gemini-vision empty response (finishReason=${(data as { candidates?: { finishReason?: string }[] })?.candidates?.[0]?.finishReason ?? "unknown"})`);
+      }
+      return text;
+    } catch (e) {
+      lastErr = e;
+      const aborted = (e as Error)?.name === "AbortError" || (e as Error)?.name === "TimeoutError";
+      const netRetry = isRetryable(undefined, e) || aborted;
+      if (!netRetry || attempt === MAX_RETRIES) throw e;
+      await backoff(attempt);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("gemini-vision call failed");
+}
+
 /** First part carrying `inlineData` (the generated image). */
 function firstInlineData(data: unknown): { data: string; mimeType?: string } | undefined {
   const parts = (data as { candidates?: { content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] } }[] })?.candidates?.[0]?.content?.parts;

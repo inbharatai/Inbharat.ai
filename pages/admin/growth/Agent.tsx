@@ -1,0 +1,317 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useAdminApi } from "../../../lib/growth/adminApi";
+
+/**
+ * /admin/growth/agent — the conversational CMO agent (Phase C) + Auto Mode (C5).
+ *
+ * Chat panel: the founder types commands; the agent executes tools (redraft
+ * captions, generate covers, analyze images) and narrates what it did. Every
+ * artifact is a human-gated draft in Issues — the agent never publishes.
+ *
+ * Attachments (C4): a paperclip uploads images/folders/videos into the inbox
+ * pipeline (folder 'agent-chat') and passes their itemIds to the turn so the
+ * agent can analyze them on command ("analyze this"). Like any AI tool's input.
+ *
+ * Auto Mode (C5): ON/OFF toggle. While on, a cron loop drafts pending work
+ * autonomously (still human-gated publish). auto-approve (off by default) also
+ * marks pending drafts approved. The founder flips it whenever they want.
+ */
+
+interface AgentMessage {
+  id: string;
+  threadId: string;
+  role: "user" | "assistant" | "tool";
+  content: string | null;
+  toolName: string | null;
+  toolArgs: Record<string, unknown> | null;
+  toolResult: { ok?: boolean; message?: string; [k: string]: unknown } | null;
+  createdAt: string;
+}
+
+interface Thread {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
+interface AutoMode {
+  enabled: boolean;
+  autoApprove: boolean;
+  cadenceMinutes: number;
+  maxTasksPerRun: number;
+  lastRunAt: string | null;
+  lastRunSummary: string | null;
+}
+
+async function sha256Hex(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function classifyKind(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "md" || ext === "txt") return ext;
+  if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "image";
+  if (["mp4", "mov", "webm"].includes(ext)) return "video";
+  return "other";
+}
+
+const Agent: React.FC = () => {
+  const { fetchJson } = useAdminApi();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<AgentMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<{ itemId: string; name: string; kind: string }[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [auto, setAuto] = useState<AutoMode | null>(null);
+  const [autoBusy, setAutoBusy] = useState(false);
+  const [running, setRunning] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  async function loadThreads() {
+    const { data, error } = await fetchJson<{ threads?: Thread[] }>("/api/growth/agent");
+    if (error) setError(error);
+    else setThreads(data?.threads || []);
+  }
+
+  async function loadAuto() {
+    const { data, error } = await fetchJson<{ mode?: AutoMode }>("/api/growth/auto");
+    if (error) setError(error);
+    else if (data?.mode) setAuto(data.mode);
+  }
+
+  useEffect(() => {
+    void loadThreads();
+    void loadAuto();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!activeId) return;
+    void (async () => {
+      const { data, error } = await fetchJson<{ messages?: AgentMessage[] }>(`/api/growth/agent?threadId=${encodeURIComponent(activeId)}`);
+      if (error) setError(error);
+      else setMessages(data?.messages || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  function newChat() {
+    setActiveId(null);
+    setMessages([]);
+    setInput("");
+    setAttachments([]);
+    setError(null);
+  }
+
+  async function uploadAttachment(file: File): Promise<void> {
+    setUploading(file.name);
+    try {
+      const sha = await sha256Hex(file);
+      const { data: sign, error: signErr } = await fetchJson<{ uploadUrl?: string; path?: string }>(
+        "/api/growth/inbox?action=sign",
+        { method: "POST", body: JSON.stringify({ filename: file.name, contentType: file.type, size: file.size, sha256: sha, folder: "agent-chat" }) },
+      );
+      if (signErr || !sign?.uploadUrl) { setError(`Sign failed for ${file.name}: ${signErr || "no url"}`); return; }
+      const put = await fetch(sign.uploadUrl, { method: "PUT", body: file, headers: { "content-type": file.type || "application/octet-stream" } });
+      if (!put.ok) { setError(`Upload failed for ${file.name}: HTTP ${put.status}`); return; }
+      const { data: conf, error: confErr } = await fetchJson<{ itemId?: string }>("/api/growth/inbox?action=confirm", {
+        method: "POST",
+        body: JSON.stringify({ path: sign.path, sha256: sha, kind: classifyKind(file.name), originalName: file.name, folder: "agent-chat" }),
+      });
+      if (confErr || !conf?.itemId) { setError(`Confirm failed for ${file.name}: ${confErr}`); return; }
+      setAttachments((a) => [...a, { itemId: conf.itemId!, name: file.name, kind: classifyKind(file.name) }]);
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  function onPickFiles(files: FileList | null) {
+    if (!files) return;
+    void Promise.all(Array.from(files).map((f) => uploadAttachment(f)));
+  }
+
+  async function send() {
+    const text = input.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setError(null);
+    const attIds = attachments.map((a) => a.itemId);
+    // Optimistic user echo.
+    const optimistic: AgentMessage = {
+      id: `tmp-${Date.now()}`, threadId: activeId ?? "", role: "user", content: text,
+      toolName: null, toolArgs: null, toolResult: null, createdAt: new Date().toISOString(),
+    };
+    setMessages((m) => [...m, optimistic]);
+    setInput("");
+    const { data, error } = await fetchJson<{ threadId?: string; reply?: string | null; messages?: AgentMessage[] }>(
+      "/api/growth/agent",
+      { method: "POST", body: JSON.stringify({ message: text, threadId: activeId ?? undefined, attachmentItemIds: attIds.length ? attIds : undefined }) },
+    );
+    setSending(false);
+    if (error) { setError(error); return; }
+    if (data?.threadId && data.threadId !== activeId) {
+      setActiveId(data.threadId);
+      void loadThreads();
+    }
+    if (data?.messages) setMessages(data.messages);
+    setAttachments([]); // attachments are per-turn
+  }
+
+  async function toggleAuto(patch: Partial<AutoMode>) {
+    setAutoBusy(true);
+    const { data, error } = await fetchJson<{ mode?: AutoMode }>("/api/growth/auto", { method: "POST", body: JSON.stringify(patch) });
+    setAutoBusy(false);
+    if (error) setError(error);
+    else if (data?.mode) setAuto(data.mode);
+  }
+
+  async function runNow() {
+    setRunning(true);
+    const { data, error } = await fetchJson<{ summary?: string; ran?: boolean }>("/api/growth/auto?action=run", { method: "POST" });
+    setRunning(false);
+    if (error) setError(error);
+    else if (data?.summary) setError(null);
+    void loadAuto();
+    void loadThreads();
+  }
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-white">Growth Agent</h1>
+      <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
+        Chat with your expert fractional CMO. It executes on command — redrafts captions, generates covers, analyzes images
+        you attach — and queues everything in Issues for your approval. It never publishes on its own.
+      </p>
+
+      {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
+
+      {/* ─── Auto Mode panel ─────────────────────────────────────────────────── */}
+      <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${auto?.enabled ? "bg-emerald-500/15 text-emerald-300" : "bg-slate-500/15 text-slate-300"}`}>
+              {auto?.enabled ? "Auto Mode ON" : "Auto Mode OFF"}
+            </span>
+            {auto?.autoApprove && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">auto-approve</span>}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={runNow} disabled={running} className="rounded-md border border-[#f59f4f]/30 px-3 py-1.5 text-[12px] text-[#f59f4f] hover:bg-[#f59f4f]/10 disabled:opacity-40">
+              {running ? "Running…" : "Run now"}
+            </button>
+            <button
+              onClick={() => toggleAuto({ enabled: !auto?.enabled })}
+              disabled={autoBusy}
+              className={`rounded-md px-3 py-1.5 text-[12px] font-semibold ${auto?.enabled ? "bg-rose-500/20 text-rose-300 hover:bg-rose-500/30" : "bg-[#f59f4f] text-[#0a0c10] hover:bg-[#f59f4f]/90"} disabled:opacity-40`}
+            >
+              {auto?.enabled ? "Turn OFF" : "Turn ON"}
+            </button>
+          </div>
+        </div>
+        <p className="mt-2 text-[11px] text-[#7a9ab8]">
+          When ON, the agent autonomously drafts captions + covers for articles that lack them (budget-guarded, up to {auto?.maxTasksPerRun ?? 5}/run). Publish stays your click.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-[12px] text-[#c0cfe0]">
+            <input
+              type="checkbox"
+              checked={!!auto?.autoApprove}
+              disabled={autoBusy}
+              onChange={(e) => toggleAuto({ autoApprove: e.target.checked })}
+              className="accent-amber-500"
+            />
+            <span className="text-amber-300">Auto-approve pending drafts</span>
+            <span className="text-[10px] text-[#7a9ab8]">(marks drafts approved so they&apos;re ready to ship; still no auto-publish)</span>
+          </label>
+        </div>
+        {auto?.lastRunSummary && (
+          <p className="mt-2 text-[11px] text-[#7a9ab8]">
+            Last run{auto.lastRunAt ? ` ${new Date(auto.lastRunAt).toLocaleString()}` : ""}: {auto.lastRunSummary}
+          </p>
+        )}
+      </div>
+
+      {/* ─── Chat: thread list + panel ───────────────────────────────────────── */}
+      <div className="mt-5 flex flex-col gap-4 lg:flex-row">
+        <div className="lg:w-56">
+          <button onClick={newChat} className="w-full rounded-lg bg-[#f59f4f] px-3 py-2 text-[12px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90">+ New chat</button>
+          <div className="mt-2 space-y-1">
+            {threads.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveId(t.id)}
+                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-[12px] ${activeId === t.id ? "bg-[#f59f4f]/10 text-[#f59f4f] ring-1 ring-[#f59f4f]/30" : "text-[#9fb2c6] hover:bg-white/[0.04]"}`}
+                title={t.title}
+              >
+                {t.title}
+              </button>
+            ))}
+            {threads.length === 0 && <p className="px-2 text-[11px] text-[#5f7c98]">No conversations yet.</p>}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.02]">
+          <div ref={scrollRef} className="h-[420px] overflow-y-auto p-4">
+            {messages.length === 0 && <p className="text-[13px] text-[#7a9ab8]">Ask the agent to do something — e.g. “draft a punchier caption for the RAG article”, “make a cover for desh-ka-ai”, or attach an image and say “analyze this”.</p>}
+            {messages.map((m) => (
+              <div key={m.id} className={`mb-3 ${m.role === "user" ? "text-right" : ""}`}>
+                {m.role === "user" && <div className="inline-block max-w-[85%] rounded-lg bg-[#f59f4f]/15 px-3 py-2 text-left text-[13px] text-white">{m.content}</div>}
+                {m.role === "assistant" && m.content && <div className="max-w-[90%] whitespace-pre-wrap rounded-lg bg-white/[0.04] px-3 py-2 text-[13px] text-[#e6eef7]">{m.content}</div>}
+                {m.role === "tool" && (
+                  <div className="max-w-[90%] rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-[11px] text-[#7a9ab8]">
+                    <span className="text-[#f59f4f]">🔧 {m.toolName}</span> → {m.toolResult?.message ?? (m.toolResult?.ok ? "ok" : "no detail")}
+                  </div>
+                )}
+              </div>
+            ))}
+            {sending && <div className="mb-3 text-[12px] text-[#7a9ab8]">Agent is working…</div>}
+          </div>
+
+          {/* attachment chips */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 border-t border-white/5 px-3 py-2">
+              {attachments.map((a) => (
+                <span key={a.itemId} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-[#c0cfe0]">
+                  📎 {a.name} <span className="text-[#5f7c98]">({a.kind})</span>
+                </span>
+              ))}
+            </div>
+          )}
+          {uploading && <p className="px-3 text-[11px] text-[#f59f4f]">Uploading {uploading}…</p>}
+
+          {/* composer */}
+          <div className="flex items-end gap-2 border-t border-white/10 p-3">
+            <label className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-2 text-[#9fb2c6] hover:border-white/25" title="Attach images / files / folders">
+              <input type="file" multiple className="hidden" onChange={(e) => onPickFiles(e.target.files)} />
+              📎
+            </label>
+            <label className="cursor-pointer rounded-lg border border-white/10 px-2.5 py-2 text-[#9fb2c6] hover:border-white/25" title="Attach a folder">
+              <input type="file" multiple className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={(e) => onPickFiles(e.target.files)} />
+              📁
+            </label>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
+              rows={1}
+              placeholder="Tell the agent what to do… (Enter to send, Shift+Enter for newline)"
+              className="min-w-0 flex-1 resize-none rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-2 text-[13px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
+            />
+            <button onClick={send} disabled={sending || !input.trim()} className="rounded-lg bg-[#f59f4f] px-4 py-2 text-[13px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90 disabled:opacity-40">
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Agent;

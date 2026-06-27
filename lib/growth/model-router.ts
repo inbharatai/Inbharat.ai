@@ -23,7 +23,7 @@ import type { ModelUsageRecord } from "./types.js";
  * no code change. Override any task with GROWTH_<TASK>_MODEL /
  * GROWTH_<TASK>_PROVIDER env vars (no redeploy needed for the founder).
  */
-export type GrowthTask = "audit" | "metadata" | "summary" | "draft" | "review" | "cover" | "strategy";
+export type GrowthTask = "audit" | "metadata" | "summary" | "draft" | "review" | "cover" | "strategy" | "chat" | "vision";
 
 export interface ModelChoice {
   provider: "openai" | "gemini";
@@ -44,6 +44,12 @@ const DEFAULTS: Record<GrowthTask, ModelChoice> = {
   // Strategy drafting (Phase D): synthesize positioning/ICP/voice from recent
   // learnings + outcomes. Flash is plenty; the founder reviews + edits the result.
   strategy: { provider: "gemini", model: "gemini-2.5-flash", usdPer1k: 0.00015 },
+  // Conversational agent turn (Phase C): the CMO persona chat with tool-calling.
+  // Flash is multimodal + supports function-calling; cheap enough for a chat loop.
+  chat: { provider: "gemini", model: "gemini-2.5-flash", usdPer1k: 0.00015 },
+  // On-command image/video analysis (Phase C4): the founder drops an image and says
+  // "analyze this"; gemini-2.5-flash is multimodal (accepts inlineData image parts).
+  vision: { provider: "gemini", model: "gemini-2.5-flash", usdPer1k: 0.00015 },
 };
 
 export function pickModel(task: GrowthTask): ModelChoice {
