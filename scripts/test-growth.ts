@@ -596,9 +596,9 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 5 tools", AGENT_TOOLS.length === 5, `got ${names.join(",")}`);
+  check("agent tools registry has 7 tools", AGENT_TOOLS.length === 7, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
-    ["list_recent_drafts", "redraft_caption", "generate_cover", "list_inbox_folder", "analyze_attachment"].every((n) => names.includes(n)),
+    ["list_recent_drafts", "redraft_caption", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "write_video_script"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
@@ -725,6 +725,72 @@ console.log("\nDiscovery (diffSitePages pure fixtures):");
     [{ url: A, wordCount: 210, seoScore: 80, title: "A" }],
   );
   check("discovery small word_count delta → not changed", dNoChg.changed.length === 0, JSON.stringify(dNoChg.changed));
+}
+
+// ─── Phase E: article writer + publish helpers (pure, no DB/network) ───
+const { slugifyTitle, estimateReadMinutes } = await import("../lib/growth/articleWriter.js");
+const { formatArticleEntry, insertArticleMeta } = await import("../api/growth/publish.js");
+console.log("\nPhase E (article writer + publish helpers, pure):");
+{
+  // slugifyTitle: lowercase, kebab, strip apostrophes, trim, fallback.
+  check("slugifyTitle kebab-cases", slugifyTitle("Build AI With Reeturaj") === "build-ai-with-reeturaj");
+  check("slugifyTitle strips apostrophes", slugifyTitle("Founder's Guide to RAG") === "founders-guide-to-rag");
+  check("slugifyTitle collapses non-alnum", slugifyTitle("AI / ML: the 2026 guide!") === "ai-ml-the-2026-guide");
+  check("slugifyTitle caps at 60 chars", slugifyTitle("a".repeat(80)).length === 60);
+  check("slugifyTitle empty → fallback 'article'", slugifyTitle("!!!///***") === "article");
+
+  // estimateReadMinutes: ~200 wpm, min 3.
+  check("estimateReadMinutes min 3 for short text", estimateReadMinutes("one two three") === 3);
+  const long = Array.from({ length: 600 }, (_, i) => `word${i}`).join(" ");
+  check("estimateReadMinutes ~200wpm (600 words → 3)", estimateReadMinutes(long) === 3, `got ${estimateReadMinutes(long)}`);
+  const veryLong = Array.from({ length: 1200 }, (_, i) => `word${i}`).join(" ");
+  check("estimateReadMinutes 1200 words → 6", estimateReadMinutes(veryLong) === 6, `got ${estimateReadMinutes(veryLong)}`);
+
+  // formatArticleEntry: shape + escaping + numeric field unquoted.
+  const entry = formatArticleEntry({
+    slug: "rag-guide", title: "What's RAG?", description: "A guide", category: "AI Foundations",
+    datePublished: "2026-06-27", readMinutes: 7, abstract: "Short answer.",
+    faq: [{ q: "What is RAG?", a: "Retrieval-augmented generation." }], hashtags: ["rag", "ai"],
+  });
+  check("formatArticleEntry opens with 2-space brace", entry.startsWith("  {") && entry.endsWith("  },"));
+  check("formatArticleEntry quotes slug+title", entry.includes("slug: 'rag-guide',") && entry.includes("title: 'What\\'s RAG?',"));
+  check("formatArticleEntry leaves readMinutes numeric (unquoted)", /readMinutes: 7,/.test(entry));
+  check("formatArticleEntry escapes the apostrophe in title", entry.includes("\\'"));
+  check("formatArticleEntry renders faq array entries", entry.includes("q: 'What is RAG?'") && entry.includes("a: 'Retrieval-augmented generation.'"));
+  check("formatArticleEntry renders hashtags inline", /hashtags: \['rag', 'ai'\],/.test(entry));
+
+  // formatArticleEntry: empty faq + hashtags → [].
+  const emptyEntry = formatArticleEntry({
+    slug: "s", title: "T", description: "D", category: "InBharat", datePublished: "2026-01-01",
+    readMinutes: 3, abstract: "A", faq: [], hashtags: [],
+  });
+  check("formatArticleEntry empty faq → []", /faq: \[\],/.test(emptyEntry));
+  check("formatArticleEntry empty hashtags → []", /hashtags: \[\],/.test(emptyEntry));
+
+  // insertArticleMeta: inserts before the marker, idempotent on duplicate slug, null on missing marker.
+  const SRC = `export const ARTICLES: ArticleMeta[] = [
+  { slug: 'old', title: 'Old' },
+];
+
+export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.slug === slug); }
+`;
+  const inserted = insertArticleMeta(SRC, "new-article", "  { slug: 'new-article', title: 'New' },");
+  check("insertArticleMeta inserts before ]; marker", inserted !== null && inserted.includes("  { slug: 'new-article', title: 'New' },\n];"));
+  check("insertArticleMeta preserves old entries", inserted !== null && inserted.includes("slug: 'old'"));
+
+  // Idempotent: re-inserting an existing slug → null (no duplicate).
+  const dup = insertArticleMeta(inserted ?? SRC, "new-article", "  { slug: 'new-article', title: 'Dup' },");
+  check("insertArticleMeta idempotent on existing slug → null", dup === null);
+  const existingSlug = insertArticleMeta(SRC, "old", "  { slug: 'old', title: 'Dup' },");
+  check("insertArticleMeta no-op when slug already present", existingSlug === null);
+
+  // Missing marker → null (can't safely locate close).
+  const noMarker = insertArticleMeta("no marker here", "x", "  { slug: 'x' },");
+  check("insertArticleMeta null when marker absent", noMarker === null);
+
+  // Round-trip: formatArticleEntry output feeds insertArticleMeta cleanly.
+  const rt = insertArticleMeta(SRC, "rag-guide", entry);
+  check("insertArticleMeta accepts formatArticleEntry output", rt !== null && rt.includes("slug: 'rag-guide'"), rt ?? "");
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -258,6 +258,43 @@ const Issues: React.FC = () => {
     await loadDrafts();
   }
 
+  async function publishArticle(d: DraftRow) {
+    setPublishingId(d.id);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{
+      ok: boolean; kind?: string; slug?: string; fileUrl?: string;
+      mdCommitSha?: string; metaCommitSha?: string; error?: string; code?: string;
+    }>("/api/growth/publish", { method: "POST", body: JSON.stringify({ draftId: d.id, mode: "article" }) });
+    setPublishingId(null);
+    if (error || !data?.ok) {
+      const reason = strError(error) || strError(data?.error) || data?.code || "commit failed";
+      setDraftMsg(`Article publish failed: ${reason}`);
+      return;
+    }
+    setDraftMsg(
+      `Article published — ${data.slug} committed to GitHub (md ${data.mdCommitSha?.slice(0, 7) ?? "?"}${
+        data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
+      }). Vercel will auto-rebuild; it goes live at ${data.fileUrl ?? "the hub"}.`,
+    );
+    await loadDrafts();
+  }
+
+  async function publishVideoScript(d: DraftRow) {
+    setPublishingId(d.id);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{ ok: boolean; slug?: string; mdCommitSha?: string; error?: string; code?: string }>(
+      "/api/growth/publish", { method: "POST", body: JSON.stringify({ draftId: d.id, mode: "video-script" }) },
+    );
+    setPublishingId(null);
+    if (error || !data?.ok) {
+      const reason = strError(error) || strError(data?.error) || data?.code || "commit failed";
+      setDraftMsg(`Video script publish failed: ${reason}`);
+      return;
+    }
+    setDraftMsg(`Video script published — ${data.slug} committed to GitHub (sha ${data.mdCommitSha?.slice(0, 7) ?? "?"}). It's a reference artifact in the repo (no site wiring).`);
+    await loadDrafts();
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Issues</h1>
@@ -383,12 +420,19 @@ const Issues: React.FC = () => {
               <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
-                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${d.kind === "cover" ? "bg-[#f59f4f]/20 text-[#f6bf84]" : "bg-sky-500/15 text-sky-300"}`}>
-                    {d.kind === "cover" ? "cover" : "linkedin"}
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${d.kind === "cover" ? "bg-[#f59f4f]/20 text-[#f6bf84]" : d.kind === "article" || d.kind === "video-script" ? "bg-violet-500/15 text-violet-300" : "bg-sky-500/15 text-sky-300"}`}>
+                    {d.kind === "cover" ? "cover" : d.kind === "article" ? "article" : d.kind === "video-script" ? "video-script" : "linkedin"}
                   </span>
                 </div>
                 {d.kind === "cover" ? (
                   <CoverPreview d={d} />
+                ) : d.kind === "article" || d.kind === "video-script" ? (
+                  <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-white/5 bg-white/[0.02] p-2.5">
+                    {d.body_md && <pre className="whitespace-pre-wrap break-words font-sans text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</pre>}
+                    {d.kind === "article" && d.schema_json?.slug && (
+                      <p className="mt-2 text-[10px] text-[#5f7c98]">slug: {d.schema_json.slug} · {d.schema_json?.category ?? ""} · ~{d.schema_json?.readMinutes ?? "?"} min read</p>
+                    )}
+                  </div>
                 ) : (
                   <>
                     {d.body_md && <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>}
@@ -459,6 +503,22 @@ const Issues: React.FC = () => {
                         {regeneratingId === d.id ? "Regenerating…" : "Regenerate"}
                       </button>
                     </>
+                  ) : d.kind === "article" ? (
+                    <button
+                      onClick={() => publishArticle(d)}
+                      disabled={publishingId === d.id}
+                      className="rounded-md bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500/90 disabled:opacity-40"
+                    >
+                      {publishingId === d.id ? "Committing…" : "Publish article → site"}
+                    </button>
+                  ) : d.kind === "video-script" ? (
+                    <button
+                      onClick={() => publishVideoScript(d)}
+                      disabled={publishingId === d.id}
+                      className="rounded-md bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500/90 disabled:opacity-40"
+                    >
+                      {publishingId === d.id ? "Committing…" : "Publish script → repo"}
+                    </button>
                   ) : (
                     <button
                       onClick={() => publishDraft(d)}

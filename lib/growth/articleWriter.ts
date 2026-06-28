@@ -1,0 +1,359 @@
+/**
+ * InBharat Growth Agent — Phase E: agent-authored article + video-script drafts.
+ *
+ * The founder commands the agent ("write an article on X", "draft a video script
+ * for Y"). This module drafts a FULL founder-voice article (markdown body + meta)
+ * or a video script, and persists a HUMAN-GATED draft in growth_drafts (kind
+ * 'article' / 'video-script'). The founder reviews in Issues and clicks Publish —
+ * which commits the markdown + the articles.meta.ts entry to GitHub (Vercel
+ * auto-rebuilds so it ships live). The agent NEVER publishes; nothing is auto.
+ *
+ * Gemini-only (Growth Agent's own key + 'article' task). Redacts before the model
+ * call; withinBudget fail-closed; logUsage on every model call. Pulls STRATEGY +
+ * RULES + INBOX + sibling-article context so the draft is on-brand and cross-links
+ * siblings. Server-only. Never touches the chat backend.
+ */
+import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
+import { redact } from "./redaction.js";
+import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
+import { callGemini } from "./gemini.js";
+import { loadGlobalRules, formatRulesBlock } from "./rules.js";
+import { loadStrategy, formatStrategyBlock } from "./strategy.js";
+import { loadInboxContext, formatInboxBlock } from "./inbox.js";
+import { critiqueAndRevise } from "./critique.js";
+import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
+import { SITE } from "../../seo.config.js";
+
+export interface DraftedArticle {
+  slug: string;
+  title: string;
+  description: string;
+  category: ArticleCategory;
+  datePublished: string;
+  readMinutes: number;
+  abstract: string;
+  bodyMd: string;
+  faq: { q: string; a: string }[];
+  hashtags: string[];
+  note?: string;
+  critique?: {
+    revised: string | null;
+    weaknesses: { severity: string; area: string; fix: string }[];
+    status: string;
+    note: string;
+  } | null;
+}
+
+export interface ArticleDraftResult {
+  draftId: string | null;
+  status: "pending" | "skipped";
+  article?: DraftedArticle;
+  note?: string;
+}
+
+const CATEGORY_SET = new Set<string>(ARTICLE_CATEGORIES);
+
+/** Derive a slug from a title: lowercase, kebab, trimmed, fallback to 'article'.
+ *  Pure + hermetically testable. */
+export function slugifyTitle(title: string): string {
+  const s = title
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return s || "article";
+}
+
+/** Estimate read minutes from word count (~200 wpm). Pure. */
+export function estimateReadMinutes(markdown: string): number {
+  const words = markdown.split(/\s+/).filter(Boolean).length;
+  return Math.max(3, Math.round(words / 200));
+}
+
+/**
+ * Draft a full article from a topic + optional instruction. Persists a pending
+ * 'article' draft (the founder reviews + publishes). Never throws; returns
+ * status 'skipped' with a note when the model is unavailable / budget exhausted /
+ * redacted / parse fails. The body is run through critiqueAndRevise (kept when
+ * critique is unavailable).
+ */
+export async function draftArticle(topic: string, instruction?: string): Promise<ArticleDraftResult> {
+  const task: GrowthTask = "article";
+  const choice = pickModel(task);
+  const skip = (note: string): ArticleDraftResult => ({ draftId: null, status: "skipped", note });
+  if (!isModelConfigured(choice) || !(await withinBudget())) {
+    return skip("article model not configured or monthly budget exhausted");
+  }
+
+  // Sibling context: titles + slugs + categories so the draft can cross-link.
+  const siblings = ARTICLES.slice(0, 12)
+    .map((a) => `- ${a.title} → ${SITE.url}${articlePath(a.slug)} (${a.category})`)
+    .join("\n");
+
+  const strategyBlock = formatStrategyBlock(await loadStrategy());
+  const rulesBlock = formatRulesBlock(await loadGlobalRules());
+  const inboxBlock = formatInboxBlock(await loadInboxContext());
+
+  const system =
+    "You are a B2B content writer for InBharat AI, an Indian AI product studio founded by Reeturaj Goswami. " +
+    "You write full founder-authored-style tech articles (practical, hype-free, concrete, Indian-engineering context). " +
+    "The article body is markdown: start with a `> ` blockquote direct-answer paragraph, then `## ` section headings and prose. " +
+    "Respond ONLY with compact JSON: " +
+    "{\"title\": string, \"description\": string (<=160 chars meta description), \"category\": one of [AI Foundations, AI Tools, Engineering, DevOps, Security, InBharat], \"abstract\": string (40–60 word direct answer), \"bodyMd\": string (full markdown, starts with `> ` blockquote then ## headings, 800–1500 words), \"faq\": [{\"q\": string, \"a\": string}] (2–4 pairs), \"hashtags\": string[]}." +
+    (strategyBlock ? `\n\n${strategyBlock}` : "") +
+    (rulesBlock ? `\n\n${rulesBlock}` : "") +
+    (inboxBlock ? `\n\n${inboxBlock}` : "");
+  const user =
+    `Topic: ${topic}\n` +
+    (instruction ? `Founder instruction: ${instruction}\n` : "") +
+    `Author voice: Reeturaj Goswami, founder of InBharat.ai.\n` +
+    `Sibling articles to cross-link where relevant:\n${siblings}\n\n` +
+    `Write the full article. Return JSON only.`;
+
+  const redacted = redact(`${system}\n\n${user}`);
+  if (redacted.containedSecret) return skip("redacted secret in article prompt; aborted model call");
+
+  let raw: string;
+  try {
+    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 4096 });
+  } catch (e) {
+    void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
+    return skip(`article model call failed: ${(e as Error).message}`);
+  }
+
+  const parsed = safeParseArticle(raw);
+  const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
+  void logUsage({
+    model: choice.model, task,
+    promptTokens: Math.ceil((system.length + user.length) / 4),
+    completionTokens: Math.ceil((raw?.length ?? 0) / 4),
+    totalTokens, costUsd: estimateCost(choice, totalTokens),
+    status: parsed ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
+  });
+  if (!parsed) return skip("article model returned no usable JSON; nothing drafted");
+
+  // Self-critique + revision on the body (kept when critique unavailable).
+  const crit = await critiqueAndRevise({
+    draftBody: parsed.bodyMd,
+    context: { url: null, kind: "article", title: parsed.title },
+    rulesBlock, inboxBlock, strategyBlock,
+  });
+  const finalBody = crit.revised ?? parsed.bodyMd;
+
+  const article: DraftedArticle = {
+    slug: parsed.slug,
+    title: parsed.title,
+    description: parsed.description,
+    category: parsed.category,
+    datePublished: todayIso(),
+    readMinutes: estimateReadMinutes(finalBody),
+    abstract: parsed.abstract,
+    bodyMd: finalBody,
+    faq: parsed.faq,
+    hashtags: parsed.hashtags,
+    critique: { revised: crit.revised, weaknesses: crit.weaknesses, status: crit.status, note: crit.note },
+  };
+
+  const draftId = await persistArticleDraft(topic, instruction, article);
+  return { draftId, status: "pending", article, note: draftId ? `Article drafted — review in Issues, then publish to ship it live.` : "drafted but DB persist failed (see logs)" };
+}
+
+interface ParsedArticle {
+  slug: string;
+  title: string;
+  description: string;
+  category: ArticleCategory;
+  abstract: string;
+  bodyMd: string;
+  faq: { q: string; a: string }[];
+  hashtags: string[];
+}
+
+function safeParseArticle(raw: string): ParsedArticle | null {
+  let obj: Record<string, unknown> | null = null;
+  try {
+    obj = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // Model may wrap JSON in prose / fences. Extract the first balanced {...} block.
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try {
+      obj = JSON.parse(m[0]) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+  const s = (k: string): string => (typeof obj?.[k] === "string" ? (obj[k] as string).trim() : "");
+  const title = s("title");
+  const bodyMd = s("bodyMd");
+  const description = s("description");
+  const abstract = s("abstract");
+  if (!title || !bodyMd || !abstract) return null;
+  const rawCategory = s("category");
+  const category = (CATEGORY_SET.has(rawCategory) ? rawCategory : "AI Foundations") as ArticleCategory;
+  // Prefer an explicit slug if the model gave a clean one; else slugify the title.
+  const rawSlug = s("slug");
+  const slug = /^[a-z0-9-]+$/.test(rawSlug) ? rawSlug : slugifyTitle(title);
+  const faq = Array.isArray(obj?.faq)
+    ? (obj.faq as Array<Record<string, unknown>>)
+        .filter((f) => typeof f?.q === "string" && typeof f?.a === "string")
+        .slice(0, 6)
+        .map((f) => ({ q: String(f.q), a: String(f.a) }))
+    : [];
+  const hashtags = Array.isArray(obj?.hashtags)
+    ? (obj.hashtags as unknown[]).filter((h) => typeof h === "string").map(String).slice(0, 12)
+    : [];
+  return { slug, title, description: description.slice(0, 160), category, abstract, bodyMd, faq, hashtags };
+}
+
+/** Today's ISO date (YYYY-MM-DD). Server runtime only (Date is fine here —
+ *  this is NOT a workflow script). */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Persist a pending 'article' draft. Best-effort; never throws. */
+async function persistArticleDraft(topic: string, instruction: string | undefined, a: DraftedArticle): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .insert({
+        kind: "article",
+        url: `${SITE.url}${articlePath(a.slug)}`,
+        title: a.title,
+        body_md: a.bodyMd,
+        schema_json: {
+          slug: a.slug,
+          description: a.description,
+          category: a.category,
+          datePublished: a.datePublished,
+          readMinutes: a.readMinutes,
+          abstract: a.abstract,
+          faq: a.faq,
+          hashtags: a.hashtags,
+          topic,
+          instruction: instruction ?? null,
+          critique: a.critique ? { weaknesses: a.critique.weaknesses, revised: a.critique.revised !== null, status: a.critique.status, note: a.critique.note } : null,
+        },
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (error) return null;
+    return (data?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Video script ──────────────────────────────────────────────────────────────
+
+export interface DraftedVideoScript {
+  slug: string;
+  title: string;
+  topic: string;
+  durationMinutes: number;
+  hook: string;
+  bodyMd: string;
+  note?: string;
+}
+
+export interface VideoScriptResult {
+  draftId: string | null;
+  status: "pending" | "skipped";
+  script?: DraftedVideoScript;
+  note?: string;
+}
+
+/**
+ * Draft a video script (the agent cannot generate real video; it drafts a script +
+ * thumbnail direction the founder records/uploads). Persists a pending 'video-script'
+ * draft. Publish commits the script markdown to the repo as a reference artifact —
+ * no site wiring (videos aren't rendered on inbharat.ai today). Never throws.
+ */
+export async function draftVideoScript(topic: string, instruction?: string): Promise<VideoScriptResult> {
+  const task: GrowthTask = "article";
+  const choice = pickModel(task);
+  const skip = (note: string): VideoScriptResult => ({ draftId: null, status: "skipped", note });
+  if (!isModelConfigured(choice) || !(await withinBudget())) {
+    return skip("model not configured or monthly budget exhausted");
+  }
+  const strategyBlock = formatStrategyBlock(await loadStrategy());
+  const rulesBlock = formatRulesBlock(await loadGlobalRules());
+  const inboxBlock = formatInboxBlock(await loadInboxContext());
+  const system =
+    "You are a B2B video scriptwriter for InBharat AI. Write a short, punchy founder-voice video script " +
+    "(60–180 seconds): a hook, scene-by-scene narration, and a CTA. Hype-free, concrete, Indian-engineering context. " +
+    "Respond ONLY with compact JSON: {\"title\": string, \"durationMinutes\": number, \"hook\": string, \"bodyMd\": string (full script markdown: hook, scenes with narration + on-screen text, CTA)}." +
+    (strategyBlock ? `\n\n${strategyBlock}` : "") +
+    (rulesBlock ? `\n\n${rulesBlock}` : "") +
+    (inboxBlock ? `\n\n${inboxBlock}` : "");
+  const user = `Topic: ${topic}\n${instruction ? `Instruction: ${instruction}\n` : ""}Write the script. JSON only.`;
+  const redacted = redact(`${system}\n\n${user}`);
+  if (redacted.containedSecret) return skip("redacted secret in script prompt; aborted model call");
+
+  let raw: string;
+  try {
+    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 2048 });
+  } catch (e) {
+    void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
+    return skip(`model call failed: ${(e as Error).message}`);
+  }
+  const parsed = safeParseScript(raw);
+  const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
+  void logUsage({
+    model: choice.model, task,
+    promptTokens: Math.ceil((system.length + user.length) / 4),
+    completionTokens: Math.ceil((raw?.length ?? 0) / 4),
+    totalTokens, costUsd: estimateCost(choice, totalTokens),
+    status: parsed ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
+  });
+  if (!parsed) return skip("model returned no usable JSON; nothing drafted");
+  const script: DraftedVideoScript = { ...parsed, topic, slug: parsed.slug };
+  const draftId = await persistScriptDraft(topic, instruction, script);
+  return { draftId, status: "pending", script, note: draftId ? "Video script drafted — review in Issues, then publish to commit it to the repo." : "drafted but DB persist failed" };
+}
+
+function safeParseScript(raw: string): Omit<DraftedVideoScript, "topic"> | null {
+  let obj: Record<string, unknown> | null = null;
+  try {
+    obj = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try { obj = JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
+  }
+  const s = (k: string): string => (typeof obj?.[k] === "string" ? (obj[k] as string).trim() : "");
+  const title = s("title");
+  const bodyMd = s("bodyMd");
+  const hook = s("hook");
+  if (!title || !bodyMd) return null;
+  const durationMinutes = Math.max(1, Math.min(10, Number(obj?.durationMinutes) || 2));
+  const rawSlug = s("slug");
+  const slug = /^[a-z0-9-]+$/.test(rawSlug) ? rawSlug : slugifyTitle(title);
+  return { slug, title, durationMinutes, hook: hook || title, bodyMd };
+}
+
+async function persistScriptDraft(topic: string, instruction: string | undefined, v: DraftedVideoScript): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .insert({
+        kind: "video-script",
+        url: null,
+        title: v.title,
+        body_md: v.bodyMd,
+        schema_json: { slug: v.slug, topic, instruction: instruction ?? null, durationMinutes: v.durationMinutes, hook: v.hook },
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (error) return null;
+    return (data?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}

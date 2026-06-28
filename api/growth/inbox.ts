@@ -62,15 +62,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = ConfirmBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body.", requestId });
     const folder = sanitizeFolder(parsed.data.folder ?? "");
-    // Dedup on (sha256, folder) — same content may live in two folders.
-    const { data: existing } = await supabaseAdmin
+    // Dedup on (sha256, folder) — same content may live in two folders. If the
+    // `folder` column isn't on the live DB yet (migration 20260627000001 pending),
+    // the folder-scoped query errors; fall back to dedup on sha256 only so uploads
+    // still work pre-migration (folder just isn't recorded until applied).
+    const dedupWithFolder = await supabaseAdmin
       .from("growth_inbox_items")
       .select("id")
       .eq("sha256", parsed.data.sha256)
       .eq("folder", folder)
       .maybeSingle();
-    if (existing?.id) return res.status(200).json({ ok: true, requestId, duplicate: true, itemId: existing.id });
-    const { data, error } = await supabaseAdmin
+    if (dedupWithFolder.error) {
+      const { data: existingLegacy } = await supabaseAdmin
+        .from("growth_inbox_items")
+        .select("id")
+        .eq("sha256", parsed.data.sha256)
+        .maybeSingle();
+      if (existingLegacy?.id) return res.status(200).json({ ok: true, requestId, duplicate: true, itemId: existingLegacy.id });
+    } else if (dedupWithFolder.data?.id) {
+      return res.status(200).json({ ok: true, requestId, duplicate: true, itemId: dedupWithFolder.data.id });
+    }
+    const insert = await supabaseAdmin
       .from("growth_inbox_items")
       .insert({
         storage_path: parsed.data.path,
@@ -82,8 +94,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       .select("id")
       .single();
-    if (error || !data) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB insert failed", requestId });
-    return res.status(201).json({ ok: true, requestId, itemId: data.id });
+    if (insert.error || !insert.data) {
+      // folder column missing → retry without it (legacy schema).
+      if (folder) {
+        const legacy = await supabaseAdmin
+          .from("growth_inbox_items")
+          .insert({
+            storage_path: parsed.data.path,
+            kind: parsed.data.kind,
+            original_name: parsed.data.originalName ?? null,
+            status: "pending",
+            sha256: parsed.data.sha256,
+          })
+          .select("id")
+          .single();
+        if (legacy.error || !legacy.data) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `DB insert failed: ${legacy.error?.message ?? "unknown"}`, requestId });
+        return res.status(201).json({ ok: true, requestId, itemId: legacy.data.id, note: "folder not recorded — apply migration 20260627000001 to enable folders." });
+      }
+      return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `DB insert failed: ${insert.error?.message ?? "unknown"}`, requestId });
+    }
+    return res.status(201).json({ ok: true, requestId, itemId: insert.data.id });
   }
 
   if (req.method === "POST" && (req.query?.action === "feed" || req.query?.action === "unfeed")) {
@@ -91,20 +121,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body (need folder).", requestId });
     const folder = sanitizeFolder(parsed.data.folder);
     if (!folder) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid folder.", requestId });
+    // The feed feature needs the Phase B columns (folder, fed_to_agent). Probe
+    // once; if the live DB hasn't had migration 20260627000001 applied yet, tell
+    // the founder clearly instead of silently returning count 0.
+    const probe = await supabaseAdmin.from("growth_inbox_items").select("folder").limit(1);
+    if (probe.error && /folder|column|schema/i.test(probe.error.message)) {
+      return res.status(503).json({ ok: false, code: "MIGRATION_PENDING", error: "Inbox folders aren't live yet — apply migration 20260627000001 (supabase db push) to enable Feed-to-agent.", requestId });
+    }
     const count = req.query.action === "feed" ? await markFolderFedToAgent(folder) : await unmarkFolderFedToAgent(folder);
     return res.status(200).json({ ok: true, requestId, folder, count });
   }
 
   if (req.method === "GET") {
-    const { data, error } = await supabaseAdmin
+    // Try the full column set (Phase B: folder, fed_to_agent). If the live DB
+    // hasn't had migration 20260627000001 applied yet, PostgREST rejects the
+    // unknown columns — fall back to the legacy column set so the UI degrades
+    // (folder="" / fed_to_agent=null) instead of hard-erroring "DB read failed".
+    const FULL_COLS = "id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,linked_draft_id,error,created_at,ingested_at";
+    const LEGACY_COLS = "id,storage_path,kind,original_name,status,sha256,linked_draft_id,error,created_at,ingested_at";
+    let rows: Record<string, unknown>[] | null = null;
+    const full = await supabaseAdmin
       .from("growth_inbox_items")
-      .select("id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,linked_draft_id,error,created_at,ingested_at")
+      .select(FULL_COLS)
       .order("created_at", { ascending: false })
       .limit(100);
-    if (error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB read failed", requestId });
+    if (full.error) {
+      const legacy = await supabaseAdmin
+        .from("growth_inbox_items")
+        .select(LEGACY_COLS)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (legacy.error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `DB read failed: ${legacy.error.message}`, requestId });
+      rows = (legacy.data ?? []) as Record<string, unknown>[];
+      rows = rows.map((r) => ({ ...r, folder: "", fed_to_agent: null }));
+    } else {
+      rows = (full.data ?? []) as Record<string, unknown>[];
+    }
     // Attach a short-lived signed download URL per item for preview.
     const items = await Promise.all(
-      (data ?? []).map(async (r: Record<string, unknown>) => {
+      (rows ?? []).map(async (r: Record<string, unknown>) => {
         let previewUrl: string | null = null;
         try {
           const { data: url } = await supabaseAdmin.storage.from(INBOX_BUCKET).createSignedUrl(String(r.storage_path), 300);

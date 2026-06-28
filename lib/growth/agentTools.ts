@@ -20,6 +20,7 @@ import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
 import { callGemini, callGeminiVision, type GeminiFunctionDeclaration } from "./gemini.js";
 import { generateCoverDraft } from "./cover.js";
+import { draftArticle, draftVideoScript } from "./articleWriter.js";
 import { loadInboxContext, formatInboxBlock, INBOX_BUCKET } from "./inbox.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
@@ -104,6 +105,32 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         instruction: { type: "string", description: "Optional: what to analyze the attachment for (e.g. 'suggest a cover inspired by this')." },
       },
       required: ["itemId"],
+    },
+  },
+  {
+    name: "write_article",
+    description:
+      "Draft a full founder-voice tech article on a topic (markdown body + meta), ready to publish to inbharat.ai/learn-ai-with-reeturaj. Creates a pending 'article' draft the founder reviews + publishes in Issues. Pass the topic + optional instruction.",
+    parameters: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "The article topic / angle." },
+        instruction: { type: "string", description: "Optional: specific guidance (length, angle, audience)." },
+      },
+      required: ["topic"],
+    },
+  },
+  {
+    name: "write_video_script",
+    description:
+      "Draft a short video script (60–180s) on a topic — hook, scene-by-scene narration, CTA. The agent cannot generate real video; this drafts a script the founder records. Creates a pending 'video-script' draft.",
+    parameters: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "The video topic." },
+        instruction: { type: "string", description: "Optional: length / angle / platform." },
+      },
+      required: ["topic"],
     },
   },
 ];
@@ -391,6 +418,48 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "generate_cover": return generateCover(args);
     case "list_inbox_folder": return listInboxFolder(args);
     case "analyze_attachment": return analyzeAttachment(args);
+    case "write_article": return writeArticle(args);
+    case "write_video_script": return writeVideoScript(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
+  }
+}
+
+/** write_article — draft a full article on a topic. */
+async function writeArticle(args: Args): Promise<ToolResult> {
+  const topic = str(args.topic);
+  const instruction = str(args.instruction);
+  if (!topic) return { ok: false, message: "need a topic" };
+  try {
+    const r = await draftArticle(topic, instruction || undefined);
+    if (r.status !== "pending" || !r.article) return { ok: false, message: r.note ?? "article not drafted" };
+    const a = r.article;
+    return {
+      ok: true,
+      message: `Drafted article "${a.title}" (${a.category}, ~${a.readMinutes} min) — review in Issues, then publish to ship it live.`,
+      draftId: r.draftId, slug: a.slug, title: a.title, category: a.category, readMinutes: a.readMinutes,
+      preview: a.bodyMd.slice(0, 400),
+    };
+  } catch (e) {
+    return { ok: false, message: `article draft failed: ${(e as Error).message}` };
+  }
+}
+
+/** write_video_script — draft a short video script. */
+async function writeVideoScript(args: Args): Promise<ToolResult> {
+  const topic = str(args.topic);
+  const instruction = str(args.instruction);
+  if (!topic) return { ok: false, message: "need a topic" };
+  try {
+    const r = await draftVideoScript(topic, instruction || undefined);
+    if (r.status !== "pending" || !r.script) return { ok: false, message: r.note ?? "script not drafted" };
+    const v = r.script;
+    return {
+      ok: true,
+      message: `Drafted video script "${v.title}" (~${v.durationMinutes} min) — review in Issues, then publish to commit it to the repo.`,
+      draftId: r.draftId, slug: v.slug, title: v.title, durationMinutes: v.durationMinutes,
+      preview: v.bodyMd.slice(0, 400),
+    };
+  } catch (e) {
+    return { ok: false, message: `video script draft failed: ${(e as Error).message}` };
   }
 }
