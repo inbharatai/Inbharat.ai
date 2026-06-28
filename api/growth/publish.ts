@@ -118,10 +118,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const enc = encodeURIComponent(articleUrl);
+  // Personal mode: use the LinkedIn composer endpoint that PRE-FILLS the post
+  // text (caption + article URL) — sharing/share-offsite only accepts a URL and
+  // opens an empty composer, so the founder had to paste the caption manually
+  // (the "Publish to LinkedIn doesn't work" symptom: the dialog opened with just
+  // a link card and no caption). feed/?shareActive=true&text= opens the composer
+  // with the caption + link already typed; the founder just clicks Post. The
+  // caption is also copied to the clipboard client-side as a fallback. Company
+  // mode keeps the /admin/share/?url= endpoint (the composer-prefill endpoint
+  // has no company-page equivalent).
+  const caption = (draft.body_md as string | null) ?? "";
+  const shareText = caption ? `${caption}\n\n${articleUrl}` : articleUrl;
   const shareUrl =
     mode === "company"
       ? `https://www.linkedin.com/company/${encodeURIComponent(companyId!)}/admin/share/?url=${enc}`
-      : `https://www.linkedin.com/sharing/share-offsite/?url=${enc}`;
+      : `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(shareText)}`;
 
   // Mark published + audit. NO LinkedIn API call — only our row + a deep-link.
   const { error: upErr } = await supabaseAdmin.from("growth_drafts").update({ status: "published" }).eq("id", draftId);

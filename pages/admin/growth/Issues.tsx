@@ -236,7 +236,7 @@ const Issues: React.FC = () => {
       // clipboard may be blocked; the caption is shown inline to copy manually
     }
     setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption });
-    setDraftMsg("Ready — caption copied to clipboard. Click “Open LinkedIn ↗” to post it yourself.");
+    setDraftMsg("Ready — click “Open LinkedIn ↗” and the composer opens with the caption + link pre-filled. Review and click Post. (Caption also copied to clipboard as backup.)");
     await loadDrafts();
   }
 
@@ -495,7 +495,7 @@ const Issues: React.FC = () => {
                     opens and closes"). The caption was already copied to clipboard. */}
                 {publishResult?.draftId === d.id && (
                   <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/[0.08] p-2.5">
-                    <p className="text-[11px] font-semibold text-emerald-300">✓ Ready to post — caption copied to clipboard.</p>
+                    <p className="text-[11px] font-semibold text-emerald-300">✓ Ready to post — the composer opens with caption + link pre-filled.</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         onClick={() => openShare(publishResult.shareUrl)}
