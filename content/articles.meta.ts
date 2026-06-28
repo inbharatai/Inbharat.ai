@@ -516,6 +516,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-06-28',
     readMinutes: 5,
+    visual: 'neural-networks-the-core-of-practical-ai-for-indian-engineer.png',
     abstract: 'Neural networks are the engine behind most AI, and understanding them is crucial for Indian engineers. This article, from InBharat.ai founder Reeturaj Goswami, demystifies their operation, highlights their practical application for Indian use cases, and emphasizes deployment optimization for local constraints like latency and cost. It\'s about building effective, scalable AI for India.',
     faq: [],
     hashtags: [],
