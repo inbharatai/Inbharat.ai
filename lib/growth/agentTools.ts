@@ -21,6 +21,7 @@ import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, typ
 import { callGemini, callGeminiVision, type GeminiFunctionDeclaration } from "./gemini.js";
 import { generateCoverDraft, generateCoverDraftFromFields, type CoverStyleSample } from "./cover.js";
 import { draftArticle, draftVideoScript, slugifyTitle } from "./articleWriter.js";
+import { promoteArticle, type ArticlePageMeta } from "./promoter.js";
 import { loadInboxContext, formatInboxBlock, INBOX_BUCKET } from "./inbox.js";
 import { loadRulesForUrl, loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
@@ -159,6 +160,20 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         instruction: { type: "string", description: "Optional: length / angle / platform." },
       },
       required: ["topic"],
+    },
+  },
+  {
+    name: "promote_article",
+    description:
+      "Draft a human-gated LinkedIn caption for a 'Build with Reeturaj' article at the given URL — the article's eventual live URL (https://inbharat.ai/learn-ai-with-reeturaj/<slug>), whether the article is already published OR just drafted via write_article. Idempotent — skips URLs that already have a LinkedIn caption draft, so re-running the morning plan never duplicates. Call this right after write_article to create the companion LinkedIn post for the same article. Returns the linkedin draft id. Never publishes — the founder approves in Issues.",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "The article's full URL on inbharat.ai/learn-ai-with-reeturaj/<slug>." },
+        title: { type: "string", description: "Optional: the article title (improves the caption; auto-loaded from the draft if omitted)." },
+        description: { type: "string", description: "Optional: the article meta description (improves the caption; auto-loaded from the draft if omitted)." },
+      },
+      required: ["url"],
     },
   },
 ];
@@ -546,6 +561,7 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "analyze_attachment": return analyzeAttachment(args);
     case "write_article": return writeArticle(args);
     case "write_video_script": return writeVideoScript(args);
+    case "promote_article": return promoteArticleTool(args);
     case "review_text": return reviewText(args);
     case "web_search": return webSearch(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
@@ -589,6 +605,85 @@ async function writeVideoScript(args: Args): Promise<ToolResult> {
     };
   } catch (e) {
     return { ok: false, message: `video script draft failed: ${(e as Error).message}` };
+  }
+}
+
+/** promote_article — draft a human-gated LinkedIn caption for a "Build with
+ *  Reeturaj" article (published OR just-drafted). Wraps the idempotent
+ *  promoteArticle lib fn. Enriches the caption context from the article draft's
+ *  stored title/description/abstract when the caller omits them — so a caption
+ *  for an UNPUBLISHED draft (whose live page 404s) is still generated from real
+ *  article content, not a bare URL. Never publishes. */
+async function promoteArticleTool(args: Args): Promise<ToolResult> {
+  const url = str(args.url);
+  if (!url) return { ok: false, message: "need the article url" };
+  // Reject anything that isn't a clean http(s) URL — new URL() would throw.
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      return { ok: false, message: "url must be http/https" };
+    }
+  } catch {
+    return { ok: false, message: "invalid url" };
+  }
+  if (!url.includes("/learn-ai-with-reeturaj/")) {
+    return { ok: false, message: "url must point to inbharat.ai/learn-ai-with-reeturaj/<slug>" };
+  }
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+
+  // Derive the slug from the URL to load the article draft's stored context.
+  const slug = url.split("/learn-ai-with-reeturaj/")[1]?.split(/[/?#]/)[0] ?? "";
+
+  // Caller-supplied context wins; otherwise auto-load from the latest article
+  // draft for this slug, then fall back to a published ARTICLES entry.
+  let meta: ArticlePageMeta = {
+    title: str(args.title) || undefined,
+    description: str(args.description) || undefined,
+  };
+  if (!meta.title) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("growth_drafts")
+        .select("title,kind,schema_json")
+        .eq("kind", "article")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (!error && Array.isArray(data)) {
+        const row = data.find((r: Record<string, unknown>) => {
+          const sj = r.schema_json as { slug?: string } | null;
+          return sj && typeof sj.slug === "string" && sj.slug === slug;
+        }) as { title: string | null; schema_json: { description?: string; abstract?: string } | null } | undefined;
+        if (row) {
+          meta = {
+            title: row.title ?? undefined,
+            description: row.schema_json?.description ?? undefined,
+            abstract: row.schema_json?.abstract ?? undefined,
+          };
+        }
+      }
+    } catch {
+      // non-fatal — fall through to the published-articles lookup below
+    }
+  }
+  if (!meta.title) {
+    const published = ARTICLES.find((a) => a.slug === slug);
+    if (published) {
+      meta = { title: published.title, description: published.description, abstract: published.abstract };
+    }
+  }
+
+  try {
+    const r = await promoteArticle(url, meta);
+    if (r.status === "skipped") {
+      return { ok: true, message: `LinkedIn caption for ${slug} already drafted — review it in Issues (no duplicate created).`, draftId: r.draftId, slug, status: "skipped" };
+    }
+    return {
+      ok: true,
+      message: `Drafted a LinkedIn caption for "${meta.title || slug}" — review in Issues, then publish to get the share link.`,
+      draftId: r.draftId, slug, status: "pending", captionPreview: r.caption ? r.caption.slice(0, 200) : null,
+    };
+  } catch (e) {
+    return { ok: false, message: `promote_article failed: ${(e as Error).message}` };
   }
 }
 

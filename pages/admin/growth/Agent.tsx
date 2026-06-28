@@ -80,6 +80,7 @@ const Agent: React.FC = () => {
   const [auto, setAuto] = useState<AutoMode | null>(null);
   const [autoBusy, setAutoBusy] = useState(false);
   const [running, setRunning] = useState(false);
+  const [morningRunning, setMorningRunning] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   async function loadThreads() {
@@ -201,6 +202,21 @@ const Agent: React.FC = () => {
     void loadThreads();
   }
 
+  /** Trigger the daily 8am "Build with Reeturaj" auto-plan run on demand — same
+   *  handler Vercel's cron hits at 02:30 UTC. Drafts an article + LinkedIn caption
+   *  + cover into the "Build with Reeturaj — Daily Plan" thread; nothing publishes. */
+  async function runMorning() {
+    if (morningRunning) return;
+    setMorningRunning(true);
+    setError(null);
+    const { data, error } = await fetchJson<{ topic?: string; mode?: string; reply?: string | null }>("/api/growth/cron/morning", { method: "POST" });
+    setMorningRunning(false);
+    if (error) { setError(error); return; }
+    // The run appends to the daily-plan thread — refresh the list so it surfaces.
+    void loadThreads();
+    if (data?.topic) setError(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Growth Agent</h1>
@@ -261,6 +277,14 @@ const Agent: React.FC = () => {
       <div className="mt-5 flex flex-col gap-4 lg:flex-row">
         <div className="lg:w-56">
           <button onClick={newChat} className="w-full rounded-lg bg-[#f59f4f] px-3 py-2 text-[12px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90">+ New chat</button>
+          <button
+            onClick={() => void runMorning()}
+            disabled={morningRunning}
+            className="mt-1 w-full rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-2 text-[12px] font-medium text-[#f59f4f] hover:bg-[#f59f4f]/20 disabled:opacity-50"
+            title="Run the daily 8am auto-plan now — drafts one article + LinkedIn caption + cover into the Daily Plan thread (nothing publishes)"
+          >
+            {morningRunning ? "Planning today's article…" : "☀️ Run morning plan now"}
+          </button>
           <div className="mt-2 space-y-1">
             {threads.map((t) => (
               <div key={t.id} className="group flex items-center gap-1">

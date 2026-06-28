@@ -11,6 +11,10 @@
     {
       "path": "/api/growth/auto?action=run",
       "schedule": "7,37 * * * *"
+    },
+    {
+      "path": "/api/growth/cron/morning",
+      "schedule": "30 2 * * *"
     }
   ],
   "rewrites": [

@@ -268,7 +268,8 @@ async function buildSystemPrompt(): Promise<string> {
     "HOW TO WORK (pick the right tool):",
     "- Pasted text to review/improve/upgrade → call review_text (NOT redraft_caption, which needs an existing draft id and will fail with 'draft not found'). Long text becomes an article draft (publishes to inbharat.ai/learn-ai-with-reeturaj); short text becomes a LinkedIn caption draft.",
     "- Full article from a topic or inbox material → call write_article. Use this for long-form inbharat.ai pieces; use review_text when the founder pastes existing text to improve.",
-    "- LinkedIn caption from a topic or inbox material → call review_text with the short angle as the text + an instruction like 'write a 60–90 word LinkedIn caption in the founder's voice from this'. When the founder asks for 'a post AND an article', produce BOTH: write_article for inbharat.ai and review_text (short) for LinkedIn.",
+    "- LinkedIn caption for an article you just drafted or that's published → call promote_article with the article's URL (https://inbharat.ai/learn-ai-with-reeturaj/<slug>). It auto-loads the article's title/description so the caption is on-brand; it's idempotent (skips if a caption already exists for that URL). This is the right tool whenever the founder wants 'a post AND an article' — write_article then promote_article for the same slug.",
+    "- LinkedIn caption from a standalone topic/angle (no article) → call review_text with the short angle as the text + an instruction like 'write a 60–90 word LinkedIn caption in the founder's voice from this'.",
     "- Edit an EXISTING draft the founder points at (by id, or after list_recent_drafts) → call redraft_caption with that draftId + the edit instruction.",
     "- Cover image → call generate_cover with the article draftId (right after write_article/review_text) or a published slug. To keep all covers consistent, pass sampleItemId = an inbox image the founder designated as the style sample ('use this as the cover style', 'keep all covers like this').",
     "- Need current facts, recent news, a date, a number, or to verify a claim → call web_search. Never guess 'latest'/date/number claims; search first.",
@@ -415,4 +416,40 @@ export async function deleteThread(threadId: string): Promise<void> {
   if (!supabaseAdmin) return;
   await supabaseAdmin.from("growth_agent_messages").delete().eq("thread_id", threadId).then(() => undefined, () => undefined);
   await supabaseAdmin.from("growth_agent_threads").delete().eq("id", threadId).then(() => undefined, () => undefined);
+}
+
+/** Stable fallback id when Supabase is absent — a fixed UUID so the no-DB path
+ *  still returns a consistent thread id (persistMessage no-ops without supabaseAdmin
+ *  anyway, so nothing is written). */
+const NAMED_THREAD_FALLBACK_ID = "11111111-1111-4111-8111-111111111111";
+
+/** Find or create a thread by its exact title (used by the daily morning cron so
+ *  every 8am run appends to ONE "Build with Reeturaj — Daily Plan" thread the
+ *  founder reviews each morning). Returns the thread id; on any DB error or when
+ *  supabaseAdmin is unset, returns a stable fallback id (never throws). */
+export async function ensureNamedThread(title: string): Promise<string> {
+  if (!supabaseAdmin) return NAMED_THREAD_FALLBACK_ID;
+  try {
+    // Look for an existing thread with this exact title (newest first).
+    const { data: existing, error: qErr } = await supabaseAdmin
+      .from("growth_agent_threads")
+      .select("id")
+      .eq("title", title)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!qErr && existing && typeof (existing as { id?: unknown }).id === "string") {
+      return (existing as { id: string }).id;
+    }
+    // None found → create it.
+    const { data, error } = await supabaseAdmin
+      .from("growth_agent_threads")
+      .insert({ title })
+      .select("id")
+      .single();
+    if (error || !data) return NAMED_THREAD_FALLBACK_ID;
+    return data.id as string;
+  } catch {
+    return NAMED_THREAD_FALLBACK_ID;
+  }
 }

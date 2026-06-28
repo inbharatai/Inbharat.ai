@@ -135,6 +135,7 @@ const growthHandlers = {
   "/api/growth/leads": () => import("../api/growth/leads.ts"),
   "/api/growth/agent": () => import("../api/growth/agent.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
+  "/api/growth/cron/morning": () => import("../api/growth/cron/morning.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
 app.get("/api/growth/pages", (req, res) => runHandler("/api/growth/pages", req, res));
@@ -177,6 +178,9 @@ app.delete("/api/growth/agent", (req, res) => runHandler("/api/growth/agent", re
 // Cron accepts GET (Vercel scheduled cron) + POST (manual/admin "Run now").
 app.get("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
+// Morning 8am IST "Build with Reeturaj" auto-plan run — GET (Vercel cron) + POST (admin "Run morning plan now").
+app.get("/api/growth/cron/morning", (req, res) => runHandler("/api/growth/cron/morning", req, res));
+app.post("/api/growth/cron/morning", (req, res) => runHandler("/api/growth/cron/morning", req, res));
 
 // 404 for other /api
 app.use("/api", (_, res) => res.status(404).json({ ok: false, code: "SERVER_ERROR" }));

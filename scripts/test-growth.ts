@@ -596,9 +596,9 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 9 tools", AGENT_TOOLS.length === 9, `got ${names.join(",")}`);
+  check("agent tools registry has 10 tools", AGENT_TOOLS.length === 10, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
-    ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script"].every((n) => names.includes(n)),
+    ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script", "promote_article"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
@@ -642,9 +642,51 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const wsBlank = await dispatchTool("web_search", { query: "   " });
   check("web_search blank query → ok:false", wsBlank.ok === false && /need a search query/i.test(wsBlank.message ?? ""), JSON.stringify(wsBlank));
 
+  // dispatchTool: promote_article validates args before any DB/model work (pure, hermetic).
+  const paNoUrl = await dispatchTool("promote_article", {});
+  check("promote_article no url → ok:false", paNoUrl.ok === false && /need the article url/i.test(paNoUrl.message ?? ""), JSON.stringify(paNoUrl));
+  const paBadUrl = await dispatchTool("promote_article", { url: "https://example.com/some-other-path" });
+  check("promote_article non-article url → ok:false", paBadUrl.ok === false && /learn-ai-with-reeturaj/i.test(paBadUrl.message ?? ""), JSON.stringify(paBadUrl));
+  const paNotUrl = await dispatchTool("promote_article", { url: "not a url at all" });
+  check("promote_article malformed url → ok:false", paNotUrl.ok === false && /invalid url/i.test(paNotUrl.message ?? ""), JSON.stringify(paNotUrl));
+  // Valid article URL but no DB → ok:false "database not configured" (graceful, no promote call).
+  const paNoDb = await dispatchTool("promote_article", { url: "https://inbharat.ai/learn-ai-with-reeturaj/rag" });
+  check("promote_article valid url no-DB → ok:false", paNoDb.ok === false && /not configured/i.test(paNoDb.message ?? ""), JSON.stringify(paNoDb));
+
   // dispatchTool: list_inbox_folder no-DB → ok:true with empty items (never throws).
   const lif = await dispatchTool("list_inbox_folder", {});
   check("list_inbox_folder no-DB → ok:true empty", lif.ok === true && Array.isArray(lif.items) && lif.items.length === 0, JSON.stringify(lif));
+
+  // pickNextCalendarTopic (morning cron topic-picker) + calendar integrity — pure, hermetic.
+  const { pickNextCalendarTopic } = await import("../lib/growth/calendar.js");
+  const { BUILD_WITH_REETURAJ_CALENDAR } = await import("../content/build-with-reeturaj-calendar.js");
+  const { slugifyTitle } = await import("../lib/growth/articleWriter.js");
+  const { ARTICLES: CAL_ARTICLES } = await import("../content/articles.meta.js");
+  check("content calendar has ≥18 topics", BUILD_WITH_REETURAJ_CALENDAR.length >= 18, `got ${BUILD_WITH_REETURAJ_CALENDAR.length}`);
+  check("every calendar topic has a topic + category", BUILD_WITH_REETURAJ_CALENDAR.every((c) => typeof c.topic === "string" && c.topic.trim().length > 0 && typeof c.category === "string"));
+  const calSlugs = BUILD_WITH_REETURAJ_CALENDAR.map((c) => slugifyTitle(c.topic));
+  check("calendar topics have unique slugs", new Set(calSlugs).size === calSlugs.length, `dupes: ${[...new Set(calSlugs.filter((s, i) => calSlugs.indexOf(s) !== i))].join(",")}`);
+  // No calendar topic may slug-collide with a published slug — else the morning run
+  // would skip it forever as "already published", or risk re-drafting a live article.
+  const calPublishedSlugs = new Set(CAL_ARTICLES.map((a) => a.slug));
+  const calCollisions = BUILD_WITH_REETURAJ_CALENDAR.filter((c) => calPublishedSlugs.has(slugifyTitle(c.topic)));
+  check("no calendar topic slug-collides with a published slug", calCollisions.length === 0, `colliding: ${calCollisions.map((c) => c.topic).join(",")}`);
+  // First entry is picked when nothing is published/drafted.
+  const pkClean = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, new Set(), []);
+  check("pickNextCalendarTopic clean → first entry", pkClean && pkClean.topic === BUILD_WITH_REETURAJ_CALENDAR[0].topic, JSON.stringify(pkClean?.topic));
+  // Skip a published slug → returns the second entry.
+  const pkSkipPub = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, new Set([slugifyTitle(BUILD_WITH_REETURAJ_CALENDAR[0].topic)]), []);
+  check("pickNextCalendarTopic skips a published slug", pkSkipPub && pkSkipPub.topic === BUILD_WITH_REETURAJ_CALENDAR[1].topic, JSON.stringify(pkSkipPub?.topic));
+  // Skip a drafted slug too → returns the third entry.
+  const pkSkipDraft = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, new Set([slugifyTitle(BUILD_WITH_REETURAJ_CALENDAR[0].topic)]), [slugifyTitle(BUILD_WITH_REETURAJ_CALENDAR[1].topic)]);
+  check("pickNextCalendarTopic skips a drafted slug", pkSkipDraft && pkSkipDraft.topic === BUILD_WITH_REETURAJ_CALENDAR[2].topic, JSON.stringify(pkSkipDraft?.topic));
+  // Empty calendar → null.
+  check("pickNextCalendarTopic empty calendar → null", pickNextCalendarTopic([], new Set(), []) === null);
+  // Every entry either published or drafted → null (calendar exhausted → free-plan).
+  const half = Math.ceil(calSlugs.length / 2);
+  const allPublished = new Set(calSlugs.slice(0, half));
+  const allDrafted = calSlugs.slice(half);
+  check("pickNextCalendarTopic all built → null", pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, allPublished, allDrafted) === null);
 
   // Gemini agent + vision helpers fail fast + clearly when the key is absent
   // (the only model-touching path that's safe to assert hermetically — it throws
