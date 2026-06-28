@@ -97,6 +97,7 @@ const Issues: React.FC = () => {
   const [auditing, setAuditing] = useState(false);
   const [auditMsg, setAuditMsg] = useState<string | null>(null);
   const [promotingUrl, setPromotingUrl] = useState<string | null>(null);
+  const [coverGenUrl, setCoverGenUrl] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
@@ -105,7 +106,7 @@ const Issues: React.FC = () => {
   // REAL click gesture (Open LinkedIn ↗) instead of a popup the browser may block
   // after the await — the old "blank tab opens and closes" symptom. Cleared per
   // action; only one draft's result/error shows at a time.
-  const [publishResult, setPublishResult] = useState<{ draftId: string; shareUrl: string; caption: string } | null>(null);
+  const [publishResult, setPublishResult] = useState<{ draftId: string; shareUrl: string; caption: string; post: string } | null>(null);
   const [publishError, setPublishError] = useState<{ draftId: string; reason: string } | null>(null);
   // Inline SUCCESS notice for article/cover/video-script publish, pinned to the
   // draft card so the founder sees feedback right next to the button they clicked.
@@ -194,6 +195,38 @@ const Issues: React.FC = () => {
     if (!error) await loadDrafts();
   }
 
+  /** Derive the article slug from a page URL (`/learn-ai-with-reeturaj/<slug>`). */
+  function slugFromUrl(u: string): string | null {
+    const i = u.indexOf(ARTICLE_PREFIX);
+    if (i < 0) return null;
+    const tail = u.slice(i + ARTICLE_PREFIX.length).replace(/[/?#].*$/, "").trim();
+    return /^[a-z0-9-]+$/.test(tail) ? tail : null;
+  }
+
+  /** On-demand cover generation for a published article — the founder's "load a
+   *  new cover if the previous cover is not there or not good". Creates a fresh
+   *  pending cover draft (style-matched to the family) regardless of whether a
+   *  cover already exists; the founder then approves + publishes it. */
+  async function generateCover(page: GrowthPageRow) {
+    const slug = slugFromUrl(page.url);
+    if (!slug) { setDraftMsg(`Couldn't derive an article slug from ${page.url}.`); return; }
+    if (!confirm(`Generate a fresh cover for "${page.title || slug}"? It will create a pending draft in the review queue (any existing pending cover draft is replaced).`)) return;
+    setCoverGenUrl(page.url);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{ ok: boolean; draftId?: string; note?: string; error?: string; code?: string }>("/api/growth/cover/generate", {
+      method: "POST",
+      body: JSON.stringify({ slug }),
+    });
+    setCoverGenUrl(null);
+    if (error || !data?.ok) {
+      const reason = strError(error) || strError(data?.error) || data?.code || "generate failed";
+      setDraftMsg(`Cover generate failed: ${reason}`);
+      return;
+    }
+    setDraftMsg(data.draftId ? "Cover generated — a fresh pending draft is in the review queue. Approve it, then Publish cover." : `No new draft: ${data.note || "nothing generated"}`);
+    await loadDrafts();
+  }
+
   async function decideDraft(draftId: string, decision: "approved" | "rejected") {
     const { error } = await fetchJson("/api/growth/approvals", {
       method: "POST",
@@ -254,16 +287,21 @@ const Issues: React.FC = () => {
       return;
     }
     const caption = data.summary || d.body_md || d.title || "";
-    // Copy the approved caption to the clipboard now (best-effort) and surface the
-    // share URL inline so the founder can open LinkedIn from a real click gesture.
+    // Compose the FULL LinkedIn post (caption + article URL) — LinkedIn has no
+    // supported URL scheme that pre-fills post text, so the post is written here,
+    // copied to the clipboard, AND shown inline below for review. The founder
+    // clicks Open LinkedIn (composer opens with the link card), pastes once, and
+    // pushes. This is the "auto-write the post I can just review and push" flow.
+    const articleUrl = d.url || "";
+    const fullPost = caption && articleUrl ? `${caption}\n\n${articleUrl}` : caption || articleUrl || "";
     try {
-      await navigator.clipboard.writeText(caption);
+      await navigator.clipboard.writeText(fullPost);
     } catch {
-      // clipboard may be blocked; the caption is shown inline to copy manually
+      // clipboard may be blocked; the full post is shown inline to copy manually
     }
-    setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption });
+    setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption, post: fullPost });
     setJustPublished((m) => ({ ...m, [d.id]: d }));
-    setDraftMsg("Ready — click “Open LinkedIn ↗” and the composer opens with the caption + link pre-filled. Review and click Post. (Caption also copied to clipboard as backup.)");
+    setDraftMsg("Ready — the full post is written below and copied to your clipboard. Click “Open LinkedIn ↗”, paste into the composer (the link card is already there), review, and Post.");
     await loadDrafts();
   }
 
@@ -535,7 +573,10 @@ const Issues: React.FC = () => {
                     opens and closes"). The caption was already copied to clipboard. */}
                 {publishResult?.draftId === d.id && (
                   <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/[0.08] p-2.5">
-                    <p className="text-[11px] font-semibold text-emerald-300">✓ Ready to post — the composer opens with caption + link pre-filled.</p>
+                    <p className="text-[11px] font-semibold text-emerald-300">✓ Post written + copied to clipboard — review it below, then Open LinkedIn and paste.</p>
+                    {publishResult.post && (
+                      <pre className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-black/30 p-2 text-[12px] leading-relaxed text-[#c8d6e8]">{publishResult.post}</pre>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button
                         onClick={() => openShare(publishResult.shareUrl)}
@@ -544,10 +585,10 @@ const Issues: React.FC = () => {
                         Open LinkedIn ↗
                       </button>
                       <button
-                        onClick={() => navigator.clipboard.writeText(publishResult.caption).then(() => setDraftMsg("Caption copied to clipboard."))}
+                        onClick={() => navigator.clipboard.writeText(publishResult.post).then(() => setDraftMsg("Post copied to clipboard."))}
                         className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
                       >
-                        Copy caption
+                        Copy post
                       </button>
                       <button
                         onClick={() => { setPublishResult(null); dismissJustPublished(d.id); }}
@@ -664,14 +705,24 @@ const Issues: React.FC = () => {
                   <Score label="SEO" value={p.seo_score} />
                   <Score label="GEO" value={p.geo_score} />
                   {isArticle && (
-                    <button
-                      onClick={() => promote(p)}
-                      disabled={promotingUrl === p.url}
-                      title="Generate a human-gated LinkedIn promotion draft for this article"
-                      className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
-                    >
-                      {promotingUrl === p.url ? "Drafting…" : "Promote"}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => promote(p)}
+                        disabled={promotingUrl === p.url}
+                        title="Generate a human-gated LinkedIn promotion draft for this article"
+                        className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
+                      >
+                        {promotingUrl === p.url ? "Drafting…" : "Promote"}
+                      </button>
+                      <button
+                        onClick={() => generateCover(p)}
+                        disabled={coverGenUrl === p.url}
+                        title="Generate a fresh on-brand cover for this article (or replace one you don't like). Creates a pending draft to approve + publish."
+                        className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
+                      >
+                        {coverGenUrl === p.url ? "Generating cover…" : "Generate cover"}
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

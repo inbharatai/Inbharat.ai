@@ -127,6 +127,9 @@ export async function commitBinary(path: string, base64: string, message: string
     });
     if (!res.ok) {
       const body = await readBody(res);
+      if (res.status === 401 || res.status === 403) {
+        return { ok: false, needsToken: true, path, error: `github PUT ${path} HTTP ${res.status}: ${body.slice(0, 300)} — the GITHUB_TOKEN can read the repo but cannot write file contents. Use a classic PAT with "repo" scope, or a fine-grained PAT with "Contents: Read and write" on ${COVER_REPO}. (A fine-grained PAT with only Contents: read reports permissions.push=true but 403s on the Contents PUT — the trap that blocked article/cover publish.)` };
+      }
       return { ok: false, error: `github PUT ${path} HTTP ${res.status}: ${body.slice(0, 300)}`, path };
     }
     const data = (await res.json()) as { commit?: { sha?: string } };
@@ -180,6 +183,9 @@ export async function upsertText(
     });
     if (!res.ok) {
       const body = await readBody(res);
+      if (res.status === 401 || res.status === 403) {
+        return { ok: false, needsToken: true, path, error: `github PUT ${path} HTTP ${res.status}: ${body.slice(0, 300)} — the GITHUB_TOKEN can read the repo but cannot write file contents. Use a classic PAT with "repo" scope, or a fine-grained PAT with "Contents: Read and write" on ${COVER_REPO}. (A fine-grained PAT with only Contents: read reports permissions.push=true but 403s on the Contents PUT — the trap that blocked article/cover publish.)` };
+      }
       return { ok: false, error: `github PUT ${path} HTTP ${res.status}: ${body.slice(0, 300)}`, path };
     }
     const data = (await res.json()) as { commit?: { sha?: string } };

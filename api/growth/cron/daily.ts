@@ -6,7 +6,7 @@ import { promoteArticle } from "../../../lib/growth/promoter.js";
 import { ingestPendingInbox } from "../../../lib/growth/inbox.js";
 import { measureOutcomes } from "../../../lib/growth/outcomes.js";
 import { distillLearnings } from "../../../lib/growth/learning.js";
-import { generateCoverDraft } from "../../../lib/growth/cover.js";
+import { generateCoverDraft, fetchStyleSample } from "../../../lib/growth/cover.js";
 import { ARTICLES } from "../../../content/articles.meta.js";
 import { supabaseAdmin } from "../../../api/lib/supabaseAdmin.js";
 import { discoverSitePages } from "../../../lib/growth/discovery.js";
@@ -168,11 +168,15 @@ async function enqueueArticlePromotions(
 async function enqueueCoverDrafts(): Promise<{ drafted: number; skipped: number }> {
   let drafted = 0;
   let skipped = 0;
+  // Fetch one style sample for the whole run so every cron-drafted cover matches
+  // the existing family (the founder's "keep it exactly as the other articles"
+  // requirement). Best-effort — null degrades to the brand-prompt-only path.
+  const sample = await fetchStyleSample();
   for (const meta of ARTICLES) {
     // Skip articles that already have a wired visual — they need no cover.
     if (meta.visual) { skipped++; continue; }
     try {
-      const draft = await generateCoverDraft(meta);
+      const draft = await generateCoverDraft(meta, sample ?? undefined);
       if (draft.status === "pending") drafted++;
       else skipped++;
     } catch (e) {

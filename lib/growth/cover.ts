@@ -26,7 +26,7 @@ import { logInfo } from "./authorization.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCoverCost, type GrowthTask } from "./model-router.js";
 import { callGeminiImage } from "./gemini.js";
-import { articlePath } from "../../content/articles.meta.js";
+import { articlePath, ARTICLE_HUB_PATH } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 import type { ArticleMeta } from "../../content/articles.meta.js";
 
@@ -64,8 +64,12 @@ export interface CoverStyleSample {
  * the article URL (any state). Never throws. Pass `sample` to match a
  * founder-supplied cover's visual style.
  */
-export async function generateCoverDraft(meta: ArticleMeta, sample?: CoverStyleSample): Promise<CoverDraft> {
-  return runCoverGeneration(SITE.url + articlePath(meta.slug), `${meta.slug}.png`, meta, sample);
+export async function generateCoverDraft(
+  meta: ArticleMeta,
+  sample?: CoverStyleSample,
+  opts?: { force?: boolean },
+): Promise<CoverDraft> {
+  return runCoverGeneration(SITE.url + articlePath(meta.slug), `${meta.slug}.png`, meta, sample, opts);
 }
 
 /**
@@ -79,8 +83,9 @@ export async function generateCoverDraft(meta: ArticleMeta, sample?: CoverStyleS
 export async function generateCoverDraftFromFields(
   fields: { slug: string; title: string; category?: string; abstract?: string },
   sample?: CoverStyleSample,
+  opts?: { force?: boolean },
 ): Promise<CoverDraft> {
-  return runCoverGeneration(SITE.url + articlePath(fields.slug), `${fields.slug}.png`, fields, sample);
+  return runCoverGeneration(SITE.url + articlePath(fields.slug), `${fields.slug}.png`, fields, sample, opts);
 }
 
 /** Shared core: idempotency gate → budget/config gate → redact → image call →
@@ -91,8 +96,14 @@ async function runCoverGeneration(
   filename: string,
   fields: CoverPromptFields,
   sample?: CoverStyleSample,
+  opts?: { force?: boolean },
 ): Promise<CoverDraft> {
-  if (await hasExistingCoverDraft(url)) {
+  // The idempotency gate keeps the cron from re-drafting a cover for an article
+  // that already has one. `force` bypasses it for an EXPLICIT founder "load a
+  // new cover" action (the on-demand Generate/Regenerate buttons) — so the
+  // founder can replace a cover they don't like even when a draft (pending or
+  // published) already exists. The cron never sets force.
+  if (!opts?.force && (await hasExistingCoverDraft(url))) {
     return { taskId: null, draftId: null, url, filename, status: "skipped", note: "cover draft already exists" };
   }
 
@@ -276,4 +287,30 @@ export async function hasExistingCoverDraft(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Fetch a canonical existing cover (live on the site) to use as a STYLE
+ * REFERENCE so every new cover matches the family — the founder's "keep it
+ * exactly as we have in the other articles" requirement. Tries a curated list of
+ * flagship covers in order and returns the first that loads. Best-effort: returns
+ * null on any failure (the brand prompt alone still produces a family-consistent
+ * cover, so a missing sample is a graceful degradation, not a hard failure).
+ * Bytes are passed inline to the image model and never persisted by this helper.
+ */
+export async function fetchStyleSample(): Promise<CoverStyleSample | null> {
+  const candidates = ["harness-engineering", "what-are-ai-agents", "generative-ai", "rag"];
+  for (const slug of candidates) {
+    const url = `${SITE.url}${ARTICLE_HUB_PATH}/${slug}.png`;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length < 1024) continue; // guard against an empty/error placeholder
+      return { base64: buf.toString("base64"), mimeType: "image/png", source: `live-cover:${slug}.png` };
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }

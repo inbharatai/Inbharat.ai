@@ -187,11 +187,11 @@ export async function callGeminiImage(
     contents: [{ role: "user", parts }],
     generationConfig: {
       responseModalities: ["TEXT", "IMAGE"],
-      // Consistency with the thinking-model rule (callGemini/Agent/Vision all
-      // set this): if the cover model is ever swapped to a thinking-capable image
-      // model via GROWTH_COVER_MODEL, thinking tokens would otherwise starve the
-      // image output budget. No-op on the current gemini-2.5-flash-image.
-      thinkingConfig: { thinkingBudget: 0 },
+      // NOTE: do NOT send thinkingConfig here. gemini-2.5-flash-image rejects
+      // `thinkingConfig` with HTTP 400 "Thinking is not enabled for this model"
+      // (Gemini's API now enforces this where it used to be a silent no-op — the
+      // earlier thinkingBudget:0 here broke EVERY cover generation, which is why
+      // published articles had no covers). The image model has no thinking knob.
     },
   });
 

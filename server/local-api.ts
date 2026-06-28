@@ -136,6 +136,8 @@ const growthHandlers = {
   "/api/growth/agent": () => import("../api/growth/agent.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
   "/api/growth/cron/morning": () => import("../api/growth/cron/morning.ts"),
+  "/api/growth/cover/generate": () => import("../api/growth/cover/generate.ts"),
+  "/api/growth/cover/regenerate": () => import("../api/growth/cover/regenerate.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
 app.get("/api/growth/pages", (req, res) => runHandler("/api/growth/pages", req, res));
@@ -164,6 +166,8 @@ app.get("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, 
 app.post("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, res));
 app.delete("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", req, res));
 app.post("/api/growth/publish", (req, res) => runHandler("/api/growth/publish", req, res));
+app.post("/api/growth/cover/generate", (req, res) => runHandler("/api/growth/cover/generate", req, res));
+app.post("/api/growth/cover/regenerate", (req, res) => runHandler("/api/growth/cover/regenerate", req, res));
 app.get("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes", req, res));
 app.post("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes", req, res));
 app.get("/api/growth/discovery", (req, res) => runHandler("/api/growth/discovery", req, res));

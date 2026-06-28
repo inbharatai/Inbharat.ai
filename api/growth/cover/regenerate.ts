@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../../lib/requireAdmin.js";
 import { supabaseAdmin } from "../../lib/supabaseAdmin.js";
-import { generateCoverDraft } from "../../../lib/growth/cover.js";
+import { generateCoverDraft, fetchStyleSample } from "../../../lib/growth/cover.js";
 import { ARTICLE_HUB_PATH, ARTICLES } from "../../../content/articles.meta.js";
 import { logInfo } from "../../../lib/growth/authorization.js";
 
@@ -80,8 +80,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `failed to clear existing cover drafts: ${delErr.message}`, requestId });
   }
 
-  // Re-draft. generateCoverDraft never throws; returns status 'pending' or 'skipped'.
-  const result = await generateCoverDraft(meta);
+  // Re-draft with a style sample so the regenerated cover matches the family
+  // (the founder's "keep it exactly as the other articles" requirement). force
+  // bypasses the hasExistingCoverDraft gate — necessary because a published
+  // cover draft for this URL may still exist (kept as audit history) and would
+  // otherwise block the fresh draft. generateCoverDraft never throws.
+  const sample = await fetchStyleSample();
+  const result = await generateCoverDraft(meta, sample ?? undefined, { force: true });
   if (result.status !== "pending") {
     return res.status(200).json({ ok: true, requestId, draftId: result.draftId, note: result.note ?? "regenerate did not produce a new draft" });
   }
