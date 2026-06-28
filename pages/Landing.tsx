@@ -977,7 +977,7 @@ const Landing: React.FC = () => {
     return () => ctx.revert();
   }, [reduceMotion]);
 
-  const navItems = useMemo(
+  const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
       { href: '#ecosystem', label: t('landNavEcosystem') },
       { href: '#kathakitaab', label: t('landNavKathakitaab') },
@@ -985,7 +985,11 @@ const Landing: React.FC = () => {
       { href: '#products', label: t('landNavProducts') },
       { href: '#why', label: t('landNavWhy') },
       { href: '#mission', label: t('landNavMission') },
-      { href: '#contact', label: t('landNavContact') },
+      // Contact routes to the dedicated /contact page (like the footer link),
+      // NOT an in-page `#contact` scroll. `route` opts this item out of the
+      // smooth-scroll handler (which only intercepts a[href^="#"]) and renders a
+      // router <Link> so navigation is SPA, not a full page reload.
+      { href: '#contact', label: t('landNavContact'), route: '/contact' },
     ],
     [t],
   );
@@ -1074,27 +1078,50 @@ const Landing: React.FC = () => {
           </Link>
 
           <div className="hidden items-center gap-1 lg:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className={`relative rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide transition-all duration-300 ${
-                  activeSection === item.href
-                    ? 'text-white'
-                    : 'text-[#9aafc6] hover:text-[#b0c0d8]'
-                }`}
-              >
-                {item.label}
-                {activeSection === item.href && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.1]"
-                    style={{ zIndex: -1 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-              </a>
-            ))}
+            {navItems.map((item) =>
+              item.route ? (
+                <Link
+                  key={item.href}
+                  to={item.route}
+                  onClick={() => trackEvent('nav_contact_open')}
+                  className={`relative rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide transition-all duration-300 ${
+                    activeSection === item.href
+                      ? 'text-white'
+                      : 'text-[#9aafc6] hover:text-[#b0c0d8]'
+                  }`}
+                >
+                  {item.label}
+                  {activeSection === item.href && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.1]"
+                      style={{ zIndex: -1 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </Link>
+              ) : (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className={`relative rounded-full px-3.5 py-1.5 text-[11.5px] font-semibold tracking-wide transition-all duration-300 ${
+                    activeSection === item.href
+                      ? 'text-white'
+                      : 'text-[#9aafc6] hover:text-[#b0c0d8]'
+                  }`}
+                >
+                  {item.label}
+                  {activeSection === item.href && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.1]"
+                      style={{ zIndex: -1 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                </a>
+              ),
+            )}
           </div>
 
           <div className="flex items-center gap-2.5">
@@ -1172,17 +1199,33 @@ const Landing: React.FC = () => {
               >
                 Build AI with Reeturaj
               </Link>
-              {navItems.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
-                    activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
-                  }`}
-                >
-                  {item.label}
-                </a>
-              ))}
+              {navItems.map((item) =>
+                item.route ? (
+                  <Link
+                    key={item.href}
+                    to={item.route}
+                    onClick={() => {
+                      trackEvent('nav_contact_open');
+                      setMobileOpen(false);
+                    }}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                      activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
+                      activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </a>
+                ),
+              )}
             </div>
             <div className="mt-3 pt-3 border-t border-white/[0.06]">
               <select
