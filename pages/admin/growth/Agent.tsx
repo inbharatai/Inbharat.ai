@@ -81,6 +81,7 @@ const Agent: React.FC = () => {
   const [autoBusy, setAutoBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [morningRunning, setMorningRunning] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   async function loadThreads() {
@@ -121,6 +122,7 @@ const Agent: React.FC = () => {
     setInput("");
     setAttachments([]);
     setError(null);
+    setNotice(null);
   }
 
   async function deleteThreadFn(id: string) {
@@ -162,6 +164,7 @@ const Agent: React.FC = () => {
     if (!text || sending) return;
     setSending(true);
     setError(null);
+    setNotice(null);
     const attIds = attachments.map((a) => a.itemId);
     // Optimistic user echo.
     const optimistic: AgentMessage = {
@@ -209,12 +212,13 @@ const Agent: React.FC = () => {
     if (morningRunning) return;
     setMorningRunning(true);
     setError(null);
+    setNotice(null);
     const { data, error } = await fetchJson<{ topic?: string; mode?: string; reply?: string | null }>("/api/growth/cron/morning", { method: "POST" });
     setMorningRunning(false);
     if (error) { setError(error); return; }
     // The run appends to the daily-plan thread — refresh the list so it surfaces.
     void loadThreads();
-    if (data?.topic) setError(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
+    if (data?.topic) setNotice(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
   }
 
   return (
@@ -227,6 +231,7 @@ const Agent: React.FC = () => {
       </p>
 
       {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
+      {notice && <p className="mt-3 text-[12px] text-[#f59f4f]">{notice}</p>}
 
       {/* ─── Auto Mode panel ─────────────────────────────────────────────────── */}
       <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.02] p-4">
