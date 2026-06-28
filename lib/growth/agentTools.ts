@@ -19,13 +19,13 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
 import { callGemini, callGeminiVision, type GeminiFunctionDeclaration } from "./gemini.js";
-import { generateCoverDraft } from "./cover.js";
-import { draftArticle, draftVideoScript } from "./articleWriter.js";
+import { generateCoverDraft, generateCoverDraftFromFields, type CoverStyleSample } from "./cover.js";
+import { draftArticle, draftVideoScript, slugifyTitle } from "./articleWriter.js";
 import { loadInboxContext, formatInboxBlock, INBOX_BUCKET } from "./inbox.js";
-import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
+import { loadRulesForUrl, loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { critiqueAndRevise } from "./critique.js";
-import { ARTICLES } from "../../content/articles.meta.js";
+import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
 
 /** Result every executor returns: a JSON-serializable object the agent loop
@@ -65,7 +65,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "redraft_caption",
     description:
-      "Rewrite an existing draft's caption (LinkedIn post / inbox outline) per the founder's instruction — e.g. 'make it punchier', 'add a question hook'. Creates a NEW pending draft (the original is untouched); the founder still approves + publishes. Never call this without a specific instruction.",
+      "Rewrite an EXISTING draft's caption (LinkedIn post / inbox outline) per the founder's instruction — e.g. 'make it punchier', 'add a question hook'. Requires the draft's id (from list_recent_drafts or the Issues tab). Creates a NEW pending draft (the original is untouched); the founder still approves + publishes. Never call this without a real draft id, and never use it for text the founder pastes directly — use review_text for that.",
     parameters: {
       type: "object",
       properties: {
@@ -76,13 +76,29 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
     },
   },
   {
-    name: "generate_cover",
+    name: "review_text",
     description:
-      "Draft an on-brand 1200x630 hero cover image for an article (gemini-2.5-flash-image). Creates a pending cover draft the founder approves in Issues. Use the article slug (e.g. 'desh-ka-ai').",
+      "Review and improve text the founder PASTES directly into the chat (an article, a caption, an outline) per their instruction — e.g. 'review and upgrade this article', 'make this sharper', 'tighten the intro'. USE THIS whenever the founder pastes raw text to improve; do NOT use redraft_caption (that needs an existing draft id and will fail with 'draft not found'). Returns a critique + a revised version, saved as a pending draft the founder approves in Issues. Long-form text (markdown headings / >800 chars) is saved as an 'article' draft that publishes to inbharat.ai/learn-ai-with-reeturaj; short text is saved as a 'linkedin' caption draft.",
     parameters: {
       type: "object",
-      properties: { slug: { type: "string", description: "The article slug to draft a cover for." } },
-      required: ["slug"],
+      properties: {
+        text: { type: "string", description: "The full text the founder pasted (the article/caption/outline to improve)." },
+        instruction: { type: "string", description: "What the founder wants done — e.g. 'review and upgrade', 'make it punchier', 'fix the hype'." },
+      },
+      required: ["text", "instruction"],
+    },
+  },
+  {
+    name: "generate_cover",
+    description:
+      "Draft an on-brand 1200x630 hero cover image for an article (gemini-2.5-flash-image). Creates a pending cover draft the founder approves in Issues. Pass EITHER a published article `slug` (e.g. 'desh-ka-ai') OR the `draftId` of an article draft you just created with write_article/review_text — the cover is generated from the draft's title/category/abstract so the founder can review the article + its image together before anything goes live. Optionally pass `sampleItemId` (an inbox IMAGE item id) to match that sample's visual style so every cover stays consistent — use this when the founder says 'use this as the cover style' or 'keep all covers like this sample'.",
+    parameters: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "A PUBLISHED article slug (from inbharat.ai/learn-ai-with-reeturaj)." },
+        draftId: { type: "string", description: "The growth_drafts id of an article draft (kind='article') to make a cover for — use this right after write_article/review_text." },
+        sampleItemId: { type: "string", description: "Optional: an inbox IMAGE item id to use as a style reference so the new cover matches the sample's palette/composition/motif language. The founder drops a sample cover in the inbox, then references it here." },
+      },
     },
   },
   {
@@ -110,7 +126,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "write_article",
     description:
-      "Draft a full founder-voice tech article on a topic (markdown body + meta), ready to publish to inbharat.ai/learn-ai-with-reeturaj. Creates a pending 'article' draft the founder reviews + publishes in Issues. Pass the topic + optional instruction.",
+      "Draft a full founder-voice tech article on a topic (markdown body + meta), ready to publish to inbharat.ai/learn-ai-with-reeturaj. Creates a pending 'article' draft the founder reviews + publishes in Issues. Pass the topic + optional instruction. Use this when the founder wants a full inbharat.ai article (long-form); use review_text when they paste existing text to improve.",
     parameters: {
       type: "object",
       properties: {
@@ -118,6 +134,18 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         instruction: { type: "string", description: "Optional: specific guidance (length, angle, audience)." },
       },
       required: ["topic"],
+    },
+  },
+  {
+    name: "web_search",
+    description:
+      "Search the web (Google via Serper) for current facts, recent news, dates, numbers, or to verify a claim before writing it. USE THIS whenever the founder asks about something current or factual, or you would otherwise guess a date/number/'latest' claim — search instead of guessing. Returns the top results with title, url, and a short snippet. One query per call; prefer a focused query.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query (focused, e.g. 'Gemini 2.5 Flash release date')." },
+      },
+      required: ["query"],
     },
   },
   {
@@ -264,20 +292,118 @@ async function redraftCaption(args: Args): Promise<ToolResult> {
   return { ok: true, message: `Redrafted caption — new pending draft ${newId} (review in Issues).`, draftId: newId, caption: finalCaption };
 }
 
-/** generate_cover — draft an on-brand cover for an article slug. */
+/** generate_cover — draft an on-brand cover for a published article (slug) OR
+ *  a not-yet-published article draft (draftId). The draft path lets the founder
+ *  review an article + its cover together before anything ships. An optional
+ *  `sampleItemId` (an inbox image) is sent as a style reference so every cover
+ *  matches the founder's sample. */
 async function generateCover(args: Args): Promise<ToolResult> {
   const slug = str(args.slug);
-  if (!slug) return { ok: false, message: "need an article slug" };
-  const meta = ARTICLES.find((a) => a.slug === slug);
-  if (!meta) return { ok: false, message: `no article found for slug "${slug}"` };
-  try {
-    const result = await generateCoverDraft(meta);
-    if (result.status !== "pending") {
-      return { ok: false, message: result.note ?? "cover not drafted (skipped)" };
+  const draftId = str(args.draftId);
+  const sampleItemId = str(args.sampleItemId);
+  if (!slug && !draftId) return { ok: false, message: "need an article slug OR a draftId (an article draft)" };
+
+  // Optional style sample: load + base64 an inbox image item to match its style.
+  let sample: CoverStyleSample | undefined;
+  if (sampleItemId) {
+    const loaded = await loadStyleSample(sampleItemId);
+    if (typeof loaded === "string") return { ok: false, message: loaded }; // error message
+    sample = loaded;
+  }
+
+  // Published-article path.
+  if (slug) {
+    const meta = ARTICLES.find((a) => a.slug === slug);
+    if (meta) {
+      try {
+        const result = await generateCoverDraft(meta, sample);
+        if (result.status !== "pending") return { ok: false, message: result.note ?? "cover not drafted (skipped — a cover may already exist)" };
+        return { ok: true, message: `Cover drafted for "${meta.title}"${sample ? " matching your sample style" : ""} — review in Issues, then Publish to ship it.`, draftId: result.draftId, filename: result.filename };
+      } catch (e) {
+        return { ok: false, message: `cover draft failed: ${(e as Error).message}` };
+      }
     }
-    return { ok: true, message: `Cover drafted for "${meta.title}" — review in Issues.`, draftId: result.draftId, filename: result.filename };
+    // slug given but not a published article → maybe it's a draft slug; need a draftId to load it.
+    if (!draftId) return { ok: false, message: `no published article found for slug "${slug}". Pass the article draftId instead (from write_article/review_text).` };
+  }
+
+  // Draft-article path: load the draft, derive fields, generate the cover.
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+  const { data: row, error } = await supabaseAdmin
+    .from("growth_drafts")
+    .select("id,kind,title,body_md,schema_json")
+    .eq("id", draftId)
+    .maybeSingle();
+  if (error || !row) return { ok: false, message: "draft not found" };
+  const r = row as { id: string; kind: string; title: string | null; body_md: string | null; schema_json: Record<string, unknown> | null };
+  if (r.kind !== "article") return { ok: false, message: `that draft is a ${r.kind}, not an article — covers are for articles` };
+
+  const sj = r.schema_json ?? {};
+  const aSlug = typeof sj.slug === "string" && sj.slug ? sj.slug : (slug || slugifyTitle(r.title || "draft"));
+  const aTitle = typeof sj.title === "string" && sj.title ? sj.title : (r.title || "Untitled article");
+  const aCategory = typeof sj.category === "string" && sj.category ? sj.category : "AI Foundations";
+  const aAbstract = typeof sj.abstract === "string" && sj.abstract ? sj.abstract : (r.body_md ?? "").slice(0, 400);
+  try {
+    const result = await generateCoverDraftFromFields({ slug: aSlug, title: aTitle, category: aCategory, abstract: aAbstract }, sample);
+    if (result.status !== "pending") return { ok: false, message: result.note ?? "cover not drafted (skipped — a cover may already exist for this article)" };
+    return { ok: true, message: `Cover drafted for article "${aTitle}"${sample ? " matching your sample style" : ""} — review in Issues, then approve to ship the cover + article together.`, draftId: result.draftId, filename: result.filename };
   } catch (e) {
     return { ok: false, message: `cover draft failed: ${(e as Error).message}` };
+  }
+}
+
+/** Load an inbox IMAGE item as a style-sample for cover generation. Returns
+ *  the base64+mime (and records the source for audit) or an error string. */
+async function loadStyleSample(itemId: string): Promise<CoverStyleSample | string> {
+  if (!supabaseAdmin) return "database not configured";
+  const { data: row, error } = await supabaseAdmin
+    .from("growth_inbox_items")
+    .select("id,storage_path,kind,original_name")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (error || !row) return "sample not found";
+  const item = row as { id: string; storage_path: string; kind: string; original_name: string | null };
+  if (item.kind !== "image") return `that inbox item is a ${item.kind}, not an image — pick an image sample`;
+  const { data: blob, error: dlErr } = await supabaseAdmin.storage.from(INBOX_BUCKET).download(item.storage_path);
+  if (dlErr || !blob) return `sample download failed: ${dlErr?.message ?? "no blob"}`;
+  const ab = await blob.arrayBuffer();
+  const base64 = Buffer.from(ab).toString("base64");
+  const mimeType = guessMime(item.storage_path);
+  return { base64, mimeType, source: `inbox:${item.id} (${item.original_name ?? item.storage_path})` };
+}
+
+/** web_search — Google via Serper. One focused query; returns top results with
+ *  title/url/snippet so the agent can ground claims in current facts instead of
+ *  guessing. Not a model call (no budget/logUsage); results re-enter the model
+ *  context via the tool result, where the agent loop's backstop redact scan
+ *  catches anything sensitive. */
+async function webSearch(args: Args): Promise<ToolResult> {
+  const query = str(args.query).slice(0, 500).trim();
+  if (!query) return { ok: false, message: "need a search query" };
+  const key = process.env.SERPER_API_KEY;
+  if (!key) return { ok: false, message: "web search not configured (SERPER_API_KEY not set)" };
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 6 }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return { ok: false, message: `search failed: HTTP ${res.status}` };
+    const data = (await res.json()) as { organic?: Array<{ title?: string; link?: string; snippet?: string }> };
+    const organic = Array.isArray(data.organic) ? data.organic : [];
+    const results = organic.slice(0, 6).map((o) => ({
+      title: (o.title ?? "").slice(0, 200),
+      url: o.link ?? "",
+      snippet: (o.snippet ?? "").slice(0, 300),
+    }));
+    if (results.length === 0) return { ok: true, message: `no web results for "${query}"`, query, results: [] };
+    return { ok: true, message: `${results.length} web result(s) for "${query}"`, query, results };
+  } catch (e) {
+    return { ok: false, message: `search error: ${(e as Error).message}` };
   }
 }
 
@@ -420,6 +546,8 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "analyze_attachment": return analyzeAttachment(args);
     case "write_article": return writeArticle(args);
     case "write_video_script": return writeVideoScript(args);
+    case "review_text": return reviewText(args);
+    case "web_search": return webSearch(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
   }
 }
@@ -462,4 +590,152 @@ async function writeVideoScript(args: Args): Promise<ToolResult> {
   } catch (e) {
     return { ok: false, message: `video script draft failed: ${(e as Error).message}` };
   }
+}
+
+/** review_text — review + revise text the founder pastes (NOT critiqueAndRevise,
+ *  which is hardcoded to 60–90-word LinkedIn captions and would truncate a full
+ *  article). This has its own length-aware prompt: long-form articles get an
+ *  article-editor prompt + 8k output tokens (preserves length); short text gets a
+ *  caption prompt. Long-form is saved as an 'article' draft (publishes to the
+ *  Learn AI hub); short text as a 'linkedin' draft. */
+async function reviewText(args: Args): Promise<ToolResult> {
+  const text = str(args.text).slice(0, 12000);
+  const instruction = str(args.instruction);
+  if (!text) return { ok: false, message: "need the text to review (pass the founder's pasted text in `text`)" };
+  if (!instruction) return { ok: false, message: "need an instruction (e.g. 'review and upgrade')" };
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+
+  const longForm = text.length > 800 || /\n#{1,2}\s|\n#{1,2}\s*[^#\n]/.test("\n" + text) || /^#{1,2}\s/.test(text);
+  const kind: "article" | "linkedin" = longForm ? "article" : "linkedin";
+
+  const task: GrowthTask = "review";
+  const choice = pickModel(task);
+  if (!isModelConfigured(choice) || !(await withinBudget())) {
+    return { ok: false, message: "review model not configured or monthly budget exhausted" };
+  }
+
+  const rulesBlock = formatRulesBlock(await loadGlobalRulesForReview());
+  const strategyBlock = formatStrategyBlock(await loadStrategy());
+  const inboxBlock = formatInboxBlock(await loadInboxContext());
+
+  const system =
+    kind === "article"
+      ? "You are a critical editor for an InBharat.ai 'Learn AI with Reeturaj' article in the FIRST-PERSON voice of Reeturaj Goswami (founder of InBharat AI — practical AI built in India, for India and the world). India-first framing where natural; hype-free; no jargon-as-filler. "
+        + "Banned terms: NEVER 'UniGurus'; for any healthcare reference use 'Sahayaak Seva' (never 'RHCF Seva'). "
+        + "Return the FULL revised article in markdown — keep it the same length ballpark, do NOT summarize or shorten it. Also return a title (<=70 chars), a <=155-char meta description, an abstract (40-60 words), a category, and a short weaknesses list. "
+        + "category must be one of: " + ARTICLE_CATEGORIES.join(" | ") + ". "
+        + "Respond ONLY with compact JSON: {\"revised\": string, \"title\": string, \"description\": string, \"abstract\": string, \"category\": string, \"weaknesses\": [{\"severity\":\"critical|major|minor\",\"area\": string,\"fix\": string}]}."
+        + (strategyBlock ? `\n\n${strategyBlock}` : "") + (rulesBlock ? `\n\n${rulesBlock}` : "") + (inboxBlock ? `\n\n${inboxBlock}` : "")
+      : "You are a critical editor for InBharat AI LinkedIn drafts in the founder's voice. Fix hype, jargon, off-brand positioning, weak hooks, missing CTAs; keep it 60–90 words. "
+        + "Banned terms: NEVER 'UniGurus'; for healthcare use 'Sahayaak Seva' (never 'RHCF Seva'). "
+        + "Respond ONLY with compact JSON: {\"revised\": string, \"title\": string, \"weaknesses\": [{\"severity\":\"critical|major|minor\",\"area\": string,\"fix\": string}]}."
+        + (strategyBlock ? `\n\n${strategyBlock}` : "") + (rulesBlock ? `\n\n${rulesBlock}` : "") + (inboxBlock ? `\n\n${inboxBlock}` : "");
+
+  const user = `Original text:\n"""\n${text}\n"""\n\nFounder's instruction: ${instruction}\n\nReturn the revised ${kind === "article" ? "article + title + description + abstract + category " : "text + title "}+ weaknesses. JSON only.`;
+
+  const redacted = redact(`${system}\n\n${user}`);
+  if (redacted.containedSecret) return { ok: false, message: "redacted secret in prompt; aborted" };
+
+  let raw: string;
+  try {
+    raw = await callGemini(choice, system, user, { temperature: 0.4, maxOutputTokens: kind === "article" ? 8192 : 700 });
+  } catch (e) {
+    void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
+    return { ok: false, message: `review model call failed: ${(e as Error).message}` };
+  }
+  const parsed = safeParseReview(raw);
+  const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
+  void logUsage({
+    model: choice.model, task,
+    promptTokens: Math.ceil((system.length + user.length) / 4),
+    completionTokens: Math.ceil((raw?.length ?? 0) / 4),
+    totalTokens, costUsd: estimateCost(choice, totalTokens),
+    status: parsed?.revised ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
+  });
+  if (!parsed || typeof parsed.revised !== "string" || !parsed.revised.trim()) {
+    return { ok: false, message: "review model returned no usable revision; try again or paste a shorter excerpt" };
+  }
+  const revised = parsed.revised.trim();
+
+  // Derive meta for the article publish path (readArticleMeta needs slug + body).
+  let title = typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : deriveTitle(text);
+  title = title.slice(0, 120);
+  const slug = slugifyTitle(title);
+  const description = typeof parsed.description === "string" ? parsed.description.slice(0, 160) : "";
+  const abstract = typeof parsed.abstract === "string" ? parsed.abstract.slice(0, 400) : "";
+  const rawCat = typeof parsed.category === "string" ? parsed.category : "";
+  const category: ArticleCategory = (ARTICLE_CATEGORIES as readonly string[]).includes(rawCat) ? (rawCat as ArticleCategory) : "AI Foundations";
+  const readMinutes = Math.max(3, Math.round(revised.split(/\s+/).length / 200));
+  const weaknesses = Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(coerceWeakness).filter(Boolean) : [];
+
+  const schemaJson =
+    kind === "article"
+      ? { reviewText: true, instruction, slug, title, description, abstract, category, readMinutes }
+      : { reviewText: true, instruction };
+
+  const { data: ins, error: insErr } = await supabaseAdmin
+    .from("growth_drafts")
+    .insert({
+      kind,
+      url: kind === "article" ? `https://inbharat.ai/learn-ai-with-reeturaj/${slug}` : null,
+      title: kind === "article" ? title : (title + " (review)"),
+      body_md: revised,
+      schema_json: schemaJson,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (insErr || !ins) return { ok: false, message: `persist failed: ${insErr?.message ?? "unknown"}` };
+  const newId = ins.id as string;
+
+  // Best-effort critique log (full candidate + revised text only here).
+  await supabaseAdmin
+    .from("growth_critique_log")
+    .insert({
+      draft_id: newId, task: "review", candidate: text, revised,
+      weaknesses, model: choice.model, provider: choice.provider,
+      cost_usd: estimateCost(choice, totalTokens), status: "ok", note: `review_text (${kind})`,
+    })
+    .then(() => undefined, () => undefined);
+
+  const message =
+    kind === "article"
+      ? `Reviewed + upgraded the article — saved as pending draft "${title}" (review in Issues, then Publish to ship it to inbharat.ai/learn-ai-with-reeturaj/${slug}).`
+      : `Reviewed + upgraded the text — saved as a pending caption draft "${title}" (review in Issues, then Publish to get the LinkedIn share link).`;
+  return { ok: true, message, draftId: newId, kind, slug: kind === "article" ? slug : undefined, title, revised, weaknesses };
+}
+
+// review_text helpers ──────────────────────────────────────────────────────────
+function safeParseReview(raw: string): { revised?: unknown; title?: unknown; description?: unknown; abstract?: unknown; category?: unknown; weaknesses?: unknown } | null {
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try { return JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
+  }
+}
+
+function deriveTitle(text: string): string {
+  // First markdown heading line, else first non-empty line, else fallback.
+  const heading = text.match(/^\s*#{1,6}\s+(.+)$/m);
+  if (heading && heading[1]) return heading[1].replace(/[#*`]/g, "").trim().slice(0, 120);
+  const line = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0);
+  return (line || "Reviewed text").slice(0, 120);
+}
+
+function coerceWeakness(w: unknown): { severity: "critical" | "major" | "minor"; area: string; fix: string } | null {
+  if (!w || typeof w !== "object") return null;
+  const o = w as Record<string, unknown>;
+  const severity = o.severity === "critical" || o.severity === "major" || o.severity === "minor" ? o.severity : "minor";
+  const area = typeof o.area === "string" ? o.area : "";
+  const fix = typeof o.fix === "string" ? o.fix : "";
+  if (!area && !fix) return null;
+  return { severity, area, fix };
+}
+
+// Pasted-text review has no URL scope, so the founder's GLOBAL rules shape it
+// (same as inbox.ts:draftFromText, which reviews inbox drops with no URL).
+async function loadGlobalRulesForReview(): Promise<ReturnType<typeof loadGlobalRules>> {
+  return loadGlobalRules();
 }

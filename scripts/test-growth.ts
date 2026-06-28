@@ -596,9 +596,9 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 7 tools", AGENT_TOOLS.length === 7, `got ${names.join(",")}`);
+  check("agent tools registry has 9 tools", AGENT_TOOLS.length === 9, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
-    ["list_recent_drafts", "redraft_caption", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "write_video_script"].every((n) => names.includes(n)),
+    ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
@@ -610,13 +610,37 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const lrd = await dispatchTool("list_recent_drafts", { limit: 5 });
   check("list_recent_drafts no-DB → ok:false", lrd.ok === false, JSON.stringify(lrd));
 
-  // dispatchTool: generate_cover with a fake slug → ok:false "no article found" (pure, no DB).
+  // dispatchTool: generate_cover with a fake slug (no draftId) → ok:false "no article found" (pure, no DB).
   const badSlug = await dispatchTool("generate_cover", { slug: "this-slug-does-not-exist-xyz" });
-  check("generate_cover bad slug → ok:false", badSlug.ok === false && /no article found/i.test(badSlug.message ?? ""), JSON.stringify(badSlug));
+  check("generate_cover bad slug → ok:false", badSlug.ok === false && /no.*article found/i.test(badSlug.message ?? ""), JSON.stringify(badSlug));
 
   // dispatchTool: generate_cover with a real slug but no key → ok:false skipped (no model).
   const realSlug = await dispatchTool("generate_cover", { slug: "rag" });
   check("generate_cover real slug no-key → ok:false (skipped)", realSlug.ok === false, JSON.stringify(realSlug));
+
+  // dispatchTool: generate_cover with neither slug nor draftId → ok:false (arg guard).
+  const noArgs = await dispatchTool("generate_cover", {});
+  check("generate_cover no args → ok:false", noArgs.ok === false && /slug OR a draftId/i.test(noArgs.message ?? ""), JSON.stringify(noArgs));
+
+  // dispatchTool: generate_cover with a draftId but no DB → ok:false "database not configured"
+  // (the draft-article path must not crash before the DB check). Hermetic — no network/key.
+  const draftPath = await dispatchTool("generate_cover", { draftId: "00000000-0000-0000-0000-000000000000" });
+  check("generate_cover draftId no-DB → ok:false", draftPath.ok === false && /not configured|not found/i.test(draftPath.message ?? ""), JSON.stringify(draftPath));
+
+  // dispatchTool: review_text validates args before any model/DB work (pure, hermetic).
+  const rtNoText = await dispatchTool("review_text", { instruction: "review and upgrade" });
+  check("review_text no text → ok:false", rtNoText.ok === false && /need the text/i.test(rtNoText.message ?? ""), JSON.stringify(rtNoText));
+  const rtNoInstr = await dispatchTool("review_text", { text: "Some text to review." });
+  check("review_text no instruction → ok:false", rtNoInstr.ok === false && /need an instruction/i.test(rtNoInstr.message ?? ""), JSON.stringify(rtNoInstr));
+  // review_text with both args but no DB → ok:false "database not configured" (graceful, no model call).
+  const rtNoDb = await dispatchTool("review_text", { text: "# Heading\n\nLong enough body text here.", instruction: "review and upgrade" });
+  check("review_text no-DB → ok:false", rtNoDb.ok === false && /not configured/i.test(rtNoDb.message ?? ""), JSON.stringify(rtNoDb));
+
+  // dispatchTool: web_search validates the query before any network call (pure, hermetic).
+  const wsNoQuery = await dispatchTool("web_search", {});
+  check("web_search no query → ok:false", wsNoQuery.ok === false && /need a search query/i.test(wsNoQuery.message ?? ""), JSON.stringify(wsNoQuery));
+  const wsBlank = await dispatchTool("web_search", { query: "   " });
+  check("web_search blank query → ok:false", wsBlank.ok === false && /need a search query/i.test(wsBlank.message ?? ""), JSON.stringify(wsBlank));
 
   // dispatchTool: list_inbox_folder no-DB → ok:true with empty items (never throws).
   const lif = await dispatchTool("list_inbox_folder", {});

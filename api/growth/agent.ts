@@ -1,12 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
-import { runAgentTurn, listThreads, loadThreadMessages } from "../../lib/growth/agent.js";
+import { runAgentTurn, listThreads, loadThreadMessages, deleteThread } from "../../lib/growth/agent.js";
 
 /**
  * /api/growth/agent — the conversational CMO agent surface (Phase C). Admin-only.
  *   GET                         → { threads: [...] }  recent conversation threads
  *   GET  ?threadId=<id>         → { thread, messages: [...] }  one thread's history
+ *   DELETE ?threadId=<id>       → delete a thread + its messages
  *   POST { message, threadId?, attachmentItemIds? }
  *        → run one agent turn (bounded Gemini function-calling); returns the
  *          assistant reply + the full message trail. The agent never publishes —
@@ -35,8 +36,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, requestId, threads });
   }
 
+  if (req.method === "DELETE") {
+    const threadId = typeof req.query?.threadId === "string" ? req.query.threadId : null;
+    if (!threadId) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "need threadId", requestId });
+    await deleteThread(threadId);
+    return res.status(200).json({ ok: true, requestId, threadId });
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
+    res.setHeader("Allow", "GET, POST, DELETE");
     return res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed", requestId });
   }
 

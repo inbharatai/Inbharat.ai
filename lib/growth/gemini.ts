@@ -36,6 +36,10 @@ interface TextOpts {
 interface ImageOpts {
   /** Cap the wait for image gen (it is slower than text). Default 60s. */
   timeoutMs?: number;
+  /** Optional style-reference image (inlineData part) so the model keeps all
+   *  covers visually consistent with a founder-supplied sample. Gemini 2.5
+   *  Flash Image is multimodal and accepts image+text input. */
+  referenceImage?: { base64: string; mimeType: string };
 }
 
 export interface GeminiImageResult {
@@ -175,8 +179,12 @@ export async function callGeminiImage(
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("GEMINI_API_KEY not set");
   const timeoutMs = opts.timeoutMs ?? 60000;
+  const parts: unknown[] = [{ text: prompt }];
+  if (opts.referenceImage) {
+    parts.push({ inlineData: { mimeType: opts.referenceImage.mimeType, data: opts.referenceImage.base64 } });
+  }
   const body = JSON.stringify({
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    contents: [{ role: "user", parts }],
     generationConfig: {
       responseModalities: ["TEXT", "IMAGE"],
       // Consistency with the thinking-model rule (callGemini/Agent/Vision all

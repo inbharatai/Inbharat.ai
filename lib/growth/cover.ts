@@ -39,15 +39,59 @@ export interface CoverDraft {
   note?: string;
 }
 
+/** The fields a cover prompt actually uses — both published articles and
+ *  not-yet-published article drafts supply these. */
+interface CoverPromptFields {
+  title: string;
+  category?: string;
+  abstract?: string;
+}
+
+/** Optional style reference: a founder-supplied sample cover whose visual
+ *  style (palette, composition, motif language) the new cover should match so
+ *  every cover looks like one family. The bytes are passed inline to the image
+ *  model and never persisted beyond the growth_drafts audit row. */
+export interface CoverStyleSample {
+  base64: string;
+  mimeType: string;
+  /** Where the sample came from (inbox item id / path) — recorded for audit. */
+  source: string;
+}
+
 /**
  * Draft an on-brand cover image for an article that has no `visual` set.
  * Idempotent: returns {status:'skipped'} if a cover draft already exists for
- * the article URL (any state). Never throws.
+ * the article URL (any state). Never throws. Pass `sample` to match a
+ * founder-supplied cover's visual style.
  */
-export async function generateCoverDraft(meta: ArticleMeta): Promise<CoverDraft> {
-  const url = SITE.url + articlePath(meta.slug);
-  const filename = `${meta.slug}.png`;
+export async function generateCoverDraft(meta: ArticleMeta, sample?: CoverStyleSample): Promise<CoverDraft> {
+  return runCoverGeneration(SITE.url + articlePath(meta.slug), `${meta.slug}.png`, meta, sample);
+}
 
+/**
+ * Draft an on-brand cover for a NOT-YET-PUBLISHED article draft. Same brand
+ * prompt + idempotency + gates as generateCoverDraft, but the slug/title/
+ * category/abstract come from the draft's schema_json (set by write_article /
+ * review_text) instead of the published articles.meta registry. Used by the
+ * conversational agent's generate_cover tool so the founder can draft an
+ * article AND its cover in one flow, before anything is live. Never throws.
+ */
+export async function generateCoverDraftFromFields(
+  fields: { slug: string; title: string; category?: string; abstract?: string },
+  sample?: CoverStyleSample,
+): Promise<CoverDraft> {
+  return runCoverGeneration(SITE.url + articlePath(fields.slug), `${fields.slug}.png`, fields, sample);
+}
+
+/** Shared core: idempotency gate → budget/config gate → redact → image call →
+ *  persist. Both the published-article and draft-article paths funnel here so
+ *  there is exactly one place that spends cover-model budget. Never throws. */
+async function runCoverGeneration(
+  url: string,
+  filename: string,
+  fields: CoverPromptFields,
+  sample?: CoverStyleSample,
+): Promise<CoverDraft> {
   if (await hasExistingCoverDraft(url)) {
     return { taskId: null, draftId: null, url, filename, status: "skipped", note: "cover draft already exists" };
   }
@@ -61,7 +105,7 @@ export async function generateCoverDraft(meta: ArticleMeta): Promise<CoverDraft>
     return { taskId: null, draftId: null, url, filename, status: "skipped", note: "monthly budget exhausted" };
   }
 
-  const prompt = buildCoverPrompt(meta);
+  const prompt = buildCoverPrompt(fields, !!sample);
   // Redact LAST before the model call (project rule). The prompt is built from
   // article metadata (titles/abstracts), which can occasionally quote user
   // content — redact defensively even though it's our own copy.
@@ -74,7 +118,10 @@ export async function generateCoverDraft(meta: ArticleMeta): Promise<CoverDraft>
   let pngBase64: string;
   let mimeType: string;
   try {
-    const img = await callGeminiImage(choice, prompt, { timeoutMs: 90000 });
+    const img = await callGeminiImage(choice, prompt, {
+      timeoutMs: 90000,
+      ...(sample ? { referenceImage: { base64: sample.base64, mimeType: sample.mimeType } } : {}),
+    });
     pngBase64 = img.pngBase64;
     mimeType = img.mimeType;
   } catch (e) {
@@ -107,13 +154,16 @@ export async function generateCoverDraft(meta: ArticleMeta): Promise<CoverDraft>
   // schema_json carries the PNG base64 so the admin UI can render a preview and
   // the publish step can commit it — the bytes never enter the client bundle
   // (Issues.tsx reads them from the draft, which is admin-only).
-  const { taskId, draftId } = await persistCoverDraft(url, meta.title, filename, prompt, pngBase64, mimeType, choice, costUsd);
+  const { taskId, draftId } = await persistCoverDraft(url, fields.title, filename, prompt, pngBase64, mimeType, choice, costUsd, sample?.source);
   await logInfo("cover-drafted", url, `kind=cover status=pending file=${filename}`).catch(() => undefined);
   return { taskId, draftId, url, filename, status: "pending" };
 }
 
-/** Build a brand-faithful, TEXT-FREE cover prompt from article metadata. */
-function buildCoverPrompt(meta: ArticleMeta): string {
+/** Build a brand-faithful, TEXT-FREE cover prompt from article fields. When
+ *  `hasSample` is true, a style-reference image is sent alongside this prompt
+ *  (see callGeminiImage referenceImage) and the prompt tells the model to match
+ *  that sample's visual language so every cover stays consistent. */
+function buildCoverPrompt(fields: CoverPromptFields, hasSample = false): string {
   return [
     "Generate a single 1200x630 pixel hero illustration for a tech article,",
     "landscape orientation, cinematic, high-contrast, premium editorial quality.",
@@ -124,15 +174,18 @@ function buildCoverPrompt(meta: ArticleMeta): string {
     "- One thin solid orange (#f59f4f) accent line or bar along the bottom edge.",
     "- Minimalist, abstract, geometric motif suggesting the topic — no people.",
     "- Modern, clean, subtle; lots of negative space in the center.",
+    hasSample
+      ? "- STYLE REFERENCE: a sample cover is attached. Match its palette, composition, motif language, and overall visual style EXACTLY so this cover looks like one consistent family with the sample. Keep the brand rules above; only the motif/abstract shape changes to fit this article's topic."
+      : "",
     "",
     "HARD CONSTRAINTS:",
     "- ABSOLUTELY NO TEXT, no words, no letters, no numbers, no logos, no watermarks anywhere in the image.",
     "- The page renders the article title separately over the image, so the image must be text-free.",
     "- No photographic faces. No clutter. Abstract shapes only.",
     "",
-    `TOPIC: ${meta.title}`,
-    `CATEGORY: ${meta.category}`,
-    meta.abstract ? `SUMMARY: ${meta.abstract.slice(0, 400)}` : "",
+    `TOPIC: ${fields.title}`,
+    `CATEGORY: ${fields.category ?? "AI Foundations"}`,
+    fields.abstract ? `SUMMARY: ${fields.abstract.slice(0, 400)}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -153,6 +206,7 @@ async function persistCoverDraft(
   mimeType: string,
   choice: ReturnType<typeof pickModel>,
   costUsd: number,
+  styleSampleSource?: string,
 ): Promise<{ taskId: string | null; draftId: string | null }> {
   if (!supabaseAdmin) return { taskId: null, draftId: null };
   try {
@@ -191,6 +245,7 @@ async function persistCoverDraft(
           provider: choice.provider,
           costUsd,
           status: "pending",
+          ...(styleSampleSource ? { styleSampleSource } : {}),
         },
         status: "pending",
       })

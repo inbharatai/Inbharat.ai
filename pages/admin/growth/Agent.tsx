@@ -56,6 +56,17 @@ function classifyKind(filename: string): string {
   return "other";
 }
 
+/** One-click starter prompts — so the founder can see HOW to ask the agent to
+ *  do things (the most common pain: "I can't see how to ask it to do tasks"). */
+const EXAMPLE_PROMPTS: string[] = [
+  "Review & upgrade an article (paste it below)",
+  "Write an article on RAG in plain English",
+  "Draft a LinkedIn caption about our latest feature",
+  "Make a cover for the article draft I just made",
+  "Search the web for the latest Gemini model",
+  "Make a post AND an article from the article in my inbox",
+];
+
 const Agent: React.FC = () => {
   const { fetchJson } = useAdminApi();
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -109,6 +120,13 @@ const Agent: React.FC = () => {
     setInput("");
     setAttachments([]);
     setError(null);
+  }
+
+  async function deleteThreadFn(id: string) {
+    const { error } = await fetchJson(`/api/growth/agent?threadId=${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (error) { setError(error); return; }
+    if (activeId === id) newChat();
+    void loadThreads();
   }
 
   async function uploadAttachment(file: File): Promise<void> {
@@ -187,8 +205,9 @@ const Agent: React.FC = () => {
     <div>
       <h1 className="text-2xl font-bold text-white">Growth Agent</h1>
       <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
-        Chat with your expert fractional CMO. It executes on command — redrafts captions, generates covers, analyzes images
-        you attach — and queues everything in Issues for your approval. It never publishes on its own.
+        Chat with your expert fractional CMO. It understands plain English and executes on command — reviews and upgrades text you paste,
+        drafts articles + LinkedIn posts, generates covers (matching a sample you drop in the inbox so every cover looks consistent),
+        analyzes images, and searches the web for current facts. Everything it makes lands in Issues for your approval; it never publishes on its own.
       </p>
 
       {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
@@ -244,14 +263,22 @@ const Agent: React.FC = () => {
           <button onClick={newChat} className="w-full rounded-lg bg-[#f59f4f] px-3 py-2 text-[12px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90">+ New chat</button>
           <div className="mt-2 space-y-1">
             {threads.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveId(t.id)}
-                className={`block w-full truncate rounded-lg px-3 py-2 text-left text-[12px] ${activeId === t.id ? "bg-[#f59f4f]/10 text-[#f59f4f] ring-1 ring-[#f59f4f]/30" : "text-[#9fb2c6] hover:bg-white/[0.04]"}`}
-                title={t.title}
-              >
-                {t.title}
-              </button>
+              <div key={t.id} className="group flex items-center gap-1">
+                <button
+                  onClick={() => setActiveId(t.id)}
+                  className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-[12px] ${activeId === t.id ? "bg-[#f59f4f]/10 text-[#f59f4f] ring-1 ring-[#f59f4f]/30" : "text-[#9fb2c6] hover:bg-white/[0.04]"}`}
+                  title={t.title}
+                >
+                  {t.title}
+                </button>
+                <button
+                  onClick={() => void deleteThreadFn(t.id)}
+                  className="shrink-0 rounded px-1.5 py-1 text-[11px] text-[#5f7c98] opacity-0 transition hover:text-rose-300 group-hover:opacity-100"
+                  title="Delete conversation"
+                >
+                  ✕
+                </button>
+              </div>
             ))}
             {threads.length === 0 && <p className="px-2 text-[11px] text-[#5f7c98]">No conversations yet.</p>}
           </div>
@@ -259,7 +286,30 @@ const Agent: React.FC = () => {
 
         <div className="flex min-w-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.02]">
           <div ref={scrollRef} className="h-[420px] overflow-y-auto p-4">
-            {messages.length === 0 && <p className="text-[13px] text-[#7a9ab8]">Ask the agent to do something — e.g. “draft a punchier caption for the RAG article”, “make a cover for desh-ka-ai”, or attach an image and say “analyze this”.</p>}
+            {messages.length === 0 && (
+              <div className="space-y-3">
+                <p className="text-[13px] text-[#9fb2c6]">
+                  Ask the agent to do something — it drafts, reviews, generates covers, and searches the web. Everything it makes lands in <span className="text-[#f59f4f]">Issues</span> for your approval before it ships.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {EXAMPLE_PROMPTS.map((ex) => (
+                    <button
+                      key={ex}
+                      onClick={() => setInput(ex)}
+                      className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-[#c0cfe0] transition hover:border-[#f59f4f]/40 hover:text-white"
+                    >
+                      {ex}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-[11px] leading-[1.6] text-[#7a9ab8]">
+                  <p className="mb-1 font-semibold uppercase tracking-wide text-[#9fb2c6]">How publishing works</p>
+                  <p>• <span className="text-[#c0cfe0]">Articles</span> → approve in Issues → Publish → live on <span className="text-[#c0cfe0]">inbharat.ai/learn-ai-with-reeturaj</span> (cover ships with it).</p>
+                  <p>• <span className="text-[#c0cfe0]">LinkedIn captions</span> → approve → Publish → a one-click share link. To auto-fill the composer, run <span className="text-[#c0cfe0]">scripts/linkedin-populate.ts</span> locally.</p>
+                  <p>• <span className="text-[#c0cfe0]">Covers</span> → approve → Publish → commits the PNG + wires it to the article. Drop a sample cover in the inbox and ask the agent to use it as the style to keep every cover consistent.</p>
+                </div>
+              </div>
+            )}
             {messages.map((m) => (
               <div key={m.id} className={`mb-3 ${m.role === "user" ? "text-right" : ""}`}>
                 {m.role === "user" && <div className="inline-block max-w-[85%] rounded-lg bg-[#f59f4f]/15 px-3 py-2 text-left text-[13px] text-white">{m.content}</div>}
