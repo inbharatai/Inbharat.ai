@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Github, Instagram, Linkedin, Twitter } from 'lucide-react';
 import { useDocumentHead } from '../lib/useDocumentHead';
 import { SITE } from '../seo.config';
+import LeadCapture from '../components/LeadCapture';
 
 type Props = {
   title: string;
@@ -129,6 +130,18 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
                 <Github size={16} aria-hidden="true" />
               </a>
             </div>
+          </div>
+          <div className="mx-auto w-full max-w-md">
+            <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">
+              {t('landFooterNewsletter') || 'The Desh ki AI digest'}
+            </p>
+            <LeadCapture
+              kind="newsletter"
+              compact
+              ctaLabel="Subscribe"
+              placeholder="you@example.com"
+              consentText="Send me the occasional AI-in-Bharat digest. Unsubscribe anytime."
+            />
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-[#7a9ab8]">
             <Link to="/" className="transition-colors hover:text-white">Home</Link>

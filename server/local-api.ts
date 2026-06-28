@@ -132,6 +132,7 @@ const growthHandlers = {
   "/api/growth/publish": () => import("../api/growth/publish.ts"),
   "/api/growth/outcomes": () => import("../api/growth/outcomes.ts"),
   "/api/growth/discovery": () => import("../api/growth/discovery.ts"),
+  "/api/growth/leads": () => import("../api/growth/leads.ts"),
   "/api/growth/cron/daily": () => import("../api/growth/cron/daily.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
@@ -165,6 +166,9 @@ app.get("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes",
 app.post("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes", req, res));
 app.get("/api/growth/discovery", (req, res) => runHandler("/api/growth/discovery", req, res));
 app.post("/api/growth/discovery", (req, res) => runHandler("/api/growth/discovery", req, res));
+// Leads: public POST (capture) + admin GET (list).
+app.post("/api/growth/leads", (req, res) => runHandler("/api/growth/leads", req, res));
+app.get("/api/growth/leads", (req, res) => runHandler("/api/growth/leads", req, res));
 // Cron accepts GET (Vercel scheduled cron) + POST (manual/admin "Run now").
 app.get("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));
 app.post("/api/growth/cron/daily", (req, res) => runHandler("/api/growth/cron/daily", req, res));

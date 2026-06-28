@@ -3,6 +3,7 @@ import { Github, Instagram, Linkedin, Mail, Twitter } from 'lucide-react';
 import StaticLayout from './_StaticLayout';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
+import LeadCapture from '../components/LeadCapture';
 
 const Contact: React.FC = () => {
   const channels = [
@@ -75,6 +76,20 @@ const Contact: React.FC = () => {
           </a>
         ))}
       </div>
+
+      <section className="mt-2">
+        <h2 className="text-xl font-bold text-white">Send us a message</h2>
+        <p className="mt-1.5 mb-3 text-[13.5px] leading-snug text-[#9aafc6]">
+          Drop your email and a note arrives in our inbox. We answer most messages within a few working days.
+        </p>
+        <LeadCapture
+          kind="contact"
+          showNameCompany
+          ctaLabel="Send message"
+          placeholder="you@example.com"
+          consentText="I agree to be contacted about this message. We never share your email."
+        />
+      </section>
 
       <section className="mt-2">
         <h2 className="text-xl font-bold text-white">A few quick notes</h2>

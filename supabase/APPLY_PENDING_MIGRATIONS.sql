@@ -262,3 +262,42 @@ ALTER TABLE growth_agent_threads  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE growth_agent_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE growth_auto_mode      ENABLE ROW LEVEL SECURITY;
 
+
+-- ============================================================================
+-- growth_leads — lead capture + attribution (Lead Generation design, 2026-06-28)
+-- See docs/LEAD_GENERATION.md. Public INSERT via service role (api/growth/leads.ts);
+-- admin SELECT/UPDATE gated by requireAdmin. ip_hash is a salted SHA-256 for
+-- rate-limit dedupe ONLY — the raw IP is never stored. Email is the sole PII.
+-- Idempotent on (email, kind, source_site) while status <> 'lost' so re-submits of
+-- the same newsletter signup don't create duplicates.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.growth_leads (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  name text,
+  company text,
+  kind text NOT NULL,
+  source_site text NOT NULL DEFAULT 'inbharat.ai',
+  source_path text,
+  source_slug text,
+  utm_source text, utm_medium text, utm_campaign text, utm_content text, utm_term text,
+  referrer text,
+  consent_at timestamptz NOT NULL,
+  consent_text text NOT NULL,
+  status text NOT NULL DEFAULT 'new',
+  owner uuid,
+  notes text,
+  ip_hash text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS growth_leads_kind_idx        ON public.growth_leads(kind);
+CREATE INDEX IF NOT EXISTS growth_leads_source_site_idx ON public.growth_leads(source_site);
+CREATE INDEX IF NOT EXISTS growth_leads_source_slug_idx ON public.growth_leads(source_slug);
+CREATE INDEX IF NOT EXISTS growth_leads_status_idx      ON public.growth_leads(status);
+CREATE INDEX IF NOT EXISTS growth_leads_created_at_idx  ON public.growth_leads(created_at desc);
+CREATE UNIQUE INDEX IF NOT EXISTS growth_leads_email_kind_site_uniq
+  ON public.growth_leads(email, kind, source_site) WHERE status <> 'lost';
+
+ALTER TABLE public.growth_leads ENABLE ROW LEVEL SECURITY;
+-- Service role bypasses RLS server-side; no public policy needed (the API owns all
+-- writes). Admin reads go through requireAdmin -> supabaseAdmin (service role).
