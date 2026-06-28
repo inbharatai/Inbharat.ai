@@ -329,6 +329,14 @@ export async function callGeminiAgent(
       }
       const text = textParts.length > 0 ? textParts.join("\n") : null;
       if (text === null && toolCalls.length === 0) {
+        // MALFORMED_FUNCTION_CALL means the model tried a tool call but the args
+        // were truncated/invalid JSON (most often because maxOutputTokens was too
+        // low for a tool whose args carry long pasted text). Don't throw — surface
+        // the finishReason so the agent loop can feed back a recovery turn and
+        // retry with a higher output cap. Other empty-response causes still throw.
+        if (finishReason === "MALFORMED_FUNCTION_CALL") {
+          return { text: null, toolCalls: [], finishReason };
+        }
         throw new Error(`gemini-agent empty response (finishReason=${finishReason ?? "unknown"})`);
       }
       return { text, toolCalls, finishReason };

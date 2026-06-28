@@ -142,6 +142,7 @@ export async function runAgentTurn(
   // ─── Function-calling loop ─────────────────────────────────────────────────
   let iteration = 0;
   let reply: string | null = null;
+  let malformedCount = 0;
   for (; iteration < MAX_ITERATIONS; iteration++) {
     // Re-check the budget each iteration (not only at turn start). A turn that
     // starts just under the cap can otherwise run MAX_ITERATIONS model calls +
@@ -167,7 +168,14 @@ export async function runAgentTurn(
 
     let result;
     try {
-      result = await callGeminiAgent(choice, system, contents, tools, { temperature: 0.5, maxOutputTokens: 900 });
+      // maxOutputTokens is a CAP, not a target — the model only generates what it
+      // needs, so a high cap costs nothing on short replies. But a LOW cap
+      // truncates tool calls whose arguments carry long pasted text (e.g.
+      // review_text with a full article in the `text` arg) → Gemini flags the
+      // truncated JSON MALFORMED_FUNCTION_CALL. 8192 fits a ~12k-char paste's
+      // args + narration with room to spare; was 900 (too low — caused the live
+      // "gemini-agent empty response (finishReason=MALFORMED_FUNCTION_CALL)").
+      result = await callGeminiAgent(choice, system, contents, tools, { temperature: 0.5, maxOutputTokens: 8192 });
     } catch (e) {
       void logUsage({ model: choice.model, task: "chat", promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
       const errMsg = `I hit an error talking to the model: ${(e as Error).message}`;
@@ -175,18 +183,38 @@ export async function runAgentTurn(
       return { ok: false, threadId: tid, reply: errMsg, messages: await loadHistory(tid), note: "model error" };
     }
 
-    // Log usage (rough token estimate from the last contents size + reply
-    // length). Awaited (not fire-and-forget) so the spend cache busts before the
-    // next iteration's withinBudget re-check above.
+    // Log usage (rough token estimate from system + the model's emitted text +
+    // tool-call args). Awaited (not fire-and-forget) so the spend cache busts
+    // before the next iteration's withinBudget re-check above. The prior estimate
+    // only counted `lastText` — for a tool-call turn that's just the narration, so
+    // a 6k-char review_text call logged ~0 completion tokens. Now counts args too.
     const lastText = result.text ?? "";
-    const totalTokens = Math.ceil((system.length + lastText.length) / 4) + 200;
+    const toolArgsChars = result.toolCalls.reduce((n, tc) => n + JSON.stringify(tc.args ?? {}).length, 0);
+    const totalTokens = Math.ceil((system.length + lastText.length + toolArgsChars) / 4) + 200;
     await logUsage({
       model: choice.model, task: "chat",
       promptTokens: Math.ceil(system.length / 4),
-      completionTokens: Math.ceil(lastText.length / 4),
+      completionTokens: Math.ceil((lastText.length + toolArgsChars) / 4),
       totalTokens, costUsd: estimateCost(choice, totalTokens),
       status: "ok", contextUrl: null, provider: choice.provider,
     });
+
+    // Recover from a malformed function call (truncated/invalid JSON args) by
+    // feeding back a guidance turn and retrying — bounded so it can't spin. With
+    // the 8192 cap this is rare, but it's defense-in-depth for very long pastes.
+    if (result.finishReason === "MALFORMED_FUNCTION_CALL" && result.toolCalls.length === 0) {
+      malformedCount++;
+      if (malformedCount > 2) {
+        reply = "I kept getting a malformed tool call — that usually means the pasted text is too long for one shot. Try pasting a shorter excerpt, or ask me to review it in two halves.";
+        await persistMessage(tid, "assistant", reply, null, null, null);
+        break;
+      }
+      contents.push({
+        role: "user",
+        parts: [{ text: "Your last function call was malformed — the arguments were truncated or not valid JSON. Try the same call again. If you are passing long pasted text in the `text` argument, emit the FULL text as valid JSON; you have enough output budget to fit it. Do not abbreviate or truncate the text." }],
+      });
+      continue;
+    }
 
     if (result.toolCalls.length === 0) {
       // Text answer (no tool calls) ends the turn.
