@@ -491,6 +491,14 @@ const ADMIN_GROWTH_PATHS = [
   '/admin/growth/issues',
   '/admin/growth/performance',
   '/admin/growth/settings',
+  // Added 2026-06-28: the conversational CMO Agent + Strategy pages exist in the
+  // router (pages/admin/growth/Agent.tsx, Strategy.tsx) but were missing from this
+  // list, so build-seo emitted no shell for them -> the live site 404'd at
+  // /admin/growth/agent (Vercel's platform 404, not the SPA's). Same root cause the
+  // comment above documents: the catch-all rewrite does not serve the SPA for
+  // shell-less admin routes. Every admin/growth child route must be listed here.
+  '/admin/growth/strategy',
+  '/admin/growth/agent',
 ];
 const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
   path,
