@@ -412,7 +412,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'InBharat',
     datePublished: '2026-06-03',
     readMinutes: 7,
-    // No dedicated visual yet — falls back to the branded OG image.
+    visual: 'inbharat-ecosystem.png',
     abstract:
       'The InBharat.ai ecosystem is a portfolio of twelve interconnected AI products—agentic search, interactive storybooks, a company OS, a personal AI OS, a field health app, education tools, a WhatsApp bot, decision intelligence, agent observability, social automation, and a developer installer—built for India because Indian problems are interlocked: a farmer needs credit, market info, and learning together. One product can’t serve those needs; twelve that share an identity and data layer can.',
     faq: [
@@ -447,7 +447,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'InBharat',
     datePublished: '2026-06-17',
     readMinutes: 8,
-    // No dedicated visual yet — falls back to the branded OG image.
+    visual: 'desh-ka-ai.png',
     abstract:
       'Desh Ka AI means AI built in India, for India, by Indians—trained on Indian data, in Indian languages, for Indian constraints, and owned by Indians. It’s not "sovereign AI" (closed, government-controlled) but open, private-sector-led, and globally competitive: solving Indian problems so well that the solutions export to the Global South.',
     faq: [

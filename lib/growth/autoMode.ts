@@ -52,6 +52,9 @@ const DEFAULTS: AutoMode = {
   lastRunSummary: null,
 };
 
+/** In-process guard so overlapping cron invocations no-op instead of double-drafting. */
+let autoLoopRunning = false;
+
 function rowToMode(r: AutoModeRow): AutoMode {
   return {
     enabled: r.enabled,
@@ -88,7 +91,7 @@ export async function saveAutoMode(userId: string, patch: Partial<Pick<AutoMode,
   if (patch.autoApprove !== undefined) row.auto_approve = patch.autoApprove;
   if (patch.cadenceMinutes !== undefined) row.cadence_minutes = patch.cadenceMinutes;
   if (patch.maxTasksPerRun !== undefined) row.max_tasks_per_run = patch.maxTasksPerRun;
-  const { error } = await supabaseAdmin.from("growth_auto_mode").upsert(row).eq("id", 1);
+  const { error } = await supabaseAdmin.from("growth_auto_mode").upsert(row, { onConflict: "id" });
   if (error) throw new Error(`DB upsert failed: ${error.message}`);
   await supabaseAdmin
     .from("growth_agent_logs")
@@ -117,70 +120,105 @@ export async function runAutoLoop(): Promise<AutoRunResult> {
   if (!mode.enabled) {
     return { ran: false, drafted: 0, approved: 0, skipped: 0, reason: "disabled", summary: "Auto Mode is off." };
   }
+  // Concurrency guard: if a previous run is still in flight (cron fired again
+  // before the last run finished — covers/image-gen can take well over the
+  // cadence), no-op instead of overlapping. In-process flag (a single Vercel
+  // instance is the common case for a 30-min cron); cross-instance overlap
+  // would need a DB advisory lock, which PostgREST can't expose.
+  if (autoLoopRunning) {
+    return { ran: false, drafted: 0, approved: 0, skipped: 0, reason: "already-running", summary: "Auto Mode already running — skipped." };
+  }
   if (!(await withinBudget())) {
     await recordRun("budget exhausted — Auto Mode paused (raise the cap in Settings)");
     return { ran: false, drafted: 0, approved: 0, skipped: 0, reason: "budget", summary: "Budget exhausted — Auto Mode paused." };
   }
 
-  let drafted = 0;
-  let skipped = 0;
-  const cap = mode.maxTasksPerRun;
+  autoLoopRunning = true;
+  // Capture the run start so auto-approve only blesses drafts created THIS run
+  // (not stale pending drafts from days ago the founder forgot about).
+  const runStart = new Date().toISOString();
+  try {
+    let drafted = 0;
+    let skipped = 0;
+    const cap = mode.maxTasksPerRun;
 
-  // 1) Draft LinkedIn captions for articles that don't have one yet.
-  for (const meta of ARTICLES) {
-    if (drafted + skipped >= cap) break;
-    const url = SITE.url + articlePath(meta.slug);
-    try {
-      const r = await promoteArticle(url, { title: meta.title, description: meta.abstract });
-      if (r.status === "pending") drafted++;
-      else skipped++;
-    } catch (e) {
-      await logInfo("auto-promote-fail", url, (e as Error).message).catch(() => undefined);
-      skipped++;
+    // 1) Draft LinkedIn captions for articles that don't have one yet. Captions
+    //    are cheap + fast, so they get the full cap.
+    for (const meta of ARTICLES) {
+      if (drafted + skipped >= cap) break;
+      const url = SITE.url + articlePath(meta.slug);
+      try {
+        const r = await promoteArticle(url, { title: meta.title, description: meta.abstract });
+        if (r.status === "pending") drafted++;
+        else skipped++;
+      } catch (e) {
+        await logInfo("auto-promote-fail", url, (e as Error).message).catch(() => undefined);
+        skipped++;
+      }
     }
-  }
 
-  // 2) Draft covers for visual-less articles (separate budget from the cap above
-  //    so captions aren't starved by slower image gen; still bounded by the cap).
-  for (const meta of ARTICLES) {
-    if (meta.visual) continue;
-    if (drafted + skipped >= cap) break;
-    try {
-      const r = await generateCoverDraft(meta);
-      if (r.status === "pending") drafted++;
-      else skipped++;
-    } catch (e) {
-      await logInfo("auto-cover-fail", meta.slug, (e as Error).message).catch(() => undefined);
-      skipped++;
+    // 2) Draft covers for visual-less articles. Covers get their OWN sub-cap
+    //    (independent of the caption accumulator) so the caption loop can no
+    //    longer starve them — the old shared accumulator let captions consume
+    //    the whole cap and the cover loop's first check broke immediately.
+    //    Bounded to a few per run (each is ~$0.04 + slow image gen).
+    const coverCap = Math.max(1, Math.min(cap, 3));
+    let coverDrafted = 0;
+    let coverSkipped = 0;
+    for (const meta of ARTICLES) {
+      if (meta.visual) continue;
+      if (coverDrafted + coverSkipped >= coverCap) break;
+      try {
+        const r = await generateCoverDraft(meta);
+        if (r.status === "pending") coverDrafted++;
+        else coverSkipped++;
+      } catch (e) {
+        await logInfo("auto-cover-fail", meta.slug, (e as Error).message).catch(() => undefined);
+        coverSkipped++;
+      }
     }
-  }
+    drafted += coverDrafted;
+    skipped += coverSkipped;
 
-  // 3) Optional auto-approve: flip pending drafts → approved (audited auto=true).
-  //    Publish stays a founder click (cover → GitHub; LinkedIn → deep-link).
-  let approved = 0;
-  if (mode.autoApprove) {
-    approved = await autoApprovePending();
-  }
+    // 3) Optional auto-approve: flip THIS run's pending linkedin/cover drafts →
+    //    approved (audited auto=true). Publish stays a founder click.
+    let approved = 0;
+    if (mode.autoApprove) {
+      approved = await autoApprovePending(runStart);
+    }
 
-  const summary = `Auto Mode run: drafted=${drafted} skipped=${skipped}${mode.autoApprove ? ` approved=${approved}` : ""}`;
-  await recordRun(summary);
-  await logInfo("auto-run", "global", summary).catch(() => undefined);
-  return { ran: true, drafted, approved, skipped, summary };
+    const summary = `Auto Mode run: drafted=${drafted} skipped=${skipped}${mode.autoApprove ? ` approved=${approved}` : ""}`;
+    await recordRun(summary);
+    await logInfo("auto-run", "global", summary).catch(() => undefined);
+    return { ran: true, drafted, approved, skipped, summary };
+  } finally {
+    autoLoopRunning = false;
+  }
 }
 
-/** Flip pending drafts → approved + write a growth_approvals row marked auto.
- *  Capped so one run can't approve a huge backlog blindly. Never publishes. */
-async function autoApprovePending(): Promise<number> {
+/**
+ * Flip THIS run's pending linkedin/cover drafts → approved + write a
+ * growth_approvals row marked auto. Scoped to drafts created since `runStart`
+ * AND to the kinds Auto Mode produces (linkedin, cover) — so a stale
+ * article/video-script/inbox-outline draft from days ago is NEVER silently
+ * auto-blessed. Capped at 10. Records exactly which drafts (id + kind) were
+ * approved so the founder can audit. Never publishes.
+ */
+async function autoApprovePending(runStart: string): Promise<number> {
   if (!supabaseAdmin) return 0;
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_drafts")
       .select("id,kind,url,title")
       .eq("status", "pending")
+      .in("kind", ["linkedin", "cover"])
+      .gte("created_at", runStart)
       .order("created_at", { ascending: true })
       .limit(10);
     if (error || !Array.isArray(data)) return 0;
     let count = 0;
+    const approvedIds: string[] = [];
+    const approvedKinds: string[] = [];
     for (const r of (data as Array<{ id: string; kind: string; url: string | null; title: string | null }>)) {
       // Insert the approval row FIRST (mirror approvals.ts ordering), then flip.
       const { error: insErr } = await supabaseAdmin.from("growth_approvals").insert({
@@ -190,11 +228,16 @@ async function autoApprovePending(): Promise<number> {
       const { error: upErr } = await supabaseAdmin.from("growth_drafts").update({ status: "approved" }).eq("id", r.id);
       if (upErr) continue;
       count++;
+      approvedIds.push(r.id);
+      approvedKinds.push(r.kind);
     }
     if (count > 0) {
       await supabaseAdmin
         .from("growth_agent_logs")
-        .insert({ level: "info", action: "auto-approve", scope: "global", detail: `auto-approved ${count} pending draft(s)` })
+        .insert({
+          level: "info", action: "auto-approve", scope: "global",
+          detail: `auto-approved ${count} draft(s): ${approvedIds.map((id, i) => `${approvedKinds[i]}:${id.slice(0, 8)}`).join(", ")}`,
+        })
         .then(() => undefined, () => undefined);
     }
     return count;

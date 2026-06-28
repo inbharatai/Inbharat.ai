@@ -141,11 +141,19 @@ function normalizeDomain(u: string): string {
 async function hasExistingDraft(url: string): Promise<boolean> {
   if (!supabaseAdmin) return false;
   try {
+    // Only treat the article as "already drafted" when a draft with a USABLE
+    // (non-null) caption exists. A parse_failed / model-error draft has
+    // body_md = null — counting that as "done" permanently orphaned every
+    // article from ever getting a caption (one thinking-budget-starvation run
+    // on 26 Jun left all 11 articles with null-caption rows, after which the
+    // idempotency gate skipped them forever, even after the model was fixed).
+    // Re-drafting a null-caption article is always safe + desired.
     const { data } = await supabaseAdmin
       .from("growth_drafts")
       .select("id")
       .eq("url", url)
       .eq("kind", "linkedin")
+      .not("body_md", "is", null)
       .limit(1);
     return Array.isArray(data) && data.length > 0;
   } catch {
@@ -253,10 +261,18 @@ async function generatePromotionDraft(
       : [];
     // Rough token estimate for usage logging (chars/4 heuristic).
     const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
-    void logUsage({
+    // Await (not fire-and-forget) so the spend cache busts BEFORE this returns —
+    // the Auto Mode caption loop calls promoteArticle in a tight sequence, and a
+    // stale monthSpentCache would let the next iteration's withinBudget pass
+    // against pre-this-call spend (a soft budget bypass). logUsage catches its
+    // own errors, so awaiting never throws.
+    await logUsage({
       model: choice.model,
       task,
       promptTokens: Math.ceil((system.length + user.length) / 4),
+      // Math.ceil must wrap the WHOLE expression — `Math.ceil(n) / 4` (the old
+      // form) ceils an integer (a no-op) then divides, recording a FRACTIONAL
+      // completion-token count in growth_model_usage. Match inbox.ts/articleWriter.
       completionTokens: Math.ceil((raw?.length ?? 0) / 4),
       totalTokens,
       costUsd: estimateCost(choice, totalTokens),

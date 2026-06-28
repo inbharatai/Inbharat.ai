@@ -103,6 +103,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ─── LinkedIn publish: mark published + return the official share deep-link ─
+  // The LinkedIn share flow is ONLY for kind='linkedin' drafts (they carry the
+  // article URL to prefill the share link). The cover/article/video-script kinds
+  // are routed above; inbox-outline / media-candidate drafts have url=null and no
+  // share target, so they must never reach this fallback — guard explicitly so an
+  // approved inbox/media draft returns a clear 409 instead of a confusing
+  // "draft has no URL to share" from the null check below.
+  if (kind !== "linkedin") {
+    return res.status(409).json({ ok: false, code: "CONFLICT", error: `LinkedIn publish is for 'linkedin' drafts (this draft is kind='${kind}' with no share URL). Copy its caption manually instead.`, requestId });
+  }
   const articleUrl = draft.url as string | null;
   if (!articleUrl) {
     return res.status(409).json({ ok: false, code: "CONFLICT", error: "draft has no URL to share.", requestId });

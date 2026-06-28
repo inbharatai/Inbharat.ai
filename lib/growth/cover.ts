@@ -90,7 +90,11 @@ export async function generateCoverDraft(meta: ArticleMeta): Promise<CoverDraft>
   }
 
   const costUsd = estimateCoverCost();
-  void logUsage({
+  // Await (not fire-and-forget) so the spend cache busts before this returns —
+  // the Auto Mode cover loop calls generateCoverDraft in sequence, and covers
+  // are the most expensive item (~$0.04 each), so a stale cache could let the
+  // loop overshoot the cap. logUsage catches its own errors, so awaiting is safe.
+  await logUsage({
     model: choice.model, task,
     // Image gen has no token counts; record the prompt size only for audit.
     promptTokens: Math.ceil(prompt.length / 4),

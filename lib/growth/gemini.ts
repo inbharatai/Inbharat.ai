@@ -177,7 +177,14 @@ export async function callGeminiImage(
   const timeoutMs = opts.timeoutMs ?? 60000;
   const body = JSON.stringify({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+    generationConfig: {
+      responseModalities: ["TEXT", "IMAGE"],
+      // Consistency with the thinking-model rule (callGemini/Agent/Vision all
+      // set this): if the cover model is ever swapped to a thinking-capable image
+      // model via GROWTH_COVER_MODEL, thinking tokens would otherwise starve the
+      // image output budget. No-op on the current gemini-2.5-flash-image.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
   });
 
   let lastErr: unknown;

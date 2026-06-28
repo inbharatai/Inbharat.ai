@@ -199,9 +199,23 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
   if (!isModelConfigured(choice) || !(await withinBudget())) {
     return { caption: excerpt.slice(0, 600) || null, note: "model not configured or budget exhausted — stored raw excerpt" };
   }
+  // CMO context (Phase D/B): inject the founder's positioning/ICP/voice +
+  // global rules + fed-inbox assets into the DRAFT prompt so the first-pass
+  // candidate is on-brand from the start — not only into the critique pass
+  // (which used to be the only place these blocks landed, so an inbox drop was
+  // drafted as a generic copy assistant and only revised toward the brand).
+  // Mirrors promoter.ts / articleWriter.ts. Loaded once and reused for the
+  // critique pass below to avoid 3 redundant DB reads.
+  const strategyBlock = formatStrategyBlock(await loadStrategy());
+  const rulesBlock = formatRulesBlock(await loadGlobalRules());
+  const inboxBlock = formatInboxBlock(await loadInboxContext());
+
   const system =
     "You are a B2B content assistant for InBharat AI. The founder dropped raw content. Turn it into a concise, hype-free LinkedIn post draft that teases the idea and drives engagement. " +
-    "Respond ONLY with compact JSON: {\"caption\": string}.";
+    "Respond ONLY with compact JSON: {\"caption\": string}." +
+    (strategyBlock ? `\n\n${strategyBlock}` : "") +
+    (rulesBlock ? `\n\n${rulesBlock}` : "") +
+    (inboxBlock ? `\n\n${inboxBlock}` : "");
   const user = `Source file: ${name}\nContent:\n${excerpt}\n\nWrite a 60–90 word LinkedIn caption in the founder's voice. Return JSON only.`;
 
   const redacted = redact(`${system}\n\n${user}`);
@@ -235,9 +249,9 @@ async function draftFromText(text: string, name: string): Promise<DraftResult> {
     const crit = await critiqueAndRevise({
       draftBody: caption,
       context: { url: null, kind: "inbox-outline", sourceName: name },
-      rulesBlock: formatRulesBlock(await loadGlobalRules()),
-      inboxBlock: formatInboxBlock(await loadInboxContext()),
-      strategyBlock: formatStrategyBlock(await loadStrategy()),
+      rulesBlock,
+      inboxBlock,
+      strategyBlock,
     });
     const finalCaption = crit.revised ?? caption;
     return {

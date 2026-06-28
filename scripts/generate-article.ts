@@ -66,28 +66,6 @@ async function callGemini(model: string, system: string, user: string, maxTokens
   return text;
 }
 
-async function callOpenAI(model: string, system: string, user: string, maxTokens: number, temp: number): Promise<string> {
-  const key = process.env.GROWTH_OPENAI_API_KEY;
-  if (!key) throw new Error("GROWTH_OPENAI_API_KEY not set");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      response_format: { type: "json_object" },
-      temperature: temp,
-      max_tokens: maxTokens,
-    }),
-    signal: AbortSignal.timeout(60000),
-  });
-  if (!res.ok) throw new Error(`openai HTTP ${res.status}: ${await res.text().catch(() => "")}`);
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string") throw new Error("openai empty response");
-  return text;
-}
-
 function safeParse<T>(raw: string): T | null {
   try { return JSON.parse(raw) as T; } catch { /* fall through */ }
   const m = raw.match(/\{[\s\S]*\}/);
@@ -135,7 +113,12 @@ async function main() {
   }
   console.log(`[generate] draft ok — "${article.title}" (${article.bodyMarkdown.split(/\s+/).length} words, $${draftCost.toFixed(6)})`);
 
-  // ─── Accuracy / critique pass (openai gpt-4.1-mini, the agent's review model) ───
+  // ─── Accuracy / critique pass (the agent's review model — Gemini since the
+  // 2026-06-27 Gemini-only overhaul; pickModel("review") → gemini-2.5-flash). The
+  // old code called callOpenAI(reviewChoice.model, …), sending a Gemini model
+  // name to OpenAI's API — the pass silently failed every time (OpenAI rejects the
+  // model name, or GROWTH_OPENAI_API_KEY was never set since the default provider
+  // is gemini). Use the script's own callGemini helper so the critique actually runs.
   let verdict: AccuracyVerdict | null = null;
   const reviewChoice = pickModel("review");
   if (isModelConfigured(reviewChoice) && (await withinBudget())) {
@@ -149,7 +132,7 @@ async function main() {
     } else {
       console.log(`[generate] critiquing with ${reviewChoice.provider}/${reviewChoice.model}...`);
       try {
-        const reviewRaw = await callOpenAI(reviewChoice.model, reviewSystem, reviewUser, 1200, 0.3);
+        const reviewRaw = await callGemini(reviewChoice.model, reviewSystem, reviewUser, 1200, 0.3);
         verdict = safeParse<AccuracyVerdict>(reviewRaw);
         const rTokens = Math.ceil((reviewSystem.length + reviewUser.length + reviewRaw.length) / 4);
         void logUsage({ model: reviewChoice.model, task: "review", promptTokens: Math.ceil((reviewSystem.length + reviewUser.length) / 4), completionTokens: Math.ceil(reviewRaw.length / 4), totalTokens: rTokens, costUsd: estimateCost(reviewChoice, rTokens), status: verdict ? "ok" : "parse_failed", contextUrl: null, provider: reviewChoice.provider });
@@ -175,7 +158,10 @@ async function main() {
     title: article.title,
     description: article.description,
     category: article.category,
-    datePublished: "2026-06-27",
+    // Today's date — the old hardcoded "2026-06-27" stamped every generated
+    // article with the same stale publish date. This is a standalone tsx script
+    // (not a Workflow script), so new Date() is fine here.
+    datePublished: new Date().toISOString().slice(0, 10),
     readMinutes: Math.max(5, Math.round(article.bodyMarkdown.split(/\s+/).length / 200)),
     abstract: article.abstract,
     faq: article.faq,

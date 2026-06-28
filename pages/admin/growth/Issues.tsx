@@ -65,6 +65,28 @@ function strError(e: unknown): string {
   }
 }
 
+/** Per-kind badge (label + tailwind classes) for the draft cards. The old code
+ *  collapsed every non-cover/non-article/non-video-script kind to "linkedin",
+ *  so inbox-outline + media-candidate drafts were mislabeled as LinkedIn drafts
+ *  and given a "Publish to LinkedIn" button that can't succeed (they have no
+ *  share URL). Map each kind to an honest label + a distinct, muted color for the
+ *  kinds that have no publish target. */
+function kindBadge(kind: string): { label: string; cls: string } {
+  switch (kind) {
+    case 'cover':
+      return { label: 'cover', cls: 'bg-[#f59f4f]/20 text-[#f6bf84]' };
+    case 'article':
+    case 'video-script':
+      return { label: kind, cls: 'bg-violet-500/15 text-violet-300' };
+    case 'inbox-outline':
+      return { label: 'inbox', cls: 'bg-slate-500/15 text-slate-300' };
+    case 'media-candidate':
+      return { label: 'media', cls: 'bg-slate-500/15 text-slate-300' };
+    default:
+      return { label: 'linkedin', cls: 'bg-sky-500/15 text-sky-300' };
+  }
+}
+
 const Issues: React.FC = () => {
   const { fetchJson } = useAdminApi();
   const [pages, setPages] = useState<GrowthPageRow[]>([]);
@@ -335,8 +357,8 @@ const Issues: React.FC = () => {
               <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
-                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${d.kind === "cover" ? "bg-[#f59f4f]/20 text-[#f6bf84]" : "bg-sky-500/15 text-sky-300"}`}>
-                    {d.kind === "cover" ? "cover" : "linkedin"}
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
+                    {kindBadge(d.kind).label}
                   </span>
                 </div>
                 {d.kind === "cover" ? (
@@ -420,8 +442,8 @@ const Issues: React.FC = () => {
               <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
-                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${d.kind === "cover" ? "bg-[#f59f4f]/20 text-[#f6bf84]" : d.kind === "article" || d.kind === "video-script" ? "bg-violet-500/15 text-violet-300" : "bg-sky-500/15 text-sky-300"}`}>
-                    {d.kind === "cover" ? "cover" : d.kind === "article" ? "article" : d.kind === "video-script" ? "video-script" : "linkedin"}
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
+                    {kindBadge(d.kind).label}
                   </span>
                 </div>
                 {d.kind === "cover" ? (
@@ -519,7 +541,7 @@ const Issues: React.FC = () => {
                     >
                       {publishingId === d.id ? "Committing…" : "Publish script → repo"}
                     </button>
-                  ) : (
+                  ) : d.kind === "linkedin" ? (
                     <button
                       onClick={() => publishDraft(d)}
                       disabled={publishingId === d.id}
@@ -527,6 +549,13 @@ const Issues: React.FC = () => {
                     >
                       {publishingId === d.id ? "Preparing…" : "Publish to LinkedIn"}
                     </button>
+                  ) : (
+                    /* inbox-outline / media-candidate drafts have no share URL and no
+                       publish target — show an honest note instead of a button that
+                       would 409. The founder can copy the caption from the body above. */
+                    <p className="text-[11px] italic text-[#7a9ab8]">
+                      No publish target for this draft kind — copy the caption above to use it manually.
+                    </p>
                   )}
                 </div>
               </div>

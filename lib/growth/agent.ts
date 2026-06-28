@@ -89,19 +89,43 @@ export async function runAgentTurn(
 
   // Load history BEFORE persisting the new user message, so replay doesn't
   // duplicate the current message (we push it separately below with the
-  // attachment block). Persist the user message right after so it's saved
-  // even if the model call later fails.
+  // attachment block).
   const history = await loadHistory(tid);
+
+  // Redact-gate the user's message BEFORE persisting or sending it. The prior
+  // code only scanned the first 2000 chars of the JSON contents (the current
+  // message is pushed at the END, after up to 50 history rows, so a secret in
+  // a new message landed beyond the window and was never detected) AND sent
+  // the original, un-redacted contents to the model. If the message carries a
+  // secret, persist a REDACTED placeholder (never the raw secret) + abort the
+  // turn — the model never sees it. Same rule as the other draft paths.
+  const userRedact = redact(message);
+  if (userRedact.containedSecret) {
+    await persistMessage(tid, "user", userRedact.redacted, null, null, null);
+    const reply2 = "I caught what looks like a secret in your message and did NOT send it to the model — I've saved a redacted copy here. Remove the secret and send it again.";
+    await persistMessage(tid, "assistant", reply2, null, null, null);
+    return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted" };
+  }
+  // Persist the user message (now known secret-free) so it's saved even if the
+  // model call later fails.
   await persistMessage(tid, "user", message, null, null, null);
   const attachmentBlock = await buildAttachmentBlock(attachmentItemIds);
 
-  // Budget gate at turn start: if over cap, run a text-only turn (no tools) so
-  // the agent can still say "budget exhausted — raise the cap in Settings"
-  // without spending more. Tools themselves also re-check withinBudget.
+  // Budget gate at turn start: if over cap, answer directly WITHOUT a paid
+  // model call. The prior code still invoked the model with tools=[] to "say"
+  // budget exhausted — that spent tokens AFTER the budget was already out (the
+  // opposite of fail-closed). Tools themselves also re-check withinBudget.
   const budgetOk = await withinBudget();
-  const tools: GeminiFunctionDeclaration[] = budgetOk ? AGENT_TOOLS : [];
+  if (!budgetOk) {
+    const reply = "The monthly budget is exhausted — raise the cap in Settings and I'll pick this up. I've saved your message; send it again after you raise the cap.";
+    await persistMessage(tid, "assistant", reply, null, null, null);
+    return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), note: "budget exhausted" };
+  }
+  const tools: GeminiFunctionDeclaration[] = AGENT_TOOLS;
 
-  // Build contents: replay history as text turns + the current user message.
+  // Build contents: replay history as text turns (secrets in old history are
+  // masked by redact during replay so they never reach the model) + the
+  // current user message.
   const contents: unknown[] = replayHistory(history);
   const userText = attachmentBlock ? `${message}\n\n${attachmentBlock}` : message;
   contents.push({ role: "user", parts: [{ text: userText }] });
@@ -119,9 +143,24 @@ export async function runAgentTurn(
   let iteration = 0;
   let reply: string | null = null;
   for (; iteration < MAX_ITERATIONS; iteration++) {
-    const redacted = redact(`${system}\n${JSON.stringify(contents).slice(0, 2000)}`);
-    if (redacted.containedSecret) {
-      const reply2 = "I caught what looks like a secret in the conversation and aborted the model call. Please remove it and try again.";
+    // Re-check the budget each iteration (not only at turn start). A turn that
+    // starts just under the cap can otherwise run MAX_ITERATIONS model calls +
+    // several tool-internal model calls, pushing spend past the cap before any
+    // re-check. logUsage (awaited below) busts the spend cache so this re-check
+    // observes the spend from the previous iteration.
+    if (iteration > 0 && !(await withinBudget())) {
+      reply = "I hit the monthly budget mid-turn — the work I queued is in Issues for you to review. Raise the cap in Settings to continue.";
+      await persistMessage(tid, "assistant", reply, null, null, null);
+      break;
+    }
+
+    // Backstop secret scan over the FULL contents+system (no truncation). The
+    // user message + history are already redacted before they enter contents;
+    // this catches anything that slipped through (e.g. a secret in an
+    // attachment block built from inbox data). Abort instead of leaking.
+    const scan = redact(`${system}\n${JSON.stringify(contents)}`);
+    if (scan.containedSecret) {
+      const reply2 = "I caught what looks like a secret in the conversation context and aborted the model call. Please remove it and try again.";
       await persistMessage(tid, "assistant", reply2, null, null, null);
       return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted" };
     }
@@ -136,10 +175,12 @@ export async function runAgentTurn(
       return { ok: false, threadId: tid, reply: errMsg, messages: await loadHistory(tid), note: "model error" };
     }
 
-    // Log usage (rough token estimate from the last contents size + reply length).
+    // Log usage (rough token estimate from the last contents size + reply
+    // length). Awaited (not fire-and-forget) so the spend cache busts before the
+    // next iteration's withinBudget re-check above.
     const lastText = result.text ?? "";
     const totalTokens = Math.ceil((system.length + lastText.length) / 4) + 200;
-    void logUsage({
+    await logUsage({
       model: choice.model, task: "chat",
       promptTokens: Math.ceil(system.length / 4),
       completionTokens: Math.ceil(lastText.length / 4),
@@ -147,9 +188,9 @@ export async function runAgentTurn(
       status: "ok", contextUrl: null, provider: choice.provider,
     });
 
-    if (result.toolCalls.length === 0 || tools.length === 0) {
-      // No tools (or budget-gated to no tools) → text answer ends the turn.
-      reply = result.text ?? (tools.length === 0 ? "The monthly budget is exhausted — raise it in Settings to let me run tools again." : null);
+    if (result.toolCalls.length === 0) {
+      // Text answer (no tool calls) ends the turn.
+      reply = result.text ?? null;
       if (reply) await persistMessage(tid, "assistant", reply, null, null, null);
       break;
     }
@@ -229,19 +270,20 @@ function replayHistory(rows: MessageRow[]): unknown[] {
   const out: unknown[] = [];
   for (const r of rows) {
     if (r.role === "user") {
-      if (r.content) out.push({ role: "user", parts: [{ text: r.content }] });
+      if (r.content) out.push({ role: "user", parts: [{ text: redact(r.content).redacted }] });
     } else if (r.role === "assistant") {
       if (r.tool_name) {
         // Narrate a prior tool call as a model text turn.
         const narr = `Called tool ${r.tool_name}(${JSON.stringify(r.tool_args ?? {}).slice(0, 120)}).`;
-        out.push({ role: "model", parts: [{ text: r.content ? `${r.content}\n${narr}` : narr }] });
+        const body = r.content ? `${redact(r.content).redacted}\n${narr}` : narr;
+        out.push({ role: "model", parts: [{ text: body }] });
       } else if (r.content) {
-        out.push({ role: "model", parts: [{ text: r.content }] });
+        out.push({ role: "model", parts: [{ text: redact(r.content).redacted }] });
       }
     } else if (r.role === "tool" && r.tool_name) {
       // Narrate the prior tool result as a user text turn (so the model sees it).
       const res = r.toolResult ? JSON.stringify(r.toolResult).slice(0, 240) : "(no result)";
-      out.push({ role: "user", parts: [{ text: `[result of ${r.tool_name}]: ${res}` }] });
+      out.push({ role: "user", parts: [{ text: redact(`[result of ${r.tool_name}]: ${res}`).redacted }] });
     }
   }
   return out;
