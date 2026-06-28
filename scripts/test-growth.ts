@@ -688,6 +688,23 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const allDrafted = calSlugs.slice(half);
   check("pickNextCalendarTopic all built → null", pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, allPublished, allDrafted) === null);
 
+  // summarizeToolResult (history replay) — MUST preserve the draftId the model
+  // produced in an earlier turn, even when the result carries a long preview that
+  // the old JSON.stringify+slice(0,240) truncated BEFORE the draftId field. This
+  // is the cross-turn memory-retention fix for "generate_cover → draft not found".
+  const { summarizeToolResult } = await import("../lib/growth/agent.js");
+  const longPreview = "x".repeat(600);
+  const writeRes = { ok: true, message: `Drafted article "Neural Networks" — review in Issues.`, draftId: "abc-123-uuid", slug: "neural-networks", title: "Neural Networks", category: "AI Foundations", readMinutes: 5, preview: longPreview };
+  const summary = summarizeToolResult("write_article", writeRes);
+  check("summarizeToolResult preserves draftId past a long preview", summary.includes("draftId=abc-123-uuid"), summary);
+  check("summarizeToolResult preserves slug", summary.includes("slug=neural-networks"), summary);
+  check("summarizeToolResult includes ok + tool name", summary.includes("ok=true") && summary.includes("write_article"), summary);
+  check("summarizeToolResult does NOT dump the full 600-char preview", !summary.includes("x".repeat(200)), `preview leaked: ${summary.length} chars`);
+  const nullRes = summarizeToolResult("generate_cover", null);
+  check("summarizeToolResult null result → safe placeholder", nullRes.includes("no result"), nullRes);
+  const failRes = summarizeToolResult("generate_cover", { ok: false, message: "draft not found", draftId: "zzz" });
+  check("summarizeToolResult failure keeps ok=false + message + id", failRes.includes("ok=false") && failRes.includes("draft not found") && failRes.includes("draftId=zzz"), failRes);
+
   // Gemini agent + vision helpers fail fast + clearly when the key is absent
   // (the only model-touching path that's safe to assert hermetically — it throws
   // before any fetch). This guards the Gemini-only constraint: no key → no call.

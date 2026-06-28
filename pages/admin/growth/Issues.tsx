@@ -107,6 +107,13 @@ const Issues: React.FC = () => {
   // action; only one draft's result/error shows at a time.
   const [publishResult, setPublishResult] = useState<{ draftId: string; shareUrl: string; caption: string } | null>(null);
   const [publishError, setPublishError] = useState<{ draftId: string; reason: string } | null>(null);
+  // Inline SUCCESS notice for article/cover/video-script publish, pinned to the
+  // draft card so the founder sees feedback right next to the button they clicked.
+  // LinkedIn has its own share-URL UI (publishResult) below; these kinds just need
+  // a confirmation line. Together with publishError this fixes "I click Publish
+  // article → site and nothing happens" — the old code wrote the error/success to
+  // draftMsg at the TOP of the page, far from the button, so it was invisible.
+  const [publishOk, setPublishOk] = useState<{ draftId: string; message: string } | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
 
   /** Open the LinkedIn share URL from a fresh user gesture (button click), so the
@@ -203,6 +210,7 @@ const Issues: React.FC = () => {
     setDraftMsg(null);
     setPublishError(null);
     setPublishResult(null);
+    setPublishOk(null);
     const { data, error } = await fetchJson<{ ok: boolean; shareUrl?: string; summary?: string; title?: string; error?: string; code?: string }>("/api/growth/publish", {
       method: "POST",
       body: JSON.stringify({ draftId: d.id, mode: publishMode, companyId: publishMode === "company" ? companyId.trim() : undefined }),
@@ -253,6 +261,8 @@ const Issues: React.FC = () => {
   async function publishCover(d: DraftRow) {
     setPublishingId(d.id);
     setDraftMsg(null);
+    setPublishError(null);
+    setPublishOk(null);
     const { data, error } = await fetchJson<{
       ok: boolean;
       kind?: string;
@@ -269,20 +279,24 @@ const Issues: React.FC = () => {
     setPublishingId(null);
     if (error || !data?.ok) {
       const reason = strError(error) || strError(data?.error) || data?.code || "commit failed";
+      setPublishError({ draftId: d.id, reason });
       setDraftMsg(`Cover publish failed: ${reason}`);
       return;
     }
-    setDraftMsg(
+    const msg =
       `Cover published — ${data.filename} committed to GitHub (png ${data.pngCommitSha?.slice(0, 7) ?? "?"}${
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
-      }). Vercel will auto-rebuild; the article hero + OG tag will pick it up.`,
-    );
+      }). Vercel will auto-rebuild; the article hero + OG tag will pick it up.`;
+    setPublishOk({ draftId: d.id, message: msg });
+    setDraftMsg(msg);
     await loadDrafts();
   }
 
   async function publishArticle(d: DraftRow) {
     setPublishingId(d.id);
     setDraftMsg(null);
+    setPublishError(null);
+    setPublishOk(null);
     const { data, error } = await fetchJson<{
       ok: boolean; kind?: string; slug?: string; fileUrl?: string;
       mdCommitSha?: string; metaCommitSha?: string; error?: string; code?: string;
@@ -290,30 +304,39 @@ const Issues: React.FC = () => {
     setPublishingId(null);
     if (error || !data?.ok) {
       const reason = strError(error) || strError(data?.error) || data?.code || "commit failed";
+      // Pin the error to THIS card (inline banner) AND echo at top — the old code
+      // only set draftMsg at the top, far from the button → "nothing happens".
+      setPublishError({ draftId: d.id, reason });
       setDraftMsg(`Article publish failed: ${reason}`);
       return;
     }
-    setDraftMsg(
+    const msg =
       `Article published — ${data.slug} committed to GitHub (md ${data.mdCommitSha?.slice(0, 7) ?? "?"}${
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
-      }). Vercel will auto-rebuild; it goes live at ${data.fileUrl ?? "the hub"}.`,
-    );
+      }). Vercel will auto-rebuild; it goes live at ${data.fileUrl ?? "the hub"}.`;
+    setPublishOk({ draftId: d.id, message: msg });
+    setDraftMsg(msg);
     await loadDrafts();
   }
 
   async function publishVideoScript(d: DraftRow) {
     setPublishingId(d.id);
     setDraftMsg(null);
+    setPublishError(null);
+    setPublishOk(null);
     const { data, error } = await fetchJson<{ ok: boolean; slug?: string; mdCommitSha?: string; error?: string; code?: string }>(
       "/api/growth/publish", { method: "POST", body: JSON.stringify({ draftId: d.id, mode: "video-script" }) },
     );
     setPublishingId(null);
     if (error || !data?.ok) {
       const reason = strError(error) || strError(data?.error) || data?.code || "commit failed";
+      setPublishError({ draftId: d.id, reason });
       setDraftMsg(`Video script publish failed: ${reason}`);
       return;
     }
-    setDraftMsg(`Video script published — ${data.slug} committed to GitHub (sha ${data.mdCommitSha?.slice(0, 7) ?? "?"}). It's a reference artifact in the repo (no site wiring).`);
+    const msg = `Video script published — ${data.slug} committed to GitHub (sha ${data.mdCommitSha?.slice(0, 7) ?? "?"}). It's a reference artifact in the repo (no site wiring).`;
+    setPublishOk({ draftId: d.id, message: msg });
+    setDraftMsg(msg);
     await loadDrafts();
   }
 
@@ -493,6 +516,15 @@ const Issues: React.FC = () => {
                         Dismiss
                       </button>
                     </div>
+                  </div>
+                )}
+                {/* Inline SUCCESS banner for article/cover/video-script publish —
+                    pinned to this card so the founder sees the confirmation ( +
+                    commit shas + live URL) right next to the button they clicked. */}
+                {publishOk?.draftId === d.id && (
+                  <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/[0.08] p-2.5">
+                    <p className="text-[11px] font-semibold text-emerald-300">✓ {publishOk.message}</p>
+                    <button onClick={() => setPublishOk(null)} className="mt-1.5 text-[10px] text-[#7a9ab8] hover:text-[#c8d6e8]">Dismiss</button>
                   </div>
                 )}
                 {/* Prominent inline error banner — the real backend reason, pinned to

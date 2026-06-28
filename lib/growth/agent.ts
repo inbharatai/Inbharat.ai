@@ -309,6 +309,41 @@ async function buildAttachmentBlock(itemIds: string[]): Promise<string> {
   }
 }
 
+/** Compact a persisted tool result for history replay so the model can still
+ *  reference the ids it produced in EARLIER turns (draftId, slug, itemId, id,
+ *  filename, url) without bloating context with full previews/captions/bodies.
+ *
+ *  The old replay did `JSON.stringify(result).slice(0, 240)`, which truncated
+ *  LONG results (e.g. write_article's ~400-char `preview`) BEFORE the `draftId`
+ *  field — so in a later turn the model had lost the draftId and the next
+ *  generate_cover(redraft_caption, promote_article) call failed with
+ *  "draft not found" (the founder saw the agent ask them to re-confirm the id).
+ *  This ALWAYS surfaces the id-like fields + ok + message, capping only the
+ *  bulky non-identifying fields. Fixes the cross-turn memory-retention bug. */
+export function summarizeToolResult(name: string, result: ToolResult | null): string {
+  if (!result) return `(no result for ${name})`;
+  const ID_KEYS = ["draftId", "slug", "itemId", "id", "threadId", "filename", "url", "status"];
+  const parts: string[] = [`ok=${result.ok ? "true" : "false"}`];
+  if (typeof result.message === "string" && result.message) parts.push(`msg=${result.message.slice(0, 160)}`);
+  const seen = new Set(["ok", "message"]);
+  for (const key of ID_KEYS) {
+    const v = (result as Record<string, unknown>)[key];
+    if (typeof v === "string" && v) { parts.push(`${key}=${v}`); seen.add(key); }
+    else if (typeof v === "number") { parts.push(`${key}=${v}`); seen.add(key); }
+  }
+  // A short preview of any remaining fields (title, category, captionPreview, …)
+  // capped so context stays lean — never the full body/preview/caption.
+  const extra: string[] = [];
+  for (const [k, v] of Object.entries(result)) {
+    if (seen.has(k) || v == null) continue;
+    const s = typeof v === "string" ? v : JSON.stringify(v);
+    extra.push(`${k}=${s.slice(0, 80)}`);
+    if (extra.length >= 4) break;
+  }
+  if (extra.length) parts.push(extra.join(", "));
+  return `[result of ${name}]: ${parts.join("; ")}`;
+}
+
 /** Replay persisted history as alternating user/model text turns. Tool calls
  *  are narrated as a model text turn so the model has context without us having
  *  to reconstruct Gemini's strict multi-part tool turns. */
@@ -328,8 +363,7 @@ function replayHistory(rows: MessageRow[]): unknown[] {
       }
     } else if (r.role === "tool" && r.tool_name) {
       // Narrate the prior tool result as a user text turn (so the model sees it).
-      const res = r.toolResult ? JSON.stringify(r.toolResult).slice(0, 240) : "(no result)";
-      out.push({ role: "user", parts: [{ text: redact(`[result of ${r.tool_name}]: ${res}`).redacted }] });
+      out.push({ role: "user", parts: [{ text: redact(summarizeToolResult(r.tool_name, r.toolResult)).redacted }] });
     }
   }
   return out;
