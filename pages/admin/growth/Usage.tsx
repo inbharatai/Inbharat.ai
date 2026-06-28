@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 
 /**
@@ -110,6 +110,11 @@ const Usage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const [capInput, setCapInput] = useState("");
+  // Seed the cap input only once (first successful budget fetch). The budget
+  // endpoint is independent of the usage window, but `load(days)` re-runs on
+  // every window-selector change — without this guard it would overwrite the
+  // founder's in-progress edit each time they switched 7/14/30/60/90d.
+  const didSeedCap = useRef(false);
   const [saving, setSaving] = useState(false);
   const [budgetMsg, setBudgetMsg] = useState<string | null>(null);
 
@@ -124,7 +129,10 @@ const Usage: React.FC = () => {
       else setError(null);
       setUsage(u.data);
       setBudget(b.data);
-      if (b.data?.capUsd != null) setCapInput(String(b.data.capUsd));
+      if (b.data?.capUsd != null && !didSeedCap.current) {
+        setCapInput(String(b.data.capUsd));
+        didSeedCap.current = true;
+      }
       setLoading(false);
     },
     [fetchJson],

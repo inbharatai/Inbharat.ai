@@ -115,6 +115,22 @@ const Issues: React.FC = () => {
   // draftMsg at the TOP of the page, far from the button, so it was invisible.
   const [publishOk, setPublishOk] = useState<{ draftId: string; message: string } | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  // Drafts that just published successfully. The backend flips status →
+  // 'published', so loadDrafts() drops them out of approvedDrafts and the card
+  // hosting the publishOk/publishResult banner (and the "Open LinkedIn ↗"
+  // button) would unmount the instant publish succeeds — defeating the whole
+  // "open LinkedIn from a real click gesture" design (the founder clicks
+  // Publish, the button to actually open LinkedIn disappears). We pin the
+  // just-published draft here so it stays visible with its result banner until
+  // the founder dismisses it; only then does it leave the page.
+  const [justPublished, setJustPublished] = useState<Record<string, DraftRow>>({});
+  const dismissJustPublished = (id: string) =>
+    setJustPublished((m) => {
+      if (!m[id]) return m;
+      const next = { ...m };
+      delete next[id];
+      return next;
+    });
 
   /** Open the LinkedIn share URL from a fresh user gesture (button click), so the
    *  popup is never blocked. Falls back to a same-tab navigation if blocked. */
@@ -189,9 +205,19 @@ const Issues: React.FC = () => {
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
   const approvedDrafts = drafts.filter((d) => d.status === "approved");
-  // The Personal/Company toggle + companyId field only apply to LinkedIn drafts;
-  // hide them when only cover drafts are awaiting publish.
-  const approvedLinkedinDrafts = approvedDrafts.filter((d) => d.kind !== "cover");
+  // Just-published drafts that are no longer in approvedDrafts (status flipped
+  // to 'published' server-side) but should stay visible until dismissed so the
+  // founder can click "Open LinkedIn ↗" / read the commit-SHA confirmation.
+  const justPublishedList = Object.values(justPublished).filter(
+    (d) => !approvedDrafts.some((a) => a.id === d.id),
+  );
+  const approvedCards = [...approvedDrafts, ...justPublishedList];
+  // The Personal/Company toggle + companyId field ONLY apply to LinkedIn drafts
+  // (the publish handler routes by kind and ignores mode/companyId for
+  // article/cover/video-script). Show the toggle only when a LinkedIn draft is
+  // actually awaiting publish — the old code gated on `kind !== "cover"`, which
+  // rendered an inert toggle for article/video-script drafts too.
+  const hasLinkedinToPublish = approvedDrafts.some((d) => d.kind === "linkedin");
 
   async function publishDraft(d: DraftRow) {
     if (publishMode === "company" && !companyId.trim()) {
@@ -236,6 +262,7 @@ const Issues: React.FC = () => {
       // clipboard may be blocked; the caption is shown inline to copy manually
     }
     setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption });
+    setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg("Ready — click “Open LinkedIn ↗” and the composer opens with the caption + link pre-filled. Review and click Post. (Caption also copied to clipboard as backup.)");
     await loadDrafts();
   }
@@ -288,6 +315,7 @@ const Issues: React.FC = () => {
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
       }). Vercel will auto-rebuild; the article hero + OG tag will pick it up.`;
     setPublishOk({ draftId: d.id, message: msg });
+    setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
   }
@@ -315,6 +343,7 @@ const Issues: React.FC = () => {
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
       }). Vercel will auto-rebuild; it goes live at ${data.fileUrl ?? "the hub"}.`;
     setPublishOk({ draftId: d.id, message: msg });
+    setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
   }
@@ -336,6 +365,7 @@ const Issues: React.FC = () => {
     }
     const msg = `Video script published — ${data.slug} committed to GitHub (sha ${data.mdCommitSha?.slice(0, 7) ?? "?"}). It's a reference artifact in the repo (no site wiring).`;
     setPublishOk({ draftId: d.id, message: msg });
+    setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
   }
@@ -426,15 +456,20 @@ const Issues: React.FC = () => {
         </section>
       )}
 
-      {approvedDrafts.length > 0 && (
+      {approvedCards.length > 0 && (
         <section className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
-          <h2 className="text-[15px] font-bold text-white">Approved — ready to publish ({approvedDrafts.length})</h2>
+          <h2 className="text-[15px] font-bold text-white">
+            Approved — ready to publish ({approvedDrafts.length})
+            {justPublishedList.length > 0 && (
+              <span className="ml-2 text-[11px] font-semibold text-emerald-300">· {justPublishedList.length} just published</span>
+            )}
+          </h2>
           <p className="mt-1 text-[12px] text-[#9fb2c6]">
             One-click publish (human-gated). LinkedIn: copies the caption to your clipboard and opens the official
             share page prefilled with the article URL — you post it yourself. Cover: commits the PNG + wires the
             article `visual` field to GitHub (Vercel auto-rebuilds). Nothing auto-publishes.
           </p>
-          {approvedLinkedinDrafts.length > 0 && (
+          {hasLinkedinToPublish && (
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="flex rounded-lg border border-white/10 p-0.5">
                 <button
@@ -461,10 +496,15 @@ const Issues: React.FC = () => {
             </div>
           )}
           <div className="mt-3 space-y-3">
-            {approvedDrafts.map((d) => (
+            {approvedCards.map((d) => {
+              const justOut = !!justPublished[d.id];
+              return (
               <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
+                  {justOut && (
+                    <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300">published</span>
+                  )}
                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
                     {kindBadge(d.kind).label}
                   </span>
@@ -510,7 +550,7 @@ const Issues: React.FC = () => {
                         Copy caption
                       </button>
                       <button
-                        onClick={() => setPublishResult(null)}
+                        onClick={() => { setPublishResult(null); dismissJustPublished(d.id); }}
                         className="rounded-md border border-white/10 px-3 py-1.5 text-[11px] text-[#7a9ab8] hover:border-white/25"
                       >
                         Dismiss
@@ -524,7 +564,7 @@ const Issues: React.FC = () => {
                 {publishOk?.draftId === d.id && (
                   <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/[0.08] p-2.5">
                     <p className="text-[11px] font-semibold text-emerald-300">✓ {publishOk.message}</p>
-                    <button onClick={() => setPublishOk(null)} className="mt-1.5 text-[10px] text-[#7a9ab8] hover:text-[#c8d6e8]">Dismiss</button>
+                    <button onClick={() => { setPublishOk(null); dismissJustPublished(d.id); }} className="mt-1.5 text-[10px] text-[#7a9ab8] hover:text-[#c8d6e8]">Dismiss</button>
                   </div>
                 )}
                 {/* Prominent inline error banner — the real backend reason, pinned to
@@ -540,7 +580,14 @@ const Issues: React.FC = () => {
                   </div>
                 )}
                 <div className="mt-3 flex gap-2">
-                  {d.kind === "cover" ? (
+                  {justOut ? (
+                    /* Already published — the result banner above has the Open
+                       LinkedIn button (linkedin) or the commit-SHA confirmation
+                       (article/cover/video-script). No publish button to retry. */
+                    <p className="text-[11px] font-semibold text-emerald-300">
+                      ✓ Published — {d.kind === "linkedin" ? "click “Open LinkedIn ↗” above to post." : "see the confirmation above; dismiss it to clear this card."}
+                    </p>
+                  ) : d.kind === "cover" ? (
                     <>
                       <button
                         onClick={() => publishCover(d)}
@@ -591,7 +638,8 @@ const Issues: React.FC = () => {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

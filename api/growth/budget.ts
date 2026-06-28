@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { monthlyBudgetUsd, monthSpentUsd, bustBudgetCache } from "../../lib/growth/model-router.js";
+import { monthlyBudgetUsd, bustBudgetCache } from "../../lib/growth/model-router.js";
+import { round6, spendBlock } from "../../lib/growth/spend.js";
 
 /**
  * /api/growth/budget — live monthly spend cap for the Growth Agent.
@@ -18,18 +19,9 @@ const PatchBody = z.object({
   monthlyBudgetUsd: z.number().finite().min(MIN_CAP).max(MAX_CAP),
 });
 
-function round6(n: number): number {
-  return Math.round(n * 1_000_000) / 1_000_000;
-}
-
+/** Spend-vs-cap block — shared with insights/usage via lib/growth/spend.ts. */
 async function monthBlock() {
-  const { cap, source } = await monthlyBudgetUsd();
-  const spentUsd = await monthSpentUsd();
-  const now = new Date();
-  const dim = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
-  const dayOfMonth = now.getUTCDate();
-  const projectedUsd = dayOfMonth > 0 ? round6((spentUsd / dayOfMonth) * dim) : round6(spentUsd);
-  return { spentUsd: round6(spentUsd), capUsd: cap, projectedUsd, remainingUsd: round6(Math.max(0, cap - spentUsd)), source };
+  return spendBlock();
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

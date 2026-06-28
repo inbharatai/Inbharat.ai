@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { monthlyBudgetUsd, monthSpentUsd } from "../../lib/growth/model-router.js";
+import { round6, spendBlock } from "../../lib/growth/spend.js";
 
 /**
  * GET /api/growth/usage?days=30 — model spend + token usage, aggregated for the
@@ -158,17 +158,9 @@ function emptyTotals() {
   return { calls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, providers: 0, models: 0 };
 }
 
-/** Current-month spend vs the live budget cap + a linear projection to month-end. */
+/** Current-month spend vs the live budget cap + a linear projection to month-end.
+ *  Thin wrapper over the shared lib/growth/spend.ts so usage/insights/budget
+ *  can't drift apart on the projection formula. */
 async function monthBlock() {
-  const { cap, source } = await monthlyBudgetUsd();
-  const spentUsd = await monthSpentUsd();
-  const now = new Date();
-  const dim = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
-  const dayOfMonth = now.getUTCDate();
-  const projectedUsd = dayOfMonth > 0 ? round6((spentUsd / dayOfMonth) * dim) : round6(spentUsd);
-  return { spentUsd: round6(spentUsd), capUsd: cap, projectedUsd, remainingUsd: round6(Math.max(0, cap - spentUsd)), source };
-}
-
-function round6(n: number): number {
-  return Math.round(n * 1_000_000) / 1_000_000;
+  return spendBlock();
 }

@@ -87,14 +87,16 @@ const Settings: React.FC = () => {
         <Section title="Audit engine">
           <Row label="Crawler + SEO/GEO auditors" value="Enabled (audit-only)" ok />
           <Row label="Max pages per domain audit" value="25" />
-          <Row label="Daily cron endpoint" value="/api/growth/cron/daily (GET + POST)" />
+          <Row label="Daily audit cron" value="/api/growth/cron/daily (06:17 UTC)" />
+          <Row label="Morning plan cron" value="/api/growth/cron/morning (02:30 UTC = 8am IST)" />
         </Section>
 
         <Section title="Authorization & safety">
           <Row label="Default mode" value="Deny by default" ok />
-          <Row label="Human approval required" value="Yes — PR-only workflow" ok />
-          <Row label="Direct publishing" value="Disabled" ok />
-          <Row label="Secret redaction before model calls" value="On (Phase 5 drafts)" ok />
+          <Row label="Human approval required" value="Yes — founder approves every draft" ok />
+          <Row label="Publish path" value="One-click commit to GitHub main (Vercel auto-rebuilds)" ok />
+          <Row label="Auto-publish" value="Never — Auto Mode only drafts, never ships" ok />
+          <Row label="Secret redaction before model calls" value="On (every iteration)" ok />
         </Section>
 
         <Section title="Integrations (configured server-side)">
