@@ -51,8 +51,14 @@ export function parsePage(html: string, url: string): PageMeta {
     if (alt === undefined || alt.trim() === "") imagesWithoutAlt++;
   });
 
-  // Word count (visible text, rough)
-  const bodyText = $("body").text().replace(/\s+/g, " ").trim();
+  // Word count (visible text only). cheerio's `.text()` includes the raw text
+  // inside <script>/<style>/<noscript> (JS source, CSS, fallback markup), which
+  // would inflate the word count and risk false GEO-signal matches (e.g. "faq"
+  // appearing inside an inline script). Clone the body, strip those subtrees,
+  // then read visible text. Rough, but honest — the article body dominates.
+  const bodyClone = $("body").clone();
+  bodyClone.find("script, style, noscript, template").remove();
+  const bodyText = bodyClone.text().replace(/\s+/g, " ").trim();
   const wordCount = bodyText ? bodyText.split(" ").filter(Boolean).length : 0;
 
   // JSON-LD schema types
@@ -89,7 +95,7 @@ export function parsePage(html: string, url: string): PageMeta {
   const proofPresent =
     /screenshot|demo|try it|live demo|case study|proof|example output/.test(lower) ||
     $("img").toArray().some((el) => /screenshot|demo|preview/i.test($(el).attr("alt") || ""));
-  const audienceSignal = /who this is for|for (businesses|schools|teams|creators|ngos|founders|companies)|audience|built for|target user/.test(lower);
+  const audienceSignal = /who this is for|for (businesses|schools|teams|creators|ngos|founders|companies|engineers|developers|startups|enterprises)|audience|built for|target user|indian (ai|engineer|developer|startup|team|business|company|founder)|for indian|india'?s (ai|startup|tech|engineer)/.test(lower);
 
   return {
     title,

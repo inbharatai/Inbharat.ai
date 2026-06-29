@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Handshake,
   HeartPulse,
+  Home,
   Linkedin,
   PlayCircle,
   Rocket,
@@ -164,7 +165,7 @@ const ActionButton: React.FC<{
   external?: boolean;
 }> = ({ children, href, eventName, variant = 'secondary', external = false }) => {
   const baseClass =
-    'group inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all';
+    'group inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-all sm:px-5';
   const className =
     variant === 'primary'
       ? `${baseClass} border border-[#f59f4f]/35 bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] text-[#0a0c10] shadow-[0_0_26px_rgba(245,159,79,0.3)] hover:-translate-y-0.5 hover:shadow-[0_0_38px_rgba(245,159,79,0.45)]`
@@ -449,10 +450,12 @@ const LearnAIWithReeturaj: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <ActionButton href="/" eventName="founder_page_back_home" variant="secondary">
-              Home
+              <Home size={15} aria-hidden="true" />
+              <span className="hidden sm:inline">Home</span>
             </ActionButton>
             <ActionButton href="/app" eventName="founder_page_try_inbharat" variant="primary">
-              Try InBharat AI
+              <PlayCircle size={15} aria-hidden="true" />
+              <span>Try InBharat AI</span>
             </ActionButton>
           </div>
         </div>

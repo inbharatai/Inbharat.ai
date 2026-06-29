@@ -528,6 +528,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-06-29',
     readMinutes: 7,
+    visual: 'fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ.png',
     abstract: 'Choosing between fine-tuning and Retrieval Augmented Generation (RAG) is a common dilemma for Indian AI teams. While fine-tuning offers deep customization, RAG is often more cost-effective and agile for dynamic data, making it the default choice for most applications unless specific style, latency, or nuanced domain understanding demands fine-tuning.',
     faq: [
       { q: 'Can I use both fine-tuning and RAG together?', a: 'Yes, a hybrid approach is often powerful. You could fine-tune an LLM to adopt a specific tone or to excel at a particular task (like summarization or entity extraction) and then use RAG to provide it with up-to-date, factual information from your knowledge base. This combines the best of both worlds: specialized model behavior with dynamic, grounded knowledge.' },

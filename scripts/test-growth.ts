@@ -96,6 +96,25 @@ check("comparisonPresent true", meta.comparisonPresent === true);
 check("proofPresent true", meta.proofPresent === true);
 check("audienceSignal true", meta.audienceSignal === true);
 
+// wordCount must EXCLUDE inline <script>/<style>/<noscript> text — cheerio's
+// .text() would otherwise count JS source / CSS as visible words (inflating
+// the count and risking thin-content false negatives → false positives).
+{
+  const withScript = `<html><head><title>T</title>
+<style>body { color: red; font-family: arial; padding: 0; }</style></head>
+<body><h1>Hello World Article</h1><p>This real body has exactly eight words here now.</p>
+<script>var x = "this script text should not count as words at all here"; var y = 42; const z = ["faq","demo","versus","screenshot"];</script>
+<noscript>enable javascript to see faq demo versus screenshot</noscript></body></html>`;
+  const m2 = parsePage(withScript, "https://example.com/");
+  // Real visible body = "Hello World Article This real body has exactly eight words here now." (12 words).
+  check("wordCount excludes script/style/noscript text", (m2.wordCount ?? 0) <= 13, `got ${m2.wordCount}`);
+  // GEO signals must come from visible body, not script/noscript text. The
+  // visible body has no faq/demo/versus/screenshot, so those signals must be false.
+  check("faqPresent not polluted by script text", m2.faqPresent === false);
+  check("proofPresent not polluted by script text", m2.proofPresent === false);
+  check("comparisonPresent not polluted by script text", m2.comparisonPresent === false);
+}
+
 const links = extractInternalLinks(FIXTURE, "https://jakswarm.com/");
 check("extractInternalLinks finds /pricing + /docs", links.includes("https://jakswarm.com/pricing") && links.includes("https://jakswarm.com/docs"));
 check("extractInternalLinks excludes external", links.includes("https://github.com/inbharatai/jak-swarm") === false);

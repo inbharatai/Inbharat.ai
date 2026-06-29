@@ -382,15 +382,18 @@ const ArticleNav: React.FC = () => (
       <div className="flex items-center gap-2">
         <Link
           to={ARTICLE_HUB_PATH}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.03] px-4 py-2 text-sm font-semibold text-[#c8d8ea] transition-all hover:border-white/25 hover:text-white"
+          aria-label="All articles"
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.03] px-3 py-2 text-sm font-semibold text-[#c8d8ea] transition-all hover:border-white/25 hover:text-white sm:px-4"
         >
-          <ArrowLeft size={15} /> All articles
+          <ArrowLeft size={15} aria-hidden="true" />
+          <span className="hidden sm:inline">All articles</span>
         </Link>
         <Link
           to="/app"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#f59f4f]/35 bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-4 py-2 text-sm font-semibold text-[#0a0c10]"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[#f59f4f]/35 bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-3 py-2 text-[13px] font-semibold text-[#0a0c10] sm:px-4 sm:text-sm"
         >
-          <PlayCircle size={15} /> Try InBharat AI
+          <PlayCircle size={15} aria-hidden="true" />
+          <span>Try InBharat AI</span>
         </Link>
       </div>
     </div>

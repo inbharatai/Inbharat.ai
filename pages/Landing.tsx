@@ -1144,7 +1144,7 @@ const Landing: React.FC = () => {
               onClick={() => trackEvent('cta_nav_build_ai_with_reeturaj')}
               className="hidden rounded-full border border-[#f59f4f]/35 bg-[#f59f4f]/[0.12] px-4 py-1.5 text-[11px] font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/60 hover:bg-[#f59f4f]/[0.2] hover:text-[#ffe2bf] lg:inline-flex"
             >
-              Build AI with Reeturaj
+              Build with Reeturaj
             </Link>
 
             {isSignedIn ? (
@@ -1197,7 +1197,7 @@ const Landing: React.FC = () => {
                 }}
                 className="mb-1 rounded-xl border border-[#f59f4f]/30 bg-[#f59f4f]/[0.08] px-4 py-2.5 text-sm font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/55 hover:bg-[#f59f4f]/[0.16]"
               >
-                Build AI with Reeturaj
+                Build with Reeturaj
               </Link>
               {navItems.map((item) =>
                 item.route ? (

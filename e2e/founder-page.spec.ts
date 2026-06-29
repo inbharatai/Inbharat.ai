@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("founder page is reachable from landing top navigation", async ({ page }) => {
   await page.goto("/");
 
-  const founderCta = page.getByRole("link", { name: "Build AI with Reeturaj" });
+  const founderCta = page.getByRole("link", { name: "Build with Reeturaj" });
   await expect(founderCta).toBeVisible();
 
   await founderCta.click();

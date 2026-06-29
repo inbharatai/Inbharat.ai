@@ -438,7 +438,7 @@ const founderLearningPage = {
 const founderArticleList = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: 'Build AI with Reeturaj — practical AI article series',
+  name: 'Build with Reeturaj — practical AI article series',
   itemListElement: ARTICLES.map((a, i) => ({
     '@type': 'ListItem',
     position: i + 1,

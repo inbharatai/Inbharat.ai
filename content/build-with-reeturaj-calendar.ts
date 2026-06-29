@@ -109,7 +109,7 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     angle: "Untrusted text inside model context; defense layers that actually help.",
   },
   {
-    topic: "Build AI with Reeturaj — what this series is and how to follow",
+    topic: "Build with Reeturaj — what this series is and how to follow",
     category: "InBharat",
     angle: "A orientation post: who this is for, what we cover, the cadence, and where to ask questions.",
   },

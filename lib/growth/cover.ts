@@ -173,8 +173,12 @@ async function runCoverGeneration(
 /** Build a brand-faithful, TEXT-FREE cover prompt from article fields. When
  *  `hasSample` is true, a style-reference image is sent alongside this prompt
  *  (see callGeminiImage referenceImage) and the prompt tells the model to match
- *  that sample's visual language so every cover stays consistent. */
-function buildCoverPrompt(fields: CoverPromptFields, hasSample = false): string {
+ *  that sample's visual language so every cover stays consistent.
+ *
+ *  Exported so a one-off pre-shipping script can reuse the EXACT brand prompt
+ *  (instead of a drift-prone copy) when generating a cover for an already-
+ *  published article that is missing one. Pure + side-effect-free. */
+export function buildCoverPrompt(fields: CoverPromptFields, hasSample = false): string {
   return [
     "Generate a single 1200x630 pixel hero illustration for a tech article,",
     "landscape orientation, cinematic, high-contrast, premium editorial quality.",
