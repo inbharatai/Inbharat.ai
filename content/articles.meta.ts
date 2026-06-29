@@ -544,6 +544,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-06-29',
     readMinutes: 5,
+    visual: 'building-unoone-leaf-indias-local-agi-fabric.png',
     abstract: 'UnoOne LEAF is InBharat\'s new direction for building a Local Evolving Agent Fabric (AGI) designed for India. It\'s a local-first agent OS that analyzes data, acts through tools, verifies results, remembers failures, and improves skills over time, addressing the unique challenges of India\'s diverse digital landscape.',
     faq: [],
     hashtags: [],
