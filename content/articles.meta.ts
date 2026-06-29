@@ -537,6 +537,17 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AIinIndia', 'LLMs', 'RAG', 'FineTuning', 'InBharatAI'],
   },
+  {
+    slug: 'building-unoone-leaf-indias-local-agi-fabric',
+    title: 'Building UnoOne LEAF: India\'s Local AGI Fabric',
+    description: 'Reeturaj Goswami unveils UnoOne LEAF, InBharat\'s local-first AGI framework for India. Learn its architecture, offline capabilities, and impact on diverse applic',
+    category: 'AI Foundations',
+    datePublished: '2026-06-29',
+    readMinutes: 5,
+    abstract: 'UnoOne LEAF is InBharat\'s new direction for building a Local Evolving Agent Fabric (AGI) designed for India. It\'s a local-first agent OS that analyzes data, acts through tools, verifies results, remembers failures, and improves skills over time, addressing the unique challenges of India\'s diverse digital landscape.',
+    faq: [],
+    hashtags: [],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
