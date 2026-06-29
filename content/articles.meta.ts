@@ -521,6 +521,21 @@ export const ARTICLES: ArticleMeta[] = [
     faq: [],
     hashtags: [],
   },
+  {
+    slug: 'fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ',
+    title: 'Fine-Tuning vs. RAG: When to Use Each for Your Indian AI Product',
+    description: 'Navigating fine-tuning vs. RAG for your AI product in India? This guide by InBharat AI founder Reeturaj Goswami breaks down the practical considerations.',
+    category: 'AI Foundations',
+    datePublished: '2026-06-29',
+    readMinutes: 7,
+    abstract: 'Choosing between fine-tuning and Retrieval Augmented Generation (RAG) is a common dilemma for Indian AI teams. While fine-tuning offers deep customization, RAG is often more cost-effective and agile for dynamic data, making it the default choice for most applications unless specific style, latency, or nuanced domain understanding demands fine-tuning.',
+    faq: [
+      { q: 'Can I use both fine-tuning and RAG together?', a: 'Yes, a hybrid approach is often powerful. You could fine-tune an LLM to adopt a specific tone or to excel at a particular task (like summarization or entity extraction) and then use RAG to provide it with up-to-date, factual information from your knowledge base. This combines the best of both worlds: specialized model behavior with dynamic, grounded knowledge.' },
+      { q: 'Which approach is better for handling multiple Indian languages?', a: 'RAG is generally more flexible for multilingual support. You can index documents in various Indian languages in your vector database, and the LLM (if it\'s a multilingual model) can retrieve and respond in the appropriate language. Fine-tuning for multiple languages requires substantial, high-quality parallel data for each language, which can be very expensive and time-consuming to acquire and label in India.' },
+      { q: 'What are the hidden costs of fine-tuning that Indian startups should be aware of?', a: 'Beyond the direct GPU costs for training, hidden costs include data collection and cleaning (especially for regional languages), data annotation, ongoing maintenance if your domain changes (requiring re-fine-tuning), and the expertise needed to manage and evaluate fine-tuning experiments. RAG, while requiring infrastructure for retrieval, often has lower recurring costs for knowledge updates.' },
+    ],
+    hashtags: ['AIinIndia', 'LLMs', 'RAG', 'FineTuning', 'InBharatAI'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
