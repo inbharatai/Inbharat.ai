@@ -5,6 +5,7 @@ import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
 import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWrite.js";
 import { logInfo } from "../../lib/growth/authorization.js";
+import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 
 /**
@@ -24,6 +25,9 @@ import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles
  *     one click ships article + cover together (the founder's choice). The cover
  *     ships best-effort — the article is already live, so a cover failure is
  *     surfaced in the `cover` field, never rolled back, never fails the publish.
+ *     If NO companion cover draft exists, a pending cover is AUTO-DRAFTED (budget
+ *     permitting) so the article is never left coverless — surfaced in
+ *     `coverDrafted`; the founder still approves + Publish cover (no auto-publish).
  *
  *   kind='cover' (POST { draftId, mode:'cover' })
  *     Commits the approved cover PNG to public/learn-ai-with-reeturaj/<slug>.png
@@ -451,11 +455,38 @@ async function publishArticle(
       : { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: (companion.result as { needsToken?: boolean }).needsToken ?? false }
     : null;
 
+  // 5) If NO companion cover draft existed for this article (the article was
+  //    published coverless — exactly the Fine-Tuning-vs-RAG gap), auto-DRAFT a
+  //    pending cover now so the founder can approve + Publish cover and the
+  //    article stops being coverless. This is NOT auto-publish: it creates a
+  //    human-gated pending draft, the same as the daily cron would. Best-effort,
+  //    budget/config-gated, idempotent (generateCoverDraftFromFields skips if a
+  //    cover draft of any state already exists), and never fails the article
+  //    publish — the article is already live. Only spends cover-model budget
+  //    when the article genuinely has no cover draft at all.
+  let coverDrafted: { draftId: string | null; note: string } | null = null;
+  if (!companion) {
+    try {
+      const drafted = await generateCoverDraftFromFields({
+        slug: meta.slug,
+        title: meta.title,
+        category: meta.category,
+        abstract: meta.abstract,
+      });
+      if (drafted.status === "pending" && drafted.draftId) {
+        coverDrafted = { draftId: drafted.draftId, note: "cover draft created — approve it in Issues, then Publish cover" };
+        await logInfo("publish-article-cover-drafted", meta.slug, `auto-drafted companion cover ${drafted.filename} (draftId=${drafted.draftId})`).catch(() => undefined);
+      }
+    } catch {
+      // Never let a cover-drafting failure fail the article publish.
+    }
+  }
+
   const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${meta.slug}`;
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
-    cover,
+    cover, coverDrafted,
   });
 }
 

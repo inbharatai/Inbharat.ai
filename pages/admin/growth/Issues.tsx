@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import PipelineStrip from "../../../components/growth/PipelineStrip";
-import { ARTICLES, articlePath } from "../../../content/articles.meta";
+import { ARTICLES, articlePath, getArticleBySlug } from "../../../content/articles.meta";
+import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../../../lib/growth/articleSlug";
 import { SITE } from "../../../seo.config";
 
 interface Issue {
@@ -45,6 +46,9 @@ interface DraftRow {
     slug?: string;
     category?: string;
     readMinutes?: number;
+    articleDescription?: string;
+    articleTitle?: string;
+    articleUrl?: string;
   } | null;
   status: string;
   created_at: string;
@@ -56,8 +60,6 @@ const SEV_COLOR: Record<string, string> = {
   normal: "bg-amber-500/15 text-amber-300",
   low: "bg-sky-500/15 text-sky-300",
 };
-
-const ARTICLE_PREFIX = "/learn-ai-with-reeturaj/";
 
 /** Render an error value as a readable string — the backend sometimes returns
  *  `error` as an object (or a Zod issue array), which `${err}` turns into
@@ -98,6 +100,62 @@ function kindBadge(kind: string): { label: string; cls: string } {
       return { label: kind || 'unknown', cls: 'bg-white/5 text-[#9fb2c6]' };
   }
 }
+
+/** Inbox drops (inbox-outline / media-candidate) are auto-generated from files
+ *  the founder dropped into the private inbox folder. They have no article URL
+ *  and no publish target — they are reference material, not posts. We separate
+ *  them from the publishable review queue so they stop looking like LinkedIn
+ *  captions waiting to be approved. */
+function isInboxReference(kind: string): boolean {
+  return kind === "inbox-outline" || kind === "media-candidate";
+}
+
+/** A one-line "what is this draft" explainer shown under the card heading, so
+ *  the founder understands what they are approving at a glance — the literal
+ *  "we should have a description about what we are posting" request. The article
+ *  description is sourced server-side (schema_json.articleDescription, fresh from
+ *  the live page meta) and falls back to the local ARTICLES registry (so old
+ *  drafts predating that field still get a real description, not a bare card).
+ *  We deliberately do NOT fall back to schema_json.note here — that field holds
+ *  operational messages ("model not configured", "budget exhausted"), not a
+ *  description of the article, so showing it as "what this post is about" would
+ *  mislead the founder. The note is surfaced separately in the rose warning. */
+const DraftAbout: React.FC<{ d: DraftRow }> = ({ d }) => {
+  if (isInboxReference(d.kind)) {
+    return (
+      <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/[0.07] px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-200">
+        <span className="font-semibold">Inbox reference drop</span> — auto-generated from a file dropped into your private
+        inbox folder. It is <span className="font-semibold">not a publishable LinkedIn post</span> (no article URL, no
+        cover, no publish button). Reuse the text above only if you want to; otherwise Reject it to clear the queue.
+      </div>
+    );
+  }
+  if (d.kind === "linkedin") {
+    const articleUrl = d.schema_json?.articleUrl || d.url || null;
+    const slug = slugFromArticleUrl(articleUrl);
+    const article = slug ? getArticleBySlug(slug) : undefined;
+    const title = d.schema_json?.articleTitle || d.title || article?.title || articleUrl;
+    // Prefer the server-stored description (fresh from the live page meta); fall
+    // back to the local ARTICLES registry description (covers old drafts), then
+    // the abstract. Never the operational `note`.
+    const about = d.schema_json?.articleDescription || article?.description || article?.abstract;
+    return (
+      <div className="mt-2 text-[11px] leading-relaxed text-[#7a9ab8]">
+        LinkedIn caption for the article <span className="text-[#c8d6e8]">{title}</span>
+        {articleUrl && (
+          <>
+            {" · "}
+            <a href={articleUrl} target="_blank" rel="noopener noreferrer" className="text-[#7ab9e6] hover:underline">
+              open article ↗
+            </a>
+          </>
+        )}
+        {about && <div className="mt-0.5 text-[#9fb2c6]">{about}</div>}
+      </div>
+    );
+  }
+  return null;
+};
 
 const Issues: React.FC = () => {
   const { fetchJson } = useAdminApi();
@@ -280,20 +338,12 @@ const Issues: React.FC = () => {
     if (!error) await loadDrafts();
   }
 
-  /** Derive the article slug from a page URL (`/learn-ai-with-reeturaj/<slug>`). */
-  function slugFromUrl(u: string): string | null {
-    const i = u.indexOf(ARTICLE_PREFIX);
-    if (i < 0) return null;
-    const tail = u.slice(i + ARTICLE_PREFIX.length).replace(/[/?#].*$/, "").trim();
-    return /^[a-z0-9-]+$/.test(tail) ? tail : null;
-  }
-
   /** On-demand cover generation for a published article — the founder's "load a
    *  new cover if the previous cover is not there or not good". Creates a fresh
    *  pending cover draft (style-matched to the family) regardless of whether a
    *  cover already exists; the founder then approves + publishes it. */
   async function generateCover(page: GrowthPageRow) {
-    const slug = slugFromUrl(page.url);
+    const slug = slugFromArticleUrl(page.url);
     if (!slug) { setDraftMsg(`Couldn't derive an article slug from ${page.url}.`); return; }
     if (!confirm(`Generate a fresh cover for "${page.title || slug}"? It will create a pending draft in the review queue (any existing pending cover draft is replaced).`)) return;
     setCoverGenUrl(page.url);
@@ -348,13 +398,20 @@ const Issues: React.FC = () => {
 
   const pendingDrafts = drafts.filter((d) => d.status === "pending");
   const approvedDrafts = drafts.filter((d) => d.status === "approved");
+  // Separate inbox reference drops (auto-generated from dropped files, no
+  // publish target) from the publishable review queue so they stop masquerading
+  // as LinkedIn captions. The founder explicitly finds these confusing.
+  const pendingPublishable = pendingDrafts.filter((d) => !isInboxReference(d.kind));
+  const pendingInbox = pendingDrafts.filter((d) => isInboxReference(d.kind));
+  const approvedPublishable = approvedDrafts.filter((d) => !isInboxReference(d.kind));
+  const approvedInbox = approvedDrafts.filter((d) => isInboxReference(d.kind));
   // Just-published drafts that are no longer in approvedDrafts (status flipped
   // to 'published' server-side) but should stay visible until dismissed so the
   // founder can click "Open LinkedIn ↗" / read the commit-SHA confirmation.
   const justPublishedList = Object.values(justPublished).filter(
     (d) => !approvedDrafts.some((a) => a.id === d.id),
   );
-  const approvedCards = [...approvedDrafts, ...justPublishedList];
+  const approvedCards = [...approvedPublishable, ...justPublishedList];
   // The Personal/Company toggle + companyId field ONLY apply to LinkedIn drafts
   // (the publish handler routes by kind and ignores mode/companyId for
   // article/cover/video-script). Show the toggle only when a LinkedIn draft is
@@ -477,6 +534,7 @@ const Issues: React.FC = () => {
       ok: boolean; kind?: string; slug?: string; fileUrl?: string;
       mdCommitSha?: string; metaCommitSha?: string; error?: string; code?: string;
       cover?: { ok: boolean; draftId?: string; filename?: string; fileUrl?: string; pngCommitSha?: string; metaCommitSha?: string; error?: string; needsToken?: boolean } | null;
+      coverDrafted?: { draftId: string | null; note: string } | null;
     }>("/api/growth/publish", { method: "POST", body: JSON.stringify({ draftId: d.id, mode: "article" }) });
     setPublishingId(null);
     if (error || !data?.ok) {
@@ -490,9 +548,13 @@ const Issues: React.FC = () => {
     // Surface the companion cover outcome from the bundled publish (article + cover
     // ship together on one click). The article is already live regardless of the
     // cover result, so a cover failure is reported as a next-step, not a failure.
+    // When no companion cover existed, the server auto-drafts a pending cover
+    // (coverDrafted) so the article is never left coverless — surface that here.
     const c = data.cover;
     const coverLine = !c
-      ? " No companion cover draft — generate one from the article card to add a cover."
+      ? data.coverDrafted
+        ? ` No companion cover existed, so a fresh cover draft was auto-created — ${data.coverDrafted.note}.`
+        : " No companion cover draft, and none could be auto-created (cover model not configured or monthly budget exhausted) — generate one from the Published articles section when able."
       : c.ok
         ? ` Cover shipped too — ${c.filename} (png ${c.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${c.fileUrl}.`
         : ` Cover did NOT ship (article is still live): ${c.error}${c.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
@@ -569,10 +631,10 @@ const Issues: React.FC = () => {
         <p className="mt-2 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>
       )}
 
-      {pendingDrafts.length > 0 && (
+      {pendingPublishable.length > 0 && (
         <section className="mt-6 rounded-xl border border-[#f59f4f]/25 bg-[#f59f4f]/[0.05] p-4">
           <h2 className="text-[15px] font-bold text-white">
-            Drafts awaiting review ({pendingDrafts.length})
+            Drafts awaiting review ({pendingPublishable.length})
           </h2>
           {draftsError && <p className="mt-1 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>}
           <p className="mt-1 text-[12px] text-[#9fb2c6]">
@@ -581,7 +643,7 @@ const Issues: React.FC = () => {
             Nothing auto-publishes.
           </p>
           <div className="mt-3 space-y-3">
-            {pendingDrafts.map((d) => (
+            {pendingPublishable.map((d) => (
               <div key={d.id} ref={(el) => { cardRefs.current[d.id] = el; }} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
@@ -598,11 +660,16 @@ const Issues: React.FC = () => {
                   <CoverPreview d={d} />
                 ) : (
                   <>
-                    {d.body_md ? (
+                    <DraftAbout d={d} />
+                    {d.kind === "linkedin" && !d.body_md ? (
+                      <div className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/[0.08] px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-200">
+                        <span className="font-semibold">⚠ No caption generated</span> ({d.schema_json?.note || "model unavailable"}). This draft has no text to post yet — write a caption yourself before approving, or Reject it.
+                      </div>
+                    ) : d.body_md ? (
                       <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>
                     ) : (
                       <p className="mt-2 text-[12px] italic text-[#7a9ab8]">
-                        No caption generated ({d.schema_json?.note || "model unavailable"}). Write one manually before approving.
+                        No {d.kind === "video-script" ? "script" : "body"} generated for this {d.kind} draft ({d.schema_json?.note || "model unavailable"}). Regenerate it from the Agent tab, or write it manually before approving.
                       </p>
                     )}
                     {d.schema_json?.internalLinks && d.schema_json.internalLinks.length > 0 && (
@@ -636,10 +703,51 @@ const Issues: React.FC = () => {
         </section>
       )}
 
+      {pendingInbox.length > 0 && (
+        <section className="mt-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-4">
+          <h2 className="text-[15px] font-bold text-amber-200">
+            Inbox reference drops — not posts ({pendingInbox.length})
+          </h2>
+          <p className="mt-1 text-[12px] text-[#9fb2c6]">
+            Auto-generated from markdown files dropped into your private inbox folder. These are not
+            publishable LinkedIn captions (no article URL). Reject the ones you do not want to clear
+            them from the queue; the publishable LinkedIn + cover drafts live in the section above.
+          </p>
+          <div className="mt-3 space-y-3">
+            {pendingInbox.map((d) => (
+              <div key={d.id} ref={(el) => { cardRefs.current[d.id] = el; }} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.id}</p>
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
+                    {kindBadge(d.kind).label}
+                  </span>
+                </div>
+                <DraftAbout d={d} />
+                {d.body_md && <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => decideDraft(d.id, "rejected")}
+                    className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-[11px] font-semibold text-rose-200 hover:bg-rose-500/20"
+                  >
+                    Reject (clear)
+                  </button>
+                  <button
+                    onClick={() => decideDraft(d.id, "approved")}
+                    className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
+                  >
+                    Keep
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {approvedCards.length > 0 && (
         <section className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
           <h2 className="text-[15px] font-bold text-white">
-            Approved — ready to publish ({approvedDrafts.length})
+            Approved — ready to publish ({approvedPublishable.length})
             {justPublishedList.length > 0 && (
               <span className="ml-2 text-[11px] font-semibold text-emerald-300">· {justPublishedList.length} just published</span>
             )}
@@ -705,7 +813,14 @@ const Issues: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    {d.body_md && <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>}
+                    <DraftAbout d={d} />
+                    {d.body_md ? (
+                      <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>
+                    ) : (
+                      <div className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/[0.08] px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-200">
+                        <span className="font-semibold">⚠ No caption generated</span> ({d.schema_json?.note || "model unavailable"}). This draft has no text to post — write a caption yourself, or Reject it from the pending queue before publishing.
+                      </div>
+                    )}
                     {d.schema_json?.internalLinks && d.schema_json.internalLinks.length > 0 && (
                       <ul className="mt-2 space-y-1">
                         {d.schema_json.internalLinks.map((l) => (
@@ -832,6 +947,33 @@ const Issues: React.FC = () => {
         </section>
       )}
 
+      {approvedInbox.length > 0 && (
+        <section className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-4">
+          <h2 className="text-[15px] font-bold text-amber-200">
+            Approved inbox references — kept, not published ({approvedInbox.length})
+          </h2>
+          <p className="mt-1 text-[12px] text-[#9fb2c6]">
+            These are markdown files you dropped into the inbox and then approved to keep as reference
+            material. They have no publish target (no article URL, no cover) — nothing here ever
+            auto-publishes. They are kept out of the publishable queue above on purpose.
+          </p>
+          <div className="mt-3 space-y-2">
+            {approvedInbox.map((d) => (
+              <div key={d.id} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>{kindBadge(d.kind).label}</span>
+                <p className="min-w-0 flex-1 truncate text-[12px] text-[#c8d6e8]">{d.title || d.id}</p>
+                <button
+                  onClick={() => decideDraft(d.id, "rejected")}
+                  className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-1 text-[10px] font-semibold text-rose-200 hover:bg-rose-500/20"
+                >
+                  Reject (clear)
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {loading && <p className="mt-6 text-[13px] text-[#7a9ab8]">Loading…</p>}
       {error && <p className="mt-6 text-[13px] text-rose-300">Failed to load: {error}</p>}
       {!loading && !error && pages.length === 0 && (
@@ -840,7 +982,7 @@ const Issues: React.FC = () => {
 
       <div className="mt-6 space-y-4">
         {pages.map((p) => {
-          const isArticle = p.url.includes(ARTICLE_PREFIX);
+          const isArticle = p.url.includes(ARTICLE_PATH_PREFIX);
           return (
             <div key={p.url} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">

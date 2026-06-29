@@ -21,6 +21,7 @@ import { assemblePipeline } from "../api/growth/pipeline.js";
 import { buildDraftThreadMap, bodySchema } from "../api/growth/draft-threads.js";
 import { statusChip } from "../lib/growth/pipelineStatus.js";
 import { istStartOfDayIso } from "../lib/growth/spend.js";
+import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../lib/growth/articleSlug.js";
 
 let pass = 0;
 let fail = 0;
@@ -1005,6 +1006,25 @@ console.log("\nIST start-of-day (istStartOfDayIso):");
   // day (minutes = 30, the half-hour offset). So the boundary lands on seconds=0
   // and minutes ∈ {0, 30} — never mid-minute.
   check("istStartOfDayIso lands on a midnight boundary (sec=0, min∈{0,30})", new Date(iso).getUTCSeconds() === 0 && (new Date(iso).getUTCMinutes() === 0 || new Date(iso).getUTCMinutes() === 30), iso);
+}
+
+console.log("\nArticle slug extraction (slugFromArticleUrl):");
+{
+  const FULL = "https://inbharat.ai" + ARTICLE_PATH_PREFIX + "fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ";
+  check("extracts slug from absolute article URL", slugFromArticleUrl(FULL) === "fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ", FULL);
+  check("extracts slug from www + trailing slash", slugFromArticleUrl("https://www.inbharat.ai" + ARTICLE_PATH_PREFIX + "rag/") === "rag");
+  check("extracts slug from root-relative URL", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "cicd") === "cicd");
+  check("strips query string + fragment", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "rag?utm_source=li#x") === "rag");
+  check("takes only the first path segment", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "rag/extra/seg") === "rag");
+  check("null when prefix absent (non-article URL)", slugFromArticleUrl("https://inbharat.ai/about") === null);
+  check("null on empty / undefined", slugFromArticleUrl("") === null && slugFromArticleUrl(undefined) === null && slugFromArticleUrl(null) === null);
+  check("null on prefix-only URL (no slug)", slugFromArticleUrl(ARTICLE_PATH_PREFIX) === null);
+  check("null on trailing-slash-only after prefix", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "/") === null);
+  // A slug with uppercase or dots is not a valid registry slug → null (defensive:
+  // a malformed URL must NOT yield a garbage slug that would miss the registry
+  // and render a bare, context-less card).
+  check("null on uppercase slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "Rag") === null);
+  check("null on dotted slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "rag.pdf") === null);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

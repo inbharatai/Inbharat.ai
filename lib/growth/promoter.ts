@@ -88,7 +88,7 @@ export async function promoteArticle(
   const surfacedNote = generated.critique
     ? `${generated.note || ""}${generated.note ? " " : ""}(critique: ${generated.critique.status}${generated.critique.revised ? "; revised" : ""})`.trim()
     : generated.note;
-  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, surfacedNote, generated.critique);
+  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, surfacedNote, generated.critique, description);
 
   await logInfo(
     "promote-draft",
@@ -338,6 +338,7 @@ async function persistDraft(
   internalLinks: string[],
   note?: string,
   critique?: GeneratedDraft["critique"],
+  articleDescription?: string,
 ): Promise<{ taskId: string | null; draftId: string | null }> {
   if (!supabaseAdmin) return { taskId: null, draftId: null };
   try {
@@ -370,6 +371,13 @@ async function persistDraft(
         schema_json: {
           internalLinks,
           note: note || null,
+          // Store the source article's one-line description + title/url so the
+          // Issues review card can show "what this post is about" even when the
+          // caption body itself failed to generate (model unavailable / budget
+          // exhausted) — the founder then has context, not a bare empty card.
+          articleDescription: articleDescription || null,
+          articleTitle: title,
+          articleUrl: url,
           critique: critique
             ? { weaknesses: critique.weaknesses, revised: critique.revised !== null, status: critique.status, note: critique.note }
             : null,
