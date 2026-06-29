@@ -17,6 +17,10 @@ import { formatStrategyBlock, type Strategy } from "../lib/growth/strategy.js";
 import { monthlyBudgetUsd, bustBudgetCache, logUsage } from "../lib/growth/model-router.js";
 import { authorizeCron, isCronAuthErr } from "../api/lib/requireAdmin.js";
 import type { VercelRequest } from "@vercel/node";
+import { assemblePipeline } from "../api/growth/pipeline.js";
+import { buildDraftThreadMap, bodySchema } from "../api/growth/draft-threads.js";
+import { statusChip } from "../lib/growth/pipelineStatus.js";
+import { istStartOfDayIso } from "../lib/growth/spend.js";
 
 let pass = 0;
 let fail = 0;
@@ -874,6 +878,133 @@ export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.s
   // Round-trip: formatArticleEntry output feeds insertArticleMeta cleanly.
   const rt = insertArticleMeta(SRC, "rag-guide", entry);
   check("insertArticleMeta accepts formatArticleEntry output", rt !== null && rt.includes("slug: 'rag-guide'"), rt ?? "");
+}
+
+// ─── Agent↔Issues alignment: pipeline assembly + draft→thread reverse-lookup ──
+console.log("\nPipeline assembly (assemblePipeline):");
+const A_ID = "11111111-1111-1111-1111-111111111111";
+const LI_ID = "22222222-2222-2222-2222-222222222222";
+const CO_ID = "33333333-3333-3333-3333-333333333333";
+const ARTICLE_URL = "https://inbharat.ai/learn-ai-with-reeturaj/s";
+const THREAD = { id: "t-1", title: "Build with Reeturaj — Daily Plan", updatedAt: "2026-06-28T02:30:00.000Z" };
+
+function draft(id: string, kind: string, opts: { url?: string | null; title?: string | null; slug?: string | null; filename?: string | null; status?: string; created_at?: string } = {}): {
+  id: string; kind: string; url: string | null; title: string | null; schema_json: { slug?: string; filename?: string } | null; status: string; created_at: string;
+} {
+  const schema_json: { slug?: string; filename?: string } = {};
+  if (opts.slug !== undefined && opts.slug !== null) schema_json.slug = opts.slug;
+  if (opts.filename !== undefined && opts.filename !== null) schema_json.filename = opts.filename;
+  return {
+    id,
+    kind,
+    url: opts.url === undefined ? null : opts.url,
+    title: opts.title === undefined ? null : opts.title,
+    schema_json: Object.keys(schema_json).length ? schema_json : null,
+    status: opts.status ?? "pending",
+    created_at: opts.created_at ?? "2026-06-28T03:00:00.000Z",
+  };
+}
+
+{
+  const drafts = [
+    draft(A_ID, "article", { slug: "s", title: "RAG for Indian startups", url: ARTICLE_URL, status: "pending" }),
+    draft(LI_ID, "linkedin", { url: ARTICLE_URL, status: "approved" }),
+    draft(CO_ID, "cover", { filename: "s.png", status: "pending" }),
+  ];
+  const b = assemblePipeline(drafts, THREAD);
+  check("article picked from kind=article", b.article?.draftId === A_ID, `got ${b.article?.draftId}`);
+  check("article slug surfaced", b.article?.slug === "s");
+  check("topic = article title", b.topic === "RAG for Indian startups");
+  check("linkedin matched by url to article", b.linkedin?.draftId === LI_ID, `got ${b.linkedin?.draftId}`);
+  check("cover matched by <slug>.png filename", b.cover?.draftId === CO_ID, `got ${b.cover?.draftId}`);
+  check("cover filename surfaced", b.cover?.filename === "s.png");
+  check("thread carried through", b.thread?.id === "t-1");
+}
+
+{
+  // LinkedIn with NO matching url → falls back to most-recent linkedin.
+  const drafts = [
+    draft(A_ID, "article", { slug: "s", title: "T", url: ARTICLE_URL }),
+    draft(LI_ID, "linkedin", { url: "https://inbharat.ai/other", created_at: "2026-06-28T03:00:00.000Z" }),
+  ];
+  const b = assemblePipeline(drafts, THREAD);
+  check("linkedin fallback to most-recent when url mismatch", b.linkedin?.draftId === LI_ID, `got ${b.linkedin?.draftId}`);
+}
+
+{
+  // Cover with wrong filename → falls back to most-recent cover.
+  const drafts = [
+    draft(A_ID, "article", { slug: "s", title: "T", url: ARTICLE_URL }),
+    draft(CO_ID, "cover", { filename: "other.png" }),
+  ];
+  const b = assemblePipeline(drafts, THREAD);
+  check("cover fallback to most-recent when filename mismatch", b.cover?.draftId === CO_ID, `got ${b.cover?.draftId}`);
+}
+
+{
+  // Empty drafts today → all null, topic null.
+  const b = assemblePipeline([], null);
+  check("empty drafts → no article", b.article === null);
+  check("empty drafts → no linkedin", b.linkedin === null);
+  check("empty drafts → no cover", b.cover === null);
+  check("empty drafts → topic null", b.topic === null);
+  check("empty drafts → thread null", b.thread === null);
+}
+
+console.log("\nDraft→thread reverse-lookup (buildDraftThreadMap):");
+{
+  const rows = [
+    { thread_id: "t-2", tool_result: { draftId: "d-1" } },
+    { thread_id: "t-3", tool_result: { draftId: "d-2" } },
+    { thread_id: "t-4", tool_result: { draftId: null } },          // no draftId → ignored
+    { thread_id: "t-5", tool_result: null },                        // null tool_result → ignored
+    { thread_id: "t-6", tool_result: { draftId: "d-3" } },          // not wanted → skipped
+  ];
+  const wanted = new Set(["d-1", "d-2"]);
+  const map = buildDraftThreadMap(rows as never, wanted);
+  check("maps draftId → thread_id", map["d-1"] === "t-2" && map["d-2"] === "t-3", JSON.stringify(map));
+  check("ignores rows without string draftId", !("d-4" in map) && Object.keys(map).length === 2);
+  check("omits non-wanted draftId", !("d-3" in map));
+}
+{
+  // First-wins: newest row (first in desc order) takes precedence.
+  const rows = [
+    { thread_id: "newer", tool_result: { draftId: "d-1" } },
+    { thread_id: "older", tool_result: { draftId: "d-1" } },
+  ];
+  const map = buildDraftThreadMap(rows as never, new Set(["d-1"]));
+  check("first (newest) wins on duplicate draftId", map["d-1"] === "newer", JSON.stringify(map));
+}
+{
+  const map = buildDraftThreadMap([], new Set(["d-1"]));
+  check("empty rows → empty map", Object.keys(map).length === 0);
+}
+{
+  const UUID = "00000000-0000-1000-8000-000000000000";
+  check("bodySchema accepts 200 uuids", (() => { try { bodySchema.parse({ draftIds: Array(200).fill(UUID) }); return true; } catch { return false; } })());
+  check("bodySchema rejects 201 uuids (.max(200) cap)", (() => { try { bodySchema.parse({ draftIds: Array(201).fill(UUID) }); return false; } catch { return true; } })());
+  check("bodySchema accepts missing draftIds (default [])", (() => { try { const p = bodySchema.parse({}); return Array.isArray(p.draftIds) && p.draftIds.length === 0; } catch { return false; } })());
+}
+
+console.log("\nPipelineStrip status→chip (statusChip):");
+check("pending → amber", statusChip("pending").cls.includes("amber"));
+check("approved → emerald", statusChip("approved").cls.includes("emerald"));
+check("rejected → rose", statusChip("rejected").cls.includes("rose"));
+check("published → sky", statusChip("published").cls.includes("sky"));
+check("missing → muted default", statusChip(undefined).cls.includes("text-[#7a9ab8]"));
+check("missing label is dash", statusChip(null).label === "—");
+
+console.log("\nIST start-of-day (istStartOfDayIso):");
+{
+  const iso = istStartOfDayIso();
+  const d = new Date(iso).getTime();
+  const now = Date.now();
+  check("istStartOfDayIso is valid ISO", /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(iso), iso);
+  check("istStartOfDayIso is at-or-before now", d <= now, `${iso} > now`);
+  // IST is UTC+5:30, so an IST-calendar midnight maps to 18:30 UTC the previous
+  // day (minutes = 30, the half-hour offset). So the boundary lands on seconds=0
+  // and minutes ∈ {0, 30} — never mid-minute.
+  check("istStartOfDayIso lands on a midnight boundary (sec=0, min∈{0,30})", new Date(iso).getUTCSeconds() === 0 && (new Date(iso).getUTCMinutes() === 0 || new Date(iso).getUTCMinutes() === 30), iso);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

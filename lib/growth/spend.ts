@@ -28,6 +28,17 @@ export function monthStartIso(): string {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 
+/** ISO timestamp of the first instant of the current IST calendar day.
+ *  IST = UTC+5:30. The morning content cron fires at 02:30 UTC (= 08:00 IST),
+ *  so "today's pipeline" must be bounded by the IST day, not the UTC day — a
+ *  run at 02:30 UTC belongs to the same IST day the founder is reviewing. */
+export function istStartOfDayIso(now: Date = new Date()): string {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + IST_OFFSET_MS);
+  const istMidnightUtc = Date.UTC(istNow.getUTCFullYear(), istNow.getUTCMonth(), istNow.getUTCDate());
+  return new Date(istMidnightUtc - IST_OFFSET_MS).toISOString();
+}
+
 /** This-month spend vs cap, with a linear projection to month-end from the
  *  spend so far this month. Reuses the model-router's cached budget + month
  *  spend so all three handlers share one read path. */

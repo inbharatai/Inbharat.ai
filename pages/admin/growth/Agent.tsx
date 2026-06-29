@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
+import PipelineStrip from "../../../components/growth/PipelineStrip";
 
 /**
  * /admin/growth/agent — the conversational CMO agent (Phase C) + Auto Mode (C5).
@@ -82,7 +84,27 @@ const Agent: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [morningRunning, setMorningRunning] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [stripKey, setStripKey] = useState(0);
+  const [searchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Cross-tab signal: when an agent run creates drafts, tell any open Issues
+  // tab to refresh + toast. BroadcastChannel does not deliver to the posting
+  // context, so the same-tab case (run here → navigate to Issues) is handled by
+  // the Issues page's localStorage pending-delta check on its own mount.
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const ch = new BroadcastChannel("growth-admin");
+    channelRef.current = ch;
+    return () => { ch.close(); channelRef.current = null; };
+  }, []);
+
+  /** Bump the pipeline strip refresh key + ping any other tab that drafts moved. */
+  function notifyDraftsUpdated() {
+    setStripKey((k) => k + 1);
+    try { channelRef.current?.postMessage({ type: "drafts-updated" }); } catch { /* ignore */ }
+  }
 
   async function loadThreads() {
     const { data, error } = await fetchJson<{ threads?: Thread[] }>("/api/growth/agent");
@@ -99,6 +121,10 @@ const Agent: React.FC = () => {
   useEffect(() => {
     void loadThreads();
     void loadAuto();
+    // Deep-link preselect: ?thread=<id> (from an Issues "View in Agent" link)
+    // opens that conversation directly instead of the blank new-chat state.
+    const t = searchParams.get("thread");
+    if (t) setActiveId(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -185,6 +211,7 @@ const Agent: React.FC = () => {
     }
     if (data?.messages) setMessages(data.messages);
     setAttachments([]); // attachments are per-turn
+    notifyDraftsUpdated();
   }
 
   async function toggleAuto(patch: Partial<AutoMode>) {
@@ -203,6 +230,7 @@ const Agent: React.FC = () => {
     else if (data?.summary) setError(null);
     void loadAuto();
     void loadThreads();
+    notifyDraftsUpdated();
   }
 
   /** Trigger the daily 8am "Build with Reeturaj" auto-plan run on demand — same
@@ -219,6 +247,7 @@ const Agent: React.FC = () => {
     // The run appends to the daily-plan thread — refresh the list so it surfaces.
     void loadThreads();
     if (data?.topic) setNotice(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
+    notifyDraftsUpdated();
   }
 
   return (
@@ -229,6 +258,10 @@ const Agent: React.FC = () => {
         drafts articles + LinkedIn posts, generates covers (matching a sample you drop in the inbox so every cover looks consistent),
         analyzes images, and searches the web for current facts. Everything it makes lands in Issues for your approval; it never publishes on its own.
       </p>
+
+      <div className="mt-5">
+        <PipelineStrip variant="agent" refreshKey={stripKey} />
+      </div>
 
       {error && <p className="mt-3 text-[12px] text-rose-300">{error}</p>}
       {notice && <p className="mt-3 text-[12px] text-[#f59f4f]">{notice}</p>}
@@ -346,6 +379,15 @@ const Agent: React.FC = () => {
                 {m.role === "tool" && (
                   <div className="max-w-[90%] rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-[11px] text-[#7a9ab8]">
                     <span className="text-[#f59f4f]">🔧 {m.toolName}</span> → {m.toolResult?.message ?? (m.toolResult?.ok ? "ok" : "no detail")}
+                    {typeof m.toolResult?.draftId === "string" && m.toolResult.draftId && (
+                      <Link
+                        to={`/admin/growth/issues?draft=${encodeURIComponent(m.toolResult.draftId)}`}
+                        className="ml-2 rounded border border-[#f59f4f]/30 px-1.5 py-0.5 text-[10px] font-semibold text-[#f6bf84] hover:bg-[#f59f4f]/10"
+                        title="Open this draft in Issues to review + approve"
+                      >
+                        Open in Issues ↗
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

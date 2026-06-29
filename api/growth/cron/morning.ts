@@ -8,7 +8,7 @@ import { ARTICLES } from "../../../content/articles.meta.js";
 import { supabaseAdmin } from "../../../api/lib/supabaseAdmin.js";
 import { SITE } from "../../../seo.config.js";
 
-const MORNING_THREAD_TITLE = "Build with Reeturaj — Daily Plan";
+export const MORNING_THREAD_TITLE = "Build with Reeturaj — Daily Plan";
 const ARTICLE_PREFIX = "/learn-ai-with-reeturaj/";
 
 /**

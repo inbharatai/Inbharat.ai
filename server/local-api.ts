@@ -138,6 +138,8 @@ const growthHandlers = {
   "/api/growth/cron/morning": () => import("../api/growth/cron/morning.ts"),
   "/api/growth/cover/generate": () => import("../api/growth/cover/generate.ts"),
   "/api/growth/cover/regenerate": () => import("../api/growth/cover/regenerate.ts"),
+  "/api/growth/pipeline": () => import("../api/growth/pipeline.ts"),
+  "/api/growth/draft-threads": () => import("../api/growth/draft-threads.ts"),
 };
 app.get("/api/growth/status", (req, res) => runHandler("/api/growth/status", req, res));
 app.get("/api/growth/pages", (req, res) => runHandler("/api/growth/pages", req, res));
@@ -168,6 +170,9 @@ app.delete("/api/growth/inbox", (req, res) => runHandler("/api/growth/inbox", re
 app.post("/api/growth/publish", (req, res) => runHandler("/api/growth/publish", req, res));
 app.post("/api/growth/cover/generate", (req, res) => runHandler("/api/growth/cover/generate", req, res));
 app.post("/api/growth/cover/regenerate", (req, res) => runHandler("/api/growth/cover/regenerate", req, res));
+// Pipeline + draft→thread reverse-lookup (Agent↔Issues alignment strip + deep-links).
+app.get("/api/growth/pipeline", (req, res) => runHandler("/api/growth/pipeline", req, res));
+app.post("/api/growth/draft-threads", (req, res) => runHandler("/api/growth/draft-threads", req, res));
 app.get("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes", req, res));
 app.post("/api/growth/outcomes", (req, res) => runHandler("/api/growth/outcomes", req, res));
 app.get("/api/growth/discovery", (req, res) => runHandler("/api/growth/discovery", req, res));

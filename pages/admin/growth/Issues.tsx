@@ -1,5 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
+import PipelineStrip from "../../../components/growth/PipelineStrip";
+import { ARTICLES, articlePath } from "../../../content/articles.meta";
+import { SITE } from "../../../seo.config";
 
 interface Issue {
   severity: "critical" | "high" | "normal" | "low";
@@ -26,7 +30,8 @@ interface DraftRow {
   title: string | null;
   body_md: string | null;
   // LinkedIn drafts carry internalLinks/note; cover drafts carry the PNG base64
-  // + filename/prompt/model for the preview + publish step.
+  // + filename/prompt/model for the preview + publish step; article drafts carry
+  // slug/category/readMinutes for the publish step.
   schema_json: {
     internalLinks?: string[];
     note?: string | null;
@@ -37,6 +42,9 @@ interface DraftRow {
     model?: string;
     provider?: string;
     costUsd?: number;
+    slug?: string;
+    category?: string;
+    readMinutes?: number;
   } | null;
   status: string;
   created_at: string;
@@ -103,6 +111,7 @@ const Issues: React.FC = () => {
   const [auditMsg, setAuditMsg] = useState<string | null>(null);
   const [promotingUrl, setPromotingUrl] = useState<string | null>(null);
   const [coverGenUrl, setCoverGenUrl] = useState<string | null>(null);
+  const [redesigningSlug, setRedesigningSlug] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
@@ -138,6 +147,36 @@ const Issues: React.FC = () => {
       return next;
     });
 
+  // Agent↔Issues alignment state.
+  const [stripKey, setStripKey] = useState(0);
+  const [threadByDraft, setThreadByDraft] = useState<Record<string, string>>({});
+  // "N new drafts" toast — fires when drafts land from an agent run (cross-tab
+  // BroadcastChannel ping, or a same-tab mount after running on the Agent page).
+  const [pendingToast, setPendingToast] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
+  const focusDraftId = searchParams.get("draft");
+  // Per-card refs so a ?draft=<id> deep-link can scroll + ring-highlight the card.
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Guards the pending-delta toast so the very first load seeds the baseline
+  // instead of toasting "N new drafts" against a missing prior value.
+  const didSeedPending = useRef(false);
+
+  // Cross-tab signal: the Agent tab posts {type:'drafts-updated'} when an agent
+  // run finishes. Refresh the draft list + pipeline strip, then let the mount
+  // delta decide whether to toast (only when pending actually increased).
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const ch = new BroadcastChannel("growth-admin");
+    ch.onmessage = (ev) => {
+      if (ev?.data?.type === "drafts-updated") {
+        void loadDrafts();
+        setStripKey((k) => k + 1);
+      }
+    };
+    return () => ch.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Open the LinkedIn share URL from a fresh user gesture (button click), so the
    *  popup is never blocked. Falls back to a same-tab navigation if blocked. */
   function openShare(shareUrl: string) {
@@ -156,7 +195,33 @@ const Issues: React.FC = () => {
   async function loadDrafts() {
     const { data, error } = await fetchJson<{ drafts?: DraftRow[] }>("/api/growth/approvals");
     setDraftsError(error && !data ? error : null);
-    setDrafts(data?.drafts || []);
+    const rows = data?.drafts || [];
+    setDrafts(rows);
+    // Map each draft → the agent thread that created it (for "View in Agent").
+    void loadThreadMap(rows);
+    // Pending-delta toast: fires when pending drafts landed since the founder
+    // last saw this page — covers both the same-tab "ran on Agent, came here"
+    // case (this is the mount load) and the cross-tab BroadcastChannel refresh.
+    const pendingCount = rows.filter((d) => d.status === "pending").length;
+    if (didSeedPending.current) {
+      let prev = 0;
+      try { prev = Number(localStorage.getItem("growth:lastSeenPending") || "0"); } catch { /* ignore */ }
+      if (pendingCount > prev) setPendingToast(pendingCount - prev);
+    }
+    didSeedPending.current = true;
+    try { localStorage.setItem("growth:lastSeenPending", String(pendingCount)); } catch { /* ignore */ }
+  }
+
+  /** Batched reverse-lookup: which agent thread created each draft. Attaches a
+   *  threadId to each card so the founder can jump back to the conversation. */
+  async function loadThreadMap(rows: DraftRow[]) {
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) { setThreadByDraft({}); return; }
+    const { data, error } = await fetchJson<{ map?: Record<string, string> }>("/api/growth/draft-threads", {
+      method: "POST",
+      body: JSON.stringify({ draftIds: ids }),
+    });
+    if (!error && data?.map) setThreadByDraft(data.map);
   }
 
   useEffect(() => {
@@ -164,6 +229,20 @@ const Issues: React.FC = () => {
     loadDrafts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Deep-link landing: ?draft=<id> (from an Agent "Open in Issues" link) scrolls
+  // the matching card into view and rings it briefly so the founder's eye lands
+  // on the draft the agent just pointed them to.
+  useEffect(() => {
+    if (!focusDraftId) return;
+    const el = cardRefs.current[focusDraftId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const ring = ["ring-2", "ring-[#f59f4f]", "ring-offset-2", "ring-offset-[#0a0c10]"];
+    el.classList.add(...ring);
+    const t = setTimeout(() => el.classList.remove(...ring), 2500);
+    return () => clearTimeout(t);
+  }, [focusDraftId, drafts]);
 
   async function auditUrl(e: React.FormEvent) {
     e.preventDefault();
@@ -231,6 +310,31 @@ const Issues: React.FC = () => {
     }
     setDraftMsg(data.draftId ? "Cover generated — a fresh pending draft is in the review queue. Approve it, then Publish cover." : `No new draft: ${data.note || "nothing generated"}`);
     await loadDrafts();
+  }
+
+  /** Redesign the cover of any PUBLISHED article (the "Published articles" section).
+   *  Uses /api/growth/cover/generate — purpose-built for published articles (it
+   *  looks the slug up in ARTICLES, clears pending/approved/rejected cover drafts
+   *  for the URL, and force-creates a new pending one over an existing published
+   *  cover). After approve + Publish cover, shipCoverToGitHub overwrites the live
+   *  PNG idempotently — the site hero + LinkedIn og:image both update. */
+  async function redesignCover(slug: string, title: string) {
+    if (!confirm(`Redesign the cover for "${title}"? A fresh pending cover draft replaces any existing pending one. Approve it, then Publish cover to ship it live (the site hero + LinkedIn og:image both update).`)) return;
+    setRedesigningSlug(slug);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{ ok: boolean; draftId?: string; note?: string; error?: string; code?: string }>("/api/growth/cover/generate", {
+      method: "POST",
+      body: JSON.stringify({ slug }),
+    });
+    setRedesigningSlug(null);
+    if (error || !data?.ok) {
+      const reason = strError(error) || strError(data?.error) || data?.code || "generate failed";
+      setDraftMsg(`Cover redesign failed: ${reason}`);
+      return;
+    }
+    setDraftMsg(data.draftId ? "Cover redesigned — a fresh pending draft is in the review queue. Approve it, then Publish cover." : `No new draft: ${data.note || "nothing generated"}`);
+    await loadDrafts();
+    setStripKey((k) => k + 1);
   }
 
   async function decideDraft(draftId: string, decision: "approved" | "rejected") {
@@ -431,6 +535,19 @@ const Issues: React.FC = () => {
         Latest audited pages with SEO + GEO scores and prioritized recommendations.
       </p>
 
+      <div className="mt-5">
+        <PipelineStrip variant="issues" refreshKey={stripKey} />
+      </div>
+
+      {pendingToast != null && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2">
+          <p className="text-[12px] font-semibold text-emerald-300">
+            ✨ {pendingToast} new draft{pendingToast === 1 ? "" : "s"} ready to review — the Growth Agent just finished a run.
+          </p>
+          <button onClick={() => setPendingToast(null)} className="text-[11px] text-emerald-300/70 hover:text-emerald-200">Dismiss</button>
+        </div>
+      )}
+
       <form onSubmit={auditUrl} className="mt-5 flex flex-wrap gap-2">
         <input
           value={url}
@@ -465,12 +582,17 @@ const Issues: React.FC = () => {
           </p>
           <div className="mt-3 space-y-3">
             {pendingDrafts.map((d) => (
-              <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <div key={d.id} ref={(el) => { cardRefs.current[d.id] = el; }} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
                     {kindBadge(d.kind).label}
                   </span>
+                  {threadByDraft[d.id] && (
+                    <Link to={`/admin/growth/agent?thread=${encodeURIComponent(threadByDraft[d.id])}`} className="rounded border border-[#f59f4f]/30 px-1.5 py-0.5 text-[9px] font-semibold text-[#f6bf84] hover:bg-[#f59f4f]/10" title="Open the agent conversation that created this draft">
+                      View in Agent ↗
+                    </Link>
+                  )}
                 </div>
                 {d.kind === "cover" ? (
                   <CoverPreview d={d} />
@@ -557,7 +679,7 @@ const Issues: React.FC = () => {
             {approvedCards.map((d) => {
               const justOut = !!justPublished[d.id];
               return (
-              <div key={d.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <div key={d.id} ref={(el) => { cardRefs.current[d.id] = el; }} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 flex-1 truncate text-[12px] font-semibold text-white">{d.title || d.url || d.id}</p>
                   {justOut && (
@@ -566,6 +688,11 @@ const Issues: React.FC = () => {
                   <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>
                     {kindBadge(d.kind).label}
                   </span>
+                  {threadByDraft[d.id] && !justOut && (
+                    <Link to={`/admin/growth/agent?thread=${encodeURIComponent(threadByDraft[d.id])}`} className="rounded border border-[#f59f4f]/30 px-1.5 py-0.5 text-[9px] font-semibold text-[#f6bf84] hover:bg-[#f59f4f]/10" title="Open the agent conversation that created this draft">
+                      View in Agent ↗
+                    </Link>
+                  )}
                 </div>
                 {d.kind === "cover" ? (
                   <CoverPreview d={d} />
@@ -763,6 +890,46 @@ const Issues: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Published articles — the canonical "redesign any cover" surface. Every
+          published article gets a Redesign cover button (the audited-pages list
+          only shows pages that have been crawled). One redesign updates the site
+          hero + the LinkedIn og:image together (LinkedIn uses the article cover). */}
+      <section className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+        <h2 className="text-[15px] font-bold text-white">Published articles ({ARTICLES.length})</h2>
+        <p className="mt-1 text-[12px] text-[#9fb2c6]">
+          Redesign the cover of any published article. A fresh pending cover draft lands in the review queue above —
+          approve it, then Publish cover to ship it live. The site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
+        </p>
+        <div className="mt-3 divide-y divide-white/[0.04]">
+          {ARTICLES.map((a) => (
+            <div key={a.slug} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-white">{a.title}</p>
+                <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`${SITE.url}${articlePath(a.slug)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
+                >
+                  View live ↗
+                </a>
+                <button
+                  onClick={() => redesignCover(a.slug, a.title)}
+                  disabled={redesigningSlug === a.slug}
+                  title="Generate a fresh pending cover for this published article (replaces any pending one). Approve + Publish cover to ship it live."
+                  className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
+                >
+                  {redesigningSlug === a.slug ? "Redesigning…" : "Redesign cover"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 };
