@@ -175,9 +175,8 @@ async function runCoverGeneration(
  *  (see callGeminiImage referenceImage) and the prompt tells the model to match
  *  that sample's visual language so every cover stays consistent.
  *
- *  Exported so a one-off pre-shipping script can reuse the EXACT brand prompt
- *  (instead of a drift-prone copy) when generating a cover for an already-
- *  published article that is missing one. Pure + side-effect-free. */
+ *  Pure + side-effect-free. Used by generateCoverDraft; exported so external
+ *  tooling can reuse the EXACT brand prompt without a drift-prone copy. */
 export function buildCoverPrompt(fields: CoverPromptFields, hasSample = false): string {
   return [
     "Generate a single 1200x630 pixel hero illustration for a tech article,",

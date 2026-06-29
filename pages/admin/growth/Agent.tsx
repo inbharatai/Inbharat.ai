@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import PipelineStrip from "../../../components/growth/PipelineStrip";
+import MarkdownText from "../../../components/growth/MarkdownText";
 
 /**
  * /admin/growth/agent — the conversational CMO agent (Phase C) + Auto Mode (C5).
@@ -375,7 +376,11 @@ const Agent: React.FC = () => {
             {messages.map((m) => (
               <div key={m.id} className={`mb-3 ${m.role === "user" ? "text-right" : ""}`}>
                 {m.role === "user" && <div className="inline-block max-w-[85%] rounded-lg bg-[#f59f4f]/15 px-3 py-2 text-left text-[13px] text-white">{m.content}</div>}
-                {m.role === "assistant" && m.content && <div className="max-w-[90%] whitespace-pre-wrap rounded-lg bg-white/[0.04] px-3 py-2 text-[13px] text-[#e6eef7]">{m.content}</div>}
+                {m.role === "assistant" && m.content && (
+                  <div className="max-w-[90%] rounded-lg bg-white/[0.04] px-3 py-2">
+                    <MarkdownText className="text-[13px]">{m.content}</MarkdownText>
+                  </div>
+                )}
                 {m.role === "tool" && (
                   <div className="max-w-[90%] rounded-lg border border-white/5 bg-white/[0.02] px-3 py-1.5 text-[11px] text-[#7a9ab8]">
                     <span className="text-[#f59f4f]">🔧 {m.toolName}</span> → {m.toolResult?.message ?? (m.toolResult?.ok ? "ok" : "no detail")}

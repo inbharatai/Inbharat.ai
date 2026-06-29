@@ -45,9 +45,14 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
     return keep("review model not configured or monthly budget exhausted", "skipped");
   }
 
+  const isArticle = input.context.kind === "article";
   const system =
-    "You are a critical reviewer for InBharat AI LinkedIn drafts. Compare the candidate to the founder's voice and the founder-authored rules. " +
-    "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs; keep it 60–90 words. " +
+    (isArticle
+      ? "You are a critical reviewer for an InBharat AI founder-authored article. Compare the candidate body to the founder's voice and the founder-authored rules. " +
+        "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs. PRESERVE the full article length and markdown structure (leading `> ` blockquote, `## ` section headings, prose, ```mermaid diagrams, ```code fences, trailing `---` / author line / `#hashtags`). " +
+        "Keep any ```mermaid diagrams and code blocks well-formed and accurate (valid mermaid syntax that renders, real runnable code); fix broken syntax but do not invent new diagrams. Technical articles and development-plan content are normal — revise voice and hype only, never question or reframe the topic. NEVER ask clarifying questions, never apologize, never refuse — ALWAYS respond with the JSON object only; if you cannot improve the body, set the revised field to the candidate verbatim. Return the COMPLETE revised article body (same length range as the candidate). "
+      : "You are a critical reviewer for InBharat AI LinkedIn drafts. Compare the candidate to the founder's voice and the founder-authored rules. " +
+        "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs; keep it 60–90 words. The caption is PLAIN TEXT for LinkedIn — STRIP any markdown (**bold**, _italics_, ## headings, #hashtags, code formatting) so it reads as clean plain sentences; LinkedIn renders markdown as literal characters. ") +
     "Respond ONLY with compact JSON: {\"revised\": string, \"weaknesses\": [{\"severity\":\"critical|major|minor\",\"area\": string,\"fix\": string}]}." +
     (input.strategyBlock ? `\n\n${input.strategyBlock}` : "") +
     (input.rulesBlock ? `\n\n${input.rulesBlock}` : "") +
@@ -72,7 +77,7 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
 
   let raw: string;
   try {
-    raw = await callGemini(choice, system, user, { temperature: 0.4, maxOutputTokens: 700 });
+    raw = await callGemini(choice, system, user, { temperature: 0.4, maxOutputTokens: isArticle ? 8192 : 700 });
   } catch (e) {
     void logUsage({
       model: choice.model,

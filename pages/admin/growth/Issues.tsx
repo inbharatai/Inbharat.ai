@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import PipelineStrip from "../../../components/growth/PipelineStrip";
+import MarkdownText from "../../../components/growth/MarkdownText";
 import { ARTICLES, articlePath, getArticleBySlug } from "../../../content/articles.meta";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../../../lib/growth/articleSlug";
 import { SITE } from "../../../seo.config";
@@ -666,7 +667,7 @@ const Issues: React.FC = () => {
                         <span className="font-semibold">⚠ No caption generated</span> ({d.schema_json?.note || "model unavailable"}). This draft has no text to post yet — write a caption yourself before approving, or Reject it.
                       </div>
                     ) : d.body_md ? (
-                      <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>
+                      <div className="mt-2"><MarkdownText className="text-[12px]">{d.body_md}</MarkdownText></div>
                     ) : (
                       <p className="mt-2 text-[12px] italic text-[#7a9ab8]">
                         No {d.kind === "video-script" ? "script" : "body"} generated for this {d.kind} draft ({d.schema_json?.note || "model unavailable"}). Regenerate it from the Agent tab, or write it manually before approving.
@@ -806,7 +807,7 @@ const Issues: React.FC = () => {
                   <CoverPreview d={d} />
                 ) : d.kind === "article" || d.kind === "video-script" ? (
                   <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-white/5 bg-white/[0.02] p-2.5">
-                    {d.body_md && <pre className="whitespace-pre-wrap break-words font-sans text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</pre>}
+                    {d.body_md && <MarkdownText className="text-[12px]">{d.body_md}</MarkdownText>}
                     {d.kind === "article" && d.schema_json?.slug && (
                       <p className="mt-2 text-[10px] text-[#5f7c98]">slug: {d.schema_json.slug} · {d.schema_json?.category ?? ""} · ~{d.schema_json?.readMinutes ?? "?"} min read</p>
                     )}
@@ -815,7 +816,7 @@ const Issues: React.FC = () => {
                   <>
                     <DraftAbout d={d} />
                     {d.body_md ? (
-                      <p className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed text-[#c8d6e8]">{d.body_md}</p>
+                      <div className="mt-2"><MarkdownText className="text-[12px]">{d.body_md}</MarkdownText></div>
                     ) : (
                       <div className="mt-2 rounded-md border border-rose-500/40 bg-rose-500/[0.08] px-2.5 py-1.5 text-[11px] leading-relaxed text-rose-200">
                         <span className="font-semibold">⚠ No caption generated</span> ({d.schema_json?.note || "model unavailable"}). This draft has no text to post — write a caption yourself, or Reject it from the pending queue before publishing.

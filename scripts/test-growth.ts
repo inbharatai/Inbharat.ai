@@ -549,8 +549,9 @@ try {
   check("cover unconfigured → status skipped", covSkip.status === "skipped", `got ${covSkip.status}`);
   check("cover unconfigured → no fetch", coverCalls === 0, `got ${coverCalls}`);
 
-  // prompt is text-free: buildCoverPrompt is not exported, so assert via a
-  // second mock that captures the request body text and checks it forbids text.
+  // prompt is text-free: buildCoverPrompt is exported but pure (no model call),
+  // so assert via a second mock that captures the request body text and checks
+  // it forbids text.
   process.env.GEMINI_API_KEY = "test-key";
   coverCalls = 0;
   capturedPrompt = "";

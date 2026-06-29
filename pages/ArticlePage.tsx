@@ -14,6 +14,7 @@ import {
 import { loadArticleBody } from '../content/articles.body';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
+import Mermaid from '../components/Mermaid';
 
 /**
  * "Build AI with Reeturaj" article page. Lazy-loaded (see index.tsx) so the
@@ -94,6 +95,39 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
         {children}
       </a>
     );
+  },
+  // Render ```mermaid fences as real SVG diagrams (components/Mermaid), not raw
+  // text. The fenced code arrives as <pre><code class="language-mermaid">. We
+  // intercept `code`: when the language is mermaid, emit a <div data-mermaid>
+  // wrapping <Mermaid>. Then `pre` below unwraps that div (returns children
+  // directly, no <pre>) so the diagram isn't double-styled as a code block.
+  // Non-mermaid code passes through to the default renderers untouched.
+  code: ({ node, className, children, ...rest }) => {
+    void node;
+    const lang = /language-(\w+)/.exec(className || '');
+    if (lang && lang[1] === 'mermaid') {
+      const graph = String(children).replace(/\n$/, '');
+      return (
+        <div data-mermaid="true">
+          <Mermaid graph={graph} />
+        </div>
+      );
+    }
+    return (
+      <code className={className} {...rest}>
+        {children}
+      </code>
+    );
+  },
+  pre: ({ node, children }) => {
+    void node;
+    // Unwrap mermaid blocks: the `code` override returned a <div
+    // data-mermaid>, so render it bare instead of inside a styled <pre>.
+    const child = Array.isArray(children) ? children[0] : children;
+    if (child && typeof child === 'object' && 'props' in child && (child as React.ReactElement).props?.['data-mermaid']) {
+      return <>{children}</>;
+    }
+    return <pre>{children}</pre>;
   },
 };
 

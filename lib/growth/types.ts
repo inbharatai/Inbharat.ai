@@ -203,13 +203,6 @@ export interface AuthorizationDecision {
   scope: string;
 }
 
-export interface PerformanceSnapshot {
-  domain: string;
-  source: "ga4" | "gsc" | "indexnow" | "uptime";
-  metrics: Record<string, unknown>;
-  capturedAt: string;
-}
-
 export interface ModelUsageRecord {
   model: string;
   task: string;

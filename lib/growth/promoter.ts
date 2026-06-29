@@ -229,6 +229,7 @@ async function generatePromotionDraft(
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
     "You write concise, practical, hype-free LinkedIn post drafts that tease a founder-authored article and drive clicks to the article URL. " +
+    "The caption is PLAIN TEXT for LinkedIn: do NOT use markdown — no **bold**, no _italics_, no ## headings, no #hashtags, and no code formatting inside the caption. LinkedIn renders all markdown as literal characters, so write plain sentences with normal punctuation only. " +
     "You also suggest 2–3 internal links (other InBharat article URLs or the hub) to weave into the post. " +
     "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
     (strategyBlock ? `\n\n${strategyBlock}` : "") +
