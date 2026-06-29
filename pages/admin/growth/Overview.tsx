@@ -119,9 +119,10 @@ const Overview: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-white">Overview</h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
-            The InBharat Growth Agent audits SEO + GEO (AI-search readiness) for authorized sites only. This phase is{" "}
-            <span className="font-semibold text-[#f59f4f]">audit-only</span>: it crawls and scores pages — it never writes
-            content or publishes without a human approving a pull request.
+            The InBharat Growth Agent audits SEO + GEO (AI-search readiness) for authorized sites only. It drafts content
+            and covers, but <span className="font-semibold text-[#f59f4f]">never publishes without your approval</span> —
+            a one-click publish commits the article + cover straight to GitHub <code className="text-[#f59f4f]">main</code>,
+            which Vercel auto-rebuilds. No pull requests, no auto-ships.
           </p>
         </div>
         <button
@@ -139,7 +140,7 @@ const Overview: React.FC = () => {
       {runMsg && <p className="mt-3 text-[12px] text-[#9fb2c6]">{runMsg}</p>}
 
       {/* Status cards */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat
           label="Last cron run"
           value={lastRun ? lastRun.status : "never"}
@@ -149,6 +150,7 @@ const Overview: React.FC = () => {
         <Stat label="Pages audited" value={String(counts?.pages ?? 0)} hint="across all sites" />
         <Stat label="Open issues" value={String(counts?.openTasks ?? 0)} hint="from audits" tone={(counts?.openTasks ?? 0) > 0 ? "warn" : "ok"} />
         <Stat label="Pending drafts" value={String(pendingDrafts)} hint="awaiting review" tone={pendingDrafts > 0 ? "warn" : "ok"} />
+        <Stat label="Approvals" value={String(counts?.approvalsThisMonth ?? 0)} hint="this month" tone={(counts?.approvalsThisMonth ?? 0) > 0 ? "ok" : "neutral"} />
         <Stat
           label="This month"
           value={spend ? `${fmtUsd(spend.spentUsd)} / ${fmtUsd(spend.capUsd)}` : "—"}

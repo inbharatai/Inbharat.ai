@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 
 interface MetricsResult {
@@ -19,30 +19,46 @@ const Performance: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const { data: body, error } = await fetchJson<PerfResp>("/api/growth/performance");
-      if (cancelled) return;
-      if (error) setError(error);
-      else setData(body);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const { data: body, error } = await fetchJson<PerfResp>("/api/growth/performance");
+    if (error) setError(error);
+    else setData(body);
+    setLoading(false);
   }, [fetchJson]);
 
-  if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
-  if (error) return <p className="text-[13px] text-rose-300">Failed: {error}</p>;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading && !data) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
+  if (error && !data) return (
+    <div>
+      <p className="text-[13px] text-rose-300">Failed: {error}</p>
+      <button onClick={() => load()} className="mt-3 rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30">
+        Retry
+      </button>
+    </div>
+  );
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Performance</h1>
-      <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
-        Google Analytics 4 + Search Console, last 28 days. Credentials are configured server-side and
-        never sent to any AI model.
-      </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Performance</h1>
+          <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
+            Google Analytics 4 + Search Console, last 28 days. Credentials are configured server-side and
+            never sent to any AI model.
+          </p>
+        </div>
+        <button onClick={() => load()} disabled={loading}
+          className="rounded-md border border-white/15 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30 disabled:opacity-40">
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
+      {error && data && <p className="mt-4 text-[13px] text-rose-300">Refresh failed: {error}</p>}
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Panel title="Google Analytics 4" result={data?.ga4} rows={(d) => [

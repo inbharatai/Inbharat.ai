@@ -119,7 +119,16 @@ const Learning: React.FC = () => {
     });
     setEngSaving(null);
     if (error) setError(error);
-    else await load();
+    else {
+      // Clear the saved draftId's local input so the next render re-seeds from the
+      // freshly-loaded server values (otherwise the stale local input shadows them).
+      setEng((prev) => {
+        const next = { ...prev };
+        delete next[draftId];
+        return next;
+      });
+      await load();
+    }
   }
 
   if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
@@ -197,6 +206,11 @@ const Learning: React.FC = () => {
                     </div>
                     {o.critiqueStatus && (
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${CRITIQUE_COLOR[o.critiqueStatus] || "bg-white/5 text-[#9fb2c6]"}`} title="Self-critique pass status">critique:{o.critiqueStatus}</span>
+                    )}
+                    {o.issuesResolved > 0 && (
+                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300" title="SEO/GEO audit issues fixed between baseline and measured">
+                        ✓ {o.issuesResolved} resolved
+                      </span>
                     )}
                   </div>
                 </div>

@@ -319,11 +319,20 @@ async function generateCover(args: Args): Promise<ToolResult> {
   if (!slug && !draftId) return { ok: false, message: "need an article slug OR a draftId (an article draft)" };
 
   // Optional style sample: load + base64 an inbox image item to match its style.
+  // If the requested sampleItemId is missing/not-an-image/unreadable, DON'T abort —
+  // fall back to the auto style sample (fetchStyleSample inside the generator) so the
+  // cover still drafts. Previously a hallucinated/typo sampleItemId (e.g.
+  // "65415-sample-cover-image") hard-aborted the whole cover, leaving the article
+  // with no image. The cover is too important to skip on a bad reference id.
   let sample: CoverStyleSample | undefined;
+  let sampleNote = "";
   if (sampleItemId) {
     const loaded = await loadStyleSample(sampleItemId);
-    if (typeof loaded === "string") return { ok: false, message: loaded }; // error message
-    sample = loaded;
+    if (typeof loaded === "string") {
+      sampleNote = ` (requested sampleItemId not usable: ${loaded}; used the default cover style instead)`;
+    } else {
+      sample = loaded;
+    }
   }
 
   // Published-article path.
@@ -333,7 +342,7 @@ async function generateCover(args: Args): Promise<ToolResult> {
       try {
         const result = await generateCoverDraft(meta, sample);
         if (result.status !== "pending") return { ok: false, message: result.note ?? "cover not drafted (skipped — a cover may already exist)" };
-        return { ok: true, message: `Cover drafted for "${meta.title}"${sample ? " matching your sample style" : ""} — review in Issues, then Publish to ship it.`, draftId: result.draftId, filename: result.filename };
+        return { ok: true, message: `Cover drafted for "${meta.title}"${sample ? " matching your sample style" : ""}${sampleNote} — review in Issues, then Publish to ship it.`, draftId: result.draftId, filename: result.filename };
       } catch (e) {
         return { ok: false, message: `cover draft failed: ${(e as Error).message}` };
       }
@@ -361,7 +370,7 @@ async function generateCover(args: Args): Promise<ToolResult> {
   try {
     const result = await generateCoverDraftFromFields({ slug: aSlug, title: aTitle, category: aCategory, abstract: aAbstract }, sample);
     if (result.status !== "pending") return { ok: false, message: result.note ?? "cover not drafted (skipped — a cover may already exist for this article)" };
-    return { ok: true, message: `Cover drafted for article "${aTitle}"${sample ? " matching your sample style" : ""} — review in Issues, then approve to ship the cover + article together.`, draftId: result.draftId, filename: result.filename };
+    return { ok: true, message: `Cover drafted for article "${aTitle}"${sample ? " matching your sample style" : ""}${sampleNote} — review in Issues, then approve to ship the cover + article together.`, draftId: result.draftId, filename: result.filename };
   } catch (e) {
     return { ok: false, message: `cover draft failed: ${(e as Error).message}` };
   }

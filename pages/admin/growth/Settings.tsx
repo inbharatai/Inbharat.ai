@@ -30,6 +30,7 @@ const Settings: React.FC = () => {
   const [whoami, setWhoami] = useState<WhoamiResp | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [whoamiError, setWhoamiError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +42,9 @@ const Settings: React.FC = () => {
     else setError(null);
     setInsights(i.data);
     setWhoami(w.data);
+    // Surface a whoami failure separately — otherwise a fetch error renders as
+    // "Not authorized", which is misleading (the founder may actually be admin).
+    setWhoamiError(w.error && !w.data ? w.error : null);
     setLoading(false);
   }, [fetchJson]);
 
@@ -64,9 +68,15 @@ const Settings: React.FC = () => {
 
       <div className="mt-6 space-y-4">
         <Section title="Admin identity (server-verified)">
-          <Row label="Status" value={whoami?.admin ? "Authorized" : "Not authorized"} ok={!!whoami?.admin} />
-          <Row label="User ID" value={whoami?.userId ?? "—"} />
-          <Row label="Email" value={whoami?.email ?? "—"} />
+          {whoamiError ? (
+            <p className="text-[13px] text-rose-300">Could not verify admin identity: {whoamiError}. The status below is unreliable until this resolves.</p>
+          ) : (
+            <>
+              <Row label="Status" value={whoami?.admin ? "Authorized" : "Not authorized"} ok={!!whoami?.admin} />
+              <Row label="User ID" value={whoami?.userId ?? "—"} />
+              <Row label="Email" value={whoami?.email ?? "—"} />
+            </>
+          )}
           <p className="text-[11px] leading-relaxed text-[#7a9ab8]">
             The server is the single source of truth: you are an admin if your Supabase user id is in{" "}
             <code className="text-[#f59f4f]">GROWTH_ADMIN_USER_IDS</code> or your{" "}

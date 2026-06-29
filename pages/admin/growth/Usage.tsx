@@ -117,6 +117,7 @@ const Usage: React.FC = () => {
   const didSeedCap = useRef(false);
   const [saving, setSaving] = useState(false);
   const [budgetMsg, setBudgetMsg] = useState<string | null>(null);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
 
   const load = useCallback(
     async (windowDays: number) => {
@@ -129,6 +130,9 @@ const Usage: React.FC = () => {
       else setError(null);
       setUsage(u.data);
       setBudget(b.data);
+      // Surface a budget-fetch failure separately so the spend header can warn the
+      // founder that the cap shown may be stale (it falls back to usage.month).
+      setBudgetError(b.error && !b.data ? b.error : null);
       if (b.data?.capUsd != null && !didSeedCap.current) {
         setCapInput(String(b.data.capUsd));
         didSeedCap.current = true;
@@ -255,6 +259,12 @@ const Usage: React.FC = () => {
           </div>
         </div>
         {budgetMsg && <p className="mt-3 text-[12px] text-[#9fb2c6]">{budgetMsg}</p>}
+        {budgetError && (
+          <p className="mt-3 text-[12px] text-amber-300">
+            Could not load the live monthly cap ({budgetError}). The figures above fall back to the usage window
+            month block and may be stale — try Refresh.
+          </p>
+        )}
       </section>
 
       {/* Totals + provider split */}
@@ -274,6 +284,15 @@ const Usage: React.FC = () => {
             </Card>
           );
         })}
+        {byProvider
+          .filter((x) => x.key !== "gemini" && x.key !== "openai")
+          .map((b) => (
+            <Card key={b.key} title={PROVIDER_LABEL[b.key] ?? b.key} accent={PROVIDER_COLOR[b.key] ?? PROVIDER_COLOR.unknown}>
+              <Stat label="Spend" value={fmtUsd(b.costUsd ?? 0)} />
+              <Stat label="Share" value={`${b.pctSpend?.toFixed(1) ?? "0"}%`} />
+              <Stat label="Tokens" value={fmtNum(b.tokens ?? 0)} />
+            </Card>
+          ))}
       </div>
 
       {/* Per-model table */}
