@@ -549,6 +549,17 @@ export const ARTICLES: ArticleMeta[] = [
     faq: [],
     hashtags: [],
   },
+  {
+    slug: 'why-i-am-building-jak-shield-an-ai-safety-net-for-bharat',
+    title: 'Why I Am Building JAK Shield: An AI Safety Net for Bharat',
+    description: 'Reeturaj Goswami explains why he\'s building JAK Shield, a universal AI risk firewall, to ensure AI agents act safely and responsibly, especially for India\'s uni',
+    category: 'AI Foundations',
+    datePublished: '2026-06-30',
+    readMinutes: 6,
+    abstract: 'AI agents are powerful but carry risks of uncontrolled execution. I\'m building JAK Shield, a universal AI risk firewall, to detect threats like prompt injection and data leaks. It provides a safety layer, explains risks, and seeks approval, ensuring human control. This is crucial for India, where AI adoption needs robust, accessible protection.',
+    faq: [],
+    hashtags: [],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
