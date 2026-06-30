@@ -557,6 +557,7 @@ export const ARTICLES: ArticleMeta[] = [
     datePublished: '2026-06-30',
     readMinutes: 6,
     visual: 'why-i-am-building-jak-shield-an-ai-safety-net-for-bharat.png',
+    visual: 'why-i-am-building-jak-shield-an-ai-safety-net-for-bharat.png',
     abstract: 'AI agents are powerful but carry risks of uncontrolled execution. I\'m building JAK Shield, a universal AI risk firewall, to detect threats like prompt injection and data leaks. It provides a safety layer, explains risks, and seeks approval, ensuring human control. This is crucial for India, where AI adoption needs robust, accessible protection.',
     faq: [],
     hashtags: [],
