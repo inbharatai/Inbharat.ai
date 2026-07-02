@@ -29,6 +29,12 @@ interface LeadCaptureProps {
   consentText: string;
   compact?: boolean;
   showNameCompany?: boolean;
+  // Contact-style: show a message textarea and require a non-empty message.
+  showMessage?: boolean;
+  // If set, after the growth-leads POST succeeds, make a best-effort second POST
+  // here for email delivery (non-growth, e.g. "/api/contact"). Fire-and-forget;
+  // never fails the form — the growth-leads capture is the source of truth.
+  notifyEndpoint?: string;
 }
 
 type Status = "idle" | "submitting" | "ok" | "error";
@@ -54,10 +60,13 @@ const LeadCapture: React.FC<LeadCaptureProps> = ({
   consentText,
   compact = false,
   showNameCompany = false,
+  showMessage = false,
+  notifyEndpoint,
 }) => {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [message, setMessage] = useState("");
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState(""); // honeypot
   const [status, setStatus] = useState<Status>("idle");
@@ -73,6 +82,10 @@ const LeadCapture: React.FC<LeadCaptureProps> = ({
     }
     if (!consent) {
       setError("Please accept the consent note to continue.");
+      return;
+    }
+    if (showMessage && !message.trim()) {
+      setError("Please add a short message so we know how to help.");
       return;
     }
     setStatus("submitting");
@@ -95,6 +108,26 @@ const LeadCapture: React.FC<LeadCaptureProps> = ({
       if (res.ok && data?.ok) {
         setStatus("ok");
         setEmail(""); setName(""); setCompany(""); setConsent(false);
+        // Best-effort email delivery (non-growth). Fire-and-forget; never fails
+        // the form — the growth-leads capture above is the source of truth. The
+        // closure values (email/name/company/message) still hold the submitted
+        // data here even though we just cleared state.
+        if (notifyEndpoint) {
+          fetch(notifyEndpoint, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              email,
+              name: name || undefined,
+              company: company || undefined,
+              message,
+              consentText,
+              website, // honeypot — /api/contact re-checks it
+            }),
+          }).catch(() => {
+            /* email delivery is best-effort; ignore network errors */
+          });
+        }
       } else {
         setStatus("error");
         setError(res.status === 429
@@ -110,7 +143,7 @@ const LeadCapture: React.FC<LeadCaptureProps> = ({
   if (status === "ok") {
     return (
       <p className="rounded-2xl border border-[#f59f4f]/30 bg-[#f59f4f]/10 p-4 text-[13.5px] leading-snug text-[#f5b76f]">
-        ✓ Thank you — we&apos;ll be in touch. (Check your inbox for a confirmation.)
+        ✓ Thank you — we&apos;ll be in touch.
       </p>
     );
   }
@@ -160,6 +193,11 @@ const LeadCapture: React.FC<LeadCaptureProps> = ({
             placeholder="Company (optional)" aria-label="Company"
             className={inputCls} />
         </div>
+      )}
+      {showMessage && (
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)}
+          placeholder="Your message" aria-label="Message" rows={4}
+          className={inputCls + " resize-y"} />
       )}
       <label className="flex items-start gap-2 text-[12px] leading-snug text-[#9aafc6]">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)}

@@ -80,11 +80,13 @@ const Contact: React.FC = () => {
       <section className="mt-2">
         <h2 className="text-xl font-bold text-white">Send us a message</h2>
         <p className="mt-1.5 mb-3 text-[13.5px] leading-snug text-[#9aafc6]">
-          Drop your email and a note arrives in our inbox. We answer most messages within a few working days.
+          Drop your email and a short message — it reaches our inbox at info@inbharat.ai. We reply to most messages within a few working days.
         </p>
         <LeadCapture
           kind="contact"
           showNameCompany
+          showMessage
+          notifyEndpoint="/api/contact"
           ctaLabel="Send message"
           placeholder="you@example.com"
           consentText="I agree to be contacted about this message. We never share your email."
