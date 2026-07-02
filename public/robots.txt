@@ -1,8 +1,10 @@
 # InBharat AI — robots.txt
-# Reviewed 2026-05-12.
+# Reviewed 2026-07-02.
 #
 # Policy: legitimate search and AI-search crawlers are welcome. /api is the
-# only path blocked (it's the backend, not user-facing content).
+# backend (not user-facing content) and /admin/ is the private growth-console
+# (also guarded by noindex meta + RequireAdmin) — both blocked here as
+# defense-in-depth. All public pages are allowed.
 
 # ── OpenAI ChatGPT / Search ──
 User-agent: OAI-SearchBot
@@ -44,5 +46,6 @@ Allow: /
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /admin/
 
-Sitemap: https://inbharat.ai/sitemap.xml
+Sitemap: https://www.inbharat.ai/sitemap.xml

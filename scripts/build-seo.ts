@@ -393,10 +393,21 @@ function buildSitemap(
   supportedLangs: readonly string[],
 ): string {
   const today = new Date().toISOString().slice(0, 10);
+  // slug → datePublished, so article <url> entries get a truthful lastmod
+  // (the article's publish date) instead of the build date. Non-article routes
+  // keep the build date as lastmod (they have no per-content date).
+  const articleLastmod = new Map<string, string>(
+    ARTICLES.map((a) => [a.slug, a.datePublished]),
+  );
   const urls = routes
-    .filter((r) => !r.excludeFromSitemap)
+    // Defensive: exclude both noIndex and excludeFromSitemap. Today every
+    // noIndex route also sets excludeFromSitemap, but a future noIndex-only
+    // route must never leak into the sitemap (Google flags a sitemap URL that
+    // carries a noindex meta as a contradiction).
+    .filter((r) => !r.noIndex && !r.excludeFromSitemap)
     .map((r) => {
       const loc = site.url + (r.path === '/' ? '/' : r.path);
+      const lastmod = r.articleSlug ? articleLastmod.get(r.articleSlug) ?? today : today;
       const alts = r.multilingual
         ? supportedLangs
             .map((lang) => {
@@ -414,7 +425,7 @@ function buildSitemap(
       return [
         '  <url>',
         `    <loc>${escapeText(loc)}</loc>`,
-        `    <lastmod>${today}</lastmod>`,
+        `    <lastmod>${lastmod}</lastmod>`,
         `    <changefreq>${r.changefreq}</changefreq>`,
         `    <priority>${r.priority.toFixed(1)}</priority>`,
         alts,

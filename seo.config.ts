@@ -23,7 +23,10 @@ import {
 import { buildArticleSchemas } from './content/article-schema.js';
 
 export const SITE = {
-  url: 'https://inbharat.ai',
+  // Canonical host is www (apex https://inbharat.ai 308-redirects to www live).
+  // All sitemap <loc>, <link rel=canonical>, OG urls, and JSON-LD urls derive
+  // from this — must be the www host so signals point at the canonical URL.
+  url: 'https://www.inbharat.ai',
   name: 'InBharat AI',
   shortName: 'InBharat',
   description:
@@ -529,7 +532,10 @@ export const ROUTES: SeoRoute[] = [
     multilingual: false,
     extraSchema: [homepageFAQ, productSuite],
     seoBody: {
-      h1: 'InBharat AI — Affordable AI Tools Built for Bharat',
+      // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
+      // "Affordable AI tools built for Bharat.") so the crawler sr-only H1 and
+      // the on-page H1 match exactly. Branding stays in <title>/OG.
+      h1: 'Affordable AI tools built for Bharat',
       paragraphs: [
         'InBharat AI is an independent AI product studio building affordable, voice-first, multilingual AI tools for India. Our tools run in 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese — and work on any modern phone, tablet, or desktop with nothing to install.',
         'The InBharat product suite includes JAK Swarm, an open-source self-hostable agentic company OS with an evidence graph, drift detection, and JAK Shield risk gating; KathaKitaab, AI-powered interactive storybooks for children in Indian languages; and TestsPrep, AI-driven adaptive test-preparation analytics.',

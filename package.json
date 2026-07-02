@@ -9,7 +9,7 @@
     "dev:api": "tsx server/local-api.ts",
     "dev:local": "concurrently -n api,vite \"npm run dev:api\" \"npm run dev:vite:proxy\"",
     "dev:vite:proxy": "cross-env API_PROXY_TARGET=http://localhost:3001 vite",
-    "build": "vite build && tsx scripts/build-seo.ts",
+    "build": "vite build && tsx scripts/build-seo.ts && tsx scripts/sync-published-articles.ts",
     "build:vite-only": "vite build",
     "build:seo": "tsx scripts/build-seo.ts",
     "preview": "vite preview",

@@ -112,9 +112,13 @@ export function buildArticleSchemas(
   site: SiteLike,
   author: PersonLike,
 ): Schema[] {
-  return [
+  // Omit FAQPage when an article has no FAQ entries — an empty FAQPage with
+  // mainEntity: [] is invalid/flaggable by Google. TechArticle + BreadcrumbList
+  // always ship.
+  const schemas: Schema[] = [
     buildTechArticle(meta, site, author),
-    buildArticleFaq(meta),
     buildArticleBreadcrumb(meta, site),
   ];
+  if (meta.faq.length > 0) schemas.push(buildArticleFaq(meta));
+  return schemas;
 }
