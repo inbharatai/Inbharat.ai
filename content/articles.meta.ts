@@ -569,6 +569,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-02',
     readMinutes: 5,
+    visual: 'building-a-digital-shield-ai-for-scam-detection-in-indian-te.png',
     abstract: 'Digital scams are a growing threat for Indian businesses. I explore how an AI-powered review layer can act as a crucial first line of defense, identifying fake tenders and forged documents. This article details practical checks an AI system should perform, emphasizing transparency and actionable recommendations for users in Bharat.',
     faq: [],
     hashtags: [],
