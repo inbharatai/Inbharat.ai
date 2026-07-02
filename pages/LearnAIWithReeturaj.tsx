@@ -365,8 +365,7 @@ const ArticleExplorer: React.FC = () => {
               custom={i}
               variants={cardReveal}
               initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.15 }}
+              animate="visible"
               whileHover={{ y: -6, scale: 1.01 }}
               className="group"
             >
