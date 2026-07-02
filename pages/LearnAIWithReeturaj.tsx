@@ -289,13 +289,6 @@ const ArticleExplorer: React.FC = () => {
 
   return (
     <div>
-      {/* TEMP DEBUG — mobile article visibility diagnosis. Plain HTML, no Motion,
-          so it is always visible. If you can read this on mobile but see no cards
-          below, cards are a render/CSS issue; if you can't read this, the whole
-          ArticleExplorer isn't mounting. Remove once fixed. */}
-      <div role="status" style={{ outline: '1px dashed #f59f4f', borderRadius: 8, padding: '6px 10px', color: '#f59f4f', fontSize: 12, fontFamily: 'monospace', marginBottom: 12 }}>
-        DEBUG hub · ARTICLES={ARTICLES.length} · filtered={filtered.length} · ua={typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 24) : 'none'}
-      </div>
       <SectionHeader
         eyebrow="Article Library"
         title="Practical AI articles, built for Bharat"
@@ -366,7 +359,7 @@ const ArticleExplorer: React.FC = () => {
         </div>
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((a, i) => (
+          {filtered.map((a) => (
             <article
               key={a.slug}
               className="group transition-transform duration-300 hover:-translate-y-1.5"
