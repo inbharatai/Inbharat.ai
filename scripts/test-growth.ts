@@ -27,6 +27,21 @@ import { extractMermaidFences, detectUnclosedFences, validateMermaidFences } fro
 import { isParaphraseOf } from "../lib/growth/learning.js";
 import { ensureUniqueArticleSlug } from "../lib/growth/articleWriter.js";
 import { ARTICLES } from "../content/articles.meta.js";
+import {
+  canonicalForSlug,
+  buildDevtoTagsString,
+  buildHashnodeTags,
+  buildDevtoArticlePayload,
+  buildHashnodeRequest,
+  buildMediumImportHelper,
+  MEDIUM_IMPORT_URL,
+  mediumInstructions,
+  platformCredentialEnv,
+  platformLabel,
+  syndicateArticle,
+} from "../lib/growth/syndication/index.js";
+import { publishToDevto } from "../lib/growth/syndication/devto.js";
+import { publishToHashnode } from "../lib/growth/syndication/hashnode.js";
 
 let pass = 0;
 let fail = 0;
@@ -1117,6 +1132,137 @@ console.log("\nArticle slug-collision guard (ensureUniqueArticleSlug):");
   // so a second call against the same base still resolves to -2 (stateless guard).
   check("dedupe is stable (no DB state in tests) → -2 again", taken2 === `${publishedSlug}-2`, taken2);
   check("empty slug falls back to 'article' base", (await ensureUniqueArticleSlug("")) === "article" || (await ensureUniqueArticleSlug("")).startsWith("article"));
+}
+
+console.log("\nSyndication (Stage 3 — pure helpers + mocked clients):");
+{
+  // Canonical URL — always www host + article path.
+  check("canonical uses www + article path", canonicalForSlug("what-are-ai-agents") === "https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents", canonicalForSlug("what-are-ai-agents"));
+
+  // DEV.to tags: max 4, lowercased, kebab, leading # stripped, 5th+ dropped, >31 truncated.
+  check("devto tags caps at 4 + kebab + lowercases", buildDevtoTagsString(["InBharat", "DeshKaAI", "AI For Bharat", "AIAgents", "Automation", "SoftwareDevelopment"]) === "inbharat,deshkaai,ai-for-bharat,aiagents", buildDevtoTagsString(["InBharat", "DeshKaAI", "AI For Bharat", "AIAgents", "Automation", "SoftwareDevelopment"]));
+  check("devto tags strips leading #", buildDevtoTagsString(["#InBharat", "#DeshKaAI"]) === "inbharat,deshkaai", buildDevtoTagsString(["#InBharat", "#DeshKaAI"]));
+  {
+    const longTag = buildDevtoTagsString(["VeryLongTagThatExceedsThirtyOneCharactersLimit"]);
+    const tag = longTag; // single hashtag → single tag in the string
+    check("devto tags truncates to ≤31 chars", tag.length <= 31 && tag.length > 0, `len=${tag.length} tag=${tag}`);
+    check("devto truncation is a prefix of the original", tag === "verylongtagthatexceedsthirtyone", tag);
+  }
+  check("devto tags empty when no hashtags", buildDevtoTagsString(null) === "");
+  check("devto tags dedupes identical normalized slugs", buildDevtoTagsString(["AI_Agents", "ai-agents", "AI Agents"]) === "ai-agents", buildDevtoTagsString(["AI_Agents", "ai-agents", "AI Agents"]));
+
+  // Hashnode tags: {slug,name} objects, max 5, dedup by slug, leading # stripped from name.
+  const ht = buildHashnodeTags(["AI Agents", "#InBharat", "InBharat"]);
+  check("hashnode tags are objects with slug+name", ht.length === 2 && ht[0].slug === "ai-agents" && ht[0].name === "AI Agents", JSON.stringify(ht));
+  check("hashnode tags dedupe by slug (#InBharat == InBharat)", ht[1].slug === "inbharat" && ht[1].name === "InBharat", JSON.stringify(ht));
+  check("hashnode tags empty when no hashtags", buildHashnodeTags(undefined).length === 0);
+
+  // DEV.to payload: published=false (draft), canonical set, tags comma string, description omitted when empty.
+  const dp = buildDevtoArticlePayload({ title: "T", bodyMarkdown: "# Hi", hashtags: ["InBharat", "AI Agents"], canonicalUrl: "https://www.inbharat.ai/x", description: null, coverImageUrl: null });
+  check("devto payload published=false (draft)", dp.article.published === false);
+  check("devto payload canonical set", dp.article.canonical_url === "https://www.inbharat.ai/x");
+  check("devto payload tags is comma string", dp.article.tags === "inbharat,ai-agents", dp.article.tags);
+  check("devto payload omits description when empty", !("description" in dp.article));
+
+  // Hashnode request: query references publishPost, publicationId set, originalArticleURL=canonical, tags present.
+  const hr = buildHashnodeRequest({ title: "T", bodyMarkdown: "# Hi", hashtags: ["InBharat"], canonicalUrl: "https://www.inbharat.ai/x", publicationId: "pub123", articleSlug: "my-slug", description: "desc" });
+  check("hashnode query references publishPost mutation", hr.query.includes("publishPost(input: $input)"), hr.query);
+  check("hashnode input publicationId set", hr.variables.input.publicationId === "pub123");
+  check("hashnode input originalArticleURL = canonical", hr.variables.input.originalArticleURL === "https://www.inbharat.ai/x");
+  check("hashnode input tags present", Array.isArray(hr.variables.input.tags) && hr.variables.input.tags.length === 1);
+  check("hashnode reuses article slug", hr.variables.input.slug === "my-slug");
+  // A non-lowercase-hyphen slug is rejected (not passed to Hashnode).
+  const hrBad = buildHashnodeRequest({ title: "T", bodyMarkdown: "# Hi", hashtags: [], canonicalUrl: "https://www.inbharat.ai/x", publicationId: "p", articleSlug: "Bad Slug!" });
+  check("hashnode rejects non-slug slug (no slug field)", !("slug" in hrBad.variables.input) || hrBad.variables.input.slug === undefined);
+
+  // Medium manual helper: ok + manual + no url + canonical passthrough.
+  const mr = buildMediumImportHelper("https://www.inbharat.ai/x");
+  check("medium helper ok=true manual status", mr.ok === true && mr.status === "manual");
+  check("medium helper no platform url", mr.url === null);
+  check("medium helper canonical passthrough", mr.canonicalUrl === "https://www.inbharat.ai/x");
+  check("medium import URL is the real /p/import page", MEDIUM_IMPORT_URL === "https://medium.com/p/import");
+  check("medium instructions name the importer + canonical", mediumInstructions("https://www.inbharat.ai/x").includes(MEDIUM_IMPORT_URL) && mediumInstructions("https://www.inbharat.ai/x").includes("https://www.inbharat.ai/x"));
+
+  // Credential env mapping.
+  check("devto credential env", platformCredentialEnv("devto") === "DEVTO_API_KEY");
+  check("hashnode credential env", platformCredentialEnv("hashnode") === "HASHNODE_TOKEN");
+  check("medium credential env null (no API)", platformCredentialEnv("medium") === null);
+  check("platform labels human-readable", platformLabel("devto") === "DEV.to" && platformLabel("hashnode") === "Hashnode" && platformLabel("medium") === "Medium");
+
+  // publishToDevto: not_configured without a key (no fetch attempted).
+  const devtoNoKey = await publishToDevto({ apiKey: undefined, title: "T", bodyMarkdown: "# Hi", hashtags: null, canonicalUrl: "https://www.inbharat.ai/x" });
+  check("devto not_configured without API key", devtoNoKey.ok === false && devtoNoKey.status === "not_configured", devtoNoKey.error ?? "");
+
+  // publishToHashnode: not_configured without token OR publicationId.
+  const hnNoToken = await publishToHashnode({ token: undefined, publicationId: "pub", title: "T", bodyMarkdown: "# Hi", hashtags: null, canonicalUrl: "https://www.inbharat.ai/x" });
+  check("hashnode not_configured without token", hnNoToken.ok === false && hnNoToken.status === "not_configured", hnNoToken.error ?? "");
+  const hnNoPub = await publishToHashnode({ token: "tok", publicationId: undefined, title: "T", bodyMarkdown: "# Hi", hashtags: null, canonicalUrl: "https://www.inbharat.ai/x" });
+  check("hashnode not_configured without publicationId", hnNoPub.ok === false && hnNoPub.status === "not_configured", hnNoPub.error ?? "");
+
+  // publishToDevto happy path via mocked fetch.
+  const origFetchSyn = globalThis.fetch;
+  let devtoCalled: boolean = false;
+  let devtoHeaders: Record<string, string> | null = null;
+  let devtoBody: { article?: { published?: unknown; tags?: unknown; canonical_url?: unknown } } | null = null;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    devtoCalled = true;
+    devtoHeaders = init?.headers as Record<string, string>;
+    devtoBody = JSON.parse(String(init?.body)) as typeof devtoBody;
+    void input;
+    return { ok: true, status: 201, json: async () => ({ id: 42, url: "https://dev.to/inbharat/my-slug", slug: "my-slug" }) } as Response;
+  }) as typeof globalThis.fetch;
+  const devtoOk = await publishToDevto({ apiKey: "k", title: "T", bodyMarkdown: "# Hi", hashtags: ["InBharat"], canonicalUrl: "https://www.inbharat.ai/x", description: "d" });
+  check("devto happy path ok", devtoOk.ok === true && devtoOk.status === "draft", devtoOk.error ?? "");
+  check("devto happy path returns url + id", devtoOk.url === "https://dev.to/inbharat/my-slug" && devtoOk.postId === "42");
+  check("devto sends api-key header", devtoHeaders?.["api-key"] === "k");
+  check("devto sends published=false draft", devtoBody?.article?.published === false);
+  check("devto sends canonical_url", devtoBody?.article?.canonical_url === "https://www.inbharat.ai/x");
+  check("devto sends comma tags string", devtoBody?.article?.tags === "inbharat", String(devtoBody?.article?.tags));
+
+  // publishToHashnode happy path via mocked fetch.
+  let hnBody: { query?: string; variables?: { input?: { originalArticleURL?: unknown; publicationId?: unknown; tags?: unknown } } } | null = null;
+  let hnHeaders: Record<string, string> | null = null;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    hnBody = JSON.parse(String(init?.body)) as typeof hnBody;
+    hnHeaders = init?.headers as Record<string, string>;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { publishPost: { post: { id: "p1", url: "https://hashnode.com/inbharat/my-slug", slug: "my-slug" } } } }),
+    } as Response;
+  }) as typeof globalThis.fetch;
+  const hnOk = await publishToHashnode({ token: "tok", publicationId: "pub", title: "T", bodyMarkdown: "# Hi", hashtags: ["InBharat"], canonicalUrl: "https://www.inbharat.ai/x", articleSlug: "my-slug" });
+  check("hashnode happy path ok published", hnOk.ok === true && hnOk.status === "published", hnOk.error ?? "");
+  check("hashnode returns url + id", hnOk.url === "https://hashnode.com/inbharat/my-slug" && hnOk.postId === "p1");
+  check("hashnode sends bare Authorization (no Bearer)", hnHeaders?.["Authorization"] === "tok", hnHeaders?.["Authorization"] ?? "");
+  check("hashnode sends originalArticleURL canonical", hnBody?.variables?.input?.originalArticleURL === "https://www.inbharat.ai/x");
+  check("hashnode sends publicationId", hnBody?.variables?.input?.publicationId === "pub");
+  check("hashnode sends tags objects", Array.isArray(hnBody?.variables?.input?.tags) && hnBody?.variables?.input?.tags?.length === 1);
+
+  // Hashnode GraphQL error response → failed with the message.
+  globalThis.fetch = (async () => ({ ok: true, status: 200, json: async () => ({ errors: [{ message: "publication not found" }] }) }) as Response) as typeof globalThis.fetch;
+  const hnErr = await publishToHashnode({ token: "tok", publicationId: "pub", title: "T", bodyMarkdown: "# Hi", hashtags: null, canonicalUrl: "https://www.inbharat.ai/x" });
+  check("hashnode graphql error → failed", hnErr.ok === false && hnErr.status === "failed" && (hnErr.error ?? "").includes("publication not found"), hnErr.error ?? "");
+  check("devto was actually called over the network (mock sanity)", Boolean(devtoCalled));
+
+  // Secret-scan abort: a body containing a leaked openai-style key aborts every
+  // platform WITHOUT calling fetch (the secret must never reach a 3rd party).
+  let secretFetchCalled = false;
+  globalThis.fetch = (async () => { secretFetchCalled = true; return { ok: true, status: 201, json: async () => ({}) } as Response; }) as typeof globalThis.fetch;
+  const secretBody = `My key is sk-${"a".repeat(30)} and it should not be cross-posted.`;
+  const secretResults = await syndicateArticle(["devto", "hashnode", "medium"], { draftId: "d1", slug: "s", title: "T", bodyMarkdown: secretBody, hashtags: null });
+  check("secret in body aborts devto", secretResults.find((r) => r.platform === "devto")?.ok === false);
+  check("secret in body aborts hashnode", secretResults.find((r) => r.platform === "hashnode")?.ok === false);
+  check("secret abort error names the scan", (secretResults[0]?.error ?? "").includes("secret"));
+  check("secret abort did NOT call fetch", secretFetchCalled === false);
+
+  // Medium manual helper via orchestrator (no fetch) — always ok:manual.
+  globalThis.fetch = (async () => { return { ok: true, status: 200, json: async () => ({}) } as Response; }) as typeof globalThis.fetch;
+  const medOnly = await syndicateArticle(["medium"], { draftId: "d1", slug: "what-are-ai-agents", title: "T", bodyMarkdown: "clean body", hashtags: ["InBharat"] });
+  check("orchestrator medium is manual ok", medOnly.length === 1 && medOnly[0].ok === true && medOnly[0].status === "manual");
+  check("orchestrator medium canonical from slug", medOnly[0].canonicalUrl === "https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents");
+
+  globalThis.fetch = origFetchSyn;
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

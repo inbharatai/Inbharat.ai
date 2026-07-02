@@ -33,6 +33,7 @@ const GrowthInbox = lazy(() => import('./pages/admin/growth/Inbox.tsx'));
 const GrowthLearning = lazy(() => import('./pages/admin/growth/Learning.tsx'));
 const GrowthStrategy = lazy(() => import('./pages/admin/growth/Strategy.tsx'));
 const GrowthAgent = lazy(() => import('./pages/admin/growth/Agent.tsx'));
+const GrowthSyndication = lazy(() => import('./pages/admin/growth/Syndication.tsx'));
 
 const StaticLoader: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#030508] text-[#9aafc6]" aria-live="polite">
@@ -84,6 +85,7 @@ root.render(
               <Route path="learning" element={<GrowthLearning />} />
               <Route path="strategy" element={<GrowthStrategy />} />
               <Route path="agent" element={<GrowthAgent />} />
+              <Route path="syndication" element={<GrowthSyndication />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

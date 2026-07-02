@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Activity, Globe, GitBranch, AlertTriangle, BarChart3, Settings as SettingsIcon, ShieldAlert, Wallet, Brain, Inbox as InboxIcon, GraduationCap, Target, Bot } from "lucide-react";
+import { Activity, Globe, GitBranch, AlertTriangle, BarChart3, Settings as SettingsIcon, ShieldAlert, Wallet, Brain, Inbox as InboxIcon, GraduationCap, Target, Bot, Share2 } from "lucide-react";
 import { RequireAdmin } from "../../../lib/growth/adminGuard";
 
 /**
@@ -18,6 +18,7 @@ const NAV: { to: string; label: string; icon: React.ComponentType<{ size?: numbe
   { to: "strategy", label: "Strategy", icon: Target },
   { to: "inbox", label: "Inbox", icon: InboxIcon },
   { to: "agent", label: "Agent", icon: Bot },
+  { to: "syndication", label: "Syndication", icon: Share2 },
   { to: "learning", label: "Learning", icon: GraduationCap },
   { to: "issues", label: "Issues", icon: AlertTriangle },
   { to: "performance", label: "Performance", icon: BarChart3 },
