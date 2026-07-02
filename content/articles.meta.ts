@@ -562,6 +562,17 @@ export const ARTICLES: ArticleMeta[] = [
     faq: [],
     hashtags: [],
   },
+  {
+    slug: 'building-a-digital-shield-ai-for-scam-detection-in-indian-te',
+    title: 'Building a Digital Shield: AI for Scam Detection in Indian Tenders',
+    description: 'I discuss how AI can act as a crucial first line of defense against sophisticated digital scams in Indian tenders and public documents, offering practical insig',
+    category: 'AI Tools',
+    datePublished: '2026-07-02',
+    readMinutes: 5,
+    abstract: 'Digital scams are a growing threat for Indian businesses. I explore how an AI-powered review layer can act as a crucial first line of defense, identifying fake tenders and forged documents. This article details practical checks an AI system should perform, emphasizing transparency and actionable recommendations for users in Bharat.',
+    faq: [],
+    hashtags: [],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
