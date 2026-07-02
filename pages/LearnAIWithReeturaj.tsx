@@ -266,6 +266,12 @@ const ArticleExplorer: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    // Newest first: the ARTICLES array is chronological (oldest first) and
+    // publish.ts appends new entries at the end. Without this sort, a freshly
+    // published article renders at the BOTTOM of the grid — invisible on mobile's
+    // single-column layout until the reader scrolls past every other card, which
+    // reads as "the new article isn't showing on mobile." Sort by datePublished
+    // descending so the latest article is always the first card on every viewport.
     return ARTICLES.filter((a) => {
       const matchesCategory = activeCategory === 'All' || a.category === activeCategory;
       if (!matchesCategory) return false;
@@ -276,7 +282,7 @@ const ArticleExplorer: React.FC = () => {
         a.abstract.toLowerCase().includes(q) ||
         a.category.toLowerCase().includes(q)
       );
-    });
+    }).sort((a, b) => (a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0));
   }, [query, activeCategory]);
 
   const chips: Array<ArticleCategory | 'All'> = ['All', ...ARTICLE_CATEGORIES];

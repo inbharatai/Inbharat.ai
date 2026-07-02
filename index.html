@@ -7,6 +7,15 @@
     <meta name="theme-color" content="#0d1117">
     <meta name="color-scheme" content="dark light">
     <meta name="format-detection" content="telephone=no">
+    <!-- Stale-HTML defense: some mobile carrier transparent proxies ignore the
+         HTTP Cache-Control header and hold an old index.html across deploys.
+         When that stale HTML references yesterday's hashed JS chunks (which no
+         longer exist on the current deployment), the app module 404s and the
+         page renders blank (no article cards). These meta http-equiv tags are
+         honored by a subset of those proxies and ask them not to cache the HTML. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <!-- ─── Base SEO (per-route values are injected at build time by scripts/build-seo.mjs) ─── -->
     <title>InBharat AI — Affordable AI Tools Built for Bharat</title>
     <meta name="description" content="InBharat builds affordable, easy-to-use AI tools for Bharat — agentic search, coding assistants, education platforms, and business automation in 11 Indian languages." />
@@ -194,5 +203,27 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <!-- Self-heal for stale carrier-proxy HTML. If a mobile carrier proxy serves
+         a pre-deploy index.html whose hashed app module (/assets/index-<oldhash>.js)
+         no longer exists on the current Vercel deployment, the module 404s and React
+         never mounts — the page shows the static shell with NO article cards. This
+         listener detects that module load failure and reloads once with a
+         cache-busting query (?__r=1), which changes the proxy's cache key so it
+         re-fetches fresh HTML referencing the CURRENT asset hashes. The __r=1 guard
+         prevents a loop if the deploy is genuinely broken. No-op when the app loads
+         normally. -->
+    <script>
+      (function () {
+        try {
+          if (/[?&]__r=1\b/.test(location.search)) return; // already retried — don't loop
+          var s = document.querySelector('script[type="module"][src^="/assets/"]');
+          if (!s) return; // dev mode (src="/index.tsx") or already hydrated — ignore
+          s.addEventListener('error', function () {
+            var url = location.pathname + (location.search ? location.search + '&' : '?') + '__r=1';
+            location.replace(url);
+          });
+        } catch (e) { /* never block the page */ }
+      })();
+    </script>
 </body>
 </html>
