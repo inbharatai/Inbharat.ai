@@ -4,9 +4,11 @@ import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
 import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWrite.js";
-import { logInfo } from "../../lib/growth/authorization.js";
+import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/authorization.js";
 import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
+import { validateMermaidFences, type MermaidValidation } from "../../lib/growth/mermaid-validate.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
+import { SITE } from "../../seo.config.js";
 
 /**
  * /api/growth/publish — human-gated publish (admin-only). Kinds:
@@ -71,6 +73,30 @@ interface VideoScriptSchema {
   slug?: unknown;
   durationMinutes?: unknown;
   hook?: unknown;
+}
+
+/**
+ * Stage 2 deny-by-default guard for the GitHub-committing publish paths (article,
+ * cover, video-script). The human-gated publish is the founder acting, but the
+ * target must still be an authorized asset before we commit to its repo — so a
+ * draft whose URL points at a non-authorized domain can't be committed. We assert
+ * `createPR` (NOT `publish`: the guard's `publish` action is "agent auto-publish
+ * directly", which is correctly always-denied; the human-gated commit-to-repo flow
+ * is a createPR, which inbharat.ai allows). Returns true when allowed; on deny,
+ * writes the 403 response and returns false (caller must `return`).
+ */
+function guardPublishTarget(res: VercelResponse, requestId: string, draftUrl: string | null): boolean {
+  const target = draftUrl ?? SITE.url;
+  try {
+    assertAuthorized("createPR", target);
+    return true;
+  } catch (e) {
+    if (e instanceof AuthorizationError) {
+      res.status(403).json({ ok: false, code: "FORBIDDEN", error: `publish target not authorized: ${e.message}`, requestId });
+      return false;
+    }
+    throw e;
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -258,19 +284,24 @@ async function publishCover(
   draftTitle: string | null,
   schemaJson: CoverSchema | null,
 ): Promise<VercelResponse> {
+  if (!guardPublishTarget(res, requestId, draftUrl)) return res;
   const r = await shipCoverToGitHub(draftId, draftUrl, schemaJson);
   return respondCoverShip(res, requestId, r, draftTitle);
 }
 
 /**
- * Find the most recent companion cover draft for a just-published article slug and
- * ship it to GitHub (PNG + visual edit + mark published). The founder's article-
- * publish click is the human gate for the whole package, so a pending OR approved
- * cover ships — the cover image is visible in Issues alongside the article. Best-
- * effort: a cover failure never rolls back or fails the article publish (the article
- * is already live); the outcome is returned so publishArticle can surface it.
+ * Find the most recent APPROVED companion cover draft for a just-published article
+ * slug and ship it to GitHub (PNG + visual edit + mark published). Stage 2 integrity
+ * fix: only an APPROVED cover ships — a PENDING cover has not been reviewed, so
+ * auto-publishing it with the article would bypass the never-auto-publish rule. The
+ * founder approves + Publishes the cover separately (the cover has its own Publish
+ * button in Issues). Best-effort: a cover failure never rolls back or fails the
+ * article publish (the article is already live); the outcome is returned so
+ * publishArticle can surface it.
  *
- * Returns null when there is no companion cover draft for the slug.
+ * Returns null when there is no APPROVED companion cover draft for the slug (a
+ * pending one may still exist — publishArticle surfaces that so the founder knows
+ * to approve it).
  */
 async function shipCompanionCover(slug: string): Promise<{ draftId: string; result: CoverShipResult } | null> {
   if (!supabaseAdmin) return null;
@@ -279,7 +310,7 @@ async function shipCompanionCover(slug: string): Promise<{ draftId: string; resu
       .from("growth_drafts")
       .select("id,url,title,schema_json,created_at")
       .eq("kind", "cover")
-      .in("status", ["pending", "approved"])
+      .eq("status", "approved")
       .order("created_at", { ascending: false })
       .limit(20);
     if (error || !Array.isArray(data)) return null;
@@ -289,6 +320,32 @@ async function shipCompanionCover(slug: string): Promise<{ draftId: string; resu
     if (!row) return null;
     const result = await shipCoverToGitHub(row.id, row.url, row.schema_json);
     return { draftId: row.id, result };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort lookup: does a PENDING (not yet approved) companion cover draft exist
+ * for this slug? Used to surface "a cover is waiting for your approval" in the
+ * article-publish response so the founder knows to approve + Publish cover —
+ * instead of the old behavior where the pending cover silently auto-shipped.
+ */
+async function findPendingCompanionCover(slug: string): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,schema_json")
+      .eq("kind", "cover")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error || !Array.isArray(data)) return null;
+    const want = `${slug}.png`;
+    const row = (data as Array<{ id: string; schema_json: CoverSchema | null }>)
+      .find((r) => typeof r.schema_json?.filename === "string" && r.schema_json.filename === want);
+    return row?.id ?? null;
   } catch {
     return null;
   }
@@ -405,10 +462,34 @@ async function publishArticle(
   bodyMd: string | null,
   schema: ArticleSchema | null,
 ): Promise<VercelResponse> {
+  // Stage 2 deny-by-default: the publish target must be an authorized asset before
+  // we commit to its repo. (createPR, not publish — see guardPublishTarget.)
+  if (!guardPublishTarget(res, requestId, draftUrl)) return res;
+
   const meta = readArticleMeta(draftTitle, bodyMd, schema);
   if (!meta) {
     return res.status(409).json({ ok: false, code: "CONFLICT", error: "article draft is missing a valid slug/body (schema_json.slug + body_md required).", requestId });
   }
+
+  // Stage 2 mermaid dry-run: parse every ```mermaid fence with the real parser
+  // before committing. A broken diagram would render as an error box on
+  // inbharat.ai; refuse the publish with the offending fence + parser message so
+  // the founder fixes it first. Skipped (graceful) only if mermaid can't load in
+  // the runtime — never blocks a publish because the validator itself failed.
+  const mermaidCheck: MermaidValidation = await validateMermaidFences(bodyMd ?? "");
+  if (mermaidCheck.skipped) {
+    await logInfo("publish-article-mermaid-skip", meta.slug, mermaidCheck.skipReason ?? "unknown").catch(() => undefined);
+  }
+  if (!mermaidCheck.ok) {
+    await logInfo("publish-article-mermaid-fail", meta.slug, `${mermaidCheck.errors.length} bad fence(s)`).catch(() => undefined);
+    return res.status(409).json({
+      ok: false, code: "CONFLICT",
+      error: `article has ${mermaidCheck.errors.length} mermaid diagram(s) that failed to parse — fix them in the draft before publishing.`,
+      mermaidErrors: mermaidCheck.errors,
+      requestId,
+    });
+  }
+
   const mdPath = `content/articles/${meta.slug}.md`;
   const metaPath = "content/articles.meta.ts";
 
@@ -442,12 +523,12 @@ async function publishArticle(
     .insert({ level: "info", action: "publish-article", scope: draftUrl ?? meta.slug, detail: `md=${mdPath} mdSha=${mdRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId} by=${userId}` })
     .then(() => undefined, () => undefined);
 
-  // 4) Auto-ship the companion cover with the article (founder's choice). The
-  //    article is already live at this point, so a cover failure is NON-fATAL —
-  //    we surface it in the `cover` field instead of failing the publish. The
-  //    cover's `visual:` edit runs AFTER the article meta insert above so
-  //    insertVisualField can find the freshly-added slug entry. Best-effort:
-  //    no companion cover draft → cover: null (the founder can generate one later).
+  // 4) Auto-ship the APPROVED companion cover with the article (Stage 2: only an
+  //    approved cover ships — a pending one has not been reviewed and must not be
+  //    auto-published). The article is already live at this point, so a cover
+  //    failure is NON-fATAL — we surface it in the `cover` field instead of failing
+  //    the publish. The cover's `visual:` edit runs AFTER the article meta insert
+  //    above so insertVisualField can find the freshly-added slug entry.
   const companion = await shipCompanionCover(meta.slug);
   const cover = companion
     ? companion.result.ok
@@ -455,30 +536,36 @@ async function publishArticle(
       : { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: (companion.result as { needsToken?: boolean }).needsToken ?? false }
     : null;
 
-  // 5) If NO companion cover draft existed for this article (the article was
-  //    published coverless — exactly the Fine-Tuning-vs-RAG gap), auto-DRAFT a
-  //    pending cover now so the founder can approve + Publish cover and the
-  //    article stops being coverless. This is NOT auto-publish: it creates a
-  //    human-gated pending draft, the same as the daily cron would. Best-effort,
-  //    budget/config-gated, idempotent (generateCoverDraftFromFields skips if a
-  //    cover draft of any state already exists), and never fails the article
-  //    publish — the article is already live. Only spends cover-model budget
-  //    when the article genuinely has no cover draft at all.
+  // 5) If NO APPROVED companion cover shipped, check whether a PENDING cover is
+  //    waiting for approval (the founder must approve + Publish cover separately
+  //    now — the article no longer auto-publishes a pending cover). If there's no
+  //    cover draft at all (the article was published coverless — the Fine-Tuning-
+  //    vs-RAG gap), auto-DRAFT a pending cover so the founder can approve + Publish
+  //    it. This is NOT auto-publish: it creates a human-gated pending draft.
+  //    Best-effort, budget/config-gated, idempotent (generateCoverDraftFromFields
+  //    skips if a cover draft of any state already exists), never fails the article
+  //    publish. Only spends cover-model budget when the article has no cover draft.
   let coverDrafted: { draftId: string | null; note: string } | null = null;
+  let pendingCoverId: string | null = null;
   if (!companion) {
-    try {
-      const drafted = await generateCoverDraftFromFields({
-        slug: meta.slug,
-        title: meta.title,
-        category: meta.category,
-        abstract: meta.abstract,
-      });
-      if (drafted.status === "pending" && drafted.draftId) {
-        coverDrafted = { draftId: drafted.draftId, note: "cover draft created — approve it in Issues, then Publish cover" };
-        await logInfo("publish-article-cover-drafted", meta.slug, `auto-drafted companion cover ${drafted.filename} (draftId=${drafted.draftId})`).catch(() => undefined);
+    pendingCoverId = await findPendingCompanionCover(meta.slug);
+    if (!pendingCoverId) {
+      try {
+        const drafted = await generateCoverDraftFromFields({
+          slug: meta.slug,
+          title: meta.title,
+          category: meta.category,
+          abstract: meta.abstract,
+        });
+        if (drafted.status === "pending" && drafted.draftId) {
+          coverDrafted = { draftId: drafted.draftId, note: "cover draft created — approve it in Issues, then Publish cover" };
+          await logInfo("publish-article-cover-drafted", meta.slug, `auto-drafted companion cover ${drafted.filename} (draftId=${drafted.draftId})`).catch(() => undefined);
+        }
+      } catch {
+        // Never let a cover-drafting failure fail the article publish.
       }
-    } catch {
-      // Never let a cover-drafting failure fail the article publish.
+    } else {
+      await logInfo("publish-article-cover-pending", meta.slug, `companion cover ${pendingCoverId} awaiting approval (not auto-shipped)`).catch(() => undefined);
     }
   }
 
@@ -486,7 +573,7 @@ async function publishArticle(
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
-    cover, coverDrafted,
+    cover, coverDrafted, pendingCoverId,
   });
 }
 
@@ -504,6 +591,9 @@ async function publishVideoScript(
   bodyMd: string | null,
   schema: VideoScriptSchema | null,
 ): Promise<VercelResponse> {
+  // Video-scripts carry no URL (draft.url is null) — they commit to inbharat's own
+  // repo, so the guard target is the inbharat.ai asset (SITE.url fallback).
+  if (!guardPublishTarget(res, requestId, null)) return res;
   const slug = typeof schema?.slug === "string" ? schema.slug.trim() : "";
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return res.status(409).json({ ok: false, code: "CONFLICT", error: "video-script draft has no valid slug in schema_json.", requestId });

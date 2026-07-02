@@ -48,7 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const draftedSlugs = await loadDraftedArticleSlugs();
 
     const pick = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, publishedSlugs, draftedSlugs);
-    const prompt = buildMorningPrompt(pick);
+    const prompt = buildMorningPrompt(pick, draftedSlugs);
 
     await logInfo(
       "cron-morning-pick",
@@ -124,8 +124,14 @@ async function loadDraftedArticleSlugs(): Promise<string[]> {
  * full three-draft workflow (article → LinkedIn caption → cover) and forbids
  * approving/publishing.
  */
-function buildMorningPrompt(pick: { topic: string; category: string; angle?: string } | null): string {
+function buildMorningPrompt(pick: { topic: string; category: string; angle?: string } | null, draftedSlugs: string[] = []): string {
   const publishedList = ARTICLES.map((a) => `- ${a.slug} (${a.title})`).join("\n");
+  // Free-plan must avoid BOTH published slugs AND slugs already queued as pending/
+  // approved article drafts — otherwise a re-run re-drafts a topic that's already
+  // sitting in Issues awaiting review. (Calendar-pick already filters via
+  // pickNextCalendarTopic; this covers the free-plan branch the picker can't.)
+  const draftedSet = new Set(draftedSlugs);
+  const draftedList = draftedSlugs.map((s) => `- ${s}`).join("\n");
   const head = pick
     ? [
         "It is the daily morning content run for the 'Build with Reeturaj' series on inbharat.ai/learn-ai-with-reeturaj.",
@@ -145,9 +151,10 @@ function buildMorningPrompt(pick: { topic: string; category: string; angle?: str
         "",
         "Already-published slugs (do NOT duplicate these):",
         publishedList,
+        draftedSet.size > 0 ? `\nAlready-drafted (pending/approved) slugs (do NOT duplicate these either — they're already in Issues):\n${draftedList}` : "",
         "",
         "Then draft that article.",
-      ].join("\n");
+      ].filter(Boolean).join("\n");
 
   return (
     head +

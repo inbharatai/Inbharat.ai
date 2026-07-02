@@ -51,6 +51,33 @@ const num = (v: unknown, def: number, max: number): number => {
 };
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
+/** Stage 2: max agent redrafts allowed per source draft (prevents a runaway
+ *  "again, again" loop from spawning an unbounded trail of pending redrafts). */
+const REDRAFT_CAP = 3;
+
+/** Count existing drafts the agent already redrafted from a given source draft id
+ *  (schema_json.agentRedraftOf === sourceId). Best-effort: 0 on any error / no
+ *  Supabase (cap skipped → tool proceeds). Capped scan at 50 recent rows. */
+async function countAgentRedrafts(sourceId: string): Promise<number> {
+  if (!supabaseAdmin) return 0;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("schema_json")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error || !Array.isArray(data)) return 0;
+    let n = 0;
+    for (const row of data as Array<{ schema_json?: unknown }>) {
+      const sj = (row.schema_json ?? null) as { agentRedraftOf?: unknown } | null;
+      if (sj && typeof sj.agentRedraftOf === "string" && sj.agentRedraftOf === sourceId) n++;
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 // ─── Tool declarations (Gemini functionDeclarations) ─────────────────────────
 
 export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
@@ -223,6 +250,16 @@ async function redraftCaption(args: Args): Promise<ToolResult> {
   const srcRow = src as { id: string; kind: string; url: string | null; title: string | null; body_md: string | null };
   const original = srcRow.body_md ?? "";
   if (!original) return { ok: false, message: "that draft has no caption text to rewrite" };
+
+  // Stage 2 guard: cap redrafts at REDRAFT_CAP per source draft so a runaway loop
+  // (the founder saying "again, again") can't spawn an unbounded trail of pending
+  // redrafts of the same caption. Counts existing drafts whose schema_json marks
+  // them as an agent redraft OF this source. Best-effort: on any DB error the cap
+  // is skipped (proceed) so a DB blip can't wedge the tool.
+  const redraftCount = await countAgentRedrafts(srcRow.id);
+  if (redraftCount >= REDRAFT_CAP) {
+    return { ok: false, message: `that caption already has ${redraftCount} agent redraft${redraftCount === 1 ? "" : "s"} (cap is ${REDRAFT_CAP}). Approve/publish or reject the existing redrafts in Issues before redrafting again.` };
+  }
 
   const task: GrowthTask = "draft";
   const choice = pickModel(task);

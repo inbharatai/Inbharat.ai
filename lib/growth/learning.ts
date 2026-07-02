@@ -165,6 +165,18 @@ export async function distillLearnings(): Promise<{ proposed: number; error?: st
         .limit(1);
       if (Array.isArray(dup) && dup.length > 0) continue;
 
+      // Stage 2 paraphrase-aware dedupe: a reworded-but-equivalent rule (e.g.
+      // "keep LinkedIn captions under 90 words" vs "keep captions 60-90 words") is
+      // not caught by the exact-text check above but is the same lesson. Compare
+      // against existing learned + enabled rules' text via token Jaccard; skip when
+      // a near-duplicate is found so the founder isn't asked to re-approve the same
+      // rule rephrased every distill cycle.
+      const paraphrase = await isParaphraseOfExisting(r.ruleText);
+      if (paraphrase) {
+        await logInfo("learning-distill-paraphrase-skip", "global", `near-duplicate of existing rule: ${r.ruleText.slice(0, 80)}`).catch(() => undefined);
+        continue;
+      }
+
       await supabaseAdmin.from("growth_agent_rules").insert({
         scope: r.scope,
         scope_key: r.scope === "global" ? null : r.scopeKey ?? null,
@@ -227,4 +239,76 @@ function coerceRule(r: ProposedRule): {
 function avg(xs: number[]): number {
   if (!xs.length) return 0;
   return Math.round((xs.reduce((s, n) => s + n, 0) / xs.length) * 10) / 10;
+}
+
+/**
+ * Stage 2 paraphrase dedupe against existing rules. Fetches learned + enabled
+ * rules' text (the dedupe domain) and returns true when `newText` is a near-
+ * duplicate of any of them by token Jaccard overlap. Best-effort: on any DB error
+ * / no Supabase returns false (no paraphrase found → propose), so a DB blip can't
+ * silently suppress a real rule. Capped at 200 existing rows.
+ */
+async function isParaphraseOfExisting(newText: string): Promise<boolean> {
+  if (!supabaseAdmin) return false;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_agent_rules")
+      .select("rule_text")
+      .or("source.eq.learned,enabled.eq.true")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error || !Array.isArray(data)) return false;
+    const existing = (data as Array<{ rule_text?: unknown }>)
+      .map((r) => (typeof r.rule_text === "string" ? r.rule_text : ""))
+      .filter(Boolean);
+    return isParaphraseOf(newText, existing);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Pure token-overlap paraphrase detector. Returns true if `newText` is a near-
+ * duplicate of ANY text in `existing`. Tokenizes on word boundaries (lowercased,
+ * dropping 1-char tokens like "a"/"I" that add noise), then for each existing rule
+ * computes both Jaccard (|A∩B| / |A∪B|) and containment (|A∩B| / min(|A|,|B|) — how
+ * much of the smaller rule is shared with the larger) and flags when the max of
+ * the two ≥ threshold. Containment catches the common case where a reworded rule
+ * adds filler words ("between"/"and") that wreck Jaccard but the smaller rule is
+ * still fully embedded in the larger (containment = 1.0).
+ *
+ * Short rules (< 4 tokens) are too generic to trust overlap metrics — require an
+ * identical token set (Jaccard 1.0) so "use AI" isn't flagged as a paraphrase of
+ * "use AI tools" (a different, more specific rule). Hermetic + dependency-free.
+ */
+export function isParaphraseOf(newText: string, existing: string[], threshold = 0.8): boolean {
+  const newTokens = tokenize(newText);
+  if (newTokens.length === 0) return false;
+  const shortRule = newTokens.length < 4;
+  const newSet = new Set(newTokens);
+  for (const ex of existing) {
+    const exTokens = tokenize(ex);
+    if (exTokens.length === 0) continue;
+    const exSet = new Set(exTokens);
+    let inter = 0;
+    for (const t of newSet) if (exSet.has(t)) inter++;
+    const union = newSet.size + exSet.size - inter;
+    if (union === 0) continue;
+    const jaccard = inter / union;
+    if (shortRule) {
+      // Short rules: only flag on identical token sets (no containment shortcut,
+      // which would flag any short rule embedded in a longer, different rule).
+      if (jaccard >= 1.0) return true;
+    } else {
+      const containment = inter / Math.min(newSet.size, exSet.size);
+      if (Math.max(jaccard, containment) >= threshold) return true;
+    }
+  }
+  return false;
+}
+
+/** Lowercase word tokens (length ≥ 2, ignoring punctuation + 1-char noise). Pure + hermetic. */
+function tokenize(s: string): string[] {
+  const m = s.toLowerCase().match(/[a-z0-9]+/g);
+  return (m ? Array.from(m) : []).filter((t) => t.length >= 2);
 }

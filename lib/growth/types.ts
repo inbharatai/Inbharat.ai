@@ -100,6 +100,10 @@ export interface CritiqueInput {
   inboxBlock?: string;
   /** Pre-formatted founder CMO strategy block (reuse formatStrategyBlock output). */
   strategyBlock?: string;
+  /** Pre-formatted web_search GROUNDING block (retrieval.formatGroundingBlock).
+   *  When present, the critique pass fact-checks numeric/date/version claims
+   *  against it (Stage 2). Absent → critique keeps its prior voice-only behavior. */
+  groundingBlock?: string;
 }
 
 /** Result of the self-critique + revision pass. */

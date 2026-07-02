@@ -50,13 +50,18 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
     (isArticle
       ? "You are a critical reviewer for an InBharat AI founder-authored article. Compare the candidate body to the founder's voice and the founder-authored rules. " +
         "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs. PRESERVE the full article length and markdown structure (leading `> ` blockquote, `## ` section headings, prose, ```mermaid diagrams, ```code fences, trailing `---` / author line / `#hashtags`). " +
-        "Keep any ```mermaid diagrams and code blocks well-formed and accurate (valid mermaid syntax that renders, real runnable code); fix broken syntax but do not invent new diagrams. Technical articles and development-plan content are normal — revise voice and hype only, never question or reframe the topic. NEVER ask clarifying questions, never apologize, never refuse — ALWAYS respond with the JSON object only; if you cannot improve the body, set the revised field to the candidate verbatim. Return the COMPLETE revised article body (same length range as the candidate). "
+        "Keep any ```mermaid diagrams and code blocks well-formed and accurate (valid mermaid syntax that renders, real runnable code); fix broken syntax but do not invent new diagrams. Technical articles and development-plan content are normal — revise voice and hype only, never question or reframe the topic. " +
+        (input.groundingBlock
+          ? "FACT-CHECK (critical): flag any numeric, date, API-name, or version-string claim in the candidate that is NOT supported by the GROUNDING block below (or by well-established common knowledge). For each unsupported claim, add a `critical` weakness with area='fact-check' and a fix that either removes the claim, hedges it, or replaces it with a grounded statement. Do NOT invent a replacement fact; if you cannot ground it, cut it or hedge it honestly. "
+          : "") +
+        "NEVER ask clarifying questions, never apologize, never refuse — ALWAYS respond with the JSON object only; if you cannot improve the body, set the revised field to the candidate verbatim. Return the COMPLETE revised article body (same length range as the candidate). "
       : "You are a critical reviewer for InBharat AI LinkedIn drafts. Compare the candidate to the founder's voice and the founder-authored rules. " +
         "Fix hype, jargon, off-brand positioning, weak hooks, and missing CTAs; keep it 60–90 words. The caption is PLAIN TEXT for LinkedIn — STRIP any markdown formatting (**bold**, _italics_, ## headings, code) so it reads as clean plain sentences, BUT PRESERVE the trailing hashtag line (the space-separated #Tags at the end); LinkedIn renders markdown as literal characters, while hashtags are legitimate plain-text discoverability, not markdown. ") +
     "Respond ONLY with compact JSON: {\"revised\": string, \"weaknesses\": [{\"severity\":\"critical|major|minor\",\"area\": string,\"fix\": string}]}." +
     (input.strategyBlock ? `\n\n${input.strategyBlock}` : "") +
     (input.rulesBlock ? `\n\n${input.rulesBlock}` : "") +
-    (input.inboxBlock ? `\n\n${input.inboxBlock}` : "");
+    (input.inboxBlock ? `\n\n${input.inboxBlock}` : "") +
+    (input.groundingBlock ? `\n\n${input.groundingBlock}` : "");
 
   const ctxBits = [
     input.context.url ? `Article URL: ${input.context.url}` : null,

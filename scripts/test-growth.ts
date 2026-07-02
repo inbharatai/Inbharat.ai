@@ -22,6 +22,11 @@ import { buildDraftThreadMap, bodySchema } from "../api/growth/draft-threads.js"
 import { statusChip } from "../lib/growth/pipelineStatus.js";
 import { istStartOfDayIso } from "../lib/growth/spend.js";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../lib/growth/articleSlug.js";
+import { mapResults, formatGroundingBlock } from "../lib/growth/retrieval.js";
+import { extractMermaidFences, detectUnclosedFences, validateMermaidFences } from "../lib/growth/mermaid-validate.js";
+import { isParaphraseOf } from "../lib/growth/learning.js";
+import { ensureUniqueArticleSlug } from "../lib/growth/articleWriter.js";
+import { ARTICLES } from "../content/articles.meta.js";
 
 let pass = 0;
 let fail = 0;
@@ -1045,6 +1050,73 @@ console.log("\nArticle slug extraction (slugFromArticleUrl):");
   // and render a bare, context-less card).
   check("null on uppercase slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "Rag") === null);
   check("null on dotted slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "rag.pdf") === null);
+}
+
+console.log("\nGrounding retrieval (mapResults + formatGroundingBlock):");
+{
+  const snips = mapResults({ organic: [
+    { title: "Gemini 2.5 Flash release", link: "https://blog.google/x", snippet: "Released 2025." },
+    { title: "Other", link: "https://other.example", snippet: "noise" },
+  ] });
+  check("mapResults returns up to 4 with truncated fields", snips.length === 2 && snips[0].title === "Gemini 2.5 Flash release" && snips[0].url === "https://blog.google/x");
+  check("mapResults handles missing organic array", mapResults({}).length === 0);
+  check("mapResults drops rows with no title+snippet", mapResults({ organic: [{ link: "https://x" }, { title: "ok", snippet: "s" }] }).length === 1);
+  // Truncation: a 500-char title/snippet is capped at 200/300.
+  const long = mapResults({ organic: [{ title: "T".repeat(500), snippet: "S".repeat(500), link: "u" }] })[0];
+  check("mapResults truncates title to 200", long.title.length === 200);
+  check("mapResults truncates snippet to 300", long.snippet.length === 300);
+  const block = formatGroundingBlock(snips);
+  check("formatGroundingBlock is non-empty with snippets", block.includes("GROUNDING") && block.includes("Gemini 2.5 Flash release"));
+  check("formatGroundingBlock empty when no snippets", formatGroundingBlock([]) === "");
+  // No model call / no throw on bad input.
+  check("formatGroundingBlock ignores empty-string snippet entries gracefully", formatGroundingBlock([{ title: "x", url: "", snippet: "" }]).includes("x"));
+}
+
+console.log("\nMermaid fence dry-run (extractMermaidFences + validateMermaidFences):");
+{
+  const good = "Intro\n\n```mermaid\ngraph TD;\n A-->B\n```\n\ntext\n```mermaid\nflowchart LR;\n X-->Y\n```\n";
+  const fences = extractMermaidFences(good);
+  check("extractMermaidFences finds both closed fences", fences.length === 2 && fences[0].includes("A-->B") && fences[1].includes("X-->Y"));
+  check("extractMermaidFences returns [] when no mermaid", extractMermaidFences("just prose\n```js\nx\n```\n").length === 0);
+  check("extractMermaidFences ignores non-mermaid code fences", extractMermaidFences("```js\ngraph TD;\n A-->B\n```\n").length === 0);
+  const unclosed = "Intro\n```mermaid\ngraph TD;\n A-->B\n";
+  check("detectUnclosedFences flags an unclosed mermaid fence", detectUnclosedFences(unclosed).length === 1);
+  check("detectUnclosedFences empty when all closed", detectUnclosedFences(good).length === 0);
+  const noMermaid = await validateMermaidFences("no diagrams here");
+  check("validateMermaidFences ok + fenceCount 0 when no fences", noMermaid.ok === true && noMermaid.fenceCount === 0 && noMermaid.errors.length === 0);
+  const goodCheck = await validateMermaidFences(good);
+  check("validateMermaidFences ok on two valid fences", goodCheck.ok === true && goodCheck.fenceCount === 2 && goodCheck.errors.length === 0, JSON.stringify(goodCheck.errors));
+  const bad = "```mermaid\ngraph TD;\n A->>B (broken\n```\n";
+  const badCheck = await validateMermaidFences(bad);
+  check("validateMermaidFences fails on a syntax-broken fence", badCheck.ok === false && badCheck.errors.length === 1 && badCheck.errors[0].fenceIndex === 1, JSON.stringify(badCheck.errors));
+  const unclosedCheck = await validateMermaidFences(unclosed);
+  check("validateMermaidFences fails on an unclosed fence", unclosedCheck.ok === false && unclosedCheck.errors.some((e) => e.message.includes("never closed")));
+}
+
+console.log("\nParaphrase dedupe (isParaphraseOf):");
+{
+  const existing = ["Keep LinkedIn captions between 60 and 90 words."];
+  check("flags a near-duplicate rewording", isParaphraseOf("Keep LinkedIn captions 60-90 words", existing) === true);
+  check("does not flag an unrelated rule", isParaphraseOf("Always include a CTA in the article body", existing) === false);
+  check("short rule requires near-exact (not just token overlap)", isParaphraseOf("use AI", ["use AI tools"]) === false);
+  check("short rule flags exact match", isParaphraseOf("use AI", ["use AI"]) === true);
+  check("empty new text never flags", isParaphraseOf("", existing) === false);
+  check("ignores empty existing entries", isParaphraseOf("a brand new unique rule", ["", "  "]) === false);
+}
+
+console.log("\nArticle slug-collision guard (ensureUniqueArticleSlug):");
+{
+  // No Supabase in tests → only the in-memory ARTICLES set is consulted.
+  const fresh = await ensureUniqueArticleSlug("zzz-never-used-slug-xyz");
+  check("unique slug returned as-is", fresh === "zzz-never-used-slug-xyz", fresh);
+  const publishedSlug = ARTICLES[0]?.slug ?? "desh-ka-ai";
+  const deduped = await ensureUniqueArticleSlug(publishedSlug);
+  check("colliding published slug gets a -2 suffix", deduped === `${publishedSlug}-2`, `${publishedSlug} → ${deduped}`);
+  const taken2 = await ensureUniqueArticleSlug(publishedSlug);
+  // ARTICLES[0].slug-2 should also be free (articles are not numbered that way),
+  // so a second call against the same base still resolves to -2 (stateless guard).
+  check("dedupe is stable (no DB state in tests) → -2 again", taken2 === `${publishedSlug}-2`, taken2);
+  check("empty slug falls back to 'article' base", (await ensureUniqueArticleSlug("")) === "article" || (await ensureUniqueArticleSlug("")).startsWith("article"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

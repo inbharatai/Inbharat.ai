@@ -21,6 +21,7 @@ import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { critiqueAndRevise } from "./critique.js";
+import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -91,6 +92,13 @@ export async function draftArticle(topic: string, instruction?: string): Promise
     .map((a) => `- ${a.title} → ${SITE.url}${articlePath(a.slug)} (${a.category})`)
     .join("\n");
 
+  // Stage 2 grounding: one focused web_search for the topic BEFORE the draft model
+  // call, so the article cites real sources instead of inventing dates/numbers/API
+  // names. Best-effort (no SERPER_API_KEY / no results → empty block → ungrounded,
+  // the prior behavior). Never throws; never blocks drafting.
+  const groundingSnippets = await gatherGrounding(topic);
+  const groundingBlock = formatGroundingBlock(groundingSnippets);
+
   const strategyBlock = formatStrategyBlock(await loadStrategy());
   const rulesBlock = formatRulesBlock(await loadGlobalRules());
   const inboxBlock = formatInboxBlock(await loadInboxContext());
@@ -104,7 +112,8 @@ export async function draftArticle(topic: string, instruction?: string): Promise
     "{\"title\": string, \"description\": string (<=160 chars meta description), \"category\": one of [AI Foundations, AI Tools, Engineering, DevOps, Security, InBharat], \"abstract\": string (40–60 word direct answer), \"bodyMd\": string (full markdown, starts with `> ` blockquote then ## headings, 800–1500 words; ```mermaid diagrams and ```code fences allowed when they aid explanation, kept accurate and well-formed), \"faq\": [{\"q\": string, \"a\": string}] (2–4 pairs), \"hashtags\": string[]}." +
     (strategyBlock ? `\n\n${strategyBlock}` : "") +
     (rulesBlock ? `\n\n${rulesBlock}` : "") +
-    (inboxBlock ? `\n\n${inboxBlock}` : "");
+    (inboxBlock ? `\n\n${inboxBlock}` : "") +
+    (groundingBlock ? `\n\n${groundingBlock}` : "");
   const user =
     `Topic: ${topic}\n` +
     (instruction ? `Founder instruction: ${instruction}\n` : "") +
@@ -134,16 +143,24 @@ export async function draftArticle(topic: string, instruction?: string): Promise
   });
   if (!parsed) return skip("article model returned no usable JSON; nothing drafted");
 
-  // Self-critique + revision on the body (kept when critique unavailable).
+  // Self-critique + revision on the body (kept when critique unavailable). The
+  // grounding block is forwarded so the critique pass can fact-check numeric/date/
+  // version claims against the same sources (Stage 2).
   const crit = await critiqueAndRevise({
     draftBody: parsed.bodyMd,
     context: { url: null, kind: "article", title: parsed.title },
-    rulesBlock, inboxBlock, strategyBlock,
+    rulesBlock, inboxBlock, strategyBlock, groundingBlock,
   });
   const finalBody = crit.revised ?? parsed.bodyMd;
 
+  // Stage 2 slug-collision guard: dedup the model-chosen slug against published
+  // ARTICLES + pending/approved article drafts so two drafts never target the same
+  // URL (which would make the second publish overwrite the first's .md on GitHub).
+  // Best-effort: no DB → only the in-memory ARTICLES set is checked.
+  const uniqueSlug = await ensureUniqueArticleSlug(parsed.slug);
+
   const article: DraftedArticle = {
-    slug: parsed.slug,
+    slug: uniqueSlug,
     title: parsed.title,
     description: parsed.description,
     category: parsed.category,
@@ -212,6 +229,59 @@ function safeParseArticle(raw: string): ParsedArticle | null {
  *  this is NOT a workflow script). */
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Stage 2 slug-collision guard. Returns a slug unique across (a) published
+ * ARTICLES and (b) pending/approved 'article' drafts in growth_drafts, appending
+ * `-2`, `-3`, … when the model-chosen slug is already taken. This prevents two
+ * drafts from targeting the same inbharat.ai/learn-ai-with-reeturaj/<slug> URL —
+ * the second publish would otherwise overwrite the first's committed markdown.
+ *
+ * Best-effort + graceful: on any DB error / no Supabase, only the in-memory
+ * ARTICLES set is consulted (the common published-slugs case). Caps the draft
+ * scan at 200 rows (same window as the morning cron). Never throws; never returns
+ * an empty slug. Pure-ish (one optional DB read); the suffix logic is hermetic.
+ */
+export async function ensureUniqueArticleSlug(slug: string): Promise<string> {
+  const base = slug || "article";
+  const taken = new Set<string>(ARTICLES.map((a) => a.slug));
+  // Only pending/approved drafts can still collide — a published/rejected draft's
+  // slug is either already in ARTICLES (published) or abandoned (rejected).
+  const draftSlugs = await loadPendingArticleSlugs();
+  for (const s of draftSlugs) taken.add(s);
+  if (!taken.has(base)) return base;
+  for (let n = 2; n <= 50; n++) {
+    const cand = `${base}-${n}`;
+    if (!taken.has(cand)) return cand;
+  }
+  // 50 collisions is unreachable in practice; fall back to a timestamp suffix so
+  // we never return a colliding slug.
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+/** Slugs of pending/approved 'article' drafts (the ones that can still collide with
+ *  a fresh draft). Best-effort: [] on any error / no Supabase. Capped at 200 rows. */
+async function loadPendingArticleSlugs(): Promise<string[]> {
+  if (!supabaseAdmin) return [];
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("schema_json")
+      .eq("kind", "article")
+      .in("status", ["pending", "approved"])
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error || !Array.isArray(data)) return [];
+    const slugs: string[] = [];
+    for (const row of data as Array<{ schema_json?: unknown }>) {
+      const sj = row.schema_json as { slug?: unknown } | null;
+      if (sj && typeof sj.slug === "string" && sj.slug) slugs.push(sj.slug);
+    }
+    return slugs;
+  } catch {
+    return [];
+  }
 }
 
 /** Persist a pending 'article' draft. Best-effort; never throws. */
