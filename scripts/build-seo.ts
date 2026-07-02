@@ -28,6 +28,7 @@ import remarkRehype from 'remark-rehype';
 import { toHtml } from 'hast-util-to-html';
 import { ROUTES, SITE, GLOBAL_SCHEMA, SUPPORTED_LANGS } from '../seo.config';
 import type { SeoRoute } from '../seo.config';
+import { ARTICLES, articlePath, articleVisualPath } from '../content/articles.meta';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -239,6 +240,85 @@ function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
   return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${joined}\n  </section>\n`;
 }
 
+// Tiny inline lucide-style icons (12px, currentColor stroke) for the static
+// card footer — mirrors <Clock/>, <CalendarDays/>, <ArrowRight/> in the React
+// grid so the no-JS fallback looks identical to the hydrated app.
+const SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+const SVG_CAL = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>';
+const SVG_ARROW = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+
+function fmtArticleDate(iso: string): string {
+  // Mirror the React grid: en-IN, month short + year, UTC.
+  const d = new Date(iso + 'T00:00:00Z');
+  return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+/**
+ * Build a VISIBLE, fully-styled article grid as static HTML for the
+ * /learn-ai-with-reeturaj shell, injected INSIDE <div id="root">. The markup
+ * mirrors ArticleExplorer in pages/LearnAIWithReeturaj.tsx card-for-card (same
+ * Tailwind classes, same newest-first ordering), only with real <a href> links
+ * and inline SVG icons instead of react-router <Link> + lucide components.
+ *
+ * Why: on real mobile browsers the React app intermittently fails to mount
+ * (stale carrier-proxy HTML referencing a dead /assets hash, a hydration error,
+ * or a Motion/IntersectionObserver hiccup) — and when React never mounts,
+ * #root is empty so the article grid is blank even though the static shell
+ * loaded fine. Putting the cards in the HTML itself means they are visible the
+ * instant the HTML parses, BEFORE any JS runs. On a successful mount, React's
+ * createRoot replaces #root's children with the interactive grid (search +
+ * category filters) — no flash, since the static cards are visually identical.
+ * On any mount failure, the static cards remain. This breaks the "blank on
+ * mobile" failure mode regardless of its cause. Not cloaking: the React app
+ * renders the same cards, and crawlers already get the sr-only seoBody above.
+ */
+function buildHubCardGrid(): string {
+  const cards = [...ARTICLES]
+    .sort((a, b) => (a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0))
+    .map((a) => {
+      const href = escapeAttr(articlePath(a.slug));
+      const img = escapeAttr(articleVisualPath(a));
+      const title = escapeText(a.title);
+      const desc = escapeText(a.description);
+      const cat = escapeText(a.category);
+      const date = escapeText(fmtArticleDate(a.datePublished));
+      const mins = escapeText(String(a.readMinutes));
+      return [
+        `      <article class="group transition-transform duration-300 hover:-translate-y-1.5">`,
+        `        <a href="${href}" class="flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.03] to-transparent transition-all duration-300 hover:border-[#f59f4f]/35">`,
+        `          <div class="relative h-36 w-full overflow-hidden bg-[#0f1520]">`,
+        `            <img src="${img}" alt="${title}" loading="lazy" class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />`,
+        `            <span class="absolute left-3 top-3 rounded-full bg-[#030508]/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#ffd7ae] backdrop-blur">${cat}</span>`,
+        `          </div>`,
+        `          <div class="flex flex-1 flex-col p-5">`,
+        `            <h3 class="text-[16px] font-semibold leading-snug text-white group-hover:text-[#f5b76f]">${title}</h3>`,
+        `            <p class="mt-2 line-clamp-3 text-[13px] leading-relaxed text-[#a6bdd3]">${desc}</p>`,
+        `            <div class="mt-4 flex items-center gap-3 text-[11px] text-[#7e98b3]">`,
+        `              <span class="inline-flex items-center gap-1">${SVG_CLOCK} ${mins} min</span>`,
+        `              <span class="inline-flex items-center gap-1">${SVG_CAL} ${date}</span>`,
+        `              <span class="ml-auto inline-flex items-center gap-1 font-semibold text-[#f5b76f]">Read ${SVG_ARROW}</span>`,
+        `            </div>`,
+        `          </div>`,
+        `        </a>`,
+        `      </article>`,
+      ].join('\n');
+    })
+    .join('\n');
+
+  return [
+    `    <div class="landing-shell relative min-h-screen bg-[#030508] text-[#e8eef8]" data-static-fallback="learn-ai">`,
+    `      <div class="mx-auto w-full max-w-[1120px] px-5 py-16 sm:py-20">`,
+    `        <p class="text-[12px] font-bold uppercase tracking-[0.18em] text-[#f59f4f]">Article Library</p>`,
+    `        <h1 class="mt-3 text-[30px] font-extrabold leading-tight tracking-[-0.02em] text-white sm:text-[40px]">Learn AI with Reeturaj</h1>`,
+    `        <p class="mt-4 max-w-2xl text-[15px] leading-relaxed text-[#9ab2c9]">Practical, jargon-free AI articles built for Bharat — AI agents, RAG, vibe coding, DevSecOps, and Desh Ka AI. (The full interactive view loads shortly.)</p>`,
+    `        <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">`,
+    cards,
+    `        </div>`,
+    `      </div>`,
+    `    </div>`,
+  ].join('\n');
+}
+
 /**
  * Replace the SEO-relevant tags in the built index.html with route-specific ones.
  * Strategy: keep everything in index.html (Vite-injected scripts, fonts, etc.),
@@ -290,6 +370,14 @@ async function rewriteShell(
   const bodyInjection = buildBodyInjection(route, bodyHtml);
   if (bodyInjection) {
     html = html.replace(/<div id="root">/i, `${bodyInjection}  <div id="root">`);
+  }
+
+  // 5. For the founder hub route only, inject a visible, fully-styled static
+  //    article grid INSIDE #root so the cards render in pure HTML before the
+  //    SPA mounts (and remain visible if it never does). See buildHubCardGrid.
+  if (route.path === '/learn-ai-with-reeturaj') {
+    const grid = buildHubCardGrid();
+    html = html.replace(/<div id="root">\s*<\/div>/i, `<div id="root">\n${grid}\n    </div>`);
   }
 
   return html;
