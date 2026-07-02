@@ -646,11 +646,21 @@ const LearnAIWithReeturaj: React.FC = () => {
 
         <div className="landing-seam" aria-hidden="true" />
 
-        <RevealSection className="py-16 sm:py-20">
+        {/* Plain <section> (NOT RevealSection/Motion) on purpose: the article
+            grid sits far down a tall mobile page, and Motion's whileInView
+            reveal never fired for it on real WebKit (iPhone Safari) — leaving
+            the section stuck at opacity:0 = invisible (the "articles blank on
+            mobile" bug). Mount-based animate was still flaky in WebKit. A plain
+            section has no opacity:0 initial state and no IntersectionObserver,
+            so the grid is always visible in every browser regardless of how
+            many articles are published. The static-shell fallback in
+            scripts/build-seo.ts covers the case where React itself fails to
+            mount. */}
+        <section className="py-16 sm:py-20">
           <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-10">
             <ArticleExplorer />
           </div>
-        </RevealSection>
+        </section>
 
         <div className="landing-seam" aria-hidden="true" />
 
