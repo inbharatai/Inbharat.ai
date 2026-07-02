@@ -200,7 +200,12 @@ async function generatePromotionDraft(
   }
 
   const slug = url.includes(ARTICLE_PATH_PREFIX) ? url.split(ARTICLE_PATH_PREFIX)[1]?.replace(/\/+$/, "") : "";
-  const cat = ARTICLES.find((a) => a.slug === slug)?.category;
+  const article = ARTICLES.find((a) => a.slug === slug);
+  const cat = article?.category;
+  // The article's own canonical hashtags (content/articles.meta.ts). When
+  // present, the caption MUST end with these as a trailing hashtag line so the
+  // LinkedIn post is discoverable and consistent with the article's metadata.
+  const hashtags = article?.hashtags ?? [];
   // Token efficiency: prefer same-category siblings, then fill, cap at 8 (not
   // all 11) so the candidate list stays lean. Idempotency already bounds total
   // model calls to one per article, so this trims each call's prompt ~30%.
@@ -229,7 +234,7 @@ async function generatePromotionDraft(
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
     "You write concise, practical, hype-free LinkedIn post drafts that tease a founder-authored article and drive clicks to the article URL. " +
-    "The caption is PLAIN TEXT for LinkedIn: do NOT use markdown — no **bold**, no _italics_, no ## headings, no #hashtags, and no code formatting inside the caption. LinkedIn renders all markdown as literal characters, so write plain sentences with normal punctuation only. " +
+    "The caption is PLAIN TEXT for LinkedIn: do NOT use markdown — no **bold**, no _italics_, no ## headings, and no code formatting inside the caption. LinkedIn renders all markdown as literal characters, so write plain sentences with normal punctuation only. EXCEPTION — a trailing hashtag line is REQUIRED and is NOT markdown: end the caption with a newline followed by 3–6 space-separated #Tags (lowercase, no spaces inside a tag, e.g. #ai #bharat #safety). " +
     "You also suggest 2–3 internal links (other InBharat article URLs or the hub) to weave into the post. " +
     "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
     (strategyBlock ? `\n\n${strategyBlock}` : "") +
@@ -245,6 +250,9 @@ async function generatePromotionDraft(
     `Hub: ${SITE.url}${ARTICLE_PATH_PREFIX}\n\n` +
     `Candidate sibling articles to link to (pick 2–3 most topically relevant):\n${siblings}\n\n` +
     `Write a 60–90 word LinkedIn caption in the founder's voice: one hook line, a 1–2 line practical teaser (no jargon, no hype), and a CTA to read the full article. ` +
+    (hashtags.length
+      ? `End with a trailing line of exactly these hashtags (the article's own, space-separated, each prefixed with #, lowercase, no spaces inside a tag): ${hashtags.map((h) => "#" + String(h).replace(/\s+/g, "").toLowerCase()).join(" ")}. The hashtag line does NOT count toward the 60–90 words.\n`
+      : `End with a trailing line of 3–6 relevant hashtags (space-separated #Tags, lowercase, no spaces inside a tag). The hashtag line does NOT count toward the 60–90 words.\n`) +
     `Then list 2–3 internalLinks from the candidates above (full URLs). Return JSON only.`;
 
   // Redact before any model call (defensive — public marketing copy, but cheap).
