@@ -32,11 +32,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       counts: { pages: 0, openTasks: 0, draftsByStatus: {}, approvalsThisMonth: 0 },
       spend,
       recentActivity: [],
+      stuckRuns: [],
       integrations: integrationFlags(),
     });
   }
 
   const startIso = monthStartIso();
+  // A run is "stuck" if it's still 'running' more than 1 hour after it started
+  // — the daily cron should finish in minutes, so this flags a timed-out /
+  // crashed run that never got its 'completed' or 'failed' status (the audit
+  // runner now sets 'failed' in a try/finally, but a hard Vercel timeout can
+  // still kill the function before the finally runs).
+  const stuckThreshold = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const [
     lastRun,
     pagesCount,
@@ -47,6 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     recentLogs,
     recentApprovals,
     draftStatuses,
+    stuckRuns,
   ] = await Promise.all([
     supabaseAdmin.from("growth_crawl_runs").select("*").order("started_at", { ascending: false }).limit(1).maybeSingle(),
     supabaseAdmin.from("growth_pages").select("*", { count: "exact", head: true }),
@@ -57,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     supabaseAdmin.from("growth_agent_logs").select("level,action,scope,detail,created_at").in("level", ["warn", "error", "deny"]).order("created_at", { ascending: false }).limit(3),
     supabaseAdmin.from("growth_approvals").select("decision,reviewer,created_at").order("created_at", { ascending: false }).limit(3),
     supabaseAdmin.from("growth_drafts").select("status").order("created_at", { ascending: false }).limit(1000),
+    supabaseAdmin.from("growth_crawl_runs").select("id,domain,started_at").eq("status", "running").lt("started_at", stuckThreshold).order("started_at", { ascending: false }).limit(10),
   ]);
 
   const draftsByStatus: Record<string, number> = {};
@@ -99,6 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     spend,
     recentActivity: activity,
+    stuckRuns: (stuckRuns.data ?? []) as { id: string; domain: string; started_at: string }[],
     integrations: integrationFlags(),
   });
 }

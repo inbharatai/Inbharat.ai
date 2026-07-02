@@ -9,7 +9,7 @@
  * Server-only. Never touches the chat backend.
  */
 import type { CrawlRun, GrowthPage } from "./types.js";
-import { assertAuthorized, logInfo } from "./authorization.js";
+import { assertAuthorized, logInfo, logError } from "./authorization.js";
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { crawlUrl, extractInternalLinks, fetchPage, fetchSitemapUrls } from "./crawler.js";
 import { scoreSeo } from "./seo-auditor.js";
@@ -18,6 +18,12 @@ import { scoreGeo } from "./geo-auditor.js";
 // Raised from 25 → 60 so the daily cron covers the homepage + hub + 12
 // "Build AI with Reeturaj" articles + the existing static pages in one run.
 const MAX_PAGES_PER_DOMAIN = 60;
+
+// Pages are crawled concurrently (each fetch is independent I/O) instead of
+// sequentially — a 60-page run drops from ~28 min to ~1-2 min, which keeps the
+// daily cron inside Vercel's serverless timeout. 5 is a conservative cap that
+// won't hammer the target site or exhaust outbound sockets.
+const CRAWL_CONCURRENCY = 5;
 
 function domainOf(url: string): string {
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; }
@@ -72,50 +78,74 @@ export async function auditDomain(domain: string): Promise<CrawlRun> {
     // no sitemap or unreachable → continue with homepage-seeded targets
   }
 
-  for (const url of targets) {
-    if (run.pages!.length >= MAX_PAGES_PER_DOMAIN) break;
-    try {
-      const meta = await crawlUrl(url); // re-checks authorization + robots + sitemap
-      const seo = scoreSeo(meta);
-      const geo = scoreGeo(meta);
-      const page: GrowthPage = {
-        url,
-        domain: scope,
-        httpStatus: meta.httpStatus,
-        title: meta.title,
-        metaDescription: meta.metaDescription,
-        canonical: meta.canonical,
-        h1: meta.h1,
-        wordCount: meta.wordCount,
-        seoScore: seo.score,
-        geoScore: geo.score,
-        issues: [...seo.issues, ...geo.issues],
-        meta,
-        crawledAt: new Date().toISOString(),
-      };
-      run.pages!.push(page);
-    } catch (e) {
-      // skip a single page failure; don't abort the whole run
-      run.pages!.push({
-        url,
-        domain: scope,
-        seoScore: 0,
-        geoScore: 0,
-        issues: [{ severity: "critical", field: "crawl", message: `Crawl failed: ${(e as Error).message}`, recommendedFix: "Check the URL / server." }],
-        meta: {},
-        crawledAt: new Date().toISOString(),
-      });
+  // Crawl targets concurrently with a small worker pool. Each worker pops the
+  // next URL off the queue; the per-page try/catch keeps one failure from
+  // aborting the run. The MAX_PAGES check is safe under concurrency because
+  // JS is single-threaded — the length read + push happen synchronously
+  // between awaits, so two workers never both push past the cap.
+  const queue = [...targets];
+  const worker = async (): Promise<void> => {
+    while (queue.length > 0) {
+      if (run.pages!.length >= MAX_PAGES_PER_DOMAIN) return;
+      const url = queue.shift()!;
+      try {
+        const meta = await crawlUrl(url); // re-checks authorization + robots + sitemap + SSRF on redirect
+        const seo = scoreSeo(meta);
+        const geo = scoreGeo(meta);
+        const page: GrowthPage = {
+          url,
+          domain: scope,
+          httpStatus: meta.httpStatus,
+          title: meta.title,
+          metaDescription: meta.metaDescription,
+          canonical: meta.canonical,
+          h1: meta.h1,
+          wordCount: meta.wordCount,
+          seoScore: seo.score,
+          geoScore: geo.score,
+          issues: [...seo.issues, ...geo.issues],
+          meta,
+          crawledAt: new Date().toISOString(),
+        };
+        run.pages!.push(page);
+      } catch (e) {
+        // skip a single page failure; don't abort the whole run
+        run.pages!.push({
+          url,
+          domain: scope,
+          seoScore: 0,
+          geoScore: 0,
+          issues: [{ severity: "critical", field: "crawl", message: `Crawl failed: ${(e as Error).message}`, recommendedFix: "Check the URL / server." }],
+          meta: {},
+          crawledAt: new Date().toISOString(),
+        });
+      }
     }
+  };
+
+  try {
+    await Promise.all(Array.from({ length: CRAWL_CONCURRENCY }, () => worker()));
+
+    run.pagesCount = run.pages!.length;
+    run.avgSeoScore = avg(run.pages!.map((p) => p.seoScore));
+    run.avgGeoScore = avg(run.pages!.map((p) => p.geoScore));
+    run.status = "completed";
+    await logInfo("audit-done", scope, `${run.pagesCount} pages, avg SEO ${run.avgSeoScore}, avg GEO ${run.avgGeoScore}`);
+  } catch (e) {
+    // An unexpected error outside the per-page catch (e.g. authorization revoked
+    // mid-run). Mark the run failed so it doesn't sit at "running" forever
+    // (insights would then show a stuck run as "current"). The pages crawled so
+    // far are still persisted below.
+    run.pagesCount = run.pages!.length;
+    run.avgSeoScore = avg(run.pages!.map((p) => p.seoScore));
+    run.avgGeoScore = avg(run.pages!.map((p) => p.geoScore));
+    run.status = "failed";
+    run.error = (e as Error).message;
+    await logError("audit-run-failed", scope, (e as Error).message);
+  } finally {
+    run.finishedAt = new Date().toISOString();
+    await persistRun(run);
   }
-
-  run.pagesCount = run.pages!.length;
-  run.avgSeoScore = avg(run.pages!.map((p) => p.seoScore));
-  run.avgGeoScore = avg(run.pages!.map((p) => p.geoScore));
-  run.status = "completed";
-  run.finishedAt = new Date().toISOString();
-
-  await persistRun(run);
-  await logInfo("audit-done", scope, `${run.pagesCount} pages, avg SEO ${run.avgSeoScore}, avg GEO ${run.avgGeoScore}`);
   return run;
 }
 
@@ -161,12 +191,16 @@ async function persistRun(run: CrawlRun): Promise<void> {
         pages_count: run.pagesCount,
         avg_seo_score: run.avgSeoScore,
         avg_geo_score: run.avgGeoScore,
+        error: run.error ?? null,
         started_at: run.startedAt,
         finished_at: run.finishedAt,
       })
       .select("id")
       .single();
-    if (error || !data?.id) return;
+    if (error || !data?.id) {
+      await logError("audit-persist-run-fail", run.domain, error?.message || "no run id returned").catch(() => undefined);
+      return;
+    }
     const runId = data.id as string;
     // Persist pages (lightweight subset to keep rows small).
     const rows = (run.pages || []).map((p) => ({
@@ -186,8 +220,10 @@ async function persistRun(run: CrawlRun): Promise<void> {
       crawled_at: p.crawledAt,
     }));
     if (rows.length) await supabaseAdmin.from("growth_pages").insert(rows);
-  } catch {
-    // DB optional — run still returned to caller
+  } catch (e) {
+    // DB optional — run still returned to caller, but surface the failure so
+    // a silent DB outage doesn't look like "everything's fine".
+    await logError("audit-persist-run-fail", run.domain, (e as Error).message).catch(() => undefined);
   }
 }
 
@@ -212,7 +248,9 @@ async function persistPage(domain: string, page: GrowthPage): Promise<void> {
       meta: page.meta,
       crawled_at: page.crawledAt,
     });
-  } catch {
-    // DB optional
+  } catch (e) {
+    // DB optional, but surface it — a failed single-page persist used to be
+    // indistinguishable from success.
+    await logError("audit-persist-page-fail", domain, `${page.url}: ${(e as Error).message}`).catch(() => undefined);
   }
 }

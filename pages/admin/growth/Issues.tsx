@@ -492,6 +492,10 @@ const Issues: React.FC = () => {
   }
 
   async function publishCover(d: DraftRow) {
+    // Publish commits the cover PNG + wires the article `visual` field to GitHub
+    // main → Vercel auto-rebuilds → live site. That's an outward-facing change, so
+    // confirm before the commit (Regenerate already confirms; publish didn't).
+    if (!confirm(`Publish this cover to the live site?\n\n${d.title || d.url || d.id}\n\nIt commits the PNG + updates the article visual on GitHub main, then Vercel rebuilds.`)) return;
     setPublishingId(d.id);
     setDraftMsg(null);
     setPublishError(null);
@@ -527,6 +531,11 @@ const Issues: React.FC = () => {
   }
 
   async function publishArticle(d: DraftRow) {
+    // Publish commits the article markdown + articles.meta.ts entry to GitHub
+    // main → Vercel auto-rebuilds → the article goes live. It also ships the
+    // companion cover if one is approved. Confirm before this outward-facing
+    // change (a stray click used to push straight to main with no gate).
+    if (!confirm(`Publish this article to the live site?\n\n${d.title || d.url || d.id}\n\nIt commits the article + its meta entry to GitHub main (and ships the companion cover if one is approved), then Vercel rebuilds and it goes live.`)) return;
     setPublishingId(d.id);
     setDraftMsg(null);
     setPublishError(null);
@@ -570,6 +579,8 @@ const Issues: React.FC = () => {
   }
 
   async function publishVideoScript(d: DraftRow) {
+    // Commits the script as a reference artifact to GitHub main. Confirm first.
+    if (!confirm(`Publish this video script to the repo?\n\n${d.title || d.url || d.id}\n\nIt commits the script markdown to GitHub main as a reference artifact.`)) return;
     setPublishingId(d.id);
     setDraftMsg(null);
     setPublishError(null);

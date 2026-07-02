@@ -247,3 +247,20 @@ export async function logInfo(action: string, scope: string, detail: string): Pr
   // eslint-disable-next-line no-console
   console.info(`[growth] ${action} ${scope}: ${detail}`);
 }
+
+/** Error log (level 'error') — surfaces failures the founder should see in the
+ *  insights error feed: failed crawl runs, DB blips that made the agent
+ *  context-blind, model-call failures that otherwise look like success. No-op
+ *  beyond console if DB absent. Never throws (best-effort, fire-and-forget). */
+export async function logError(action: string, scope: string, detail: string): Promise<void> {
+  if (supabaseAdmin) {
+    try {
+      await supabaseAdmin.from("growth_agent_logs").insert({ level: "error", action, scope, detail });
+      return;
+    } catch {
+      // fall through to console
+    }
+  }
+  // eslint-disable-next-line no-console
+  console.error(`[growth] ERROR ${action} ${scope}: ${detail}`);
+}

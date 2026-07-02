@@ -228,7 +228,12 @@ export async function fetchSitemapUrls(originOrUrl: string, timeoutMs = 8000): P
   return locs;
 }
 
-/** Crawl a single authorized URL end-to-end. Throws AuthorizationError if not allowed. */
+/** Crawl a single authorized URL end-to-end. Throws AuthorizationError if not allowed.
+ *  SSRF guard: fetchPage follows redirects, so after the fetch we re-check the
+ *  FINAL resolved URL against the authorized-domain registry. An authorized host
+ *  with an open redirect must not let the agent fetch an internal/cloud-metadata
+ *  or attacker-controlled URL. The HTML is parsed against finalUrl so relative
+ *  links resolve correctly. */
 export async function crawlUrl(url: string): Promise<PageMeta> {
   if (!isDomainAuthorized(url)) {
     const { AuthorizationError } = await import("./authorization.js");
@@ -236,8 +241,15 @@ export async function crawlUrl(url: string): Promise<PageMeta> {
   }
   const allowed = await fetchRobotsAllowed(url);
   const inSitemap = await fetchSitemapContains(url);
-  const { html, status } = await fetchPage(url);
-  const meta = parsePage(html, url);
+  const { html, status, finalUrl } = await fetchPage(url);
+  // Re-authorize the redirect destination. If it landed on a different
+  // registrable domain that isn't authorized, refuse to parse it — the fetch
+  // already happened (HTML is in memory) but we never return it to the caller.
+  if (finalUrl && finalUrl !== url && !isDomainAuthorized(finalUrl)) {
+    const { AuthorizationError } = await import("./authorization.js");
+    throw new AuthorizationError("redirect left the authorized domain (SSRF guard)", { allowed: false, reason: "redirect target not authorized", action: "crawl", scope: finalUrl });
+  }
+  const meta = parsePage(html, finalUrl || url);
   meta.httpStatus = status;
   meta.robotsAllowed = allowed;
   meta.inSitemap = inSitemap;

@@ -28,6 +28,7 @@ import { AGENT_TOOLS, dispatchTool, type ToolResult } from "./agentTools.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
+import { logError } from "./authorization.js";
 
 /** Bound the tool-calling loop so a chatty model can't run forever. */
 const MAX_ITERATIONS = 6;
@@ -378,9 +379,17 @@ async function loadHistory(threadId: string): Promise<MessageRow[]> {
       .eq("thread_id", threadId)
       .order("created_at", { ascending: true })
       .limit(50);
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) {
+      // Surface the failure: a DB blip used to silently return [] and make the
+      // agent answer context-blind with no signal to the founder. Returning []
+      // is still the graceful behavior (the turn continues with no history), but
+      // now the error is visible in the insights error feed.
+      await logError("agent-load-history-fail", threadId, error?.message || "no data returned").catch(() => undefined);
+      return [];
+    }
     return data as MessageRow[];
-  } catch {
+  } catch (e) {
+    await logError("agent-load-history-fail", threadId, (e as Error).message).catch(() => undefined);
     return [];
   }
 }

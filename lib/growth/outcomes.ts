@@ -14,7 +14,7 @@
  * Server-only. Never touches the chat backend.
  */
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
-import { logInfo } from "./authorization.js";
+import { logInfo, logError } from "./authorization.js";
 import { auditSingleUrl } from "./audit-runner.js";
 import { getGscPageMetrics, type GscPageRow } from "./performance.js";
 import type { AuditIssue } from "./types.js";
@@ -105,8 +105,12 @@ export async function seedOutcomeOnPublish(
       baseline_issues: baselineIssues,
       baseline_page_id: baselinePageId,
     });
+    // Bust the admin outcomes cache so the just-published article appears in
+    // the Learning/Outcomes view immediately — previously the cache only busted
+    // on measure/engagement, so the admin view was stale right after publish.
+    bustOutcomesCache();
   } catch (e) {
-    await logInfo("outcome-seed-fail", url, (e as Error).message).catch(() => undefined);
+    await logError("outcome-seed-fail", url, (e as Error).message).catch(() => undefined);
   }
 }
 
@@ -185,7 +189,7 @@ export async function measureOutcomes(): Promise<{ measured: number; errors: num
       measured++;
     } catch (e) {
       errors++;
-      await logInfo("outcome-measure-fail", o.url, (e as Error).message).catch(() => undefined);
+      await logError("outcome-measure-fail", o.url, (e as Error).message).catch(() => undefined);
     }
   }
   bustOutcomesCache();
@@ -228,7 +232,7 @@ export async function loadOutcomes(): Promise<OutcomeView[]> {
     const { data, error } = await supabaseAdmin
       .from("growth_outcomes")
       .select(
-        "id,draft_id,url,kind,published_at,baseline_seo,baseline_geo,measured_seo,measured_geo,measured_at,gsc_clicks,gsc_impressions,gsc_ctr,gsc_position,linkedin_engagement",
+        "id,draft_id,url,kind,published_at,baseline_seo,baseline_geo,measured_seo,measured_geo,measured_at,gsc_clicks,gsc_impressions,gsc_ctr,gsc_position,linkedin_engagement,baseline_issues,measured_issues",
       )
       .order("published_at", { ascending: false })
       .limit(100);
@@ -260,6 +264,18 @@ export async function loadOutcomes(): Promise<OutcomeView[]> {
       const baselineGeo = (r.baseline_geo as number | null) ?? null;
       const measuredSeo = (r.measured_seo as number | null) ?? null;
       const measuredGeo = (r.measured_geo as number | null) ?? null;
+      // Real issues-resolved count from the stored baseline vs measured issue
+      // arrays (previously hardcoded 0 with a misleading comment). Null when
+      // either side hasn't been measured yet.
+      const baselineIssues = Array.isArray(r.baseline_issues) ? (r.baseline_issues as AuditIssue[]) : null;
+      const measuredIssues = Array.isArray(r.measured_issues) ? (r.measured_issues as AuditIssue[]) : null;
+      const issuesResolved =
+        baselineIssues != null && measuredIssues != null
+          ? diffOutcomes(
+              { seo: baselineSeo, geo: baselineGeo, issues: baselineIssues },
+              { seo: measuredSeo, geo: measuredGeo, issues: measuredIssues },
+            ).issuesResolved
+          : 0;
       out.push({
         id: r.id as string,
         draftId,
@@ -278,7 +294,7 @@ export async function loadOutcomes(): Promise<OutcomeView[]> {
         linkedinEngagement: r.linkedin_engagement ?? null,
         seoDelta: baselineSeo != null && measuredSeo != null ? measuredSeo - baselineSeo : null,
         geoDelta: baselineGeo != null && measuredGeo != null ? measuredGeo - baselineGeo : null,
-        issuesResolved: 0, // computed UI-side from issues arrays; omitted to keep rows light
+        issuesResolved,
         critiqueStatus: d?.critiqueStatus ?? null,
       });
     }

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isCronAuthErr, authorizeCron } from "../../lib/requireAdmin.js";
-import { logInfo } from "../../../lib/growth/authorization.js";
+import { logInfo, logError } from "../../../lib/growth/authorization.js";
 import { runAgentTurn, ensureNamedThread } from "../../../lib/growth/agent.js";
 import { pickNextCalendarTopic } from "../../../lib/growth/calendar.js";
 import { BUILD_WITH_REETURAJ_CALENDAR } from "../../../content/build-with-reeturaj-calendar.js";
@@ -97,14 +97,22 @@ async function loadDraftedArticleSlugs(): Promise<string[]> {
       .eq("kind", "article")
       .order("created_at", { ascending: false })
       .limit(200);
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) {
+      // Surface the failure instead of silently returning [] — a DB blip here
+      // used to make the morning cron re-draft an already-queued topic with no
+      // signal. Returning [] is still the safe behavior (picker treats nothing
+      // as drafted) but now the error is visible in the insights error feed.
+      await logError("morning-load-drafted-slugs-fail", "global", error?.message || "no data returned").catch(() => undefined);
+      return [];
+    }
     const slugs: string[] = [];
     for (const row of data as Array<{ schema_json?: unknown }>) {
       const sj = row.schema_json as { slug?: unknown } | null;
       if (sj && typeof sj.slug === "string" && sj.slug) slugs.push(sj.slug);
     }
     return slugs;
-  } catch {
+  } catch (e) {
+    await logError("morning-load-drafted-slugs-fail", "global", (e as Error).message).catch(() => undefined);
     return [];
   }
 }

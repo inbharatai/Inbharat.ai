@@ -17,6 +17,12 @@
       "schedule": "30 2 * * *"
     }
   ],
+  "functions": {
+    "api/growth/cron/morning.ts": { "maxDuration": 300 },
+    "api/growth/cron/daily.ts": { "maxDuration": 300 },
+    "api/growth/auto.ts": { "maxDuration": 120 },
+    "api/growth/agent.ts": { "maxDuration": 120 }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
