@@ -100,9 +100,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await logInfo("cron-daily-covers-fail", "global", (e as Error).message).catch(() => undefined);
   }
 
-  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored} outcomes=${outcomes.measured}/${outcomes.errors} learned=${learning.proposed} covers=${covers.drafted}/${covers.skipped}`);
+  // Stage 2 retention: prune the append-only growth tables once a day so they
+  // stay bounded (keep newest N growth_pages per URL; TTL the usage/logs/critique
+  // tables by created_at). Wrapped + best-effort — a prune failure never aborts
+  // the run. Skipped silently when Supabase is absent (no DB to prune). The
+  // prune_growth_tables function is created by supabase/migrations/
+  // 20260703120000_growth_retention.sql (apply it once via db push).
+  let pruned: { deleted_pages: number; deleted_usage: number; deleted_logs: number; deleted_critique: number } | null = null;
+  if (supabaseAdmin) {
+    try {
+      const { data, error } = await supabaseAdmin.rpc("prune_growth_tables", {});
+      if (!error && data) {
+        pruned = (Array.isArray(data) ? data[0] : data) as typeof pruned;
+        await logInfo("cron-daily-prune", "global", `pages=${pruned?.deleted_pages ?? 0} usage=${pruned?.deleted_usage ?? 0} logs=${pruned?.deleted_logs ?? 0} critique=${pruned?.deleted_critique ?? 0}`).catch(() => undefined);
+      } else if (error) {
+        await logInfo("cron-daily-prune-fail", "global", error.message || "rpc failed").catch(() => undefined);
+      }
+    } catch (e) {
+      await logInfo("cron-daily-prune-fail", "global", (e as Error).message).catch(() => undefined);
+    }
+  }
 
-  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox, outcomes, learning, covers });
+  await logInfo("cron-daily-done", "global", `trigger=${cron.source} domains=${assets.length} inbox=${inbox.ingested}/${inbox.errored} outcomes=${outcomes.measured}/${outcomes.errors} learned=${learning.proposed} covers=${covers.drafted}/${covers.skipped} pruned=${pruned ? "ok" : "skip"}`);
+
+  return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, results, inbox, outcomes, learning, covers, pruned });
 }
 
 /**

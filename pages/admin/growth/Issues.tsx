@@ -212,6 +212,12 @@ const Issues: React.FC = () => {
   // "N new drafts" toast — fires when drafts land from an agent run (cross-tab
   // BroadcastChannel ping, or a same-tab mount after running on the Agent page).
   const [pendingToast, setPendingToast] = useState<number | null>(null);
+  // Stage 2 Issues filter bar (additive client-side filter over already-loaded
+  // drafts). Defaults are "all"/"all"/"" → visibleDrafts === drafts → identical to
+  // the prior behavior, so the filter is a pure no-op until the founder uses it.
+  const [kindFilter, setKindFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [searchParams] = useSearchParams();
   const focusDraftId = searchParams.get("draft");
   // Per-card refs so a ?draft=<id> deep-link can scroll + ring-highlight the card.
@@ -397,8 +403,25 @@ const Issues: React.FC = () => {
     else await loadDrafts();
   }
 
-  const pendingDrafts = drafts.filter((d) => d.status === "pending");
-  const approvedDrafts = drafts.filter((d) => d.status === "approved");
+  // Stage 2 filter bar: apply kind + status + title search over the raw drafts.
+  // Default filters ("all"/"all"/"") pass every draft through unchanged.
+  const rawPendingCount = drafts.filter((d) => d.status === "pending").length;
+  const visibleDrafts = drafts.filter((d) => {
+    if (kindFilter !== "all") {
+      if (kindFilter === "inbox") { if (!isInboxReference(d.kind)) return false; }
+      else if (d.kind !== kindFilter) return false;
+    }
+    if (statusFilter !== "all" && d.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const hay = `${d.title ?? ""} ${d.url ?? ""} ${d.body_md ?? ""} ${d.kind}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const pendingDrafts = visibleDrafts.filter((d) => d.status === "pending");
+  const approvedDrafts = visibleDrafts.filter((d) => d.status === "approved");
   // Separate inbox reference drops (auto-generated from dropped files, no
   // publish target) from the publishable review queue so they stop masquerading
   // as LinkedIn captions. The founder explicitly finds these confusing.
@@ -639,8 +662,66 @@ const Issues: React.FC = () => {
       </form>
       {auditMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{auditMsg}</p>}
       {draftMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{draftMsg}</p>}
-      {draftsError && pendingDrafts.length === 0 && (
+      {draftsError && rawPendingCount === 0 && (
         <p className="mt-2 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>
+      )}
+
+      {drafts.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">
+          <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a9ab8]">Filter</span>
+          <div className="flex flex-wrap gap-1">
+            {[
+              { k: "all", label: "All" },
+              { k: "article", label: "Articles" },
+              { k: "linkedin", label: "LinkedIn" },
+              { k: "cover", label: "Covers" },
+              { k: "video-script", label: "Video" },
+              { k: "inbox", label: "Inbox" },
+            ].map((opt) => (
+              <button
+                key={opt.k}
+                onClick={() => setKindFilter(opt.k)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${kindFilter === opt.k ? "bg-[#f59f4f] text-black" : "bg-white/[0.04] text-[#c8d6e8] hover:bg-white/[0.08]"}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {[
+              { s: "all", label: "Any status" },
+              { s: "pending", label: "Pending" },
+              { s: "approved", label: "Approved" },
+              { s: "published", label: "Published" },
+              { s: "rejected", label: "Rejected" },
+            ].map((opt) => (
+              <button
+                key={opt.s}
+                onClick={() => setStatusFilter(opt.s)}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${statusFilter === opt.s ? "bg-[#f59f4f] text-black" : "bg-white/[0.04] text-[#c8d6e8] hover:bg-white/[0.08]"}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search title / url / body…"
+            className="min-w-[160px] flex-1 rounded-md border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-white placeholder:text-[#5f798f] focus:border-[#f59f4f]/50 focus:outline-none"
+          />
+          {(kindFilter !== "all" || statusFilter !== "all" || searchQuery.trim()) && (
+            <button
+              onClick={() => { setKindFilter("all"); setStatusFilter("all"); setSearchQuery(""); }}
+              className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-[#9fb2c6] hover:text-white"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto mr-1 text-[11px] text-[#7a9ab8]">
+            {visibleDrafts.length} / {drafts.length}
+          </span>
+        </div>
       )}
 
       {pendingPublishable.length > 0 && (
