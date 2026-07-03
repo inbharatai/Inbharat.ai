@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await logInfo(
       "cron-morning-done",
       "global",
-      `trigger=${cron.source} topic=${pick ? pick.topic : "free-plan"} ok=${result.ok} thread=${threadId}`,
+      `trigger=${cron.source} topic=${pick ? pick.topic : "free-plan"} ok=${result.ok} tools=${result.turnTools.map((t) => `${t.name}:${t.ok ? "ok" : "fail"}`).join(",") || "none"} thread=${threadId}`,
     );
     // The agent turn can return ok:false (e.g. note "model not configured" / "no
     // db" / "budget exhausted") — meaning ZERO drafts were created. Previously the
@@ -84,6 +84,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mode: pick ? "calendar" : "free-plan",
       reply: result.reply,
       note: result.note ?? null,
+      // The tool trail for THIS run (name + ok + short message, execution order)
+      // so "Run morning plan now" can show the founder exactly which tools ran
+      // and what each returned — e.g. write_article → fail: "article model not
+      // configured or monthly budget exhausted". Empty when the model answered in
+      // text with no tool calls (or failed before any tool ran).
+      toolTrail: result.turnTools,
     });
   } catch (e) {
     const msg = (e as Error).message;
@@ -171,17 +177,19 @@ function buildMorningPrompt(pick: { topic: string; category: string; angle?: str
     head +
     "\n\n" +
     [
-      "WORKFLOW (do all three, in order):",
-      `1. Call write_article with the topic (and the angle as the instruction if given). It returns a draftId + slug.`,
-      `2. Call promote_article with url = "${SITE.url}${ARTICLE_PREFIX}<the slug from step 1>" to draft the companion LinkedIn caption for the same article. (If promote_article says it already exists, that's fine — continue.)`,
-      "3. Call generate_cover with draftId = the write_article draft id from step 1 to draft the cover image.",
+      "WORKFLOW (do all three, in order — each step DEPENDS on the one before):",
+      `1. Call write_article with the topic (and the angle as the instruction if given). It returns a draftId + slug for a NEW article.`,
+      `2. ONLY IF step 1 returned ok:true with a draftId + slug: call promote_article with url = "${SITE.url}${ARTICLE_PREFIX}" + the EXACT slug returned by step 1. This drafts the companion LinkedIn caption for the NEW article you just drafted.`,
+      "3. ONLY IF step 1 returned ok:true with a draftId: call generate_cover with draftId = the write_article draft id from step 1.",
       "",
       "Then report back, in the founder's voice, in 3–5 short lines: the topic you picked, the article title + slug, and the three draft ids (article / LinkedIn / cover). Tell the founder to review + approve in Issues to publish.",
       "",
       "HARD RULES:",
       "- Do NOT approve or publish anything. Drafts only — the founder reviews.",
       "- Do NOT call write_article more than once for this run (one article).",
-      "- If a tool returns ok:false, relay the reason in your final note; still attempt the remaining steps if they are independent.",
+      "- This run is for ONE NEW article only. Do NOT call promote_article or generate_cover for any ALREADY-PUBLISHED article (a URL/slug from the published list above, or any slug you did not create in step 1 of THIS run). The founder already has LinkedIn captions for published articles — re-promoting them clutters the review queue with old content.",
+      "- If write_article (step 1) returns ok:false — model not configured, budget exhausted, parse failure, anything — STOP. Do NOT call promote_article or generate_cover. Relay the failure reason in your final note and tell the founder what to fix (set GEMINI_API_KEY / raise the budget). Steps 2 and 3 are meaningless without a new article from step 1.",
+      "- If a later step returns ok:false, relay the reason in your final note; do not retry blindly.",
     ].join("\n")
   );
 }

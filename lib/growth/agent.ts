@@ -64,6 +64,12 @@ export interface AgentTurnResult {
   /** New messages persisted this turn (user msg + assistant turns + tool results). */
   messages: AgentMessage[];
   note?: string;
+  /** Compact trail of the tool calls made THIS turn (name + ok + short message),
+   *  in execution order, so callers like the morning cron can show the founder
+   *  exactly which tools ran and what each returned — instead of a single opaque
+   *  `reply` that's null when the turn ends on a tool call. Empty when the model
+   *  answered in text with no tool calls. */
+  turnTools: { name: string; ok: boolean; message: string }[];
 }
 
 /**
@@ -85,7 +91,7 @@ export async function runAgentTurn(
     const userMsg: AgentMessage = {
       id: "", threadId: tid, role: "user", content: message, toolName: null, toolArgs: null, toolResult: null, createdAt: new Date().toISOString(),
     };
-    return { ok: false, threadId: tid, reply: "The Growth Agent database isn't configured, so I can't run tools or persist this conversation. Set Supabase to enable the agent.", messages: [userMsg], note: "no db" };
+    return { ok: false, threadId: tid, reply: "The Growth Agent database isn't configured, so I can't run tools or persist this conversation. Set Supabase to enable the agent.", messages: [userMsg], note: "no db", turnTools: [] };
   }
 
   // Load history BEFORE persisting the new user message, so replay doesn't
@@ -105,7 +111,7 @@ export async function runAgentTurn(
     await persistMessage(tid, "user", userRedact.redacted, null, null, null);
     const reply2 = "I caught what looks like a secret in your message and did NOT send it to the model — I've saved a redacted copy here. Remove the secret and send it again.";
     await persistMessage(tid, "assistant", reply2, null, null, null);
-    return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted" };
+    return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted", turnTools: [] };
   }
   // Persist the user message (now known secret-free) so it's saved even if the
   // model call later fails.
@@ -120,7 +126,7 @@ export async function runAgentTurn(
   if (!budgetOk) {
     const reply = "The monthly budget is exhausted — raise the cap in Settings and I'll pick this up. I've saved your message; send it again after you raise the cap.";
     await persistMessage(tid, "assistant", reply, null, null, null);
-    return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), note: "budget exhausted" };
+    return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), note: "budget exhausted", turnTools: [] };
   }
   const tools: GeminiFunctionDeclaration[] = AGENT_TOOLS;
 
@@ -137,13 +143,18 @@ export async function runAgentTurn(
   if (!isModelConfigured(choice)) {
     const reply = "The Growth Agent's Gemini key isn't configured (GEMINI_API_KEY), so I can't run right now. Set it in the project env to enable me.";
     await persistMessage(tid, "assistant", reply, null, null, null);
-    return { ok: false, threadId: tid, reply, messages: await loadHistory(tid), note: "model not configured" };
+    return { ok: false, threadId: tid, reply, messages: await loadHistory(tid), note: "model not configured", turnTools: [] };
   }
 
   // ─── Function-calling loop ─────────────────────────────────────────────────
   let iteration = 0;
   let reply: string | null = null;
   let malformedCount = 0;
+  // Tool calls made THIS turn, in execution order, so callers (the morning cron)
+  // can surface exactly which tools ran + what each returned instead of a single
+  // opaque (and often null) reply. Populated only inside the loop below; the early
+  // returns above the loop pass `turnTools: []` literally.
+  const turnTools: { name: string; ok: boolean; message: string }[] = [];
   for (; iteration < MAX_ITERATIONS; iteration++) {
     // Re-check the budget each iteration (not only at turn start). A turn that
     // starts just under the cap can otherwise run MAX_ITERATIONS model calls +
@@ -164,7 +175,7 @@ export async function runAgentTurn(
     if (scan.containedSecret) {
       const reply2 = "I caught what looks like a secret in the conversation context and aborted the model call. Please remove it and try again.";
       await persistMessage(tid, "assistant", reply2, null, null, null);
-      return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted" };
+      return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted", turnTools };
     }
 
     let result;
@@ -181,7 +192,7 @@ export async function runAgentTurn(
       void logUsage({ model: choice.model, task: "chat", promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
       const errMsg = `I hit an error talking to the model: ${(e as Error).message}`;
       await persistMessage(tid, "assistant", errMsg, null, null, null);
-      return { ok: false, threadId: tid, reply: errMsg, messages: await loadHistory(tid), note: "model error" };
+      return { ok: false, threadId: tid, reply: errMsg, messages: await loadHistory(tid), note: "model error", turnTools };
     }
 
     // Log usage (rough token estimate from system + the model's emitted text +
@@ -239,6 +250,10 @@ export async function runAgentTurn(
       } catch (e) {
         toolResult = { ok: false, message: `tool ${tc.name} threw: ${(e as Error).message}` };
       }
+      // Record this turn's tool call for the caller-facing trail. `message` is
+      // already a short human line the model relays verbatim — perfect for the
+      // founder-facing "what ran this morning" summary.
+      turnTools.push({ name: tc.name, ok: toolResult.ok, message: typeof toolResult.message === "string" ? toolResult.message : "" });
       await persistMessage(tid, "tool", null, tc.name, tc.args, toolResult);
       responseParts.push({ functionResponse: { name: tc.name, response: toolResult as Record<string, unknown> } });
     }
@@ -253,7 +268,7 @@ export async function runAgentTurn(
     await persistMessage(tid, "assistant", reply, null, null, null);
   }
 
-  return { ok: true, threadId: tid, reply, messages: await loadHistory(tid) };
+  return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), turnTools };
 }
 
 // ─── System prompt + history + persistence ─────────────────────────────────

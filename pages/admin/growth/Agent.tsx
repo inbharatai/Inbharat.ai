@@ -242,21 +242,43 @@ const Agent: React.FC = () => {
     setMorningRunning(true);
     setError(null);
     setNotice(null);
-    const { data, error } = await fetchJson<{ ok?: boolean; topic?: string; mode?: string; reply?: string | null; note?: string | null }>("/api/growth/cron/morning", { method: "POST" });
+    const { data, error } = await fetchJson<{ ok?: boolean; topic?: string; mode?: string; reply?: string | null; note?: string | null; toolTrail?: { name: string; ok: boolean; message: string }[] }>("/api/growth/cron/morning", { method: "POST" });
     setMorningRunning(false);
     if (error) { setError(error); return; }
     // The run appends to the daily-plan thread — refresh the list so it surfaces.
     void loadThreads();
     notifyDraftsUpdated();
-    // The cron now reports the agent outcome honestly (body ok = agent outcome).
+    const trail = formatMorningTrail(data?.toolTrail);
+    // The cron reports the agent outcome honestly (body ok = agent outcome).
     // A failed turn (note "model not configured" / "no db" / "budget exhausted")
-    // creates ZERO drafts — surface the actionable reason instead of the old
-    // false "Morning plan drafted" that fired whenever a topic was picked.
+    // creates ZERO drafts — surface the actionable reason + the tool trail so the
+    // founder sees EXACTLY which tool failed and why, instead of a single opaque
+    // (often null) reply. The trail also catches the partial-run case where the
+    // turn returned ok:true (e.g. budget exhausted mid-turn) but drafted nothing.
     if (data && data.ok === false) {
-      setError(morningFailMessage(data.note, data.reply));
+      setError(morningFailMessage(data.note, data.reply) + (trail ? `\n${trail}` : ""));
       return;
     }
-    if (data?.topic) setNotice(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
+    // ok:true, but did write_article actually succeed? A turn can return ok:true
+    // with zero drafts (budget exhausted at turn start returns ok:true + note;
+    // or the model answered in text and never called write_article). Only claim
+    // "drafted" when the trail shows write_article succeeded — otherwise show the
+    // trail as an honest "nothing drafted" notice.
+    const wroteArticle = !!(data?.toolTrail && data.toolTrail.some((t) => t.name === "write_article" && t.ok));
+    if (wroteArticle) {
+      setNotice(`Morning plan drafted: "${data?.topic}" (${data?.mode}). Review the Daily Plan thread + Issues.${trail ? `\n${trail}` : ""}`);
+    } else {
+      setError(`Morning plan ran but drafted no new article — nothing was written.${trail ? `\n${trail}` : ""}${data?.note ? `\n(note: ${data.note})` : ""}`);
+    }
+  }
+
+  /** Render the morning run's tool trail as a compact, scannable line so the
+   *  founder sees exactly which tools ran and what each returned — e.g.
+   *  "write_article ✗ article model not configured or monthly budget exhausted".
+   *  Empty string when no tools ran (model answered in text or failed pre-loop). */
+  function formatMorningTrail(trail: { name: string; ok: boolean; message: string }[] | undefined): string {
+    if (!trail || trail.length === 0) return "";
+    return "Tools: " + trail.map((t) => `${t.name} ${t.ok ? "✓" : "✗"}${t.message ? ` ${t.message}` : ""}`).join("  |  ");
   }
 
   /** Map the agent-turn failure `note` to a founder-actionable message. */
