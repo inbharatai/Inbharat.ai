@@ -161,6 +161,7 @@ interface EligibleRow {
   kind: string;
   url: string | null;
   title: string | null;
+  body_md: string | null;
   status: string;
   schema_json: { slug?: unknown } | null;
 }
@@ -168,15 +169,19 @@ interface EligibleRow {
 /**
  * GET /api/growth/syndicate — return the syndication ledger (history, newest
  * first) + the article drafts eligible to syndicate (approved or published).
- * The /admin/growth/syndication page renders both. Never throws; degrades to
- * empty arrays when Supabase is absent (guarded by the caller).
+ * The /admin/growth/syndication page renders both. Each eligible row carries its
+ * body markdown so the founder's "Open ↗" click can copy the body to the
+ * clipboard synchronously in the click gesture (no per-click fetch — which on a
+ * cold serverless start could outrun the browser's clipboard-activation window
+ * and silently fail the copy). Never throws; degrades to empty arrays when
+ * Supabase is absent (guarded by the caller).
  */
 async function listSyndication(res: VercelResponse, requestId: string): Promise<VercelResponse> {
   if (!supabaseAdmin) {
     return res.status(503).json({ ok: false, code: "SERVER_ERROR", error: "Supabase not configured.", requestId });
   }
   let history: HistoryRow[] = [];
-  let eligible: { id: string; kind: string; url: string | null; title: string | null; status: string; slug: string | null }[] = [];
+  let eligible: { id: string; kind: string; url: string | null; title: string | null; bodyMarkdown: string; status: string; slug: string | null }[] = [];
   try {
     const { data: hist, error: hErr } = await supabaseAdmin
       .from("growth_syndication")
@@ -190,7 +195,7 @@ async function listSyndication(res: VercelResponse, requestId: string): Promise<
   try {
     const { data: drafts, error: dErr } = await supabaseAdmin
       .from("growth_drafts")
-      .select("id,kind,url,title,status,schema_json")
+      .select("id,kind,url,title,body_md,status,schema_json")
       .eq("kind", "article")
       .in("status", ["approved", "published"])
       .order("created_at", { ascending: false })
@@ -201,6 +206,7 @@ async function listSyndication(res: VercelResponse, requestId: string): Promise<
         kind: d.kind,
         url: d.url,
         title: d.title,
+        bodyMarkdown: typeof d.body_md === "string" ? d.body_md : "",
         status: d.status,
         slug: typeof d.schema_json?.slug === "string" ? (d.schema_json.slug as string) : null,
       }));

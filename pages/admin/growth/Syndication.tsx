@@ -24,6 +24,8 @@ interface EligibleDraft {
   kind: string;
   url: string | null;
   title: string | null;
+  /** Article body markdown (from the draft row) — on the clipboard when you click Open ↗. */
+  bodyMarkdown: string;
   status: string;
   slug: string | null;
 }
@@ -53,17 +55,6 @@ interface SyndicateResp {
   slug?: string;
   title?: string;
   results?: SyndicationResult[];
-  error?: string;
-}
-
-/** Response from GET /api/growth/syndicate-content — the article content for the
- *  no-API-key "Open ↗" path (clipboard + open the platform editor in the browser). */
-interface SyndicateContentResp {
-  ok: boolean;
-  title: string;
-  bodyMarkdown: string;
-  hashtags: string[];
-  canonicalUrl: string;
   error?: string;
 }
 
@@ -133,9 +124,8 @@ const Syndication: React.FC = () => {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyndicationResult[]>>({});
   const [confirm, setConfirm] = useState<{ draft: EligibleDraft; platforms: SyndicationPlatform[] } | null>(null);
-  // Per-draft Open panel (no-API-key path) + its in-flight state.
+  // Per-draft Open panel (no-API-key path): the content + paste instructions shown after a click.
   const [openPanels, setOpenPanels] = useState<Record<string, OpenPanel>>({});
-  const [opening, setOpening] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -165,39 +155,33 @@ const Syndication: React.FC = () => {
 
   // The LinkedIn-style no-API-key path: open the platform editor in the founder's
   // browser (their own logged-in session) and put the content on the clipboard so
-  // they can paste + review + publish by hand. Mirrors Issues.tsx openShare(): the
-  // window.open runs FIRST (synchronously, in the user gesture) so the popup blocker
-  // never fires; the content fetch + clipboard write follow (transient activation
-  // lasts long enough for the fast admin route). A copy fallback is shown if the
-  // clipboard write is blocked.
+  // they can paste + review + publish by hand. The body is already in hand (it
+  // rides along on the page's initial load), so the click does window.open +
+  // clipboard.writeText SYNCHRONOUSLY in the user gesture — the popup is never
+  // blocked and the clipboard write never misses the browser's activation window
+  // (which a per-click fetch could on a cold serverless start). A copy fallback is
+  // shown if the clipboard write is blocked by a browser setting.
   async function openPlatform(draft: EligibleDraft, platform: SyndicationPlatform) {
     const url = PLATFORM_OPEN_URLS[platform];
-    // 1) Open synchronously in the click gesture → never popup-blocked.
+    const canonicalUrl = draft.url ?? (draft.slug ? `https://www.inbharat.ai/learn-ai-with-reeturaj/${draft.slug}` : "");
+    // Medium wants the canonical URL on the clipboard (its importer); DEV.to/Hashnode want the body markdown.
+    const clipboardText = platform === "medium" ? canonicalUrl : draft.bodyMarkdown;
+    // 1) Open the platform editor SYNCHRONOUSLY first — before any await, so the
+    //    popup blocker (which only allows window.open in the user-gesture call
+    //    stack) never fires. Mirrors Issues.tsx openShare().
     const w = window.open(url, "_blank", "noopener,noreferrer");
     if (!w) window.location.href = url;
-    setOpening((o) => ({ ...o, [draft.id]: true }));
-    try {
-      // 2) Fetch the article content (body + canonical + title + hashtags).
-      const { data, error } = await fetchJson<SyndicateContentResp>(
-        `/api/growth/syndicate-content?draftId=${encodeURIComponent(draft.id)}`,
-      );
-      if (error || !data || !data.ok) {
-        setOpenPanels((p) => ({ ...p, [draft.id]: { platform, title: draft.title ?? "", canonicalUrl: "", hashtags: [], clipboardText: "", clipboardOk: false, error: error || "could not load article content" } }));
-        return;
-      }
-      // 3) Medium wants the canonical URL on the clipboard (importer); DEV.to/Hashnode want the body markdown.
-      const clipboardText = platform === "medium" ? data.canonicalUrl : data.bodyMarkdown;
-      let clipboardOk = false;
-      try {
-        await navigator.clipboard.writeText(clipboardText);
-        clipboardOk = true;
-      } catch {
-        clipboardOk = false; /* blocked — the panel shows a copy fallback button */
-      }
-      setOpenPanels((p) => ({ ...p, [draft.id]: { platform, title: data.title, canonicalUrl: data.canonicalUrl, hashtags: data.hashtags, clipboardText, clipboardOk } }));
-    } finally {
-      setOpening((o) => ({ ...o, [draft.id]: false }));
+    // 2) Copy to the clipboard. Still within transient activation (~5s window from
+    //    the click), so this succeeds even though it follows the synchronous open.
+    let clipboardOk = false;
+    if (clipboardText) {
+      try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
     }
+    // 3) Show the paste instructions + title/canonical + a manual-copy fallback.
+    setOpenPanels((p) => ({
+      ...p,
+      [draft.id]: { platform, title: draft.title ?? "", canonicalUrl, hashtags: [], clipboardText, clipboardOk },
+    }));
   }
 
   // Copy the Open panel's clipboard text on demand (fallback when the auto-write
@@ -325,11 +309,10 @@ const Syndication: React.FC = () => {
                             <button
                               key={p.key}
                               onClick={() => void openPlatform(d, p.key)}
-                              disabled={opening[d.id]}
                               title={p.hint}
-                              className="inline-flex items-center gap-1 rounded-full bg-[#f59f4f]/10 px-2.5 py-1 text-[11px] font-medium text-[#f59f4f] ring-1 ring-[#f59f4f]/30 transition-colors hover:bg-[#f59f4f]/20 disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-full bg-[#f59f4f]/10 px-2.5 py-1 text-[11px] font-medium text-[#f59f4f] ring-1 ring-[#f59f4f]/30 transition-colors hover:bg-[#f59f4f]/20"
                             >
-                              {opening[d.id] ? "opening…" : `Open ${p.label} ↗`}
+                              {`Open ${p.label} ↗`}
                             </button>
                           ))}
                         </div>
