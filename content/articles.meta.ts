@@ -580,6 +580,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-03',
     readMinutes: 7,
+    visual: 'evals-for-ai-features-measuring-what-actually-ships.png',
     abstract: 'Shipping AI features based on gut feeling is a common mistake. Instead, use systematic evaluation frameworks – \'evals\' – with golden datasets and regression tests. This ensures your AI performs reliably and consistently, avoiding unexpected failures in production, especially crucial for India\'s diverse user base and varied device landscape.',
     faq: [
       { q: 'What is a \'golden dataset\' in AI evaluations?', a: 'A golden dataset is a collection of human-verified inputs and their corresponding, correct outputs. It serves as the \'ground truth\' to measure how accurately an AI system performs against desired behavior. We use them to ensure our models understand India\'s diverse linguistic and cultural contexts.' },
