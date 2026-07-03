@@ -155,6 +155,11 @@ export async function runAgentTurn(
   // opaque (and often null) reply. Populated only inside the loop below; the early
   // returns above the loop pass `turnTools: []` literally.
   const turnTools: { name: string; ok: boolean; message: string }[] = [];
+  // Declared tool names, for narration detection (see the narration-recovery
+  // branch below + detectNarratedToolCall). Computed once, outside the loop.
+  const toolNames = AGENT_TOOLS.map((t) => t.name);
+  // Bounded corrective retries for narration-as-text (sibling to malformedCount).
+  let narrationRetries = 0;
   for (; iteration < MAX_ITERATIONS; iteration++) {
     // Re-check the budget each iteration (not only at turn start). A turn that
     // starts just under the cap can otherwise run MAX_ITERATIONS model calls +
@@ -229,7 +234,26 @@ export async function runAgentTurn(
     }
 
     if (result.toolCalls.length === 0) {
-      // Text answer (no tool calls) ends the turn.
+      // Before treating this as a final text answer, check the model didn't
+      // NARRATE a tool call in prose ("Called tool write_article(...)") instead
+      // of emitting a real Gemini functionCall part. This is a known Gemini
+      // failure mode (esp. with thinkingBudget:0 + a long replayed-history
+      // context) — a sibling of MALFORMED_FUNCTION_CALL above. Left unchecked,
+      // the turn ends with zero tool calls and the caller (morning cron) reports
+      // a phantom "Called tool X" while drafting nothing. Correct it and retry,
+      // bounded so it can't spin. After the retries exhaust, fall through to the
+      // normal text-answer end (the caller surfaces "no tools ran" honestly).
+      const narrated = result.text ? detectNarratedToolCall(result.text, toolNames) : null;
+      if (narrated && result.text && narrationRetries < 2) {
+        narrationRetries++;
+        await persistMessage(tid, "assistant", result.text, null, null, null);
+        contents.push({
+          role: "user",
+          parts: [{ text: `Your last message described calling ${narrated} in prose — "${result.text.slice(0, 160)}" — but you did NOT actually invoke it. Tool calls are made via the function-calling API (a functionCall part), NOT by writing "Called tool ${narrated}(...)" in text. Please actually call ${narrated} now, using the function-calling interface.` }],
+        });
+        continue;
+      }
+      // Real text answer (no tool calls) ends the turn.
       reply = result.text ?? null;
       if (reply) await persistMessage(tid, "assistant", reply, null, null, null);
       break;
@@ -358,6 +382,31 @@ export function summarizeToolResult(name: string, result: ToolResult | null): st
   }
   if (extra.length) parts.push(extra.join(", "));
   return `[result of ${name}]: ${parts.join("; ")}`;
+}
+
+/** Detect when the model NARRATED a tool call in prose — "Called tool X(...)",
+ *  "I'll call X(...)", "let me run X(...)" — instead of emitting a real Gemini
+ *  `functionCall` part. Returns the narrated tool name, or null for a normal text
+ *  answer. Conservative: requires a calling-verb before the tool name + `(` so a
+ *  doc-style answer like "write_article(topic, instruction) creates a draft"
+ *  (no calling verb) does NOT trip a false positive. Sibling to the
+ *  MALFORMED_FUNCTION_CALL recovery: the model emitting text that LOOKS like a
+ *  tool call but isn't a real functionCall is a known Gemini failure mode
+ *  (especially with thinkingBudget:0 and a long replayed-history context). */
+export function detectNarratedToolCall(text: string, toolNames: string[]): string | null {
+  if (!text || toolNames.length === 0) return null;
+  // Calling verbs that signal "the model is describing a tool invocation" vs
+  // "the model is documenting what a tool does". Keep the alternation tight so
+  // the regex stays readable + auditable.
+  const VERBS = "called|calling|call|invoke|invoking|invoked|use|using|used|run|running|ran|let me|i'll|i will|going to|will now|now i'll";
+  for (const name of toolNames) {
+    // Escape the tool name (they're all \w+ here, but be safe) — no special chars,
+    // so a plain escape is fine.
+    const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?:${VERBS})\\s+(?:tool\\s+)?${esc}\\s*\\(`, "i");
+    if (re.test(text)) return name;
+  }
+  return null;
 }
 
 /** Replay persisted history as alternating user/model text turns. Tool calls

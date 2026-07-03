@@ -74,6 +74,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!result.ok) {
       await logError("cron-morning-agent-fail", "global", `note=${result.note ?? "unknown"} reply=${(result.reply ?? "").slice(0, 200)}`).catch(() => undefined);
     }
+    // The agent turn returned ok:true but made ZERO tool calls — the model
+    // narrated a call in prose ("Called tool write_article(...)") instead of
+    // emitting a real functionCall, or answered in text without doing the work.
+    // The body stays ok:true (the turn didn't crash) so this used to look like a
+    // successful run while drafting NOTHING. Surface it as a distinct error line
+    // so the scheduled 8am run's silent zero-draft is visible in the error feed,
+    // not buried in the done-log. (The dashboard "Run morning plan now" UI also
+    // gates success on write_article actually running, via toolTrail.)
+    if (result.ok && result.turnTools.length === 0) {
+      await logError("cron-morning-no-tools", "global", `topic=${pick ? pick.topic : "free-plan"} note=${result.note ?? "none"} reply=${(result.reply ?? "").slice(0, 200)}`).catch(() => undefined);
+    }
 
     return res.status(200).json({
       ok: result.ok,

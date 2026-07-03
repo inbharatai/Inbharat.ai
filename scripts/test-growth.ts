@@ -748,6 +748,21 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const pkReverse = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, new Set([cal1Slug.slice(0, 6)]), []);
   check("pickNextCalendarTopic does NOT skip when published slug is shorter (reverse)", pkReverse && pkReverse.topic === BUILD_WITH_REETURAJ_CALENDAR[0].topic, JSON.stringify(pkReverse?.topic));
 
+  // detectNarratedToolCall — the narration-as-text recovery detector. The model
+  // sometimes writes "Called tool write_article(...)" in prose instead of emitting
+  // a real Gemini functionCall; the agent loop corrects + retries when this fires.
+  const { detectNarratedToolCall } = await import("../lib/growth/agent.js");
+  const NARR_TOOLS = ["write_article", "promote_article", "generate_cover", "review_text", "web_search"];
+  check("narration: 'Called tool write_article({...})' → write_article", detectNarratedToolCall('Called tool write_article({"topic":"Evals","instruction":"..."}).', NARR_TOOLS) === "write_article");
+  check("narration: 'I'll call promote_article(...)' → promote_article", detectNarratedToolCall("I'll call promote_article({\"url\":\"https://inbharat.ai/x\"}).", NARR_TOOLS) === "promote_article");
+  check("narration: 'let me run web_search(...)' → web_search", detectNarratedToolCall("Let me run web_search({\"query\":\"trending ai india\"}).", NARR_TOOLS) === "web_search");
+  check("narration: 'I will use generate_cover(...)' → generate_cover", detectNarratedToolCall("I will use generate_cover({\"draftId\":\"abc\"}).", NARR_TOOLS) === "generate_cover");
+  // False positives must NOT fire — these are normal text answers, not narrations.
+  check("narration: doc-style 'write_article(topic, instruction) creates a draft' → null", detectNarratedToolCall("The write_article(topic, instruction) tool creates a long-form article draft you review in Issues.", NARR_TOOLS) === null);
+  check("narration: normal closing 'Drafted the article — review in Issues' → null", detectNarratedToolCall("Done. I drafted the article and its LinkedIn caption — review both in Issues, then approve to publish.", NARR_TOOLS) === null);
+  check("narration: empty text → null", detectNarratedToolCall("", NARR_TOOLS) === null);
+  check("narration: no tool names in text → null", detectNarratedToolCall("I'll call the thingamajig tool now.", NARR_TOOLS) === null);
+
   // summarizeToolResult (history replay) — MUST preserve the draftId the model
   // produced in an earlier turn, even when the result carries a long preview that
   // the old JSON.stringify+slice(0,240) truncated BEFORE the draftId field. This
