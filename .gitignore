@@ -37,3 +37,8 @@ playwright-report/
 test-results/
 .vercel
 .env*.local
+
+# Local Claude Code / MCP tooling (per-user, not product code)
+.agents/
+.mcp.json
+skills-lock.json
