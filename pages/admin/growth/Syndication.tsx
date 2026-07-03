@@ -57,10 +57,17 @@ interface SyndicateResp {
 }
 
 const PLATFORMS: { key: SyndicationPlatform; label: string; hint: string }[] = [
-  { key: "devto", label: "DEV.to", hint: "Creates a DEV.to draft (you review, then publish)" },
-  { key: "hashnode", label: "Hashnode", hint: "Publishes LIVE immediately" },
-  { key: "medium", label: "Medium", hint: "Manual — shows the canonical + import page (Medium API deprecated)" },
+  { key: "devto", label: "DEV.to", hint: "API draft if DEVTO_API_KEY is set; else run the local command below to open the DEV.to editor pre-filled in your browser" },
+  { key: "hashnode", label: "Hashnode", hint: "API publish LIVE if HASHNODE_TOKEN is set; else run the local command below to open the Hashnode editor pre-filled in your browser" },
+  { key: "medium", label: "Medium", hint: "Medium API is deprecated — run the local command below to open Medium's importer with the canonical URL pre-filled" },
 ];
+
+/** The local Playwright populate command for a platform+slug (no API key needed —
+ *  opens the platform editor in your browser, pre-filled; you review + publish by
+ *  hand. Mirrors scripts/linkedin-populate.ts; see scripts/syndicate-populate.ts.) */
+function localCommand(platform: SyndicationPlatform, slug: string): string {
+  return `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
+}
 
 const STATUS_STYLE: Record<SyndicationStatus, { icon: React.ComponentType<{ size?: number; className?: string }>; cls: string; label: string }> = {
   published: { icon: CheckCircle2, cls: "text-emerald-300 bg-emerald-500/10 ring-1 ring-emerald-500/20", label: "Live" },
@@ -93,6 +100,8 @@ const Syndication: React.FC = () => {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyndicationResult[]>>({});
   const [confirm, setConfirm] = useState<{ draft: EligibleDraft; platforms: SyndicationPlatform[] } | null>(null);
+  // Which local-command "copy" button just fired (key = `${platform}:${slug}`) for inline feedback.
+  const [copied, setCopied] = useState<string>("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +127,20 @@ const Syndication: React.FC = () => {
       else set.add(p);
       return { ...prev, [draftId]: set };
     });
+  }
+
+  // Copy the local Playwright command to the clipboard (best-effort; the founder
+  // pastes it into a terminal at the repo root). This is the no-API-key path.
+  async function copyLocal(platform: SyndicationPlatform, slug: string) {
+    const cmd = localCommand(platform, slug);
+    try {
+      await navigator.clipboard.writeText(cmd);
+    } catch {
+      /* clipboard may be blocked; the command is still visible to select */
+    }
+    setCopied(`${platform}:${slug}`);
+    const key = `${platform}:${slug}`;
+    setTimeout(() => setCopied((c) => (c === key ? "" : c)), 1800);
   }
 
   async function runSyndicate(draft: EligibleDraft, platforms: SyndicationPlatform[]) {
@@ -216,6 +239,39 @@ const Syndication: React.FC = () => {
                       );
                     })}
                   </div>
+
+                  {/* Local Playwright path — no API key needed. Opens the platform editor in
+                      the founder's browser pre-filled with title + body + tags + canonical;
+                      the founder reviews + clicks Publish themselves. Mirrors the LinkedIn
+                      populate script. Shown when the draft has a slug. */}
+                  {d.slug && (
+                    <div className="mt-2.5 rounded-lg border border-white/10 bg-[#030508]/60 px-3 py-2">
+                      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#7a9ab8]">
+                        Open in browser (local Playwright · no API key)
+                      </p>
+                      <p className="mt-1 text-[10.5px] leading-relaxed text-[#7a9ab8]">
+                        Run one of these at the repo root. A Chromium window opens with the editor pre-filled — review it, then click Publish yourself. The body is also copied to the clipboard.
+                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {PLATFORMS.map((p) => {
+                          const cmd = localCommand(p.key, d.slug!);
+                          const justCopied = copied === `${p.key}:${d.slug}`;
+                          return (
+                            <div key={p.key} className="flex items-center gap-2">
+                              <span className="w-16 shrink-0 text-[10.5px] text-[#7a9ab8]">{p.label}</span>
+                              <code className="min-w-0 flex-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[10.5px] text-[#c0cfe0]">{cmd}</code>
+                              <button
+                                onClick={() => void copyLocal(p.key, d.slug!)}
+                                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${justCopied ? "bg-emerald-500/15 text-emerald-300" : "bg-white/[0.06] text-[#9fb2c6] hover:bg-white/[0.1]"}`}
+                              >
+                                {justCopied ? "copied" : "copy"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {last && (
                     <div className="mt-2.5 space-y-1.5 rounded-lg border border-white/10 bg-[#030508]/60 px-3 py-2">

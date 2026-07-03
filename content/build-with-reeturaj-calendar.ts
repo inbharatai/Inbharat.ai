@@ -30,10 +30,15 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // picker kept re-suggesting it every morning and the agent (correctly) refused
   // to re-write a duplicate → zero drafts. pickNextCalendarTopic now also skips a
   // topic when a published slug is a longer version of it (prefix-superset guard).
+  // NOTE: "Evals for AI features — measuring what actually ships" was retired
+  // because it shipped as the article of the same title
+  // (slug evals-for-ai-features-measuring-what-actually-ships). With it now in
+  // articles.meta.ts the slug-collision guard trips in scripts/test-growth.ts, and
+  // pickNextCalendarTopic would skip it every morning anyway — so it is removed.
   {
-    topic: "Evals for AI features — measuring what actually ships",
+    topic: "Streaming LLM responses — UX and cost trade-offs",
     category: "AI Foundations",
-    angle: "Golden set + regression evals before every deploy; why 'it looks fine to me' is not an eval.",
+    angle: "Token-by-token UX vs batched; SSE vs WebSocket; when streaming actually costs more and when it saves a request.",
   },
   {
     topic: "Model routing and cost control across Gemini tiers",
