@@ -23,11 +23,13 @@ export interface CalendarTopic {
 }
 
 export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
-  {
-    topic: "Fine-tuning vs RAG — when to use each",
-    category: "AI Foundations",
-    angle: "Decision framework: data volume, how often it changes, latency + cost, eval quality. Default to RAG; fine-tune only when style/latency demand it.",
-  },
+  // NOTE: "Fine-tuning vs RAG — when to use each" was retired from here because
+  // the article already shipped as "Fine-Tuning vs. RAG: When to Use Each for
+  // Your Indian AI Product" (slug fine-tuning-vs-rag-when-to-use-each-for-your-
+  // indian-ai-produ). The calendar slug differed from the published slug, so the
+  // picker kept re-suggesting it every morning and the agent (correctly) refused
+  // to re-write a duplicate → zero drafts. pickNextCalendarTopic now also skips a
+  // topic when a published slug is a longer version of it (prefix-superset guard).
   {
     topic: "Evals for AI features — measuring what actually ships",
     category: "AI Foundations",

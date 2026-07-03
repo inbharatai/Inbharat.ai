@@ -707,7 +707,7 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const { BUILD_WITH_REETURAJ_CALENDAR } = await import("../content/build-with-reeturaj-calendar.js");
   const { slugifyTitle } = await import("../lib/growth/articleWriter.js");
   const { ARTICLES: CAL_ARTICLES } = await import("../content/articles.meta.js");
-  check("content calendar has ≥18 topics", BUILD_WITH_REETURAJ_CALENDAR.length >= 18, `got ${BUILD_WITH_REETURAJ_CALENDAR.length}`);
+  check("content calendar has ≥17 topics", BUILD_WITH_REETURAJ_CALENDAR.length >= 17, `got ${BUILD_WITH_REETURAJ_CALENDAR.length}`);
   check("every calendar topic has a topic + category", BUILD_WITH_REETURAJ_CALENDAR.every((c) => typeof c.topic === "string" && c.topic.trim().length > 0 && typeof c.category === "string"));
   const calSlugs = BUILD_WITH_REETURAJ_CALENDAR.map((c) => slugifyTitle(c.topic));
   check("calendar topics have unique slugs", new Set(calSlugs).size === calSlugs.length, `dupes: ${[...new Set(calSlugs.filter((s, i) => calSlugs.indexOf(s) !== i))].join(",")}`);
@@ -732,6 +732,21 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   const allPublished = new Set(calSlugs.slice(0, half));
   const allDrafted = calSlugs.slice(half);
   check("pickNextCalendarTopic all built → null", pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, allPublished, allDrafted) === null);
+  // Substantive-duplicate guard (the real fine-tuning-vs-RAG stall): a published
+  // slug that is a LONGER, more-specific version of a calendar topic — published
+  // starts with `<calSlug>-` — must be skipped. Otherwise the agent refuses to
+  // re-write it as a duplicate and the morning cron stalls on that entry every
+  // day (pick → refuse → zero drafts). Calendar slug is the broad version; the
+  // reverse direction (calendar longer than published) is a legit follow-up, NOT skipped.
+  const cal0Slug = slugifyTitle(BUILD_WITH_REETURAJ_CALENDAR[0].topic);
+  const cal1Slug = slugifyTitle(BUILD_WITH_REETURAJ_CALENDAR[1].topic);
+  const supersetPublished = new Set([cal0Slug + "-for-your-indian-ai-product"]);
+  const pkSuperset = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, supersetPublished, []);
+  check("pickNextCalendarTopic skips a published superset slug (prefix guard)", pkSuperset && pkSuperset.topic === BUILD_WITH_REETURAJ_CALENDAR[1].topic, JSON.stringify(pkSuperset?.topic));
+  // Reverse direction must NOT skip: a calendar topic LONGER than a published broad
+  // slug is a legitimate deeper follow-up and must still be picked.
+  const pkReverse = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, new Set([cal1Slug.slice(0, 6)]), []);
+  check("pickNextCalendarTopic does NOT skip when published slug is shorter (reverse)", pkReverse && pkReverse.topic === BUILD_WITH_REETURAJ_CALENDAR[0].topic, JSON.stringify(pkReverse?.topic));
 
   // summarizeToolResult (history replay) — MUST preserve the draftId the model
   // produced in an earlier turn, even when the result carries a long preview that

@@ -30,7 +30,34 @@ export function pickNextCalendarTopic(
     const slug = slugifyTitle(entry.topic).toLowerCase();
     if (publishedSlugs.has(slug)) continue;
     if (drafted.has(slug)) continue;
+    // Substantive-duplicate guard. A published article whose slug is this topic
+    // made MORE specific — e.g. calendar "fine-tuning-vs-rag-when-to-use-each" vs
+    // published "fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ" —
+    // means the topic is already covered under a longer slug. Exact-slug match
+    // above misses this; the agent then (correctly) refuses to re-write it as a
+    // duplicate and the morning cron stalls on this entry every day: pick →
+    // refuse → zero drafts. Skip it so the cadence advances to the next
+    // genuinely-new topic. Directional: only skip when the PUBLISHED slug is the
+    // longer one (calendar topic is the broad version of a specific published
+    // article). The reverse — calendar slug longer than a published broad slug —
+    // is a legitimate "deeper follow-up" and is NOT skipped.
+    if (isCoveredByPublished(slug, publishedSlugs)) continue;
     return entry;
   }
   return null;
+}
+
+/**
+ * True when some published slug is this calendar slug made more specific — i.e.
+ * `published.startsWith(slug + "-")`. Guards very short slugs (length < 8) out of
+ * prefix-matching to avoid false positives; every real calendar topic slug is far
+ * longer than that. Case-insensitive (both sides already lowercased by callers).
+ */
+function isCoveredByPublished(slug: string, publishedSlugs: Set<string>): boolean {
+  if (slug.length < 8) return false;
+  const prefix = slug + "-";
+  for (const pub of publishedSlugs) {
+    if (typeof pub === "string" && pub.toLowerCase().startsWith(prefix)) return true;
+  }
+  return false;
 }
