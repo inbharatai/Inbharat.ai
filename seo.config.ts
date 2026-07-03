@@ -502,6 +502,10 @@ const ADMIN_GROWTH_PATHS = [
   // shell-less admin routes. Every admin/growth child route must be listed here.
   '/admin/growth/strategy',
   '/admin/growth/agent',
+  // Added 2026-07-03: the Syndication page (pages/admin/growth/Syndication.tsx)
+  // was missing from this list, so build-seo emitted no shell and the live site
+  // 404'd at /admin/growth/syndication (Vercel platform 404). Same root cause.
+  '/admin/growth/syndication',
 ];
 const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
   path,
