@@ -1164,6 +1164,24 @@ console.log("\nArticle slug-collision guard (ensureUniqueArticleSlug):");
   check("empty slug falls back to 'article' base", (await ensureUniqueArticleSlug("")) === "article" || (await ensureUniqueArticleSlug("")).startsWith("article"));
 }
 
+console.log("\nArticle slug resolution (resolveArticleSlug):");
+{
+  const { resolveArticleSlug } = await import("../lib/growth/articleWriter.js");
+  // Caller-supplied canonical slug (the morning cron's calendar slug) wins when
+  // clean — this is what makes the content calendar advance one topic per day
+  // (the draft slug matches slugifyTitle(topic) the picker checks against).
+  check("suggested clean slug wins over model slug + title", resolveArticleSlug("evals-for-ai-features-measuring-what-actually-ships", "ai-evals-why-it-looks-fine", "AI Evals: Why It Looks Fine") === "evals-for-ai-features-measuring-what-actually-ships");
+  check("suggested slug wins even when model slug differs", resolveArticleSlug("model-routing-and-cost-control", "some-other-slug", "Some Title") === "model-routing-and-cost-control");
+  // No suggested slug (interactive dashboard use) → model slug wins when clean.
+  check("no suggested slug → model slug used", resolveArticleSlug(undefined, "ai-evals-why-it-looks-fine", "AI Evals") === "ai-evals-why-it-looks-fine");
+  // Neither suggested nor clean model slug → slugify the title.
+  check("no suggested + dirty model slug → slugifyTitle(title)", resolveArticleSlug(undefined, "AI Evals!!!", "AI Evals: Why It Looks Fine") === "ai-evals-why-it-looks-fine");
+  // A dirty/empty suggested slug is ignored (never produces an invalid URL slug).
+  check("dirty suggested slug ignored → falls back to model slug", resolveArticleSlug("Bad Slug!", "good-model-slug", "Title") === "good-model-slug");
+  check("empty suggested slug ignored → model slug", resolveArticleSlug("", "good-model-slug", "Title") === "good-model-slug");
+  check("all empty/dirty → slugifyTitle(title)", resolveArticleSlug("Bad!", "Also Bad!", "Neural Networks For Engineers") === "neural-networks-for-engineers");
+}
+
 console.log("\nSyndication (Stage 3 — pure helpers + mocked clients):");
 {
   // Canonical URL — always www host + article path.

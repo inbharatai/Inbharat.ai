@@ -3,6 +3,7 @@ import { getRequestId, isCronAuthErr, authorizeCron } from "../../lib/requireAdm
 import { logInfo, logError } from "../../../lib/growth/authorization.js";
 import { runAgentTurn, ensureNamedThread } from "../../../lib/growth/agent.js";
 import { pickNextCalendarTopic } from "../../../lib/growth/calendar.js";
+import { slugifyTitle } from "../../../lib/growth/articleWriter.js";
 import { BUILD_WITH_REETURAJ_CALENDAR } from "../../../content/build-with-reeturaj-calendar.js";
 import { ARTICLES } from "../../../content/articles.meta.js";
 import { supabaseAdmin } from "../../../api/lib/supabaseAdmin.js";
@@ -154,6 +155,14 @@ async function loadDraftedArticleSlugs(): Promise<string[]> {
  */
 function buildMorningPrompt(pick: { topic: string; category: string; angle?: string } | null, draftedSlugs: string[] = []): string {
   const publishedList = ARTICLES.map((a) => `- ${a.slug} (${a.title})`).join("\n");
+  // The canonical calendar slug for today's topic. We tell the agent to pass it to
+  // write_article so the draft's slug equals slugifyTitle(topic) — which is what the
+  // picker matches against draftedSlugs. Without this the model generates its own
+  // slug (e.g. 'ai-evals-why-it-looks-fine-...') that never matches the calendar slug
+  // ('evals-for-ai-features-...'), and the picker re-drafts the SAME topic every
+  // morning → duplicate articles daily. Passing the slug makes the calendar advance
+  // one topic per day as designed.
+  const calendarSlug = pick ? slugifyTitle(pick.topic) : "";
   // Free-plan must avoid BOTH published slugs AND slugs already queued as pending/
   // approved article drafts — otherwise a re-run re-drafts a topic that's already
   // sitting in Issues awaiting review. (Calendar-pick already filters via
@@ -189,7 +198,7 @@ function buildMorningPrompt(pick: { topic: string; category: string; angle?: str
     "\n\n" +
     [
       "WORKFLOW (do all three, in order — each step DEPENDS on the one before):",
-      `1. Call write_article with the topic (and the angle as the instruction if given). It returns a draftId + slug for a NEW article.`,
+      `1. Call write_article with topic = "${pick ? pick.topic : "(the topic you found via web_search)"}"${pick && pick.angle ? `, instruction = "${pick.angle}"` : ""}${calendarSlug ? `, and slug = "${calendarSlug}" (use this EXACT canonical slug — it's how the content calendar tracks that this topic is built)` : ""}. It returns a draftId + slug for a NEW article.`,
       `2. ONLY IF step 1 returned ok:true with a draftId + slug: call promote_article with url = "${SITE.url}${ARTICLE_PREFIX}" + the EXACT slug returned by step 1. This drafts the companion LinkedIn caption for the NEW article you just drafted.`,
       "3. ONLY IF step 1 returned ok:true with a draftId: call generate_cover with draftId = the write_article draft id from step 1.",
       "",

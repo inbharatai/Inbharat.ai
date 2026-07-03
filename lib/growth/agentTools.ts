@@ -160,6 +160,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
       properties: {
         topic: { type: "string", description: "The article topic / angle." },
         instruction: { type: "string", description: "Optional: specific guidance (length, angle, audience)." },
+        slug: { type: "string", description: "Optional canonical URL slug to publish under (lowercase kebab, e.g. 'evals-for-ai-features'). The morning cron passes the calendar topic's slug so the content calendar advances one topic per day instead of re-drafting the same topic; when omitted, the slug is derived from the article title. Use the exact slug you're given." },
       },
       required: ["topic"],
     },
@@ -618,9 +619,10 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
 async function writeArticle(args: Args): Promise<ToolResult> {
   const topic = str(args.topic);
   const instruction = str(args.instruction);
+  const slug = str(args.slug);
   if (!topic) return { ok: false, message: "need a topic" };
   try {
-    const r = await draftArticle(topic, instruction || undefined);
+    const r = await draftArticle(topic, instruction || undefined, slug || undefined);
     if (r.status !== "pending" || !r.article) return { ok: false, message: r.note ?? "article not drafted" };
     const a = r.article;
     return {

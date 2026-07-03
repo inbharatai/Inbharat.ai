@@ -72,6 +72,21 @@ export function estimateReadMinutes(markdown: string): number {
   return Math.max(3, Math.round(words / 200));
 }
 
+/** Resolve the publish slug for an article draft. Pure + hermetic.
+ *
+ *  Precedence: a clean caller-supplied `suggestedSlug` (the morning cron passes the
+ *  calendar topic's slug so the content calendar advances — without this the model's
+ *  own slug never matches the calendar slug and the picker re-drafts the same topic
+ *  every morning) → the model's own slug (when clean) → slugifyTitle(title). "Clean"
+ *  means a non-empty lowercase-kebab string; anything else is ignored so a bad
+ *  caller/model value can never produce an invalid URL slug. */
+export function resolveArticleSlug(suggestedSlug: string | undefined, modelSlug: string, title: string): string {
+  const isClean = (s: string): boolean => !!s && /^[a-z0-9-]+$/.test(s);
+  if (isClean(suggestedSlug ?? "")) return suggestedSlug as string;
+  if (isClean(modelSlug)) return modelSlug;
+  return slugifyTitle(title);
+}
+
 /**
  * Draft a full article from a topic + optional instruction. Persists a pending
  * 'article' draft (the founder reviews + publishes). Never throws; returns
@@ -79,7 +94,7 @@ export function estimateReadMinutes(markdown: string): number {
  * redacted / parse fails. The body is run through critiqueAndRevise (kept when
  * critique is unavailable).
  */
-export async function draftArticle(topic: string, instruction?: string): Promise<ArticleDraftResult> {
+export async function draftArticle(topic: string, instruction?: string, suggestedSlug?: string): Promise<ArticleDraftResult> {
   const task: GrowthTask = "article";
   const choice = pickModel(task);
   const skip = (note: string): ArticleDraftResult => ({ draftId: null, status: "skipped", note });
@@ -165,11 +180,18 @@ export async function draftArticle(topic: string, instruction?: string): Promise
   });
   const finalBody = crit.revised ?? parsed.bodyMd;
 
-  // Stage 2 slug-collision guard: dedup the model-chosen slug against published
+  // Resolve the publish slug: a caller-supplied canonical slug (the morning cron
+  // passes the calendar topic's slug so the content calendar advances one topic
+  // per day — without this the model's own slug never matches the calendar slug and
+  // the picker re-drafts the same topic every morning) takes precedence when clean;
+  // otherwise fall back to the model's slug, then slugify the title. Pure + hermetic
+  // (see resolveArticleSlug + its unit tests).
+  const baseSlug = resolveArticleSlug(suggestedSlug, parsed.slug, parsed.title);
+  // Stage 2 slug-collision guard: dedup the base slug against published
   // ARTICLES + pending/approved article drafts so two drafts never target the same
   // URL (which would make the second publish overwrite the first's .md on GitHub).
   // Best-effort: no DB → only the in-memory ARTICLES set is checked.
-  const uniqueSlug = await ensureUniqueArticleSlug(parsed.slug);
+  const uniqueSlug = await ensureUniqueArticleSlug(baseSlug);
 
   const article: DraftedArticle = {
     slug: uniqueSlug,
