@@ -116,6 +116,33 @@ Supabase is now configured for auth and chat storage. No DNS or custom domain is
 
 Save each variable. After adding all six, trigger a new deploy (see D3).
 
+**D2b. (Optional) Growth Agent — syndication + advanced keys**
+
+Only if you run the Growth Agent surface (`/admin/growth`). All are server-only and **optional** — each feature degrades honestly (logs "not configured" / skips) when its key is absent, so the site + chat work without them. Add only what you use:
+
+| Name | Value | Notes |
+|------|--------|--------|
+| `GROWTH_OPENAI_API_KEY` | OpenAI key for the growth agent | Separate from chat; the chat model selection is never touched. |
+| `GEMINI_API_KEY` | Gemini key for the growth model router | Separate from chat. |
+| `GITHUB_TOKEN` | GitHub PAT | For audit PR creation; read-only is fine. |
+| `CRON_SECRET` | A shared secret | Authenticates the scheduled daily cron + external schedulers. |
+| `DEVTO_API_KEY` | Forem API key (dev.to/settings/extensions) | Stage 3 — cross-post articles to DEV.to as drafts. |
+| `HASHNODE_TOKEN` | Hashnode PAT (hashnode.com/settings/developer) | Stage 3 — cross-post to Hashnode (no Bearer prefix). |
+| `HASHNODE_PUBLICATION_ID` | Your publication's ObjectId | Stage 3 — required by Hashnode's `publishPost` mutation. |
+
+Medium has no API (deprecated) → Stage 3 surfaces it as a manual import helper (canonical URL + the `medium.com/p/import` page), so there is no `MEDIUM_*` key.
+
+**D2c. Supabase migrations — run once**
+
+The growth + SEO migrations do **not** auto-apply on deploy. After the first deploy, run each pending migration once via the Supabase SQL Editor (paste the file's contents) **or** `supabase db push` / the HTTPS Management API (the DB is not directly reachable; use the Management API). Pending migrations:
+
+- `supabase/migrations/20260702120000_published_articles.sql` — SEO article mirror.
+- `supabase/migrations/20260702130000_growth_hygiene.sql` — Stage 1 hygiene (indexes + constraints).
+- `supabase/migrations/20260703120000_growth_retention.sql` — Stage 2 `prune_growth_tables` (called by the daily cron).
+- `supabase/migrations/20260703130000_growth_syndication.sql` — Stage 3 syndication ledger.
+
+Each is idempotent (`CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` / `CREATE OR REPLACE FUNCTION`), so re-running is safe.
+
 **D3. Deploy**
 
 - Go to **Deployments**.
