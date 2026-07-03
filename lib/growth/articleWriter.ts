@@ -126,7 +126,12 @@ export async function draftArticle(topic: string, instruction?: string): Promise
 
   let raw: string;
   try {
-    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 4096 });
+    // 8192 output tokens: a full 800–1500-word article as JSON (bodyMd alone is
+    // ~2000–3000 tokens once escaped) plus title/description/abstract/faq/hashtags
+    // + JSON overhead needs the headroom. 4096 was right at the ceiling and the
+    // model hit it mid-body, producing unusable output. gemini-2.5-flash supports
+    // far more, so 8192 is safe.
+    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 8192 });
   } catch (e) {
     void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
     return skip(`article model call failed: ${(e as Error).message}`);
@@ -141,7 +146,14 @@ export async function draftArticle(topic: string, instruction?: string): Promise
     totalTokens, costUsd: estimateCost(choice, totalTokens),
     status: parsed ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
   });
-  if (!parsed) return skip("article model returned no usable JSON; nothing drafted");
+  if (!parsed) {
+    // Surface the actual model output (not an opaque "no usable JSON") so the
+    // failure is diagnosable: a wrong key name, prose instead of JSON, an empty
+    // required field, or a truncated body all look different here. Capped so the
+    // note stays readable; the full raw is already logged via logUsage above.
+    const preview = raw.replace(/\s+/g, " ").slice(0, 280);
+    return skip(`article model returned no usable JSON; nothing drafted. Raw (first 280 chars): ${preview}`);
+  }
 
   // Self-critique + revision on the body (kept when critique unavailable). The
   // grounding block is forwarded so the critique pass can fact-check numeric/date/
