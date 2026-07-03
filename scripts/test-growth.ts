@@ -24,6 +24,7 @@ import { istStartOfDayIso } from "../lib/growth/spend.js";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../lib/growth/articleSlug.js";
 import { mapResults, formatGroundingBlock } from "../lib/growth/retrieval.js";
 import { extractMermaidFences, detectUnclosedFences, validateMermaidFences, sanitizeMermaidFences } from "../lib/growth/mermaid-validate.js";
+import { stripCitationMarkers } from "../lib/growth/citations.js";
 import { isParaphraseOf } from "../lib/growth/learning.js";
 import { ensureUniqueArticleSlug } from "../lib/growth/articleWriter.js";
 import { ARTICLES } from "../content/articles.meta.js";
@@ -1157,6 +1158,51 @@ console.log("\nMermaid fence dry-run (extractMermaidFences + validateMermaidFenc
   // No mermaid at all → unchanged.
   const none = await sanitizeMermaidFences("just prose, no diagrams");
   check("sanitizeMermaidFences no-op on prose with no fences", none.cleaned === "just prose, no diagrams" && none.stripped.length === 0 && none.fenceCount === 0);
+}
+
+console.log("\nCitation-marker strip (stripCitationMarkers):");
+{
+  // The exact defect from the evals article: bare [N] mid-sentence renders as
+  // literal junk under remark-gfm (no footnote plugin). Strip + collapse the
+  // surrounding spaces to one so "release. [2] This" → "release. This".
+  check(
+    "strips a mid-sentence [N] and collapses spaces",
+    stripCitationMarkers("iterate, release. [2] This approach falls apart.") === "iterate, release. This approach falls apart.",
+  );
+  check(
+    "strips [N] at end of sentence before a newline (keeps paragraph break)",
+    stripCitationMarkers("or 'evals', come in. [1]\n\n## Next") === "or 'evals', come in. \n\n## Next",
+  );
+  check(
+    "strips multiple markers in one pass",
+    stripCitationMarkers("a. [1] b [2] c [4] d") === "a. b c d",
+  );
+  // Real markdown links must survive — `[text](url)` and the numeric `[1](url)`.
+  check(
+    "preserves named markdown links",
+    stripCitationMarkers("see [Desh Ka AI](https://www.inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai) for more") === "see [Desh Ka AI](https://www.inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai) for more",
+  );
+  check(
+    "preserves numeric markdown links [1](url)",
+    stripCitationMarkers("as in [1](https://example.com) cited") === "as in [1](https://example.com) cited",
+  );
+  // A reference-definition line `[1]: url` is a real markdown construct → keep it
+  // (only the bare inline [1] in the next paragraph is stripped + collapsed).
+  check(
+    "preserves reference-definition [1]: url",
+    stripCitationMarkers("[1]: https://example.com\n\ntext [1] here") === "[1]: https://example.com\n\ntext here",
+  );
+  check("no-op on prose with no markers", stripCitationMarkers("plain prose, no citations") === "plain prose, no citations");
+  check("no-op on empty", stripCitationMarkers("") === "");
+  // Regression: the actual evals opening line must come out clean.
+  check(
+    "evals opening line cleaned",
+    stripCitationMarkers("release. [2] This approach falls apart with AI.") === "release. This approach falls apart with AI.",
+  );
+  // No bare [N] may remain after stripping on a realistic grounded body.
+  const grounded = "claim one. [1] claim two [2] and [3] a third.\n\nNext para [4] ends.";
+  const cleaned = stripCitationMarkers(grounded);
+  check("no bare [N] remains after strip", /\[(\d+)\](?![(:])/.test(cleaned) === false, cleaned);
 }
 
 console.log("\nParaphrase dedupe (isParaphraseOf):");

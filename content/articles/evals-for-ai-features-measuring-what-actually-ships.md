@@ -2,18 +2,18 @@
 
 ## The Problem: "Feels Good" Isn't Good Enough
 
-Many teams, especially those new to AI, ship features the way they've always shipped traditional software: build, test with a few internal users, iterate, release. [2] This approach falls apart with AI, particularly with large language models (LLMs). Why?
+Many teams, especially those new to AI, ship features the way they've always shipped traditional software: build, test with a few internal users, iterate, release. This approach falls apart with AI, particularly with large language models (LLMs). Why?
 
 1.  **Non-determinism:** Unlike a SQL query that returns the same result every time, an LLM might give slightly different answers for the same prompt. This variability makes ad-hoc testing insufficient.
 2.  **Edge Cases Galore:** The long tail of user inputs, especially in India with its linguistic diversity and unique cultural contexts, is vast. Manually testing every permutation is impossible.
 3.  **Subtle Regressions:** A small change in a prompt, a model update, or a new piece of RAG data can introduce subtle performance degradations that are hard to spot without a baseline. Imagine a customer support bot (like we build for Sahayaak Seva) suddenly misunderstanding common Hindi phrases after an update – a disaster for user trust.
-4.  **Misaligned Expectations:** What a product manager *thinks* the AI should do and what it *actually* does can diverge significantly. [3] Without clear, measurable evaluation criteria, this gap remains hidden until users complain.
+4.  **Misaligned Expectations:** What a product manager *thinks* the AI should do and what it *actually* does can diverge significantly. Without clear, measurable evaluation criteria, this gap remains hidden until users complain.
 
-I've seen teams in Bengaluru spend weeks fine-tuning a model, only to find in production that it fails on basic queries from Tier-2 cities because their test data was too narrow. This is where systematic AI evaluations, or 'evals', come in. [1]
+I've seen teams in Bengaluru spend weeks fine-tuning a model, only to find in production that it fails on basic queries from Tier-2 cities because their test data was too narrow. This is where systematic AI evaluations, or 'evals', come in. 
 
 ## What Are AI Evals?
 
-AI evaluations are systematic frameworks for measuring whether your AI system performs the way you need it to. [1] They are not just about checking for bugs; they are about ensuring the AI meets specific performance criteria and user expectations.
+AI evaluations are systematic frameworks for measuring whether your AI system performs the way you need it to. They are not just about checking for bugs; they are about ensuring the AI meets specific performance criteria and user expectations.
 
 Think of it like this: for traditional software, you write unit tests and integration tests. For AI, you build evals. They answer questions like:
 
@@ -50,9 +50,9 @@ We automate this process. Before any AI feature goes live, it must pass its regr
 
 While golden sets and regression evals are foundational, a comprehensive eval strategy includes more:
 
-*   **LLM-as-a-Judge Evals:** For subjective tasks (like summarization or creative writing), human evaluation is gold standard, but slow. LLMs can sometimes act as 'judges' to score the output of another LLM against specific criteria. This is faster but requires careful prompt engineering for the judge LLM. [4]
-*   **Offline Evals:** Running evals on historical data or synthetic data. This is good for rapid iteration and debugging before exposing the model to live traffic. [4]
-*   **Online Evals (A/B Testing):** The ultimate test. Deploying a new AI feature to a small percentage of live users and measuring real-world impact (e.g., click-through rates, conversion, user satisfaction). This is crucial for understanding user behavior but should only be done after robust offline evals. [4]
+*   **LLM-as-a-Judge Evals:** For subjective tasks (like summarization or creative writing), human evaluation is gold standard, but slow. LLMs can sometimes act as 'judges' to score the output of another LLM against specific criteria. This is faster but requires careful prompt engineering for the judge LLM. 
+*   **Offline Evals:** Running evals on historical data or synthetic data. This is good for rapid iteration and debugging before exposing the model to live traffic. 
+*   **Online Evals (A/B Testing):** The ultimate test. Deploying a new AI feature to a small percentage of live users and measuring real-world impact (e.g., click-through rates, conversion, user satisfaction). This is crucial for understanding user behavior but should only be done after robust offline evals. 
 
 ## The India Deployment Reality
 

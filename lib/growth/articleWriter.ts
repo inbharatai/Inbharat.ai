@@ -22,6 +22,7 @@ import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { critiqueAndRevise } from "./critique.js";
 import { sanitizeMermaidFences } from "./mermaid-validate.js";
+import { stripCitationMarkers } from "./citations.js";
 import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
@@ -200,6 +201,15 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
     // sanitizeMermaidFences degrades gracefully and shouldn't throw, but never let a
     // sanitizer failure block drafting — keep the revised body.
   }
+
+  // Citation-marker strip: the Stage 2 grounding prompt tells the model to cite
+  // numbered web_search sources, so it emits inline `[1] [2]` markers next to
+  // claims. Those aren't real footnotes (no `[^N]: <url>` block) and remark-gfm
+  // has no footnote plugin, so bare `[N]` renders as literal junk mid-sentence.
+  // The grounding's value is upstream (preventing invented facts); the reader-
+  // facing badges are leakage, so strip them. The publish path strips again as a
+  // backstop. Pure (see lib/growth/citations.ts + its unit tests).
+  finalBody = stripCitationMarkers(finalBody);
 
   // Resolve the publish slug: a caller-supplied canonical slug (the morning cron
   // passes the calendar topic's slug so the content calendar advances one topic

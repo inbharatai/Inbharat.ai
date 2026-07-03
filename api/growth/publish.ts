@@ -7,6 +7,7 @@ import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWri
 import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/authorization.js";
 import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
 import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/growth/mermaid-validate.js";
+import { stripCitationMarkers } from "../../lib/growth/citations.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -488,7 +489,7 @@ async function publishArticle(
   if (mermaidSanitize.stripped.length > 0) {
     await logInfo("publish-article-mermaid-stripped", meta.slug, `${mermaidSanitize.stripped.length} broken fence(s) stripped before commit: ${mermaidSanitize.stripped.map((e) => `#${e.fenceIndex}`).join(",")}`).catch(() => undefined);
   }
-  const bodyToCommit = mermaidSanitize.cleaned;
+  const bodyToCommit = stripCitationMarkers(mermaidSanitize.cleaned);
 
   const mdPath = `content/articles/${meta.slug}.md`;
   const metaPath = "content/articles.meta.ts";
