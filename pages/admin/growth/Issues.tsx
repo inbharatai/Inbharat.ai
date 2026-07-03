@@ -448,6 +448,14 @@ const Issues: React.FC = () => {
       setDraftMsg("Enter a LinkedIn company ID for company mode.");
       return;
     }
+    // #10 UI safety: confirm before preparing the LinkedIn share (consistent with
+    // the confirm() guards on the cover/article/video-script repo-commit publishes
+    // below). LinkedIn publish does NOT commit to a repo — it generates the share
+    // URL + caption for the founder to post manually — so this is a lighter
+    // "are you sure" than the repo-commit confirms, but keeps one uniform pattern
+    // across every Publish button so no publish fires on an accidental click.
+    const modeLabel = publishMode === "company" ? ` as company ${companyId.trim()}` : " as personal";
+    if (!confirm(`Publish this LinkedIn draft${modeLabel}?\n\n${d.title || d.url || d.id}\n\nIt prepares the LinkedIn share URL + caption; you still post manually on LinkedIn.`)) return;
     // NOTE: we do NOT open a popup here. The old flow opened `about:blank`
     // synchronously, awaited the backend, then redirected the popup on success or
     // closed it on failure — which is exactly why "a blank tab opens and closes
