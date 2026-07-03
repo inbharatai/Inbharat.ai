@@ -21,6 +21,7 @@ import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { critiqueAndRevise } from "./critique.js";
+import { sanitizeMermaidFences } from "./mermaid-validate.js";
 import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
@@ -178,7 +179,27 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
     context: { url: null, kind: "article", title: parsed.title },
     rulesBlock, inboxBlock, strategyBlock, groundingBlock,
   });
-  const finalBody = crit.revised ?? parsed.bodyMd;
+  const revisedBody = crit.revised ?? parsed.bodyMd;
+
+  // Mermaid sanitize: strip any ```mermaid fence that doesn't parse so the draft that
+  // lands in Issues is already publishable (the publish path also strips as a backstop,
+  // but a clean draft means the founder never reviews a diagram that would render as
+  // "Syntax error" live, and publish never blocks on mermaid). Best-effort + never
+  // blocks: on any error the revised body is kept as-is (the publish path is the final
+  // gate). The stripped count is surfaced in the draft note so the founder knows a
+  // diagram was dropped and can re-draft it if they want the visual.
+  let finalBody = revisedBody;
+  let mermaidStripped = 0;
+  try {
+    const ms = await sanitizeMermaidFences(revisedBody);
+    if (ms.stripped.length > 0) {
+      finalBody = ms.cleaned;
+      mermaidStripped = ms.stripped.length;
+    }
+  } catch {
+    // sanitizeMermaidFences degrades gracefully and shouldn't throw, but never let a
+    // sanitizer failure block drafting — keep the revised body.
+  }
 
   // Resolve the publish slug: a caller-supplied canonical slug (the morning cron
   // passes the calendar topic's slug so the content calendar advances one topic
@@ -208,7 +229,10 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
   };
 
   const draftId = await persistArticleDraft(topic, instruction, article);
-  return { draftId, status: "pending", article, note: draftId ? `Article drafted — review in Issues, then publish to ship it live.` : "drafted but DB persist failed (see logs)" };
+  const note = draftId
+    ? `Article drafted — review in Issues, then publish to ship it live.${mermaidStripped ? ` (${mermaidStripped} broken mermaid diagram(s) stripped — re-draft if you want the visual)` : ""}`
+    : "drafted but DB persist failed (see logs)";
+  return { draftId, status: "pending", article, note };
 }
 
 interface ParsedArticle {

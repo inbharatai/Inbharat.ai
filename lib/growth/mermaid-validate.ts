@@ -140,3 +140,101 @@ export async function validateMermaidFences(markdown: string): Promise<MermaidVa
 
   return { ok: errors.length === 0, errors, fenceCount: fences.length };
 }
+
+export interface MermaidSanitizeResult {
+  /** The markdown with unparseable mermaid fences removed. Valid fences + all
+   *  non-fence text are kept byte-for-byte. Identical to the input when nothing
+   *  was stripped (or when the validator degraded gracefully). */
+  cleaned: string;
+  /** Each fence that was stripped (closed-broken + unclosed). Empty when the input
+   *  was already clean. Forwarded to the publish response + log so the founder knows
+   *  a diagram was dropped (and can re-draft it if they want the visual). */
+  stripped: MermaidFenceError[];
+  /** Total ```mermaid fences found (closed; same field as MermaidValidation). */
+  fenceCount: number;
+  /** True only if mermaid couldn't be loaded in the runtime — returns the markdown
+   *  unchanged (graceful degrade; the publish proceeds). Never set on a real run. */
+  skipped?: boolean;
+  skipReason?: string;
+}
+
+/**
+ * Strip every ```mermaid fence that fails to parse (and any unclosed opener) from the
+ * markdown, leaving valid fences + all prose untouched. This is the publish-path
+ * alternative to refusing the publish (409) when the model emits a broken diagram:
+ * the article's prose is still valuable, so we ship it minus the broken diagram and
+ * tell the founder what was stripped — instead of blocking the whole publish on one
+ * bad fence. Also used at draft time so a draft that lands in Issues is already clean.
+ *
+ * Pure-ish: one lazy `import("mermaid")` (shared with validateMermaidFences). The fence
+ * excision itself is pure + hermetic. Never throws — on any error it returns the input
+ * unchanged (the publish path is the final gate, and a sanitizer failure must never
+ * block a publish). Server-only.
+ */
+export async function sanitizeMermaidFences(markdown: string): Promise<MermaidSanitizeResult> {
+  const validation = await validateMermaidFences(markdown);
+  if (validation.skipped) {
+    return { cleaned: markdown, stripped: [], fenceCount: validation.fenceCount, skipped: true, skipReason: validation.skipReason };
+  }
+  if (validation.ok || validation.errors.length === 0) {
+    return { cleaned: markdown, stripped: [], fenceCount: validation.fenceCount };
+  }
+  // Partition the errors: closed-but-broken fences have fenceIndex within the closed
+  // fence count; unclosed openers have fenceIndex > fenceCount (set by validateMermaidFences).
+  const badClosed = new Set<number>();
+  let unclosedCount = 0;
+  for (const e of validation.errors) {
+    if (e.fenceIndex > validation.fenceCount) unclosedCount++;
+    else badClosed.add(e.fenceIndex);
+  }
+  let cleaned = markdown;
+  if (badClosed.size > 0) cleaned = stripClosedFencesByIndex(cleaned, badClosed);
+  if (unclosedCount > 0) cleaned = stripUnclosedFences(cleaned);
+  return { cleaned, stripped: validation.errors, fenceCount: validation.fenceCount };
+}
+
+/** Remove the 1-based-indexed closed ```mermaid fences from the markdown, keeping
+ *  every other fence + all surrounding text. Pure + hermetic. */
+function stripClosedFencesByIndex(markdown: string, badIndices: Set<number>): string {
+  const re = /```mermaid[ \t]*\r?\n[\s\S]*?```/g;
+  let out = "";
+  let last = 0;
+  let idx = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(markdown)) !== null) {
+    idx++;
+    out += markdown.slice(last, m.index);
+    last = m.index + m[0].length;
+    if (!badIndices.has(idx)) out += m[0]; // keep the good fence
+    // else: drop the broken fence (stripped)
+  }
+  out += markdown.slice(last);
+  return out;
+}
+
+/** Remove any ```mermaid opener that has no closing ```: strip from the opener to the
+ *  next ```mermaid opener (closed or unclosed) or end of string. An unclosed opener
+ *  swallows everything after it in a real renderer, so stripping to the next opener
+ *  (preserving a following valid fence) is the conservative call. Pure + hermetic. */
+function stripUnclosedFences(markdown: string): string {
+  const closedRe = /```mermaid[ \t]*\r?\n[\s\S]*?```/g;
+  const closedStarts = new Set<number>();
+  let m: RegExpExecArray | null;
+  while ((m = closedRe.exec(markdown)) !== null) closedStarts.add(m.index);
+  const openerRe = /```mermaid\b/g;
+  const openers: number[] = [];
+  while ((m = openerRe.exec(markdown)) !== null) openers.push(m.index);
+  const unclosed = openers.filter((p) => !closedStarts.has(p));
+  if (unclosed.length === 0) return markdown;
+  let out = "";
+  let last = 0;
+  for (let i = 0; i < unclosed.length; i++) {
+    const start = unclosed[i];
+    const nextOpener = openers.find((p) => p > start);
+    const end = nextOpener ?? markdown.length;
+    out += markdown.slice(last, start);
+    last = end;
+  }
+  out += markdown.slice(last);
+  return out;
+}

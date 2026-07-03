@@ -6,7 +6,7 @@ import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
 import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWrite.js";
 import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/authorization.js";
 import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
-import { validateMermaidFences, type MermaidValidation } from "../../lib/growth/mermaid-validate.js";
+import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/growth/mermaid-validate.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -471,30 +471,31 @@ async function publishArticle(
     return res.status(409).json({ ok: false, code: "CONFLICT", error: "article draft is missing a valid slug/body (schema_json.slug + body_md required).", requestId });
   }
 
-  // Stage 2 mermaid dry-run: parse every ```mermaid fence with the real parser
-  // before committing. A broken diagram would render as an error box on
-  // inbharat.ai; refuse the publish with the offending fence + parser message so
-  // the founder fixes it first. Skipped (graceful) only if mermaid can't load in
-  // the runtime — never blocks a publish because the validator itself failed.
-  const mermaidCheck: MermaidValidation = await validateMermaidFences(bodyMd ?? "");
-  if (mermaidCheck.skipped) {
-    await logInfo("publish-article-mermaid-skip", meta.slug, mermaidCheck.skipReason ?? "unknown").catch(() => undefined);
+  // Stage 2 mermaid dry-run: parse every ```mermaid fence with the real parser before
+  // committing. A broken diagram would render as an error box on inbharat.ai. Rather
+  // than block the WHOLE article publish on one bad fence (the founder's prose is
+  // still valuable + the founder can't easily edit mermaid in the Issues UI), strip
+  // the unparseable fence(s) from the committed body, log it, and proceed — the
+  // article ships without the broken diagram, and `mermaidStripped` in the response
+  // tells the founder what was dropped (so they can re-draft the diagram if they want
+  // it). Skipped (graceful) only if mermaid can't load in the runtime — never blocks a
+  // publish because the validator itself failed. The draft path also sanitizes, so
+  // this is the backstop for drafts that pre-date the draft-time fix or were edited.
+  const mermaidSanitize: MermaidSanitizeResult = await sanitizeMermaidFences(bodyMd ?? "");
+  if (mermaidSanitize.skipped) {
+    await logInfo("publish-article-mermaid-skip", meta.slug, mermaidSanitize.skipReason ?? "unknown").catch(() => undefined);
   }
-  if (!mermaidCheck.ok) {
-    await logInfo("publish-article-mermaid-fail", meta.slug, `${mermaidCheck.errors.length} bad fence(s)`).catch(() => undefined);
-    return res.status(409).json({
-      ok: false, code: "CONFLICT",
-      error: `article has ${mermaidCheck.errors.length} mermaid diagram(s) that failed to parse — fix them in the draft before publishing.`,
-      mermaidErrors: mermaidCheck.errors,
-      requestId,
-    });
+  if (mermaidSanitize.stripped.length > 0) {
+    await logInfo("publish-article-mermaid-stripped", meta.slug, `${mermaidSanitize.stripped.length} broken fence(s) stripped before commit: ${mermaidSanitize.stripped.map((e) => `#${e.fenceIndex}`).join(",")}`).catch(() => undefined);
   }
+  const bodyToCommit = mermaidSanitize.cleaned;
 
   const mdPath = `content/articles/${meta.slug}.md`;
   const metaPath = "content/articles.meta.ts";
 
   // 1) Commit the markdown body (create-or-update; base64 = correct utf8 on decode).
-  const mdBase64 = Buffer.from(bodyMd ?? "", "utf-8").toString("base64");
+  //    bodyToCommit has any unparseable mermaid fences stripped (see above).
+  const mdBase64 = Buffer.from(bodyToCommit, "utf-8").toString("base64");
   const mdRes = await commitBinary(mdPath, mdBase64, `article: add ${meta.slug} (Growth Agent, human-gated)`);
   if (!mdRes.ok) {
     await logInfo("publish-article-fail-md", mdPath, mdRes.error || "commit failed").catch(() => undefined);
@@ -574,6 +575,9 @@ async function publishArticle(
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
     cover, coverDrafted, pendingCoverId,
+    // Present only when one or more broken mermaid fences were stripped before commit
+    // (so the UI can tell the founder a diagram was dropped — re-draft it if wanted).
+    mermaidStripped: mermaidSanitize.stripped.length > 0 ? mermaidSanitize.stripped : undefined,
   });
 }
 

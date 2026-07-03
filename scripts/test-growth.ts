@@ -23,7 +23,7 @@ import { statusChip } from "../lib/growth/pipelineStatus.js";
 import { istStartOfDayIso } from "../lib/growth/spend.js";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../lib/growth/articleSlug.js";
 import { mapResults, formatGroundingBlock } from "../lib/growth/retrieval.js";
-import { extractMermaidFences, detectUnclosedFences, validateMermaidFences } from "../lib/growth/mermaid-validate.js";
+import { extractMermaidFences, detectUnclosedFences, validateMermaidFences, sanitizeMermaidFences } from "../lib/growth/mermaid-validate.js";
 import { isParaphraseOf } from "../lib/growth/learning.js";
 import { ensureUniqueArticleSlug } from "../lib/growth/articleWriter.js";
 import { ARTICLES } from "../content/articles.meta.js";
@@ -1136,6 +1136,27 @@ console.log("\nMermaid fence dry-run (extractMermaidFences + validateMermaidFenc
   check("validateMermaidFences fails on a syntax-broken fence", badCheck.ok === false && badCheck.errors.length === 1 && badCheck.errors[0].fenceIndex === 1, JSON.stringify(badCheck.errors));
   const unclosedCheck = await validateMermaidFences(unclosed);
   check("validateMermaidFences fails on an unclosed fence", unclosedCheck.ok === false && unclosedCheck.errors.some((e) => e.message.includes("never closed")));
+
+  // sanitizeMermaidFences — strips unparseable fences, keeps valid ones + all prose.
+  const clean = await sanitizeMermaidFences(good);
+  check("sanitizeMermaidFences leaves valid fences untouched", clean.cleaned === good && clean.stripped.length === 0 && clean.fenceCount === 2, JSON.stringify(clean));
+  // One broken fence between two good ones → only the broken one is removed; the good
+  // fences + all prose are kept byte-for-byte.
+  const mixed = "Intro\n\n```mermaid\ngraph TD;\n A-->B\n```\n\nmid prose\n\n```mermaid\ngraph TD;\n A->>B (broken\n```\n\nafter\n\n```mermaid\nflowchart LR;\n X-->Y\n```\n\nend\n";
+  const mixedSan = await sanitizeMermaidFences(mixed);
+  check("sanitizeMermaidFences strips exactly the broken fence (1 of 3)", mixedSan.stripped.length === 1 && mixedSan.fenceCount === 3 && mixedSan.stripped[0].fenceIndex === 2, JSON.stringify(mixedSan.stripped));
+  check("sanitizeMermaidFences keeps the two valid fences after stripping", mixedSan.cleaned.includes("A-->B") && mixedSan.cleaned.includes("X-->Y") && !mixedSan.cleaned.includes("A->>B (broken"), JSON.stringify(mixedSan.cleaned));
+  check("sanitizeMermaidFences keeps all surrounding prose", mixedSan.cleaned.includes("Intro") && mixedSan.cleaned.includes("mid prose") && mixedSan.cleaned.includes("after") && mixedSan.cleaned.includes("end"), JSON.stringify(mixedSan.cleaned));
+  // A single broken fence → stripped, prose kept.
+  const oneBad = await sanitizeMermaidFences(bad);
+  check("sanitizeMermaidFences strips a lone broken fence + keeps prose", oneBad.stripped.length === 1 && !oneBad.cleaned.includes("A->>B (broken"), JSON.stringify(oneBad));
+  // Unclosed opener at EOF (the realistic unclosed case — a truncated fence with no
+  // closer) → stripped to EOF, preceding prose kept.
+  const unclosedSan = await sanitizeMermaidFences("intro\n```mermaid\ngraph TD;\n A-->B\nlost mid\n");
+  check("sanitizeMermaidFences strips a lone unclosed opener + keeps preceding prose", unclosedSan.stripped.length === 1 && unclosedSan.cleaned === "intro\n" && !unclosedSan.cleaned.includes("A-->B"), JSON.stringify(unclosedSan.cleaned));
+  // No mermaid at all → unchanged.
+  const none = await sanitizeMermaidFences("just prose, no diagrams");
+  check("sanitizeMermaidFences no-op on prose with no fences", none.cleaned === "just prose, no diagrams" && none.stripped.length === 0 && none.fenceCount === 0);
 }
 
 console.log("\nParaphrase dedupe (isParaphraseOf):");
