@@ -63,9 +63,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "global",
       `trigger=${cron.source} topic=${pick ? pick.topic : "free-plan"} ok=${result.ok} thread=${threadId}`,
     );
+    // The agent turn can return ok:false (e.g. note "model not configured" / "no
+    // db" / "budget exhausted") — meaning ZERO drafts were created. Previously the
+    // cron reported body `ok:true` regardless, so a morning run that drafted
+    // nothing looked successful to the founder + the "Run morning plan now" UI.
+    // Surface the agent outcome honestly: body `ok` = the agent outcome (the cron
+    // still returns HTTP 200 because the cron itself executed — Vercel monitors
+    // HTTP status, not body.ok), and log a distinct error line for a failed agent
+    // turn so it's visible in the insights error feed, not buried in the done-log.
+    if (!result.ok) {
+      await logError("cron-morning-agent-fail", "global", `note=${result.note ?? "unknown"} reply=${(result.reply ?? "").slice(0, 200)}`).catch(() => undefined);
+    }
 
     return res.status(200).json({
-      ok: true,
+      ok: result.ok,
       requestId: cron.requestId,
       trigger: cron.source,
       threadId,

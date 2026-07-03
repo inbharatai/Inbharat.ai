@@ -242,13 +242,35 @@ const Agent: React.FC = () => {
     setMorningRunning(true);
     setError(null);
     setNotice(null);
-    const { data, error } = await fetchJson<{ topic?: string; mode?: string; reply?: string | null }>("/api/growth/cron/morning", { method: "POST" });
+    const { data, error } = await fetchJson<{ ok?: boolean; topic?: string; mode?: string; reply?: string | null; note?: string | null }>("/api/growth/cron/morning", { method: "POST" });
     setMorningRunning(false);
     if (error) { setError(error); return; }
     // The run appends to the daily-plan thread — refresh the list so it surfaces.
     void loadThreads();
-    if (data?.topic) setNotice(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
     notifyDraftsUpdated();
+    // The cron now reports the agent outcome honestly (body ok = agent outcome).
+    // A failed turn (note "model not configured" / "no db" / "budget exhausted")
+    // creates ZERO drafts — surface the actionable reason instead of the old
+    // false "Morning plan drafted" that fired whenever a topic was picked.
+    if (data && data.ok === false) {
+      setError(morningFailMessage(data.note, data.reply));
+      return;
+    }
+    if (data?.topic) setNotice(`Morning plan drafted: "${data.topic}" (${data.mode}). Review the Daily Plan thread + Issues.`);
+  }
+
+  /** Map the agent-turn failure `note` to a founder-actionable message. */
+  function morningFailMessage(note: string | null | undefined, reply: string | null | undefined): string {
+    switch (note) {
+      case "no db":
+        return "Morning plan ran but drafted nothing — Supabase isn't configured in Vercel env. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY so the agent can persist drafts.";
+      case "model not configured":
+        return "Morning plan ran but drafted nothing — no growth model key in Vercel env. Set GEMINI_API_KEY (or GROWTH_OPENAI_API_KEY) so the agent can draft.";
+      case "budget exhausted":
+        return "Morning plan ran but drafted nothing — the monthly growth budget is exhausted. Raise the cap in Settings.";
+      default:
+        return `Morning plan ran but drafted nothing — ${reply || note || "the agent returned no draft."}`;
+    }
   }
 
   return (
