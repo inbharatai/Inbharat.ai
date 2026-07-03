@@ -56,18 +56,51 @@ interface SyndicateResp {
   error?: string;
 }
 
+/** Response from GET /api/growth/syndicate-content — the article content for the
+ *  no-API-key "Open ↗" path (clipboard + open the platform editor in the browser). */
+interface SyndicateContentResp {
+  ok: boolean;
+  title: string;
+  bodyMarkdown: string;
+  hashtags: string[];
+  canonicalUrl: string;
+  error?: string;
+}
+
+/** Per-draft state for the LinkedIn-style "Open ↗" panel (no API key). */
+interface OpenPanel {
+  platform: SyndicationPlatform;
+  title: string;
+  canonicalUrl: string;
+  hashtags: string[];
+  /** What this platform wants on the clipboard: body markdown (DEV.to/Hashnode) or canonical URL (Medium). */
+  clipboardText: string;
+  clipboardOk: boolean;
+  error?: string;
+}
+
 const PLATFORMS: { key: SyndicationPlatform; label: string; hint: string }[] = [
-  { key: "devto", label: "DEV.to", hint: "API draft if DEVTO_API_KEY is set; else run the local command below to open the DEV.to editor pre-filled in your browser" },
-  { key: "hashnode", label: "Hashnode", hint: "API publish LIVE if HASHNODE_TOKEN is set; else run the local command below to open the Hashnode editor pre-filled in your browser" },
-  { key: "medium", label: "Medium", hint: "Medium API is deprecated — run the local command below to open Medium's importer with the canonical URL pre-filled" },
+  { key: "devto", label: "DEV.to", hint: "API draft if DEVTO_API_KEY is set; else click Open ↗ to open the DEV.to editor + copy the body to your clipboard" },
+  { key: "hashnode", label: "Hashnode", hint: "API publish LIVE if HASHNODE_TOKEN is set; else click Open ↗ to open the Hashnode editor + copy the body to your clipboard" },
+  { key: "medium", label: "Medium", hint: "Medium API is deprecated — click Open ↗ to open Medium's importer + copy the canonical URL to your clipboard" },
 ];
 
-/** The local Playwright populate command for a platform+slug (no API key needed —
- *  opens the platform editor in your browser, pre-filled; you review + publish by
- *  hand. Mirrors scripts/linkedin-populate.ts; see scripts/syndicate-populate.ts.) */
-function localCommand(platform: SyndicationPlatform, slug: string): string {
-  return `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
-}
+/** The platform page to open in the founder's browser (their own logged-in session).
+ *  These are public URLs — opening them is exactly how the deployed LinkedIn path
+ *  opens LinkedIn's share deep-link from a button click (no server-side Playwright,
+ *  which Vercel serverless can't run anyway). */
+const PLATFORM_OPEN_URLS: Record<SyndicationPlatform, string> = {
+  devto: "https://dev.to/new",
+  hashnode: "https://hashnode.com/new",
+  medium: "https://medium.com/p/import",
+};
+
+/** One-line paste instruction shown in the Open panel after the editor opens. */
+const PLATFORM_PASTE_HINT: Record<SyndicationPlatform, string> = {
+  devto: "Paste (Ctrl+V) the body into the markdown editor. Add the title + tags, then in the ⋯/More menu set the canonical URL to the one below. Review, then publish.",
+  hashnode: "Paste (Ctrl+V) the body into the editor. Add the title + tags, then in More options set the canonical URL to the one below. Review, then publish.",
+  medium: "Paste (Ctrl+V) the canonical URL into the importer and click Import. Medium scrapes the live inbharat.ai article and auto-sets the canonical to it. Review, then publish.",
+};
 
 const STATUS_STYLE: Record<SyndicationStatus, { icon: React.ComponentType<{ size?: number; className?: string }>; cls: string; label: string }> = {
   published: { icon: CheckCircle2, cls: "text-emerald-300 bg-emerald-500/10 ring-1 ring-emerald-500/20", label: "Live" },
@@ -100,8 +133,9 @@ const Syndication: React.FC = () => {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [results, setResults] = useState<Record<string, SyndicationResult[]>>({});
   const [confirm, setConfirm] = useState<{ draft: EligibleDraft; platforms: SyndicationPlatform[] } | null>(null);
-  // Which local-command "copy" button just fired (key = `${platform}:${slug}`) for inline feedback.
-  const [copied, setCopied] = useState<string>("");
+  // Per-draft Open panel (no-API-key path) + its in-flight state.
+  const [openPanels, setOpenPanels] = useState<Record<string, OpenPanel>>({});
+  const [opening, setOpening] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,18 +163,54 @@ const Syndication: React.FC = () => {
     });
   }
 
-  // Copy the local Playwright command to the clipboard (best-effort; the founder
-  // pastes it into a terminal at the repo root). This is the no-API-key path.
-  async function copyLocal(platform: SyndicationPlatform, slug: string) {
-    const cmd = localCommand(platform, slug);
+  // The LinkedIn-style no-API-key path: open the platform editor in the founder's
+  // browser (their own logged-in session) and put the content on the clipboard so
+  // they can paste + review + publish by hand. Mirrors Issues.tsx openShare(): the
+  // window.open runs FIRST (synchronously, in the user gesture) so the popup blocker
+  // never fires; the content fetch + clipboard write follow (transient activation
+  // lasts long enough for the fast admin route). A copy fallback is shown if the
+  // clipboard write is blocked.
+  async function openPlatform(draft: EligibleDraft, platform: SyndicationPlatform) {
+    const url = PLATFORM_OPEN_URLS[platform];
+    // 1) Open synchronously in the click gesture → never popup-blocked.
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (!w) window.location.href = url;
+    setOpening((o) => ({ ...o, [draft.id]: true }));
     try {
-      await navigator.clipboard.writeText(cmd);
-    } catch {
-      /* clipboard may be blocked; the command is still visible to select */
+      // 2) Fetch the article content (body + canonical + title + hashtags).
+      const { data, error } = await fetchJson<SyndicateContentResp>(
+        `/api/growth/syndicate-content?draftId=${encodeURIComponent(draft.id)}`,
+      );
+      if (error || !data || !data.ok) {
+        setOpenPanels((p) => ({ ...p, [draft.id]: { platform, title: draft.title ?? "", canonicalUrl: "", hashtags: [], clipboardText: "", clipboardOk: false, error: error || "could not load article content" } }));
+        return;
+      }
+      // 3) Medium wants the canonical URL on the clipboard (importer); DEV.to/Hashnode want the body markdown.
+      const clipboardText = platform === "medium" ? data.canonicalUrl : data.bodyMarkdown;
+      let clipboardOk = false;
+      try {
+        await navigator.clipboard.writeText(clipboardText);
+        clipboardOk = true;
+      } catch {
+        clipboardOk = false; /* blocked — the panel shows a copy fallback button */
+      }
+      setOpenPanels((p) => ({ ...p, [draft.id]: { platform, title: data.title, canonicalUrl: data.canonicalUrl, hashtags: data.hashtags, clipboardText, clipboardOk } }));
+    } finally {
+      setOpening((o) => ({ ...o, [draft.id]: false }));
     }
-    setCopied(`${platform}:${slug}`);
-    const key = `${platform}:${slug}`;
-    setTimeout(() => setCopied((c) => (c === key ? "" : c)), 1800);
+  }
+
+  // Copy the Open panel's clipboard text on demand (fallback when the auto-write
+  // was blocked). Runs in the click gesture so clipboard.writeText is allowed.
+  async function copyPanelText(draftId: string) {
+    const panel = openPanels[draftId];
+    if (!panel) return;
+    try {
+      await navigator.clipboard.writeText(panel.clipboardText);
+      setOpenPanels((p) => ({ ...p, [draftId]: { ...p[draftId], clipboardOk: true } }));
+    } catch {
+      /* leave clipboardOk false; the text remains visible to select manually */
+    }
   }
 
   async function runSyndicate(draft: EligibleDraft, platforms: SyndicationPlatform[]) {
@@ -240,36 +310,69 @@ const Syndication: React.FC = () => {
                     })}
                   </div>
 
-                  {/* Local Playwright path — no API key needed. Opens the platform editor in
-                      the founder's browser pre-filled with title + body + tags + canonical;
-                      the founder reviews + clicks Publish themselves. Mirrors the LinkedIn
-                      populate script. Shown when the draft has a slug. */}
+                  {/* No-API-key path — mirrors the deployed LinkedIn "Open LinkedIn ↗" button:
+                      click → the platform's editor opens in your browser (you're logged in) +
+                      the content is copied to the clipboard → you paste, review, publish by hand.
+                      No terminal, no API key, no server-side Playwright. */}
                   {d.slug && (
                     <div className="mt-2.5 rounded-lg border border-white/10 bg-[#030508]/60 px-3 py-2">
-                      <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#7a9ab8]">
-                        Open in browser (local Playwright · no API key)
-                      </p>
-                      <p className="mt-1 text-[10.5px] leading-relaxed text-[#7a9ab8]">
-                        Run one of these at the repo root. A Chromium window opens with the editor pre-filled — review it, then click Publish yourself. The body is also copied to the clipboard.
-                      </p>
-                      <div className="mt-1.5 space-y-1">
-                        {PLATFORMS.map((p) => {
-                          const cmd = localCommand(p.key, d.slug!);
-                          const justCopied = copied === `${p.key}:${d.slug}`;
-                          return (
-                            <div key={p.key} className="flex items-center gap-2">
-                              <span className="w-16 shrink-0 text-[10.5px] text-[#7a9ab8]">{p.label}</span>
-                              <code className="min-w-0 flex-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[10.5px] text-[#c0cfe0]">{cmd}</code>
-                              <button
-                                onClick={() => void copyLocal(p.key, d.slug!)}
-                                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${justCopied ? "bg-emerald-500/15 text-emerald-300" : "bg-white/[0.06] text-[#9fb2c6] hover:bg-white/[0.1]"}`}
-                              >
-                                {justCopied ? "copied" : "copy"}
-                              </button>
-                            </div>
-                          );
-                        })}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[#7a9ab8]">
+                          Open in browser · no API key
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PLATFORMS.map((p) => (
+                            <button
+                              key={p.key}
+                              onClick={() => void openPlatform(d, p.key)}
+                              disabled={opening[d.id]}
+                              title={p.hint}
+                              className="inline-flex items-center gap-1 rounded-full bg-[#f59f4f]/10 px-2.5 py-1 text-[11px] font-medium text-[#f59f4f] ring-1 ring-[#f59f4f]/30 transition-colors hover:bg-[#f59f4f]/20 disabled:opacity-50"
+                            >
+                              {opening[d.id] ? "opening…" : `Open ${p.label} ↗`}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                      {openPanels[d.id] && (
+                        <div className="mt-2 space-y-1.5 border-t border-white/10 pt-2">
+                          {openPanels[d.id].error ? (
+                            <p className="text-[11px] text-rose-300/90">{openPanels[d.id].error}</p>
+                          ) : (
+                            <>
+                              <p className="text-[11px] leading-relaxed text-[#c0cfe0]">
+                                <span className="font-semibold">{platformLabel(openPanels[d.id].platform)}</span> editor opened in a new tab. {PLATFORM_PASTE_HINT[openPanels[d.id].platform]}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-[#7a9ab8]">
+                                <span>
+                                  title: <code className="text-[#c0cfe0]">{openPanels[d.id].title}</code>
+                                </span>
+                                <span>
+                                  canonical: <code className="text-[#c0cfe0]">{openPanels[d.id].canonicalUrl}</code>
+                                </span>
+                                {openPanels[d.id].hashtags.length > 0 && (
+                                  <span>tags: <code className="text-[#c0cfe0]">{openPanels[d.id].hashtags.join(", ")}</code></span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10.5px]">
+                                {openPanels[d.id].clipboardOk ? (
+                                  <span className="text-emerald-300">✓ content copied to clipboard — paste into the editor</span>
+                                ) : (
+                                  <>
+                                    <span className="text-amber-300">clipboard blocked — copy manually:</span>
+                                    <button
+                                      onClick={() => void copyPanelText(d.id)}
+                                      className="rounded bg-white/[0.06] px-2 py-0.5 font-semibold text-[#9fb2c6] hover:bg-white/[0.1]"
+                                    >
+                                      copy {openPanels[d.id].platform === "medium" ? "canonical URL" : "body"}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 
