@@ -19,20 +19,33 @@ const { Client } = require("pg");
 
 const MIGRATIONS_DIR = path.join(__dirname, "..", "supabase", "migrations");
 
-function connectionString() {
-  if (process.env.SUPABASE_DB_URL) return process.env.SUPABASE_DB_URL;
-  // Fall back to individual PG* env vars (pg reads these natively).
+function buildConfig() {
+  // Prefer an explicit connection string; fall back to PG* env vars (pg reads
+  // these natively, and they dodge URI-parsing issues with special chars in the
+  // password like '!').
+  if (process.env.SUPABASE_DB_URL) {
+    return { connectionString: process.env.SUPABASE_DB_URL };
+  }
+  if (process.env.PGHOST || process.env.PGUSER) {
+    return {
+      host: process.env.PGHOST,
+      port: Number(process.env.PGPORT) || 5432,
+      user: process.env.PGUSER,
+      password: process.env.PGPASSWORD,
+      database: process.env.PGDATABASE || "postgres",
+    };
+  }
   return null;
 }
 
 async function main() {
-  const cs = connectionString();
-  if (!cs) {
-    console.error("Set SUPABASE_DB_URL to the postgres connection string.");
+  const cfg = buildConfig();
+  if (!cfg) {
+    console.error("Set SUPABASE_DB_URL (or PGHOST/PGUSER/PGPASSWORD) to connect.");
     process.exit(2);
   }
   const client = new Client({
-    connectionString: cs,
+    ...cfg,
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 30000,
   });
@@ -75,7 +88,7 @@ async function main() {
       await client.query(sql);
       await client.query(
         "INSERT INTO supabase_migrations.schema_migrations (version, name, statements) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING",
-        [version, name, JSON.stringify([{ sql: "applied via apply-migrations.cjs" }])]
+        [version, name, ["applied via apply-migrations.cjs"]]
       );
       await client.query("COMMIT");
       console.log("OK");
