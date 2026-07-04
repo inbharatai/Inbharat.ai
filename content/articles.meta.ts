@@ -596,6 +596,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-07-04',
     readMinutes: 6,
+    visual: 'streaming-llm-responses-ux-and-cost-trade-offs.png',
     abstract: 'Streaming LLM responses can significantly improve perceived latency by delivering the first token quickly. However, it introduces architectural complexity and can sometimes increase overall cost, especially for smaller responses or when network conditions are unstable, a common challenge in diverse Indian contexts.',
     faq: [
       { q: 'Does streaming LLM responses always make my app faster?', a: 'Streaming makes your app *feel* faster by reducing the \'time to first token\' (TTFT), meaning the user sees output sooner. However, the total time to receive the *full* response might not be faster, and in some cases, the overhead of streaming could even slightly increase overall latency for very short responses.' },
