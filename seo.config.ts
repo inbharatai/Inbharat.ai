@@ -158,11 +158,12 @@ const baseWebsite = {
   url: SITE.url,
   description: SITE.description,
   inLanguage: SUPPORTED_LANGS.slice(),
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: `${SITE.url}/app?q={search_term_string}`,
-    'query-input': 'required name=search_term_string',
-  },
+  // NOTE (2026-07-04): the `potentialAction` SearchAction that was here targeted
+  // `${SITE.url}/app?q={search_term_string}`. /app is the agentic console, not a
+  // real results-page search target, so Google kept discovering the placeholder
+  // URL and flagging it in Search Console. Removed for indexing hygiene — the
+  // sitelinks searchbox added no value here and only generated noise. GSC will
+  // drop /app?q={search_term_string} as it re-crawls.
 };
 
 /** Always shipped on every shell. */
@@ -502,10 +503,11 @@ const ADMIN_GROWTH_PATHS = [
   // shell-less admin routes. Every admin/growth child route must be listed here.
   '/admin/growth/strategy',
   '/admin/growth/agent',
-  // Added 2026-07-03: the Syndication page (pages/admin/growth/Syndication.tsx)
-  // was missing from this list, so build-seo emitted no shell and the live site
-  // 404'd at /admin/growth/syndication (Vercel platform 404). Same root cause.
-  '/admin/growth/syndication',
+  // Removed 2026-07-04: the standalone Syndication page was retired — the
+  // syndicate action + per-article cross-post history now live inline on the
+  // Issues page (each Published article row has a Syndicate panel). The
+  // /admin/growth/syndication route + its shell are gone, so it must NOT be
+  // listed here (a listed-but-routeless path would 404 the other way).
 ];
 const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
   path,

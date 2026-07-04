@@ -6,6 +6,8 @@ import MarkdownText from "../../../components/growth/MarkdownText";
 import { ARTICLES, articlePath, getArticleBySlug } from "../../../content/articles.meta";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../../../lib/growth/articleSlug";
 import { SITE } from "../../../seo.config";
+import { MEDIUM_IMPORT_URL } from "../../../lib/growth/syndication/medium";
+import type { SyndicationPlatform, SyndicationStatus } from "../../../lib/growth/syndication/types";
 
 interface Issue {
   severity: "critical" | "high" | "normal" | "low";
@@ -158,6 +160,39 @@ const DraftAbout: React.FC<{ d: DraftRow }> = ({ d }) => {
   return null;
 };
 
+/** One row of the growth_syndication ledger — the cross-post history for an
+ *  article. Loaded once at the Issues page level (GET /api/growth/syndicate)
+ *  and filtered by slug inside each SyndicatePanel. */
+interface SyndHistoryRow {
+  id: string;
+  slug: string;
+  platform: string;
+  status: string;
+  canonical_url: string;
+  platform_url: string | null;
+  platform_post_id: string | null;
+  error: string | null;
+  created_at: string;
+}
+
+/** Human label + editor URL for each syndication platform. The editor URL is
+ *  opened in a new tab on the manual path (no API key, or Medium always) so the
+ *  founder pastes the body / canonical into the platform's own composer. */
+const SYND_PLATFORMS: { key: SyndicationPlatform; label: string; openUrl: string }[] = [
+  { key: "devto", label: "DEV.to", openUrl: "https://dev.to/enter" },
+  { key: "hashnode", label: "Hashnode", openUrl: "https://hashnode.com/new" },
+  { key: "medium", label: "Medium", openUrl: MEDIUM_IMPORT_URL },
+];
+
+/** Status → tailwind chip color (mirrors PipelineStrip's statusChip palette). */
+const SYND_STATUS_CHIP: Record<string, string> = {
+  published: "bg-emerald-500/15 text-emerald-300",
+  draft: "bg-sky-500/15 text-sky-300",
+  manual: "bg-sky-500/15 text-sky-300",
+  failed: "bg-rose-500/15 text-rose-300",
+  not_configured: "bg-slate-500/15 text-slate-300",
+};
+
 const Issues: React.FC = () => {
   const { fetchJson } = useAdminApi();
   const [pages, setPages] = useState<GrowthPageRow[]>([]);
@@ -189,6 +224,10 @@ const Issues: React.FC = () => {
   // draftMsg at the TOP of the page, far from the button, so it was invisible.
   const [publishOk, setPublishOk] = useState<{ draftId: string; message: string } | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
+  // Stage 3 syndication ledger (all articles, newest-first). Loaded once on mount
+  // and refreshed after each syndicate action; each SyndicatePanel filters by slug.
+  const [syndHistory, setSyndHistory] = useState<SyndHistoryRow[]>([]);
+  const [syndBusy, setSyndBusy] = useState<string | null>(null); // `${slug}:${platform}` in flight
   // Drafts that just published successfully. The backend flips status →
   // 'published', so loadDrafts() drops them out of approvedDrafts and the card
   // hosting the publishOk/publishResult banner (and the "Open LinkedIn ↗"
@@ -289,9 +328,76 @@ const Issues: React.FC = () => {
     if (!error && data?.map) setThreadByDraft(data.map);
   }
 
+  /** Load the syndication ledger (all cross-post history) so each Published
+   *  articles row can show its own history inline. Never throws. */
+  async function loadSyndHistory() {
+    const { data, error } = await fetchJson<{ history?: SyndHistoryRow[] }>("/api/growth/syndicate");
+    if (!error && Array.isArray(data?.history)) setSyndHistory(data!.history!);
+  }
+
+  /** Syndicate one published article to one platform. The server sources the
+   *  body from the live published .md (content/articles/<slug>.md) via the GitHub
+   *  contents API, so the cross-post matches the canonical article on
+   *  www.inbharat.ai — that is what makes Google attribute the original to
+   *  inbharat.ai. API platforms (DEV.to/Hashnode with keys) publish directly;
+   *  manual platforms (Medium always; DEV/Hashnode without keys) return the body
+   *  + canonical, which we copy to the clipboard and open the platform editor. */
+  async function syndicate(slug: string, title: string, platform: SyndicationPlatform) {
+    const busyKey = `${slug}:${platform}`;
+    setSyndBusy(busyKey);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{
+      ok: boolean;
+      slug?: string;
+      title?: string;
+      results?: { platform: SyndicationPlatform; ok: boolean; status: SyndicationStatus; url: string | null; error: string | null; canonicalUrl: string }[];
+      bodyMarkdown?: string;
+      canonicalUrl?: string;
+      bodySource?: "published" | "draft";
+      error?: string;
+      code?: string;
+    }>("/api/growth/syndicate", {
+      method: "POST",
+      body: JSON.stringify({ slug, platforms: [platform] }),
+    });
+    setSyndBusy(null);
+    if (error || !data?.ok || !data.results?.length) {
+      setDraftMsg(`Syndicate ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}`);
+      // even on failure, refresh history (a failed row is recorded)
+      void loadSyndHistory();
+      return;
+    }
+    const r = data.results[0];
+    const canonical = data.canonicalUrl ?? r.canonicalUrl;
+    // Manual path: Medium always, or DEV.to/Hashnode when their API keys are
+    // absent (status === "not_configured"). Copy the body (or canonical for
+    // Medium) to the clipboard + open the platform editor for the founder to
+    // paste. Runs inside the click gesture so clipboard.writeText + window.open
+    // are within the browser's transient-activation window.
+    const isManual = platform === "medium" || r.status === "not_configured" || r.status === "manual";
+    if (isManual) {
+      const clipboardText = platform === "medium" ? canonical : (data.bodyMarkdown ?? "");
+      let clipboardOk = false;
+      try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
+      const open = SYND_PLATFORMS.find((p) => p.key === platform)?.openUrl ?? "";
+      const w = window.open(open, "_blank", "noopener,noreferrer");
+      if (!w) window.location.href = open;
+      const what = platform === "medium" ? "canonical URL" : "article body";
+      setDraftMsg(
+        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy below, then"} paste into the editor that just opened. (body source: ${data.bodySource ?? "?"})`,
+      );
+    } else if (r.status === "published" || r.status === "draft") {
+      setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label}: ${r.status === "published" ? "published ✓" : "draft created ✓"}${r.url ? ` — ${r.url}` : ""}`);
+    } else if (r.status === "failed") {
+      setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label} failed: ${r.error ?? "unknown"}`);
+    }
+    void loadSyndHistory();
+  }
+
   useEffect(() => {
     load();
     loadDrafts();
+    void loadSyndHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1146,33 +1252,108 @@ const Issues: React.FC = () => {
         </p>
         <div className="mt-3 divide-y divide-white/[0.04]">
           {ARTICLES.map((a) => (
-            <div key={a.slug} className="flex flex-wrap items-center justify-between gap-3 py-2.5">
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-white">{a.title}</p>
-                <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
+            <div key={a.slug} className="py-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-white">{a.title}</p>
+                  <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`${SITE.url}${articlePath(a.slug)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
+                  >
+                    View live ↗
+                  </a>
+                  <button
+                    onClick={() => redesignCover(a.slug, a.title)}
+                    disabled={redesigningSlug === a.slug}
+                    title="Generate a fresh pending cover for this published article (replaces any pending one). Approve + Publish cover to ship it live."
+                    className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
+                  >
+                    {redesigningSlug === a.slug ? "Redesigning…" : "Redesign cover"}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <a
-                  href={`${SITE.url}${articlePath(a.slug)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
-                >
-                  View live ↗
-                </a>
-                <button
-                  onClick={() => redesignCover(a.slug, a.title)}
-                  disabled={redesigningSlug === a.slug}
-                  title="Generate a fresh pending cover for this published article (replaces any pending one). Approve + Publish cover to ship it live."
-                  className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
-                >
-                  {redesigningSlug === a.slug ? "Redesigning…" : "Redesign cover"}
-                </button>
-              </div>
+              <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} />
             </div>
           ))}
         </div>
       </section>
+    </div>
+  );
+};
+
+/** Inline syndication control for one PUBLISHED article. Shows the 3 platform
+ *  buttons + the cross-post history for this slug. The body comes from the live
+ *  published .md (server-side), so the cross-post matches the canonical article
+ *  — the whole point of canonical-based syndication. Human-gated: every click is
+ *  a deliberate per-platform action; nothing auto-syndicates. */
+const SyndicatePanel: React.FC<{
+  slug: string;
+  title: string;
+  history: SyndHistoryRow[];
+  busy: string | null;
+  onSyndicate: (slug: string, title: string, platform: SyndicationPlatform) => void;
+}> = ({ slug, title, history, busy, onSyndicate }) => {
+  const [open, setOpen] = useState(false);
+  const rows = history.filter((h) => h.slug === slug).slice(0, 6);
+  return (
+    <div className="mt-2 rounded-md border border-white/10 bg-white/[0.02] p-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1 text-[11px] font-semibold text-[#f6bf84] hover:text-[#f59f4f]"
+        title="Cross-post this article to DEV.to / Hashnode / Medium with the InBharat canonical URL set"
+      >
+        <span>{open ? "▾" : "▸"}</span> Syndicate {rows.length > 0 && <span className="text-[10px] text-[#7a9ab8]">· {rows.length} attempt{rows.length === 1 ? "" : "s"}</span>}
+      </button>
+      {open && (
+        <div className="mt-2">
+          <div className="flex flex-wrap gap-1.5">
+            {SYND_PLATFORMS.map((p) => {
+              const busyKey = `${slug}:${p.key}`;
+              const isBusy = busy === busyKey;
+              const last = rows.find((r) => r.platform === p.key);
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => onSyndicate(slug, title, p.key)}
+                  disabled={!!busy}
+                  className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-40 ${
+                    last?.status === "published" || last?.status === "draft" || last?.status === "manual"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : "border-white/15 bg-white/[0.03] text-[#c8d6e8] hover:border-white/30"
+                  }`}
+                  title={last ? `last: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}` : "Syndicate (human-gated)"}
+                >
+                  {isBusy ? "…" : p.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[10px] leading-relaxed text-[#7a9ab8]">
+            DEV.to / Hashnode publish directly when their API keys are set; otherwise the body is copied to your clipboard
+            and the editor opens. Medium always opens the importer with the canonical URL copied. The body is the live
+            article on www.inbharat.ai, with the canonical set so Google attributes the original to InBharat.
+          </p>
+          {rows.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {rows.map((r) => (
+                <li key={r.id} className="flex items-center gap-2 text-[10px]">
+                  <span className={`rounded px-1.5 py-0.5 font-bold uppercase ${SYND_STATUS_CHIP[r.status] ?? "bg-slate-500/15 text-slate-300"}`}>{r.status}</span>
+                  <span className="font-semibold text-[#c8d6e8]">{SYND_PLATFORMS.find((p) => p.key === r.platform)?.label ?? r.platform}</span>
+                  {r.platform_url && (
+                    <a href={r.platform_url} target="_blank" rel="noopener noreferrer" className="truncate text-[#7ab9e6] hover:underline">view ↗</a>
+                  )}
+                  <span className="ml-auto text-[#5f7c98]">{new Date(r.created_at).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 };

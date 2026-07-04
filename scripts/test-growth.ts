@@ -1380,6 +1380,77 @@ console.log("\nSyndication (Stage 3 — pure helpers + mocked clients):");
   globalThis.fetch = origFetchSyn;
 }
 
+console.log("\nSyndication body source (published .md via GitHub API, mocked fetch):");
+{
+  const { fetchPublishedArticleBody } = await import("../lib/growth/syndication/articleBody.js");
+  const origFetchBody = globalThis.fetch;
+  const origToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = "test-token"; // gate passes so the mocked fetch is reached
+  const SLUG = "streaming-llm-responses-ux-and-cost-trade-offs";
+  // A raw published body as it sits in the repo — NOTE: still has a stray [N]
+  // citation marker and a broken mermaid fence. (publish.ts cleans before commit,
+  // but a founder may have edited, or an older draft pre-dated the strip. The
+  // syndicate route re-cleans defense-in-depth, so we assert that here.)
+  const RAW = "## Streaming LLM Responses\n\nSome prose [1] with a marker.\n\n```mermaid\nflowchart Broken\n  A -->\n```\n\nFinal line.";
+
+  try {
+    // Happy path: GitHub contents API (raw accept) returns the .md verbatim.
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const u = typeof input === "string" ? input : (input as Request).url;
+      if (u.includes(`/contents/`) && u.includes(`${encodeURIComponent(`content/articles/${SLUG}.md`)}?ref=main`)) {
+        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(RAW) } as unknown as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404, text: () => Promise.resolve("") } as unknown as Response);
+    }) as typeof globalThis.fetch;
+    const okRes = await fetchPublishedArticleBody(SLUG);
+    check("fetchPublishedArticleBody ok → returns body", okRes.ok === true && okRes.body === RAW, JSON.stringify(okRes).slice(0, 160));
+
+    // The route cleans the published body the same way publish.ts cleans a commit:
+    // strip [N] citation markers + strip unparseable mermaid fences.
+    const cleaned = stripCitationMarkers((await sanitizeMermaidFences(RAW)).cleaned);
+    check("published body clean → no [N] markers remain", !/\[\d+\]/.test(cleaned), cleaned);
+    check("published body clean → broken mermaid fence stripped", !/```mermaid/.test(cleaned), cleaned);
+    check("published body clean → keeps the real prose", cleaned.includes("Final line."), cleaned);
+
+    // 404 → not ok (article .md not in repo yet, e.g. approved-not-published).
+    globalThis.fetch = ((_i: RequestInfo | URL) => Promise.resolve({ ok: false, status: 404, text: () => Promise.resolve("") } as unknown as Response)) as typeof globalThis.fetch;
+    const notFound = await fetchPublishedArticleBody(SLUG);
+    check("fetchPublishedArticleBody 404 → not ok", notFound.ok === false);
+
+    // Invalid slug → not ok (never hits network).
+    let netCalled = false;
+    globalThis.fetch = (() => { netCalled = true; return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve("x") } as unknown as Response); }) as typeof globalThis.fetch;
+    const badSlug = await fetchPublishedArticleBody("Not-A-Valid-Slug");
+    check("fetchPublishedArticleBody invalid slug → not ok", badSlug.ok === false);
+    check("fetchPublishedArticleBody invalid slug → no network call", netCalled === false);
+  } finally {
+    globalThis.fetch = origFetchBody;
+    if (origToken === undefined) delete process.env.GITHUB_TOKEN; else process.env.GITHUB_TOKEN = origToken;
+  }
+}
+
+console.log("\nSitemap hygiene (canonical www only — no query/lang/search/redirect URLs):");
+{
+  // Derive the sitemap <loc> list from the real ROUTES + SITE (the same path
+  // build-seo.ts takes: site.url + path, excluding noIndex + excludeFromSitemap).
+  // We do NOT import build-seo.ts here because it calls main() at module load
+  // (writes dist files + builds images). This is the regression guard for the
+  // GSC cleanup: a future edit that flips multilingual=true on a route, or adds
+  // a query-param/lang/search URL to ROUTES, trips this test before it ships.
+  const { ROUTES, SITE } = await import("../seo.config.ts");
+  const locs = (ROUTES as Array<{ path: string; noIndex?: boolean; excludeFromSitemap?: boolean }>)
+    .filter((r) => !r.noIndex && !r.excludeFromSitemap)
+    .map((r) => SITE.url + (r.path === "/" ? "/" : r.path));
+  check("sitemap has > 0 urls", locs.length > 0, `got ${locs.length}`);
+  check("every loc is the www canonical host", locs.every((u) => u.startsWith("https://www.inbharat.ai/")), locs.filter((u) => !u.startsWith("https://www.inbharat.ai/")).join(","));
+  check("sitemap has NO query-param URLs (?lang=, ?q=, etc.)", locs.every((u) => !u.includes("?")), locs.filter((u) => u.includes("?")).join(","));
+  check("sitemap has NO http / non-www variants", locs.every((u) => !u.startsWith("http://") && !u.startsWith("https://inbharat.ai/")), locs.filter((u) => u.startsWith("http://") || u.startsWith("https://inbharat.ai/")).join(","));
+  check("sitemap has NO search-template URL (/app?q={search_term_string})", locs.every((u) => !u.includes("search_term_string")), locs.filter((u) => u.includes("search_term_string")).join(","));
+  check("admin routes excluded from sitemap", locs.every((u) => !u.includes("/admin/")), locs.filter((u) => u.includes("/admin/")).join(","));
+  const articleLocs = locs.filter((u) => u.includes("/learn-ai-with-reeturaj/"));
+  check("sitemap includes article canonical URLs", articleLocs.length > 0, `got ${articleLocs.length}`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");

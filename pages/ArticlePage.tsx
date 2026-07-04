@@ -225,7 +225,7 @@ const ArticlePage: React.FC = () => {
           )}
         </div>
 
-        <div className="mx-auto w-full max-w-3xl px-5 pb-10 sm:px-6">
+        <div className="mx-auto w-full max-w-2xl px-5 pb-10 sm:px-6">
           {/* Breadcrumb */}
           <nav className="-mt-6 relative z-10 flex flex-wrap items-center gap-1.5 text-[12px] text-[#8eaac5]">
             <Link to="/" className="hover:text-white">Home</Link>

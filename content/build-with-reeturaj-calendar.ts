@@ -35,10 +35,16 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // (slug evals-for-ai-features-measuring-what-actually-ships). With it now in
   // articles.meta.ts the slug-collision guard trips in scripts/test-growth.ts, and
   // pickNextCalendarTopic would skip it every morning anyway — so it is removed.
+  // NOTE: "Streaming LLM responses — UX and cost trade-offs" was retired because
+  // it shipped as "Streaming LLM Responses: The UX Illusion and Real-World Costs
+  // for Indian AI" (slug streaming-llm-responses-ux-and-cost-trade-offs). Now that
+  // the slug is in articles.meta.ts the slug-collision guard trips in
+  // scripts/test-growth.ts, and pickNextCalendarTopic would skip it every morning
+  // anyway — so it is removed.
   {
-    topic: "Streaming LLM responses — UX and cost trade-offs",
+    topic: "Token economics — pricing an AI feature without losing money",
     category: "AI Foundations",
-    angle: "Token-by-token UX vs batched; SSE vs WebSocket; when streaming actually costs more and when it saves a request.",
+    angle: "Per-request vs per-token vs per-seat; modeling the p95 long tail; how to set a price floor that survives a viral day.",
   },
   {
     topic: "Model routing and cost control across Gemini tiers",

@@ -437,7 +437,29 @@ h1, h2, h3, h4 {
   padding: 1.5em !important;
   border-radius: 12px !important;
   margin: 1.5em 0 !important;
+  /* Wide code/tables scroll horizontally instead of overflowing the article
+     column on mobile. Keeps the page width locked to the viewport. */
+  overflow-x: auto !important;
+  max-width: 100% !important;
 }
+/* Inline code inside a <pre> should not itself wrap (the <pre> scrolls). */
+.prose pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 0.875em;
+  white-space: pre;
+  word-break: normal;
+}
+/* Any image rendered inside article prose (covers, diagrams, screenshots)
+   must scale to the column — never overflow horizontally on mobile. */
+.prose img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 12px;
+  margin: 1.5em 0 !important;
+}
+/* Mermaid fences render as <pre data-mermaid>; let them scroll too. */
+.prose pre[data-mermaid] { overflow-x: auto !important; }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; }

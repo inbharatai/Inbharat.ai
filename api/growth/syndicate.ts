@@ -6,6 +6,9 @@ import { logInfo } from "../../lib/growth/authorization.js";
 import { getArticleBySlug, ARTICLE_ASSET_DIR } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 import { syndicateArticle } from "../../lib/growth/syndication/index.js";
+import { fetchPublishedArticleBody } from "../../lib/growth/syndication/articleBody.js";
+import { stripCitationMarkers } from "../../lib/growth/citations.js";
+import { sanitizeMermaidFences } from "../../lib/growth/mermaid-validate.js";
 import type { SyndicationPlatform, SyndicationResult } from "../../lib/growth/syndication/types.js";
 
 /**
@@ -23,9 +26,16 @@ import type { SyndicationPlatform, SyndicationResult } from "../../lib/growth/sy
  * /admin/growth/syndication page reads). Re-syndicating after a fix is a new row.
  */
 const Body = z.object({
-  draftId: z.string().min(1).max(120),
+  // Either draftId (an approved/published article draft) OR slug (a published
+  // article slug). The Issues "Published articles" section knows the slug but
+  // not the draftId for pre-growth-agent articles, so the route resolves a slug
+  // to its draft row when present and falls back to a synthetic `slug:<slug>`
+  // ledger id when no draft row exists (the article is still live + syndicatable
+  // from its published .md).
+  draftId: z.string().min(1).max(120).optional(),
+  slug: z.string().min(1).max(120).optional(),
   platforms: z.array(z.enum(["devto", "hashnode", "medium"])).min(1).max(3),
-});
+}).refine((b) => Boolean(b.draftId || b.slug), { message: "draftId or slug is required" });
 
 interface DraftRow {
   id: string;
@@ -57,39 +67,112 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
   const { draftId, platforms } = parsed.data;
+  const slugArg = typeof parsed.data.slug === "string" ? parsed.data.slug.trim() : "";
 
   if (!supabaseAdmin) {
     return res.status(503).json({ ok: false, code: "SERVER_ERROR", error: "Supabase not configured.", requestId });
   }
 
-  // Load the draft. Only article drafts syndicate (LinkedIn/covers/video have no
-  // canonical article to cross-post). Accept approved OR published: the founder
-  // may syndicate before or after the inbharat publish.
-  const { data: draft, error: qErr } = await supabaseAdmin
-    .from("growth_drafts")
-    .select("id,kind,url,title,body_md,status,schema_json")
-    .eq("id", draftId)
-    .maybeSingle();
-  if (qErr || !draft) {
-    return res.status(404).json({ ok: false, code: "NOT_FOUND", error: "draft not found", requestId });
-  }
-  const d = draft as DraftRow;
-  if (d.kind !== "article") {
-    return res.status(409).json({ ok: false, code: "CONFLICT", error: `draft kind is '${d.kind}' — only article drafts can be syndicated.`, requestId });
-  }
-  if (d.status !== "approved" && d.status !== "published") {
-    return res.status(409).json({ ok: false, code: "CONFLICT", error: `draft is '${d.status}' — only approved or published article drafts can be syndicated.`, requestId });
+  // Resolve to a draft row + slug. Two entry points:
+  //  1) draftId — the original Growth-Agent flow (an approved/published article
+  //     draft from the review queue). Loads the row, enforces kind=article +
+  //     status in {approved,published}, reads the slug from schema_json.
+  //  2) slug — the Issues "Published articles" flow. Validates the slug against
+  //     the published ARTICLES manifest (so only real live articles syndicate),
+  //     then looks up the matching growth_drafts row by schema_json.slug for the
+  //     draft-body fallback. If no draft row exists (e.g. a pre-growth-agent
+  //     article), syndication still proceeds from the published .md with a
+  //     synthetic `slug:<slug>` ledger id.
+  let d: DraftRow | null = null;
+  let slug = "";
+  let ledgerDraftId: string;
+  let draftStatus: string;
+
+  if (draftId) {
+    const { data: draft, error: qErr } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,kind,url,title,body_md,status,schema_json")
+      .eq("id", draftId)
+      .maybeSingle();
+    if (qErr || !draft) {
+      return res.status(404).json({ ok: false, code: "NOT_FOUND", error: "draft not found", requestId });
+    }
+    d = draft as DraftRow;
+    if (d.kind !== "article") {
+      return res.status(409).json({ ok: false, code: "CONFLICT", error: `draft kind is '${d.kind}' — only article drafts can be syndicated.`, requestId });
+    }
+    if (d.status !== "approved" && d.status !== "published") {
+      return res.status(409).json({ ok: false, code: "CONFLICT", error: `draft is '${d.status}' — only approved or published article drafts can be syndicated.`, requestId });
+    }
+    slug = typeof d.schema_json?.slug === "string" ? d.schema_json.slug.trim() : "";
+    ledgerDraftId = d.id;
+    draftStatus = d.status;
+  } else {
+    // slug-based entry: must be a real published article.
+    slug = slugArg;
+    const meta = getArticleBySlug(slug);
+    if (!meta) {
+      return res.status(404).json({ ok: false, code: "NOT_FOUND", error: `no published article found for slug "${slug}"`, requestId });
+    }
+    // Look up the matching draft row (best-effort; not required).
+    const { data: row } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,kind,url,title,body_md,status,schema_json")
+      .eq("schema_json->>slug", slug)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (row) {
+      d = row as DraftRow;
+      ledgerDraftId = (row as DraftRow).id;
+      draftStatus = (row as DraftRow).status;
+    } else {
+      d = null;
+      ledgerDraftId = `slug:${slug}`;
+      draftStatus = "published"; // it's in the manifest → treat as published.
+    }
   }
 
-  // Slug from the draft schema (validated lowercase-hyphen). Without a slug we
-  // can't build the canonical URL → 409.
-  const slug = typeof d.schema_json?.slug === "string" ? d.schema_json.slug.trim() : "";
   if (!/^[a-z0-9-]+$/.test(slug)) {
-    return res.status(409).json({ ok: false, code: "CONFLICT", error: "draft schema has no valid article slug", requestId });
+    return res.status(409).json({ ok: false, code: "CONFLICT", error: "no valid article slug resolved", requestId });
   }
-  const bodyMd = typeof d.body_md === "string" ? d.body_md : "";
-  if (!bodyMd.trim()) {
+  const draftBodyMd = d && typeof d.body_md === "string" ? d.body_md : "";
+  // For slug-based entry with no draft row, require the published .md (checked below).
+  if (!draftBodyMd.trim() && draftStatus !== "published") {
     return res.status(409).json({ ok: false, code: "CONFLICT", error: "draft has no body markdown to syndicate", requestId });
+  }
+
+  // Body source of truth: the PUBLISHED .md (content/articles/<slug>.md) is the
+  // exact markdown live on www.inbharat.ai — citation-stripped + mermaid-cleaned
+  // at commit time, and capturing any founder post-publish edits. The raw draft
+  // body_md diverges from it (still has [N] markers / unsanitized fences), so
+  // syndicating body_md would ship a divergent version and break the canonical
+  // attribution that is the entire point of cross-posting. Use the published
+  // body when the article is live; fall back to the draft body only for an
+  // approved-but-not-yet-committed draft (no .md in the repo yet). Either way,
+  // re-run stripCitationMarkers + sanitizeMermaidFences as defense-in-depth.
+  const published = getArticleBySlug(slug);
+  let sourceBody = draftBodyMd;
+  let bodySource: "published" | "draft" = "draft";
+  if (published && (draftStatus === "published" || draftStatus === "approved")) {
+    const pub = await fetchPublishedArticleBody(slug);
+    if (pub.ok && pub.body && pub.body.trim()) {
+      sourceBody = pub.body;
+      bodySource = "published";
+    } else if (pub.ok === false && !/GITHUB_TOKEN not configured/.test(pub.error ?? "")) {
+      await logInfo("syndicate-body-fetch-fail", slug, pub.error ?? "unknown").catch(() => undefined);
+      // fall through to draft body — better to syndicate the draft than to hard-fail.
+    }
+  }
+  // Slug-based entry with no draft row → the published .md is the ONLY body
+  // source. If the fetch failed, we have nothing to syndicate.
+  if (!sourceBody.trim()) {
+    return res.status(409).json({ ok: false, code: "CONFLICT", error: "could not resolve an article body to syndicate (published .md fetch failed and no draft body available)", requestId });
+  }
+  const mermaidSanitize = await sanitizeMermaidFences(sourceBody);
+  const bodyMd = stripCitationMarkers(mermaidSanitize.cleaned);
+  if (!bodyMd.trim()) {
+    return res.status(409).json({ ok: false, code: "CONFLICT", error: "resolved body is empty after cleaning", requestId });
   }
 
   // Prefer the PUBLISHED manifest as the source of truth for title/description/
@@ -98,16 +181,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // draft's schema_json + title. Hashtags default to [] (DEV.to/Hashnode just
   // get no tags — not an error).
   const meta = getArticleBySlug(slug);
-  const title = (meta?.title ?? d.title ?? "Untitled article").trim();
-  const description = meta?.description ?? (typeof d.schema_json?.description === "string" ? d.schema_json.description : null);
-  const hashtags: string[] = meta?.hashtags ?? (Array.isArray(d.schema_json?.hashtags) ? (d.schema_json.hashtags as unknown[]).filter((h): h is string => typeof h === "string") : []);
+  const title = (meta?.title ?? d?.title ?? "Untitled article").trim();
+  const description = meta?.description ?? (d && typeof d.schema_json?.description === "string" ? d.schema_json.description : null);
+  const hashtags: string[] = meta?.hashtags ?? (d && Array.isArray(d.schema_json?.hashtags) ? (d.schema_json.hashtags as unknown[]).filter((h): h is string => typeof h === "string") : []);
   // Cover image: only when the published article has a wired visual (served at
   // the inbharat.ai asset path). For approved-not-published drafts there is none
   // yet → DEV.to gets no main_image (fine).
   const coverImageUrl = meta?.visual ? `${SITE.url}${ARTICLE_ASSET_DIR}/${meta.visual}` : null;
 
   const results: SyndicationResult[] = await syndicateArticle(platforms as SyndicationPlatform[], {
-    draftId: d.id,
+    draftId: ledgerDraftId,
     slug,
     title,
     bodyMarkdown: bodyMd,
@@ -121,7 +204,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   for (const r of results) {
     try {
       await supabaseAdmin.from("growth_syndication").insert({
-        draft_id: d.id,
+        draft_id: ledgerDraftId,
         slug,
         platform: r.platform,
         status: r.status,
@@ -140,7 +223,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ).catch(() => undefined);
   }
 
-  return res.status(200).json({ ok: true, requestId, slug, title, results });
+  // Surface the cleaned body + canonical so the Issues UI can copy+open for
+  // MANUAL platforms (Medium always; DEV.to/Hashnode when their API keys are
+  // absent). API-success platforms ignore these fields. bodySource tells the
+  // founder whether the cross-post used the live published .md ("published") or
+  // fell back to the draft body ("draft") — normally "published" once the
+  // article is committed.
+  const canonicalUrl = results[0]?.canonicalUrl ?? `${SITE.url}/learn-ai-with-reeturaj/${slug}`;
+  return res.status(200).json({
+    ok: true,
+    requestId,
+    slug,
+    title,
+    results,
+    bodyMarkdown: bodyMd,
+    canonicalUrl,
+    bodySource,
+  });
 }
 
 interface HistoryRow {
