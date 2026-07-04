@@ -626,15 +626,25 @@ console.log("\nInbox folders (sanitize/path/block, no DB):");
 // ─── Strategy block (Phase D) — pure formatter checks ───
 console.log("\nStrategy block (formatStrategyBlock, no DB):");
 {
-  const empty: Strategy = { positioning: null, icp: null, audience: null, voice: null, competitiveDiff: null, goals: null };
+  const empty: Strategy = { positioning: null, icp: null, audience: null, voice: null, competitiveDiff: null, goals: null, pillars: null, productPlan: null, cadence: null, kpis: null };
   check("formatStrategyBlock empty → ''", formatStrategyBlock(empty) === "");
-  const s: Strategy = { positioning: "India's AI infra studio.", icp: "Indian SMB engineering teams.", audience: "Hands-on builders.", voice: "Concise, hype-free.", competitiveDiff: null, goals: "Ship 3 reference articles/qtr." };
+  const s: Strategy = { positioning: "India's AI infra studio.", icp: "Indian SMB engineering teams.", audience: "Hands-on builders.", voice: "Concise, hype-free.", competitiveDiff: null, goals: "Ship 3 reference articles/qtr.", pillars: null, productPlan: null, cadence: null, kpis: null };
   const block = formatStrategyBlock(s);
   check("formatStrategyBlock has STRATEGY header", /^STRATEGY/.test(block));
   check("formatStrategyBlock includes positioning", block.includes("POSITIONING:\nIndia's AI infra studio."));
   check("formatStrategyBlock omits empty competitiveDiff", !block.includes("COMPETITIVE DIFFERENCE"));
   check("formatStrategyBlock labels ICP/audience/voice", block.includes("ICP (ideal customer profile)") && block.includes("AUDIENCE") && block.includes("VOICE"));
   check("formatStrategyBlock obeys-on-brand guidance present", /on-brand/i.test(block));
+
+  // Phase C expansion: structured system fields (pillars/productPlan/cadence/kpis)
+  // are woven into the prompt alongside the base fields, and omitted when empty.
+  const sys: Strategy = { ...empty, pillars: "1. SEO\n2. Content", productPlan: "InBharat.ai — SEO.", cadence: "Mon: SEO.", kpis: "5 articles/week." };
+  const sysBlock = formatStrategyBlock(sys);
+  check("formatStrategyBlock includes GROWTH PILLARS label", sysBlock.includes("GROWTH PILLARS:\n1. SEO\n2. Content"));
+  check("formatStrategyBlock includes PER-PRODUCT plan label", sysBlock.includes("PER-PRODUCT VISIBILITY PLAN:\nInBharat.ai — SEO."));
+  check("formatStrategyBlock includes CADENCE label", sysBlock.includes("90-DAY CADENCE"));
+  check("formatStrategyBlock includes KPIs label", sysBlock.includes("KPIs + TARGETS:\n5 articles/week."));
+  check("formatStrategyBlock omits empty base fields in system-only block", !sysBlock.includes("POSITIONING"));
 }
 
 // ─── Phase C: conversational agent tools + vision + Auto Mode (no DB / no key) ───

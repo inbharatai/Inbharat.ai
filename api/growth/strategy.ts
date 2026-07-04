@@ -15,12 +15,18 @@ import { loadStrategy, bustStrategyCache, draftStrategyFromEvidence, gatherStrat
  * is logged to growth_agent_logs. Never auto-applies a drafted strategy.
  */
 const FIELDS = {
-  positioning: z.string().max(2000).nullish(),
-  icp: z.string().max(2000).nullish(),
-  audience: z.string().max(2000).nullish(),
-  voice: z.string().max(2000).nullish(),
-  competitiveDiff: z.string().max(2000).nullish(),
-  goals: z.string().max(2000).nullish(),
+  positioning: z.string().max(4000).nullish(),
+  icp: z.string().max(4000).nullish(),
+  audience: z.string().max(4000).nullish(),
+  voice: z.string().max(4000).nullish(),
+  competitiveDiff: z.string().max(4000).nullish(),
+  goals: z.string().max(4000).nullish(),
+  // Structured system layer (Phase C expansion). Larger cap — these are
+  // multi-line blocks (pillars, per-product plan, cadence, KPIs).
+  pillars: z.string().max(8000).nullish(),
+  productPlan: z.string().max(8000).nullish(),
+  cadence: z.string().max(8000).nullish(),
+  kpis: z.string().max(8000).nullish(),
 } as const;
 
 const SaveBody = z.object(FIELDS);
@@ -33,6 +39,10 @@ function toRow(p: z.infer<typeof SaveBody>) {
     voice: p.voice ?? null,
     competitive_diff: p.competitiveDiff ?? null,
     goals: p.goals ?? null,
+    pillars: p.pillars ?? null,
+    product_plan: p.productPlan ?? null,
+    cadence: p.cadence ?? null,
+    kpis: p.kpis ?? null,
     updated_by: "admin",
   };
 }

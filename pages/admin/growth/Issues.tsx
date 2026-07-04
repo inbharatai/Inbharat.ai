@@ -257,6 +257,16 @@ const Issues: React.FC = () => {
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  // 3-tab workspace: Queue (drafts to action) · Audited pages (SEO/GEO) ·
+  // Published (cover redesign + syndication). Persisted so refresh keeps context.
+  const [tab, setTab] = useState<"queue" | "pages" | "published">(
+    () => (typeof localStorage !== "undefined" && (localStorage.getItem("growth:issuesTab") as "queue" | "pages" | "published") || "queue"),
+  );
+  // Platform filter for the Published tab (All / Medium / DEV.to / Hashnode).
+  const [platformFilter, setPlatformFilter] = useState<string>("all");
+  // Search inside the Audited-pages + Published tabs (separate from the Queue search).
+  const [pagesSearch, setPagesSearch] = useState<string>("");
+  const [publishedSearch, setPublishedSearch] = useState<string>("");
   const [searchParams] = useSearchParams();
   const focusDraftId = searchParams.get("draft");
   // Per-card refs so a ?draft=<id> deep-link can scroll + ring-highlight the card.
@@ -542,6 +552,39 @@ const Issues: React.FC = () => {
     (d) => !approvedDrafts.some((a) => a.id === d.id),
   );
   const approvedCards = [...approvedPublishable, ...justPublishedList];
+
+  // Rejected drafts — the old page never rendered a Rejected section, so the
+  // "Rejected" status filter chip showed nothing. Surface them compactly with a
+  // one-click Approve to restore to the publishable queue.
+  const rejectedDrafts = visibleDrafts.filter((d) => d.status === "rejected");
+
+  // Audited-pages tab: lightweight url/title search (page-level, no kind filter).
+  const visiblePages = pages.filter((p) => {
+    if (!pagesSearch.trim()) return true;
+    const q = pagesSearch.trim().toLowerCase();
+    return `${p.url} ${p.title ?? ""}`.toLowerCase().includes(q);
+  });
+
+  // Published tab: filter articles by syndication platform + title search. When
+  // platformFilter is set, only articles with a syndHistory row for that platform
+  // show — so the founder can see "what's been cross-posted to Medium" at a glance.
+  const visibleArticles = ARTICLES.filter((a) => {
+    if (publishedSearch.trim()) {
+      const q = publishedSearch.trim().toLowerCase();
+      if (!`${a.title} ${a.slug} ${a.category ?? ""}`.toLowerCase().includes(q)) return false;
+    }
+    if (platformFilter !== "all") {
+      const has = syndHistory.some((h) => h.slug === a.slug && h.platform === platformFilter);
+      if (!has) return false;
+    }
+    return true;
+  });
+
+  // Tab count badges.
+  const queueCount = pendingPublishable.length + approvedPublishable.length;
+  const pagesCount = pages.length;
+  const publishedCount = ARTICLES.length;
+
   // The Personal/Company toggle + companyId field ONLY apply to LinkedIn drafts
   // (the publish handler routes by kind and ignores mode/companyId for
   // article/cover/video-script). Show the toggle only when a LinkedIn draft is
@@ -780,7 +823,42 @@ const Issues: React.FC = () => {
         <p className="mt-2 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>
       )}
 
-      {drafts.length > 0 && (
+      {/* ── 3-tab workspace ───────────────────────────────────────────────
+          Queue (drafts to action) · Audited pages (SEO/GEO) · Published
+          (cover redesign + syndication). Persisted in localStorage. */}
+      <div className="mt-5 flex flex-wrap gap-1 border-b border-white/10 pb-px">
+        {([
+          { k: "queue", label: "Queue", count: queueCount },
+          { k: "pages", label: "Audited pages", count: pagesCount },
+          { k: "published", label: "Published", count: publishedCount },
+        ] as const).map((t) => {
+          const active = tab === t.k;
+          return (
+            <button
+              key={t.k}
+              onClick={() => { setTab(t.k); try { localStorage.setItem("growth:issuesTab", t.k); } catch { /* ignore */ } }}
+              className={`rounded-t-lg px-4 py-2 text-[12.5px] font-semibold transition-colors ${
+                active ? "bg-[#f59f4f]/10 text-white ring-1 ring-[#f59f4f]/30" : "text-[#9fb2c6] hover:bg-white/[0.04] hover:text-white"
+              }`}
+            >
+              {t.label}
+              <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-[#f59f4f]/20 text-[#f6bf84]" : "bg-white/[0.06] text-[#7a9ab8]"}`}>{t.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === "queue" && kindFilter === "cover" && (
+        <div className="mt-3 rounded-lg border border-[#f59f4f]/20 bg-[#f59f4f]/[0.05] px-3 py-2 text-[12px] text-[#f6bf84]">
+          Showing cover drafts. To redesign a cover for a published article,{" "}
+          <button onClick={() => { setTab("published"); try { localStorage.setItem("growth:issuesTab", "published"); } catch { /* ignore */ } }} className="font-semibold underline decoration-dotted underline-offset-2 hover:text-[#f59f4f]">
+            open the Published tab ↗
+          </button>
+          .
+        </div>
+      )}
+
+      {tab === "queue" && drafts.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">
           <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a9ab8]">Filter</span>
           <div className="flex flex-wrap gap-1">
@@ -838,7 +916,7 @@ const Issues: React.FC = () => {
         </div>
       )}
 
-      {pendingPublishable.length > 0 && (
+      {tab === "queue" && pendingPublishable.length > 0 && (
         <section className="mt-6 rounded-xl border border-[#f59f4f]/25 bg-[#f59f4f]/[0.05] p-4">
           <h2 className="text-[15px] font-bold text-white">
             Drafts awaiting review ({pendingPublishable.length})
@@ -910,7 +988,7 @@ const Issues: React.FC = () => {
         </section>
       )}
 
-      {pendingInbox.length > 0 && (
+      {tab === "queue" && pendingInbox.length > 0 && (
         <section className="mt-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-4">
           <h2 className="text-[15px] font-bold text-amber-200">
             Inbox reference drops — not posts ({pendingInbox.length})
@@ -951,7 +1029,7 @@ const Issues: React.FC = () => {
         </section>
       )}
 
-      {approvedCards.length > 0 && (
+      {tab === "queue" && approvedCards.length > 0 && (
         <section className="mt-6 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
           <h2 className="text-[15px] font-bold text-white">
             Approved — ready to publish ({approvedPublishable.length})
@@ -1154,7 +1232,7 @@ const Issues: React.FC = () => {
         </section>
       )}
 
-      {approvedInbox.length > 0 && (
+      {tab === "queue" && approvedInbox.length > 0 && (
         <section className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-4">
           <h2 className="text-[15px] font-bold text-amber-200">
             Approved inbox references — kept, not published ({approvedInbox.length})
@@ -1181,14 +1259,56 @@ const Issues: React.FC = () => {
         </section>
       )}
 
-      {loading && <p className="mt-6 text-[13px] text-[#7a9ab8]">Loading…</p>}
-      {error && <p className="mt-6 text-[13px] text-rose-300">Failed to load: {error}</p>}
-      {!loading && !error && pages.length === 0 && (
-        <p className="mt-6 text-[13px] text-[#7a9ab8]">No audited pages yet — run an audit from the Sites tab.</p>
+      {tab === "queue" && rejectedDrafts.length > 0 && (
+        <section className="mt-6 rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-4">
+          <h2 className="text-[15px] font-bold text-rose-200">
+            Rejected ({rejectedDrafts.length})
+          </h2>
+          <p className="mt-1 text-[12px] text-[#9fb2c6]">
+            Rejected drafts. Approve to restore one to the publishable queue, or leave it rejected to keep it out of the way.
+          </p>
+          <div className="mt-3 space-y-2">
+            {rejectedDrafts.map((d) => (
+              <div key={d.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+                <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${kindBadge(d.kind).cls}`}>{kindBadge(d.kind).label}</span>
+                <p className="min-w-0 flex-1 truncate text-[12px] text-[#c8d6e8]">{d.title || d.url || d.id}</p>
+                <button
+                  onClick={() => decideDraft(d.id, "approved")}
+                  className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 hover:bg-emerald-500/20"
+                >
+                  Restore (approve)
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      <div className="mt-6 space-y-4">
-        {pages.map((p) => {
+      {tab === "queue" && !loading && drafts.length > 0 && visibleDrafts.length === 0 && (
+        <p className="mt-6 text-[13px] text-[#7a9ab8]">No drafts match this filter.</p>
+      )}
+
+      {tab === "pages" && (
+        <>
+          {loading && <p className="mt-6 text-[13px] text-[#7a9ab8]">Loading…</p>}
+          {error && <p className="mt-6 text-[13px] text-rose-300">Failed to load: {error}</p>}
+          {!loading && !error && pages.length === 0 && (
+            <p className="mt-6 text-[13px] text-[#7a9ab8]">No audited pages yet — run an audit from the Sites tab.</p>
+          )}
+          {pages.length > 0 && (
+            <div className="mt-5 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">
+              <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a9ab8]">Search</span>
+              <input
+                value={pagesSearch}
+                onChange={(e) => setPagesSearch(e.target.value)}
+                placeholder="Filter by URL / title…"
+                className="min-w-[160px] flex-1 rounded-md border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-white placeholder:text-[#5f798f] focus:border-[#f59f4f]/50 focus:outline-none"
+              />
+              <span className="ml-auto mr-1 text-[11px] text-[#7a9ab8]">{visiblePages.length} / {pages.length}</span>
+            </div>
+          )}
+          <div className="mt-6 space-y-4">
+            {visiblePages.map((p) => {
           const isArticle = p.url.includes(ARTICLE_PATH_PREFIX);
           return (
             <div key={p.url} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
@@ -1238,50 +1358,104 @@ const Issues: React.FC = () => {
             </div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Published articles — the canonical "redesign any cover" surface. Every
           published article gets a Redesign cover button (the audited-pages list
           only shows pages that have been crawled). One redesign updates the site
           hero + the LinkedIn og:image together (LinkedIn uses the article cover). */}
-      <section className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-        <h2 className="text-[15px] font-bold text-white">Published articles ({ARTICLES.length})</h2>
-        <p className="mt-1 text-[12px] text-[#9fb2c6]">
-          Redesign the cover of any published article. A fresh pending cover draft lands in the review queue above —
-          approve it, then Publish cover to ship it live. The site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
-        </p>
-        <div className="mt-3 divide-y divide-white/[0.04]">
-          {ARTICLES.map((a) => (
-            <div key={a.slug} className="py-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-white">{a.title}</p>
-                  <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`${SITE.url}${articlePath(a.slug)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
-                  >
-                    View live ↗
-                  </a>
-                  <button
-                    onClick={() => redesignCover(a.slug, a.title)}
-                    disabled={redesigningSlug === a.slug}
-                    title="Generate a fresh pending cover for this published article (replaces any pending one). Approve + Publish cover to ship it live."
-                    className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
-                  >
-                    {redesigningSlug === a.slug ? "Redesigning…" : "Redesign cover"}
-                  </button>
-                </div>
-              </div>
-              <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} />
+      {tab === "published" && (
+        <section className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <h2 className="text-[15px] font-bold text-white">Published articles ({ARTICLES.length})</h2>
+          <p className="mt-1 text-[12px] text-[#9fb2c6]">
+            Redesign the cover of any published article. A fresh pending cover draft lands in the review queue above —
+            approve it, then Publish cover to ship it live. The site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
+          </p>
+
+          {/* Platform filter + search — the syndication view the founder asked for.
+              All / Medium / DEV.to / Hashnode isolates the list to articles that have
+              a syndication-history row for that platform. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">
+            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a9ab8]">Syndication</span>
+            <div className="flex flex-wrap gap-1">
+              {[
+                { k: "all", label: "All" },
+                { k: "medium", label: "Medium" },
+                { k: "devto", label: "DEV.to" },
+                { k: "hashnode", label: "Hashnode" },
+              ].map((opt) => (
+                <button
+                  key={opt.k}
+                  onClick={() => setPlatformFilter(opt.k)}
+                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${platformFilter === opt.k ? "bg-[#f59f4f] text-black" : "bg-white/[0.04] text-[#c8d6e8] hover:bg-white/[0.08]"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          ))}
-        </div>
-      </section>
+            <input
+              value={publishedSearch}
+              onChange={(e) => setPublishedSearch(e.target.value)}
+              placeholder="Search title / slug…"
+              className="min-w-[140px] ml-auto mr-1 flex-1 rounded-md border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-white placeholder:text-[#5f798f] focus:border-[#f59f4f]/50 focus:outline-none"
+            />
+            <span className="mr-1 text-[11px] text-[#7a9ab8]">{visibleArticles.length} / {ARTICLES.length}</span>
+          </div>
+
+          <div className="mt-3 divide-y divide-white/[0.04]">
+            {visibleArticles.map((a) => {
+              const platRows = syndHistory.filter((h) => h.slug === a.slug);
+              return (
+                <div key={a.slug} className="py-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-semibold text-white">{a.title}</p>
+                      <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {SYND_PLATFORMS.map((p) => {
+                        const last = platRows.find((r) => r.platform === p.key);
+                        if (!last) return null;
+                        return (
+                          <span
+                            key={p.key}
+                            title={`last ${p.label}: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}`}
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${SYND_STATUS_CHIP[last.status] || "bg-slate-500/15 text-slate-300"}`}
+                          >
+                            {p.label}:{last.status}
+                          </span>
+                        );
+                      })}
+                      <a
+                        href={`${SITE.url}${articlePath(a.slug)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-semibold text-[#c8d6e8] hover:border-white/30"
+                      >
+                        View live ↗
+                      </a>
+                      <button
+                        onClick={() => redesignCover(a.slug, a.title)}
+                        disabled={redesigningSlug === a.slug}
+                        title="Generate a fresh pending cover for this published article (replaces any pending one). Approve + Publish cover to ship it live."
+                        className="rounded-lg border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f6bf84] disabled:opacity-40"
+                      >
+                        {redesigningSlug === a.slug ? "Redesigning…" : "Redesign cover"}
+                      </button>
+                    </div>
+                  </div>
+                  <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} />
+                </div>
+              );
+            })}
+            {visibleArticles.length === 0 && (
+              <p className="py-4 text-[12px] text-[#7a9ab8]">No articles match this filter.</p>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

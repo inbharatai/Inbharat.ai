@@ -62,6 +62,30 @@
       "canPublishDirectly": false,
       "requiresHumanApproval": true,
       "notes": "Healthcare / field-assistance positioning. NOT live yet — crawl disabled until pages exist. RHCF Seva must never be exposed publicly under its own name; this brand absorbs all healthcare/field positioning."
+    },
+    {
+      "domain": "phoring.in",
+      "name": "Phoring",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "GCP-hosted product site. Canonical repo per repo-registry."
+    },
+    {
+      "domain": "uniassist.ai",
+      "name": "UniAssist",
+      "status": "active",
+      "canCrawl": true,
+      "canAudit": true,
+      "canDraft": true,
+      "canCreatePR": true,
+      "canPublishDirectly": false,
+      "requiresHumanApproval": true,
+      "notes": "New portfolio product. Add canonical repo + website path via the Repos tab."
     }
   ]
 }
