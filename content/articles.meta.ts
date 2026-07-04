@@ -589,6 +589,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AIEvals', 'MLOps', 'AIQuality', 'IndianAI', 'InBharatAI'],
   },
+  {
+    slug: 'streaming-llm-responses-ux-and-cost-trade-offs',
+    title: 'Streaming LLM Responses: The UX Illusion and Real-World Costs for Indian AI',
+    description: 'Streaming LLM responses feels faster, but it\'s not always cheaper or better for UX. I break down the trade-offs for Indian AI apps.',
+    category: 'AI Foundations',
+    datePublished: '2026-07-04',
+    readMinutes: 6,
+    abstract: 'Streaming LLM responses can significantly improve perceived latency by delivering the first token quickly. However, it introduces architectural complexity and can sometimes increase overall cost, especially for smaller responses or when network conditions are unstable, a common challenge in diverse Indian contexts.',
+    faq: [
+      { q: 'Does streaming LLM responses always make my app faster?', a: 'Streaming makes your app *feel* faster by reducing the \'time to first token\' (TTFT), meaning the user sees output sooner. However, the total time to receive the *full* response might not be faster, and in some cases, the overhead of streaming could even slightly increase overall latency for very short responses.' },
+      { q: 'When should I use Server-Sent Events (SSE) versus WebSockets for streaming?', a: 'For most LLM response streaming, where the client sends a single request and receives a continuous stream of data from the server, SSE is often simpler and more efficient. WebSockets are better suited for full-duplex, real-time interactive applications where both the client and server need to send continuous data.' },
+      { q: 'Can streaming LLM responses increase my costs?', a: 'Yes, streaming can sometimes increase costs. Maintaining open connections for longer periods consumes server resources, and the aggregate network overhead of many small packets (tokens) can be higher than a single large batched response, especially for very short LLM outputs. It\'s a trade-off between perceived UX and actual infrastructure costs.' },
+    ],
+    hashtags: ['LLMStreaming', 'AIUX', 'IndianTech', 'InBharatAI', 'Engineering'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
