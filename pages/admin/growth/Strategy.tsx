@@ -170,7 +170,7 @@ const StrategyPage: React.FC = () => {
         The positioning, ICP, audience, voice, competitive difference, growth pillars, per-product plan, cadence, and KPIs
         the Growth Agent obeys in every draft and critique — this is what turns it into an expert CMO, not a generic copy
         drafter. Fields come pre-seeded with world-class InBharat strategy; edit what you want, leave the rest. Empty
-        fields are omitted from the agent's prompt, so you don't need all of them.
+        fields are omitted from the agent&apos;s prompt, so you don&apos;t need all of them.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">

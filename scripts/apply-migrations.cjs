@@ -34,7 +34,7 @@ async function main() {
   const client = new Client({
     connectionString: cs,
     ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 15000,
+    connectionTimeoutMillis: 30000,
   });
   await client.connect();
   console.log("CONNECTED");

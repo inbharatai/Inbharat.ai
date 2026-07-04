@@ -50,22 +50,6 @@ interface StrategyRow {
   kpis: string | null;
 }
 
-/** All-null strategy — used when the founder has intentionally cleared fields
- *  (the DB row exists but a field is null). Distinct from DEFAULT_STRATEGY, which
- *  is the world-class seed used when the DB / row is absent. */
-const EMPTY: Strategy = {
-  positioning: null,
-  icp: null,
-  audience: null,
-  voice: null,
-  competitiveDiff: null,
-  goals: null,
-  pillars: null,
-  productPlan: null,
-  cadence: null,
-  kpis: null,
-};
-
 /**
  * World-class, InBharat-portfolio-specific default strategy. Returned by
  * loadStrategy() when the DB or the singleton row is absent (pre-migration or
