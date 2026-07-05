@@ -422,7 +422,7 @@ export const ARTICLES: ArticleMeta[] = [
       },
       {
         q: 'What are the twelve products in the InBharat ecosystem?',
-        a: 'InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahaayak AI (personal AI OS), SahaayakSeva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.',
+        a: 'InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahayaak AI (personal AI OS), Sahayaak Seva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.',
       },
       {
         q: 'How do the products connect?',
@@ -434,7 +434,7 @@ export const ARTICLES: ArticleMeta[] = [
       },
       {
         q: 'What’s the current state of the ecosystem?',
-        a: 'Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, SahaayakSeva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It’s being built right now, not on a five-year roadmap.',
+        a: 'Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, Sahayaak Seva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It’s being built right now, not on a five-year roadmap.',
       },
     ],
     hashtags: ['InBharat', 'DeshKaAI', 'AIForBharat', 'IndianStartup', 'AIEcosystem', 'BuildingBharat'],

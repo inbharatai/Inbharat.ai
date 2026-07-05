@@ -20,11 +20,11 @@ In India, you need to think about problems ecologically. The problems are interl
 
 I'll walk through what we're building, but I want you to understand the connective tissue. How they work together.
 
-**Agentic search and voice:** InBharat AI is the flagship—a multi-agent agentic search and chat platform, voice-first and multilingual, with specialist agents for coding, education, research, shopping, and enterprise. It's the front door. Sahaayak AI extends that idea into a multilingual personal AI OS for 1.4B Indians—chat, voice, OCR, translation, smart notes, email intelligence, live news. UniBot meets people where they already are: a conversational AI support bot on WhatsApp, multilingual, for helpdesk and guidance.
+**Agentic search and voice:** InBharat AI is the flagship—a multi-agent agentic search and chat platform, voice-first and multilingual, with specialist agents for coding, education, research, shopping, and enterprise. It's the front door. Sahayaak AI extends that idea into a multilingual personal AI OS for 1.4B Indians—chat, voice, OCR, translation, smart notes, email intelligence, live news. UniBot meets people where they already are: a conversational AI support bot on WhatsApp, multilingual, for helpdesk and guidance.
 
 **Education:** KathaKitaab turns Indian epics into living, interactive storybooks with verb-aware AI animation and Indian-language narration. UniAssist.ai guides students through international admissions—university matching, PR prediction, scholarship discovery. TestsPrep.in does adaptive exam preparation—practice tests, performance analytics, focused pathways. Three products, one learner, from childhood stories to competitive exams.
 
-**Public services and health:** SahaayakSeva is a field AI app for India's Anganwadi workers—WHO-standard child growth tracking, GPT-4o Vision OCR, maternal risk scoring, and government scheme lookup. It's where AI meets the last mile of public health.
+**Public services and health:** Sahayaak Seva is a field AI app for India's Anganwadi workers—WHO-standard child growth tracking, GPT-4o Vision OCR, maternal risk scoring, and government scheme lookup. It's where AI meets the last mile of public health.
 
 **Enterprise and agents:** JAK Swarm is an open-source, self-hostable closed-loop company OS—evidence graph, drift detection, executable specs, and risk-gated agent approvals with audit trails. Agent Arcade is the observability layer—a live dashboard, session replay, and cost analytics across 29 models. Together they let a company run AI agents with proof.
 
@@ -40,7 +40,7 @@ A farmer doesn't just need agricultural AI. They need to understand financial pr
 
 A student doesn't just need test prep. They need stories that build language early. They need guidance on where to study. They need a bot that answers questions on WhatsApp at midnight. KathaKitaab, UniAssist.ai, TestsPrep.in, and UniBot serve one learner across a decade.
 
-A frontline health worker needs diagnostic support, record sharing across facilities, and education to stay current. SahaayakSeva and the education products meet them together.
+A frontline health worker needs diagnostic support, record sharing across facilities, and education to stay current. Sahayaak Seva and the education products meet them together.
 
 One product doesn't serve these needs. But twelve products that work together do.
 
@@ -68,7 +68,7 @@ Alibaba didn't win by building a shopping app. It won by building an ecosystem. 
 
 ## The Current Reality
 
-We're past vision and into shipping. InBharat AI is live—agentic search, voice, and the specialist agents are working. KathaKitaab is live with interactive storybooks in Indian languages. JAK Swarm is open-source and self-hostable today, with the evidence graph and JAK Shield risk gating. SahaayakSeva is in the field with Anganwadi workers. UniAssist.ai, TestsPrep.in, and UniBot are serving students. Phoring, Agent Arcade, SocialFlow, and OpenClawFix are the builder layer, all usable now.
+We're past vision and into shipping. InBharat AI is live—agentic search, voice, and the specialist agents are working. KathaKitaab is live with interactive storybooks in Indian languages. JAK Swarm is open-source and self-hostable today, with the evidence graph and JAK Shield risk gating. Sahayaak Seva is in the field with Anganwadi workers. UniAssist.ai, TestsPrep.in, and UniBot are serving students. Phoring, Agent Arcade, SocialFlow, and OpenClawFix are the builder layer, all usable now.
 
 This isn't a five-year vision. This is being built right now.
 
@@ -92,7 +92,7 @@ Twelve products. One mission. Build AI for Bharat.
 India's problems are interconnected—a farmer needs credit, market access, and learning together; a student needs stories, guidance, test prep, and a bot that answers at midnight. Serving one need in isolation doesn't work in India. An ecosystem of connected products serves the same user across a decade of needs.
 
 **What are the twelve products in the InBharat ecosystem?**
-InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahaayak AI (personal AI OS), SahaayakSeva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.
+InBharat AI (agentic search), KathaKitaab (interactive storybooks), JAK Swarm (company OS), Sahayaak AI (personal AI OS), Sahayaak Seva (field health app), UniAssist.ai (admissions guidance), TestsPrep.in (exam prep), UniBot (WhatsApp bot), Phoring (decision intelligence), Agent Arcade (agent observability), SocialFlow (social automation), and OpenClawFix (developer installer)—all built for Indian context and constraints.
 
 **How do the products connect?**
 A shared, consent-based identity layer (one user across all products), a shared data layer where models learn across the full scope of Indian life, and shared local-first infrastructure—data and processing stay in India—so the search agent understands the education context, the health app understands the local language, and so on.
@@ -101,7 +101,7 @@ A shared, consent-based identity layer (one user across all products), a shared 
 It's the defensible model. A single product going global gets absorbed competing with American companies on their terms. An ecosystem built deeply for India—like Alibaba for China—is hard to compete with because it's built for problems American companies don't understand.
 
 **What's the current state of the ecosystem?**
-Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, SahaayakSeva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It's being built right now, not on a five-year roadmap.
+Shipping, not vision—InBharat AI, KathaKitaab, JAK Swarm, Sahayaak Seva, UniAssist.ai, TestsPrep.in, UniBot, Phoring, Agent Arcade, SocialFlow, and OpenClawFix are all live and usable now. It's being built right now, not on a five-year roadmap.
 
 ---
 

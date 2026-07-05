@@ -346,8 +346,8 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
 
 const TICKER_NAMES = [
   'InBharat AI', 'KathaKitaab', 'Agent Arcade', 'Phoring',
-  'Sahaayak AI', 'UniAssist', 'TestsPrep.in', 'UniBot',
-  'SocialFlow', 'OpenClawFix', 'SahaayakSeva',
+  'Sahayaak AI', 'UniAssist', 'TestsPrep.in', 'UniBot',
+  'SocialFlow', 'OpenClawFix', 'Sahayaak Seva', 'UnoOne', 'SwasthyaScore AI',
 ];
 
 const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
@@ -658,7 +658,7 @@ const ORBITAL_MODULES: OrbitalModule[] = [
   // Ring 1 — flagships
   { label: 'InBharat AI',    color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
   { label: 'KathaKitaab', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
-  { label: 'Sahaayak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
+  { label: 'Sahayaak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
   // Ring 2 — ecosystem
   { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
   { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 72 },
@@ -669,7 +669,7 @@ const ORBITAL_MODULES: OrbitalModule[] = [
   { label: 'Agent Arcade',  color: '#4C8BF5', ring: 3, baseAngle: 45 },
   { label: 'SocialFlow',    color: '#7C3AED', ring: 3, baseAngle: 135 },
   { label: 'OpenClawFix',   color: '#14b8a6', ring: 3, baseAngle: 225 },
-  { label: 'SahaayakSeva',  color: '#059669', ring: 3, baseAngle: 315 },
+  { label: 'Sahayaak Seva',  color: '#059669', ring: 3, baseAngle: 315 },
 ];
 
 const RING_CONFIG = {
@@ -909,20 +909,42 @@ const TypeBadge: React.FC<{ children: React.ReactNode; color: string }> = ({ chi
   </span>
 );
 
+type ProductBucket = 'core' | 'agentOps' | 'growth' | 'consumer' | 'eduCareer' | 'health';
+
 const PRODUCT_DEFS = [
-  { name: 'InBharat AI', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
-  { name: 'KathaKitaab', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
-  { name: 'JAK Swarm', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://jakswarm.com/', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
-  { name: 'Phoring', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://github.com/inbharatai/phoring', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
-  { name: 'Agent Arcade', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
-  { name: 'Sahaayak AI', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
-  { name: 'SahaayakSeva', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://github.com/inbharatai/SahaayakSeva', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
-  { name: 'UniAssist.ai', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
-  { name: 'TestsPrep.in', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
-  { name: 'UniBot', tagKey: 'landProdUnibotTag', descKey: 'landProdUnibotDesc', ctaKey: 'landProdUnibotCta', typeKey: 'landProdUnibotType', href: '#chatbot', logo: '/unibot-logo.png', internal: false, color: '#25D366', tech: ['WhatsApp API', 'NLP', 'Multilingual'] },
-  { name: 'SocialFlow', tagKey: 'landProdSocialFlowTag', descKey: 'landProdSocialFlowDesc', ctaKey: 'landProdSocialFlowCta', typeKey: 'landProdSocialFlowType', href: 'https://github.com/inbharatai/SocialFlow', logo: null, icon: Share2, internal: false, color: '#7C3AED', tech: ['FastAPI', 'Playwright', 'AES-256', '12 Platforms'] },
-  { name: 'OpenClawFix', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
+  // ── InBharat Core AI ──
+  { name: 'InBharat AI', bucket: 'core', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
+  // ── Agent Ops & Trust ──
+  { name: 'JAK Swarm', bucket: 'agentOps', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://jakswarm.com/', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
+  { name: 'Agent Arcade', bucket: 'agentOps', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
+  // ── Growth & Publishing ──
+  { name: 'SocialFlow', bucket: 'growth', tagKey: 'landProdSocialFlowTag', descKey: 'landProdSocialFlowDesc', ctaKey: 'landProdSocialFlowCta', typeKey: 'landProdSocialFlowType', href: 'https://github.com/inbharatai/SocialFlow', logo: null, icon: Share2, internal: false, color: '#7C3AED', tech: ['FastAPI', 'Playwright', 'AES-256', '12 Platforms'] },
+  // ── Consumer & Culture ──
+  { name: 'Sahayaak AI', bucket: 'consumer', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai-public', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
+  { name: 'KathaKitaab', bucket: 'consumer', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
+  { name: 'UniBot', bucket: 'consumer', tagKey: 'landProdUnibotTag', descKey: 'landProdUnibotDesc', ctaKey: 'landProdUnibotCta', typeKey: 'landProdUnibotType', href: '#chatbot', logo: '/unibot-logo.png', internal: false, color: '#25D366', tech: ['WhatsApp API', 'NLP', 'Multilingual'] },
+  { name: 'Phoring', bucket: 'consumer', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://github.com/inbharatai/phoring', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
+  // ── Education & Career ──
+  { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
+  { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
+  { name: 'UnoOne', bucket: 'eduCareer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
+  { name: 'OpenClawFix', bucket: 'eduCareer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
+  // ── Health & Public Service ──
+  { name: 'Sahayaak Seva', bucket: 'health', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://sahayaakseva.in', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
+  { name: 'SwasthyaScore AI', bucket: 'health', tagKey: 'landProdSwasthyaTag', descKey: 'landProdSwasthyaDesc', ctaKey: 'landProdSwasthyaCta', typeKey: 'landProdSwasthyaType', href: 'https://github.com/inbharatai/swasthyascore-ai', logo: null, icon: Target, internal: false, color: '#0ea5e9', tech: ['PWA', 'rPPG Vitals', 'Lab OCR', 'Voice Screening'] },
 ] as const;
+
+// Six verticals organizing the ecosystem. Order here is the display order on the
+// landing page. Each bucket header is a one-line framing above its product cards
+// so the grid reads as an organized ecosystem, not a flat 14-card wall.
+const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }>; color: string }[] = [
+  { key: 'core', labelKey: 'landBucketCore', descKey: 'landBucketCoreDesc', icon: Brain, color: '#f59f4f' },
+  { key: 'agentOps', labelKey: 'landBucketAgentOps', descKey: 'landBucketAgentOpsDesc', icon: ShieldCheck, color: '#ef4444' },
+  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', icon: Target, color: '#7C3AED' },
+  { key: 'consumer', labelKey: 'landBucketConsumer', descKey: 'landBucketConsumerDesc', icon: MessageCircle, color: '#ff9933' },
+  { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', icon: BookOpen, color: '#3b82f6' },
+  { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', icon: Users, color: '#059669' },
+];
 
 /* ═══════════════════════════════════════════════════════
    MAIN LANDING COMPONENT
@@ -980,10 +1002,10 @@ const Landing: React.FC = () => {
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
       { href: '#ecosystem', label: t('landNavEcosystem') },
+      { href: '#why', label: t('landNavWhy') },
+      { href: '#products', label: t('landNavProducts') },
       { href: '#kathakitaab', label: t('landNavKathakitaab') },
       { href: '#jakswarm', label: t('landNavJak') },
-      { href: '#products', label: t('landNavProducts') },
-      { href: '#why', label: t('landNavWhy') },
       { href: '#mission', label: t('landNavMission') },
       // Contact routes to the dedicated /contact page (like the footer link),
       // NOT an in-page `#contact` scroll. `route` opts this item out of the
@@ -1483,6 +1505,102 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
+      {/* ═══════════════ PRODUCTS ═══════════════ */}
+      <Reveal id="products" className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+          <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
+              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
+            </div>
+            <a
+              href="https://github.com/inbharatai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 self-start rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-[#b4c8de] transition-all hover:border-white/20 hover:text-white sm:self-auto"
+            >
+              <Github size={14} />
+              {t('landProdGithub')}
+            </a>
+          </div>
+
+          <div className="space-y-14">
+            {BUCKETS.map((bucket) => {
+              const products = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key);
+              if (products.length === 0) return null;
+              return (
+                <div key={bucket.key}>
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08]" style={{ backgroundColor: `${bucket.color}10` }}>
+                      <bucket.icon size={16} style={{ color: bucket.color }} />
+                    </div>
+                    <div>
+                      <h3 className="text-[15px] font-bold text-white">{t(bucket.labelKey)}</h3>
+                      <p className="text-[12px] leading-relaxed text-[#96b0c8]">{t(bucket.descKey)}</p>
+                    </div>
+                    <span className="ml-auto rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-0.5 text-[10px] font-semibold text-[#7a9ab8]">{products.length}</span>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {products.map((product, i) => (
+                      <motion.article
+                        key={product.name}
+                        custom={i}
+                        variants={itemReveal}
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true, amount: 0.15 }}
+                        className="glow-card group flex h-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12]"
+                      >
+                        <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
+                          <ProductLogo
+                            logo={product.logo as string | null}
+                            name={product.name}
+                            color={product.color}
+                            icon={product.iconComp}
+                          />
+                        </div>
+                        <div className="mb-2 flex items-center gap-2">
+                          <TypeBadge color={product.color}>{product.type}</TypeBadge>
+                          <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
+                        </div>
+                        <p className="text-[10px] font-medium text-[#a8bfd4]">{product.tagline}</p>
+                        <p className="mt-2 flex-1 text-[13px] leading-relaxed text-[#9aafc6]">{product.desc}</p>
+                        <div className="mt-3 flex flex-wrap gap-1">
+                          {product.tech.map((t) => (
+                            <span key={t} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{t}</span>
+                          ))}
+                        </div>
+                        {product.internal ? (
+                          <Link
+                            to={product.href}
+                            className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
+                          >
+                            {product.cta}
+                            <ArrowRight size={14} />
+                          </Link>
+                        ) : (
+                          <a
+                            href={product.href}
+                            target={product.href.startsWith('http') ? '_blank' : undefined}
+                            rel={product.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                            className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
+                          >
+                            {product.cta}
+                            {product.href.startsWith('http') ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
+                          </a>
+                        )}
+                      </motion.article>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
       {/* ═══════════════ KATHAKITAAB SPOTLIGHT ═══════════════ */}
       <Reveal id="kathakitaab" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
@@ -1816,80 +1934,6 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
-      {/* ═══════════════ PRODUCTS ═══════════════ */}
-      <Reveal id="products" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
-              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
-            </div>
-            <a
-              href="https://github.com/inbharatai"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 self-start rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-[#b4c8de] transition-all hover:border-white/20 hover:text-white sm:self-auto"
-            >
-              <Github size={14} />
-              {t('landProdGithub')}
-            </a>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {ALL_PRODUCTS.map((product, i) => (
-              <motion.article
-                key={product.name}
-                custom={i}
-                variants={itemReveal}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.15 }}
-                className="glow-card group flex h-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12]"
-              >
-                <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
-                  <ProductLogo
-                    logo={product.logo as string | null}
-                    name={product.name}
-                    color={product.color}
-                    icon={product.iconComp}
-                  />
-                </div>
-                <div className="mb-2 flex items-center gap-2">
-                  <TypeBadge color={product.color}>{product.type}</TypeBadge>
-                  <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
-                </div>
-                <p className="text-[10px] font-medium text-[#a8bfd4]">{product.tagline}</p>
-                <p className="mt-2 flex-1 text-[13px] leading-relaxed text-[#9aafc6]">{product.desc}</p>
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {product.tech.map((t) => (
-                    <span key={t} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{t}</span>
-                  ))}
-                </div>
-                {product.internal ? (
-                  <Link
-                    to={product.href}
-                    className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
-                  >
-                    {product.cta}
-                    <ArrowRight size={14} />
-                  </Link>
-                ) : (
-                  <a
-                    href={product.href}
-                    target={product.href.startsWith('http') ? '_blank' : undefined}
-                    rel={product.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                    className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
-                  >
-                    {product.cta}
-                    <ExternalLink size={14} />
-                  </a>
-                )}
-              </motion.article>
-            ))}
-          </div>
-        </div>
-      </Reveal>
-
       {/* Reverse marquee */}
       <div className="relative z-10 border-y border-white/[0.04] bg-[#030508]/80" aria-hidden="true">
         <Marquee reverse />
@@ -2093,7 +2137,7 @@ const Landing: React.FC = () => {
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 status-pulse" />
             {t('landStatusOperational')}
           </span>
-          <span className="text-[#7a9ab8]">11 Languages</span>
+          <span className="text-[#7a9ab8]">{supportedLanguages.length} Languages</span>
           <span className="text-[#7a9ab8]">{ALL_PRODUCTS.length} Products</span>
         </div>
       </div>

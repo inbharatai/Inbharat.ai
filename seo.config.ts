@@ -109,7 +109,8 @@ export const SUPPORTED_LANGS = [
 // Public live product sites + the public GitHub org. Wires the InBharat
 // product "universe" as one entity network for Google/AI engines. Only
 // public live sites + the public GitHub org — never private repo URLs,
-// RHCF Seva, or UniGurus (per project constraints).
+// the deprecated RHCF Seva name (healthcare is publicly branded Sahayaak Seva),
+// or UniGurus (per project constraints).
 const ORG_SAMEAS = [
   SITE.social.instagram,
   SITE.social.linkedin,
@@ -118,6 +119,9 @@ const ORG_SAMEAS = [
   'https://jakswarm.com',
   'https://www.kathakitaab.com',
   'https://testsprep.in',
+  'https://www.uniassist.ai',
+  'https://openclawfix.pro',
+  'https://sahayaakseva.in',
 ];
 
 const baseOrganization = {
@@ -340,8 +344,8 @@ const productSuite = {
       position: 6,
       item: {
         '@type': 'WebApplication',
-        name: 'Sahaayak AI',
-        url: 'https://github.com/inbharatai/sahaayak-ai',
+        name: 'Sahayaak AI',
+        url: 'https://github.com/inbharatai/sahaayak-ai-public',
         description:
           'Multilingual personal AI OS for 1.4B Indians — chat, voice, OCR, translation, smart notes, email intelligence, and live news.',
       },
@@ -351,8 +355,8 @@ const productSuite = {
       position: 7,
       item: {
         '@type': 'WebApplication',
-        name: 'SahaayakSeva',
-        url: 'https://github.com/inbharatai/SahaayakSeva',
+        name: 'Sahayaak Seva',
+        url: 'https://sahayaakseva.in',
         description:
           "Field AI app for India's Anganwadi workers — WHO-standard child growth tracking, GPT-4o Vision OCR, maternal risk scoring, and government scheme lookup.",
       },
