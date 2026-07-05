@@ -17,6 +17,7 @@ import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { logInfo, logError } from "./authorization.js";
 import { auditSingleUrl } from "./audit-runner.js";
 import { getGscPageMetrics, type GscPageRow } from "./performance.js";
+import { boostTopic } from "./knowledge.js";
 import type { AuditIssue } from "./types.js";
 
 export interface OutcomeBaseline {
@@ -122,11 +123,11 @@ export async function seedOutcomeOnPublish(
  */
 export async function measureOutcomes(): Promise<{ measured: number; errors: number }> {
   if (!supabaseAdmin) return { measured: 0, errors: 0 };
-  let outcomes: { id: string; url: string; baseline_seo: number | null; baseline_geo: number | null; baseline_issues: AuditIssue[] | null }[] = [];
+  let outcomes: { id: string; url: string; draft_id: string | null; baseline_seo: number | null; baseline_geo: number | null; baseline_issues: AuditIssue[] | null }[] = [];
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_outcomes")
-      .select("id,url,baseline_seo,baseline_geo,baseline_issues")
+      .select("id,url,draft_id,baseline_seo,baseline_geo,baseline_issues")
       .is("measured_at", null)
       .lt("published_at", new Date(Date.now() - 2 * 86400000).toISOString())
       .order("published_at", { ascending: true })
@@ -135,6 +136,24 @@ export async function measureOutcomes(): Promise<{ measured: number; errors: num
     outcomes = data as typeof outcomes;
   } catch {
     return { measured: 0, errors: 0 };
+  }
+
+  // Batch-fetch the linked draft titles so the KB learning signal (boostTopic)
+  // can match similar KB topics by Jaccard on the article title (not just URL).
+  const titleMap = new Map<string, string>();
+  try {
+    const draftIds = outcomes.map((o) => o.draft_id).filter((x): x is string => typeof x === "string");
+    if (draftIds.length) {
+      const { data: drafts } = await supabaseAdmin
+        .from("growth_drafts")
+        .select("id,title")
+        .in("id", draftIds);
+      for (const d of (drafts as { id: string; title: string | null }[]) ?? []) {
+        if (typeof d.title === "string" && d.title) titleMap.set(d.id, d.title);
+      }
+    }
+  } catch {
+    /* best-effort — boostTopic just won't fire for misses */
   }
 
   // Optional per-URL GSC ground truth (Phase 3). One fetch for the run; lookups
@@ -186,6 +205,13 @@ export async function measureOutcomes(): Promise<{ measured: number; errors: num
         o.url,
         `seo ${baseline.seo ?? "—"}→${page.seoScore} (Δ${d.seoDelta ?? "—"}), issues resolved ${d.issuesResolved}`,
       );
+      // Phase 2: KB learning signal — boost similar-topic KB rows when this
+      // article's SEO improved (the angle worked), deprioritize when it didn't.
+      // Sign = clamped SEO delta (null → skip). Best-effort, never throws.
+      if (d.seoDelta != null) {
+        const title = (o.draft_id && titleMap.get(o.draft_id)) || o.url;
+        void boostTopic(title, Math.max(-10, Math.min(10, d.seoDelta))).catch(() => undefined);
+      }
       measured++;
     } catch (e) {
       errors++;

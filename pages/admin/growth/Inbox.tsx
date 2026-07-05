@@ -154,6 +154,23 @@ const Inbox: React.FC = () => {
     else await load();
   }
 
+  /** Phase 2: save an inbox item as a KB 'source' row so the agent retrieves it
+   *  before future drafts. Best-effort — surfaces success/fail inline. */
+  async function saveToKb(it: InboxItem) {
+    setBusy(`kb:${it.id}`);
+    try {
+      const title = (it.original_name || it.storage_path || "").replace(/\.[^.]+$/, "");
+      const { error } = await fetchJson("/api/growth/knowledge", {
+        method: "POST",
+        body: JSON.stringify({ type: "source", title, sourceType: "user_note", topicCluster: it.folder || null, status: "approved" }),
+      });
+      if (error) setError(`Save to KB failed: ${error}`);
+      else setError(null);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Content inbox</h1>
@@ -231,6 +248,14 @@ const Inbox: React.FC = () => {
                     {it.previewUrl && (
                       <a href={it.previewUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[#f59f4f] hover:underline">preview</a>
                     )}
+                    <button
+                      onClick={() => saveToKb(it)}
+                      disabled={busy === `kb:${it.id}`}
+                      className="rounded-md border border-sky-500/20 px-2.5 py-1 text-[11px] text-sky-300 hover:bg-sky-500/10 disabled:opacity-30"
+                      title="Save this item to the knowledge base (retrieved before future drafts)"
+                    >
+                      {busy === `kb:${it.id}` ? "Saving…" : "Save to KB"}
+                    </button>
                     <button
                       onClick={() => remove(it.id, it.status)}
                       disabled={it.status === "ingested"}

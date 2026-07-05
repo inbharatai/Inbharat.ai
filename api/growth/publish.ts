@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
+import { insertKnowledge, retrieveForTopic, linkToArticle } from "../../lib/growth/knowledge.js";
 import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWrite.js";
 import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/authorization.js";
 import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
@@ -189,6 +190,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Seed the outcome baseline so the daily cron can later measure the article's
   // SEO/GEO delta from this publish point. Publishes nothing; never throws.
   await seedOutcomeOnPublish(draftId, articleUrl, String(draft.kind)).catch(() => undefined);
+
+  // Phase 2: best-effort KB write — record the published LinkedIn post so future
+  // caption drafts can retrieve prior post angles (founder-voice consistency,
+  // avoid repeating an angle). content_hash dedupes; never throws/blocks.
+  void insertKnowledge({
+    type: "post",
+    title: (draft.title as string | null) ?? articleUrl,
+    body: (draft.body_md as string | null) ?? null,
+    sourceUrl: articleUrl,
+    sourceType: "linkedin",
+    topicCluster: (draft.title as string | null) ?? undefined,
+    status: "published",
+  }).catch(() => undefined);
 
   return res.status(200).json({ ok: true, requestId, shareUrl, summary: (draft.body_md as string | null) ?? "", title: (draft.title as string | null) ?? "" });
 }
@@ -524,6 +538,33 @@ async function publishArticle(
     .from("growth_agent_logs")
     .insert({ level: "info", action: "publish-article", scope: draftUrl ?? meta.slug, detail: `md=${mdPath} mdSha=${mdRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId} by=${userId}` })
     .then(() => undefined, () => undefined);
+
+  // Phase 2: best-effort KB writes — (a) record this article as a KB 'article'
+  // row so future drafts retrieve it as prior work (cross-source dedupe), and
+  // (b) link any related discovered topics/sources to this slug. Never throws.
+  void insertKnowledge({
+    type: "article",
+    title: meta.title,
+    summary: meta.description || meta.abstract || null,
+    sourceUrl: draftUrl ?? `https://inbharat.ai/learn-ai-with-reeturaj/${meta.slug}`,
+    sourceType: "website",
+    topicCluster: meta.title,
+    keywords: meta.hashtags,
+    linkedArticleId: meta.slug,
+    status: "published",
+  }).catch(() => undefined);
+  void (async () => {
+    try {
+      const related = await retrieveForTopic(`${meta.title} ${meta.description}`.trim());
+      for (const it of related.slice(0, 6)) {
+        if (it.type === "topic" || it.type === "source") {
+          await linkToArticle(it.id, meta.slug).catch(() => null);
+        }
+      }
+    } catch {
+      /* best-effort */
+    }
+  })();
 
   // 4) Auto-ship the APPROVED companion cover with the article (Stage 2: only an
   //    approved cover ships — a pending one has not been reviewed and must not be

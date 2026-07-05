@@ -503,6 +503,11 @@ const ADMIN_GROWTH_PATHS = [
   // shell-less admin routes. Every admin/growth child route must be listed here.
   '/admin/growth/strategy',
   '/admin/growth/agent',
+  // Added 2026-07-05: the Knowledge base page (inbox-as-knowledge-base). Same
+  // reason as above — every admin/growth child route must be listed here or the
+  // live site 404s (the catch-all rewrite does not serve the SPA for shell-less
+  // admin routes).
+  '/admin/growth/knowledge',
   // Removed 2026-07-04: the standalone Syndication page was retired — the
   // syndicate action + per-article cross-post history now live inline on the
   // Issues page (each Published article row has a Syndicate panel). The

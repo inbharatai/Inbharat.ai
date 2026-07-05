@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
+import { searchKnowledge, recordDecision } from "../../lib/growth/knowledge.js";
 
 const postSchema = z.object({
   draftId: z.string().uuid(),
@@ -84,6 +85,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // pending so the founder can re-approve. The orphan audit row is harmless.
       return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to update draft (approval recorded; re-approve to retry)", requestId: admin.requestId });
     }
+
+    // Phase 2: KB learning signal — record the founder's decision on KB topic/
+    // source rows matching this draft's title (approve → 'approved', reject →
+    // 'skipped'). Best-effort, fire-and-forget; never blocks the response.
+    void (async () => {
+      try {
+        const { data: d } = await supabaseAdmin!
+          .from("growth_drafts")
+          .select("title")
+          .eq("id", parsed.draftId)
+          .maybeSingle();
+        const title = (d as { title: string | null } | null)?.title ?? null;
+        if (title) {
+          const items = await searchKnowledge(title, { limit: 6 });
+          for (const it of items.slice(0, 4)) {
+            if (it.type === "topic" || it.type === "source" || it.type === "competitor_gap") {
+              await recordDecision(it.id, parsed.decision === "approved").catch(() => null);
+            }
+          }
+        }
+      } catch {
+        /* best-effort — never fail the approval on a KB write */
+      }
+    })();
 
     return res.status(200).json({ ok: true, requestId: admin.requestId, draftId: parsed.draftId, decision: parsed.decision });
   } catch {

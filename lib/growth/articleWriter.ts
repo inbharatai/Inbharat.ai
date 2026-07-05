@@ -24,6 +24,7 @@ import { critiqueAndRevise } from "./critique.js";
 import { sanitizeMermaidFences } from "./mermaid-validate.js";
 import { stripCitationMarkers } from "./citations.js";
 import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
+import { retrieveForTopic, formatKnowledgeBlock, markUsed } from "./knowledge.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -119,6 +120,14 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
   const strategyBlock = formatStrategyBlock(await loadStrategy());
   const rulesBlock = formatRulesBlock(await loadGlobalRules());
   const inboxBlock = formatInboxBlock(await loadInboxContext());
+  // Knowledge base retrieval: what the agent already knows about this topic (prior
+  // sources, articles, posts, notes). Build on it; do NOT repeat a covered angle.
+  // Best-effort (no DB / no matches → empty block → unchanged prompt). Never throws.
+  const knowledgeItems = await retrieveForTopic(topic);
+  const knowledgeBlock = formatKnowledgeBlock(knowledgeItems);
+  // Best-effort: stamp the retrieved KB items as used (bumps use_count + last_used_at)
+  // so the Knowledge UI + learning signals reflect what fed this draft. Never throws.
+  for (const it of knowledgeItems) void markUsed(it.id).catch(() => undefined);
 
   const system =
     "You are a B2B content writer for InBharat AI, an Indian AI product studio founded by Reeturaj Goswami. " +
@@ -130,6 +139,7 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
     (strategyBlock ? `\n\n${strategyBlock}` : "") +
     (rulesBlock ? `\n\n${rulesBlock}` : "") +
     (inboxBlock ? `\n\n${inboxBlock}` : "") +
+    (knowledgeBlock ? `\n\n${knowledgeBlock}` : "") +
     (groundingBlock ? `\n\n${groundingBlock}` : "");
   const user =
     `Topic: ${topic}\n` +

@@ -26,6 +26,13 @@ import { loadInboxContext, formatInboxBlock, INBOX_BUCKET } from "./inbox.js";
 import { loadRulesForUrl, loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { critiqueAndRevise } from "./critique.js";
+import {
+  insertKnowledge,
+  searchKnowledge,
+  listKnowledge,
+  findDuplicateKnowledge,
+  type KnowledgeType,
+} from "./knowledge.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
 
@@ -202,6 +209,62 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         description: { type: "string", description: "Optional: the article meta description (improves the caption; auto-loaded from the draft if omitted)." },
       },
       required: ["url"],
+    },
+  },
+  {
+    name: "save_knowledge",
+    description:
+      "Save a row to the knowledge base (the agent's memory layer): a source, topic, decision, note, or competitor gap you want to recall later. Dedupes by content hash — re-saving the same title+body is a no-op. Use after web_search to keep a source, or when the founder says 'remember this'. The KB is retrieved before every draft, so saving here shapes future drafts.",
+    parameters: {
+      type: "object",
+      properties: {
+        type: { type: "string", description: "Row type: source | topic | note | competitor_gap | decision | keyword." },
+        title: { type: "string", description: "Short title (the recallable label)." },
+        summary: { type: "string", description: "Optional 1–2 sentence summary." },
+        sourceUrl: { type: "string", description: "Optional source URL (cite it)." },
+        relatedProduct: { type: "string", description: "Optional product this relates to: inbharat | sahayaak-seva | jak-shield | unoone | uniassist | kathakitaab | testsprep." },
+        keywords: { type: "array", items: { type: "string" }, description: "Optional keyword tags (≤12)." },
+      },
+      required: ["type", "title"],
+    },
+  },
+  {
+    name: "search_knowledge",
+    description:
+      "Search the knowledge base for what the agent already knows about a topic (FTS + token rerank). Call BEFORE drafting to avoid repeating an angle already covered, and to ground the draft in prior sources/notes. Returns ranked items with title, summary, source, and linked article.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query (a topic, angle, or keyword)." },
+        product: { type: "string", description: "Optional: scope to a product (inbharat | sahayaak-seva | jak-shield | unoone | uniassist | kathakitaab | testsprep)." },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "list_knowledge",
+    description:
+      "List recent knowledge-base rows, optionally filtered by product or status (e.g. list discovered topics for a product). Use when the founder asks 'what topics do we have', 'show pending research', or before picking a topic to draft.",
+    parameters: {
+      type: "object",
+      properties: {
+        product: { type: "string", description: "Optional: scope to a product." },
+        status: { type: "string", description: "Optional: scope to a status (discovered | needs_review | approved | drafted | published | skipped | outdated | archived)." },
+        limit: { type: "integer", description: "How many rows to return (1–50).", minimum: 1, maximum: 50 },
+      },
+    },
+  },
+  {
+    name: "find_duplicate",
+    description:
+      "Check whether a topic is a near-duplicate of an existing knowledge-base entry OR a published article title (token Jaccard ≥ 0.8). Call before write_article to avoid re-drafting the same angle — if duplicate:true, pivot the angle, update the existing article, or skip instead of re-writing. Returns the matching entry when found.",
+    parameters: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "The proposed article topic / angle." },
+        product: { type: "string", description: "Optional: scope the duplicate check to a product." },
+      },
+      required: ["topic"],
     },
   },
 ];
@@ -463,10 +526,97 @@ async function webSearch(args: Args): Promise<ToolResult> {
       snippet: (o.snippet ?? "").slice(0, 300),
     }));
     if (results.length === 0) return { ok: true, message: `no web results for "${query}"`, query, results: [] };
+    // Best-effort: persist each result to the knowledge base so future drafts can
+    // retrieve + cite these sources (dedupes by content hash). Never blocks/throws.
+    for (const r of results) {
+      void insertKnowledge({
+        type: "source",
+        title: r.title || r.url || query,
+        summary: r.snippet || null,
+        sourceUrl: r.url || null,
+        sourceType: "web",
+        topicCluster: query.slice(0, 80),
+        keywords: tokenizeLite(query),
+      }).catch(() => undefined);
+    }
     return { ok: true, message: `${results.length} web result(s) for "${query}"`, query, results };
   } catch (e) {
     return { ok: false, message: `search error: ${(e as Error).message}` };
   }
+}
+
+/** Tiny tokenizer for keyword extraction from a query (mirrors knowledge.ts tokenize). */
+function tokenizeLite(s: string): string[] {
+  const m = (s ?? "").toLowerCase().match(/[a-z0-9]+/g);
+  return (m ? Array.from(m) : []).filter((t) => t.length >= 2).slice(0, 8);
+}
+
+/** save_knowledge — persist a KB row (dedupes by content hash). */
+async function saveKnowledgeTool(args: Args): Promise<ToolResult> {
+  const type = str(args.type) as KnowledgeType;
+  const title = str(args.title);
+  if (!title) return { ok: false, message: "need a title" };
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+  const item = await insertKnowledge({
+    type,
+    title,
+    summary: typeof args.summary === "string" ? args.summary : null,
+    sourceUrl: typeof args.sourceUrl === "string" ? args.sourceUrl : null,
+    sourceType: "web",
+    relatedProduct: typeof args.relatedProduct === "string" ? args.relatedProduct : null,
+    keywords: Array.isArray(args.keywords) ? (args.keywords as unknown[]).filter((k): k is string => typeof k === "string") : [],
+  });
+  if (!item) return { ok: false, message: "save failed (DB error or duplicate)" };
+  return { ok: true, message: `Saved to knowledge base: "${item.title}" (${item.type}). It'll be retrieved before future drafts.`, id: item.id };
+}
+
+/** search_knowledge — FTS + token-rerank retrieval of what the agent already knows. */
+async function searchKnowledgeTool(args: Args): Promise<ToolResult> {
+  const query = str(args.query);
+  if (!query) return { ok: false, message: "need a search query" };
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+  const items = await searchKnowledge(query, { product: typeof args.product === "string" ? args.product : null, limit: 8 });
+  if (items.length === 0) return { ok: true, message: `no knowledge-base matches for "${query}"`, query, results: [] };
+  return {
+    ok: true,
+    message: `${items.length} knowledge-base match(es) for "${query}" — build on these; do NOT repeat an angle already covered.`,
+    query,
+    results: items.map((it) => ({ id: it.id, type: it.type, title: it.title, summary: it.summary, sourceUrl: it.sourceUrl, linkedArticleId: it.linkedArticleId, status: it.status })),
+  };
+}
+
+/** list_knowledge — recent KB rows, optionally filtered by product/status. */
+async function listKnowledgeTool(args: Args): Promise<ToolResult> {
+  if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+  const limit = num(args.limit, 20, 50);
+  const items = await listKnowledge({
+    product: typeof args.product === "string" ? args.product : null,
+    status: typeof args.status === "string" ? (args.status as KnowledgeStatus2) : null,
+    limit,
+  });
+  if (items.length === 0) return { ok: true, message: "no knowledge-base rows match", results: [] };
+  return {
+    ok: true,
+    message: `${items.length} knowledge-base row(s)`,
+    results: items.map((it) => ({ id: it.id, type: it.type, title: it.title, status: it.status, relatedProduct: it.relatedProduct, intentScore: it.intentScore, linkedArticleId: it.linkedArticleId })),
+  };
+}
+
+type KnowledgeStatus2 = "discovered" | "needs_review" | "approved" | "drafted" | "published" | "skipped" | "update_existing" | "outdated" | "archived";
+
+/** find_duplicate — cross-source near-duplicate check before drafting. */
+async function findDuplicateTool(args: Args): Promise<ToolResult> {
+  const topic = str(args.topic);
+  if (!topic) return { ok: false, message: "need a topic" };
+  const dup = await findDuplicateKnowledge(topic, typeof args.product === "string" ? args.product : null);
+  if (!dup.duplicate) return { ok: true, message: `No duplicate found for "${topic}" — safe to draft a new article.`, duplicate: false };
+  return {
+    ok: true,
+    message: `Duplicate found for "${topic}" — ${dup.reason ?? "matches existing work"}. Pivot the angle, update the existing article, or skip instead of re-writing.`,
+    duplicate: true,
+    reason: dup.reason ?? null,
+    existing: dup.existing ? { id: dup.existing.id, type: dup.existing.type, title: dup.existing.title, status: dup.existing.status } : null,
+  };
 }
 
 /** list_inbox_folder — fed reference assets summary. */
@@ -611,6 +761,10 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "promote_article": return promoteArticleTool(args);
     case "review_text": return reviewText(args);
     case "web_search": return webSearch(args);
+    case "save_knowledge": return saveKnowledgeTool(args);
+    case "search_knowledge": return searchKnowledgeTool(args);
+    case "list_knowledge": return listKnowledgeTool(args);
+    case "find_duplicate": return findDuplicateTool(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
   }
 }

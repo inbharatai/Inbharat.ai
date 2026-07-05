@@ -44,6 +44,7 @@ import {
 import { publishToDevto } from "../lib/growth/syndication/devto.js";
 import { publishToHashnode } from "../lib/growth/syndication/hashnode.js";
 import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
+import { formatKnowledgeBlock, findDuplicateKnowledge, type KnowledgeItem, type KnowledgeType } from "../lib/growth/knowledge.js";
 
 let pass = 0;
 let fail = 0;
@@ -653,9 +654,12 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 10 tools", AGENT_TOOLS.length === 10, `got ${names.join(",")}`);
+  check("agent tools registry has 14 tools (10 base + 4 KB)", AGENT_TOOLS.length === 14, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
     ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script", "promote_article"].every((n) => names.includes(n)),
+    JSON.stringify(names));
+  check("agent tools include the knowledge-base set (Phase 2)",
+    ["save_knowledge", "search_knowledge", "list_knowledge", "find_duplicate"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
@@ -1474,6 +1478,43 @@ console.log("\nSitemap hygiene (canonical www only — no query/lang/search/redi
   check("admin routes excluded from sitemap", locs.every((u) => !u.includes("/admin/")), locs.filter((u) => u.includes("/admin/")).join(","));
   const articleLocs = locs.filter((u) => u.includes("/learn-ai-with-reeturaj/"));
   check("sitemap includes article canonical URLs", articleLocs.length > 0, `got ${articleLocs.length}`);
+}
+
+console.log("\nKnowledge base (FTS + token-match, cross-source dedupe):");
+{
+  // 1) formatKnowledgeBlock — empty input → "" (prompt unchanged when KB empty).
+  check("formatKnowledgeBlock([]) === '' (prompt unchanged when empty)", formatKnowledgeBlock([]) === "");
+
+  // 2) formatKnowledgeBlock — non-empty → labeled block with title + source.
+  const items: KnowledgeItem[] = [
+    {
+      id: "k1", type: "source", title: "Agentic AI survey 2026", summary: "Multi-agent orchestration trends",
+      body: null, sourceUrl: "https://example.com/survey", sourceType: "web", relatedProduct: "JAK Shield",
+      topicCluster: "agentic-ai", keywords: ["agentic", "mcp"], intentScore: 78, freshnessScore: 60,
+      authorityScore: 55, riskLevel: "low", status: "approved", linkedArticleId: null, linkedPostId: null,
+      contentHash: null, useCount: 0, lastUsedAt: null, createdAt: "2026-07-05", updatedAt: "2026-07-05",
+    },
+  ];
+  const block = formatKnowledgeBlock(items);
+  check("formatKnowledgeBlock labels the block", block.startsWith("KNOWLEDGE BASE"), block.slice(0, 40));
+  check("formatKnowledgeBlock includes the item title", block.includes("Agentic AI survey 2026"));
+  check("formatKnowledgeBlock includes the source url", block.includes("https://example.com/survey"));
+  check("formatKnowledgeBlock includes the type tag", block.includes("[source/JAK Shield]"));
+
+  // 3) KnowledgeType union — the typed rows the KB stores (compile-time guard).
+  const types: KnowledgeType[] = ["source", "topic", "article", "post", "draft", "note", "competitor_gap", "keyword", "performance", "decision"];
+  check("KnowledgeType union has 10 members", types.length === 10);
+  check("KnowledgeType includes 'competitor_gap' (cross-source dedupe target)", types.includes("competitor_gap"));
+
+  // 4) findDuplicateKnowledge — cross-source dedupe against published ARTICLES
+  //    titles (in-memory manifest path, no DB needed). A topic that paraphrases a
+  //    published article title must be flagged so the agent pivots / updates.
+  const dup = await findDuplicateKnowledge(ARTICLES[0].title);
+  check("findDuplicateKnowledge flags a published-article title as duplicate", dup.duplicate === true, JSON.stringify(dup).slice(0, 120));
+
+  // 5) findDuplicateKnowledge — a novel topic (no DB) → not a duplicate.
+  const novel = await findDuplicateKnowledge("zzz-novel-untouched-topic-qwx-12345");
+  check("findDuplicateKnowledge novel topic → not a duplicate", novel.duplicate === false);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

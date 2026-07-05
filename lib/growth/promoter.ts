@@ -23,6 +23,7 @@ import { callGemini } from "./gemini.js";
 import { loadRulesForUrl, formatRulesBlock } from "./rules.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
+import { retrieveForTopic, formatKnowledgeBlock } from "./knowledge.js";
 import { critiqueAndRevise } from "./critique.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
@@ -230,6 +231,13 @@ async function generatePromotionDraft(
   // Phase D: founder's CMO strategy (positioning/ICP/voice) — keeps every draft
   // on-brand. Empty when no strategy is set — prompt unchanged.
   const strategyBlock = formatStrategyBlock(await loadStrategy());
+  // Phase 2: KB retrieval — related prior LinkedIn posts / founder notes /
+  // competitor angles for this article's topic. Keeps captions in the founder's
+  // voice and avoids repeating a prior post angle. Empty when KB is empty —
+  // prompt unchanged. Best-effort, never throws.
+  const knowledgeBlock = formatKnowledgeBlock(
+    await retrieveForTopic(`${title ?? ""} ${description ?? ""}`.trim()),
+  );
 
   const system =
     "You are a B2B content syndication assistant for InBharat AI, an Indian AI product studio. " +
@@ -239,7 +247,8 @@ async function generatePromotionDraft(
     "Respond ONLY with compact JSON: {\"caption\": string, \"internalLinks\": string[]}." +
     (strategyBlock ? `\n\n${strategyBlock}` : "") +
     (rulesBlock ? `\n\n${rulesBlock}` : "") +
-    (inboxBlock ? `\n\n${inboxBlock}` : "");
+    (inboxBlock ? `\n\n${inboxBlock}` : "") +
+    (knowledgeBlock ? `\n\n${knowledgeBlock}` : "");
 
   const user =
     `Article URL: ${url}\n` +

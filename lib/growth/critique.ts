@@ -22,6 +22,7 @@
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCost, type GrowthTask } from "./model-router.js";
 import { callGemini } from "./gemini.js";
+import { insertKnowledge } from "./knowledge.js";
 import type { CritiqueInput, CritiqueResult, CritiqueWeakness } from "./types.js";
 
 /**
@@ -126,6 +127,22 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
 
   // Keep the candidate if the model returned no revision (or it's identical).
   const finalRevised = revised && revised !== input.draftBody ? revised : null;
+
+  // Phase 2: best-effort KB write — capture critique weaknesses as a learning
+  // note for this topic so future drafts avoid the same issues. content_hash
+  // dedupes identical critiques; never throws (degrades to null on DB error).
+  // Only writes when there are weaknesses (empty critiques don't spam the KB).
+  if (weaknesses.length > 0) {
+    void insertKnowledge({
+      type: "note",
+      title: input.context.title ?? input.context.url ?? "Critique note",
+      summary: weaknesses.map((w) => `${w.severity}: ${w.area} — ${w.fix}`).join(" | "),
+      sourceType: "user_note",
+      keywords: weaknesses.map((w) => w.area).slice(0, 8),
+      status: "approved",
+    }).catch(() => null);
+  }
+
   return {
     revised: finalRevised,
     weaknesses,

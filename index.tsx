@@ -30,6 +30,7 @@ const GrowthPerformance = lazy(() => import('./pages/admin/growth/Performance.ts
 const GrowthSettings = lazy(() => import('./pages/admin/growth/Settings.tsx'));
 const GrowthRules = lazy(() => import('./pages/admin/growth/Rules.tsx'));
 const GrowthInbox = lazy(() => import('./pages/admin/growth/Inbox.tsx'));
+const GrowthKnowledge = lazy(() => import('./pages/admin/growth/Knowledge.tsx'));
 const GrowthLearning = lazy(() => import('./pages/admin/growth/Learning.tsx'));
 const GrowthStrategy = lazy(() => import('./pages/admin/growth/Strategy.tsx'));
 const GrowthAgent = lazy(() => import('./pages/admin/growth/Agent.tsx'));
@@ -81,6 +82,7 @@ root.render(
               <Route path="settings" element={<GrowthSettings />} />
               <Route path="rules" element={<GrowthRules />} />
               <Route path="inbox" element={<GrowthInbox />} />
+              <Route path="knowledge" element={<GrowthKnowledge />} />
               <Route path="learning" element={<GrowthLearning />} />
               <Route path="strategy" element={<GrowthStrategy />} />
               <Route path="agent" element={<GrowthAgent />} />
