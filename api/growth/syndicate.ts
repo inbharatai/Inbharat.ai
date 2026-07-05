@@ -35,6 +35,16 @@ const Body = z.object({
   draftId: z.string().min(1).max(120).optional(),
   slug: z.string().min(1).max(120).optional(),
   platforms: z.array(z.enum(["devto", "hashnode", "medium"])).min(1).max(3),
+  // mode:"playwright" = the LOCAL Playwright submit path the founder asked for
+  // (the same process as LinkedIn): the route resolves the body + canonical,
+  // records a `playwright_draft` ledger row per platform, and returns them so
+  // the founder's "Submit (local) ↗" click can copy + open the platform editor +
+  // surface the local `npx tsx scripts/syndicate-populate.ts ...` command. It does
+  // NOT call any platform API — no API keys/tokens needed. The founder runs the
+  // script on their own machine (persistent logged-in profile) and clicks Publish
+  // themselves. mode:"api" (default) = the existing API path (DEV.to/Hashnode with
+  // keys; Medium manual importer).
+  mode: z.enum(["api", "playwright"]).optional(),
 }).refine((b) => Boolean(b.draftId || b.slug), { message: "draftId or slug is required" });
 
 interface DraftRow {
@@ -67,6 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
   const { draftId, platforms } = parsed.data;
+  const mode = parsed.data.mode ?? "api";
   const slugArg = typeof parsed.data.slug === "string" ? parsed.data.slug.trim() : "";
 
   if (!supabaseAdmin) {
@@ -188,6 +199,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // the inbharat.ai asset path). For approved-not-published drafts there is none
   // yet → DEV.to gets no main_image (fine).
   const coverImageUrl = meta?.visual ? `${SITE.url}${ARTICLE_ASSET_DIR}/${meta.visual}` : null;
+
+  // ── Local Playwright path ──────────────────────────────────────────────────
+  // mode:"playwright" — the founder clicked "Submit (local) ↗" in the Issues
+  // SyndicatePanel. Resolve the body + canonical (already done above), record a
+  // `playwright_draft` ledger row per platform, and return them. Do NOT call any
+  // platform API — the founder runs scripts/syndicate-populate.ts on their own
+  // machine (persistent logged-in browser profile) to pre-fill the editor, then
+  // clicks Publish themselves. The deployed Vercel app cannot spawn a browser.
+  // Nothing publishes here. No API keys/tokens required (the whole point).
+  if (mode === "playwright") {
+    const canonicalUrl = `${SITE.url}/learn-ai-with-reeturaj/${slug}`;
+    const results: SyndicationResult[] = (platforms as SyndicationPlatform[]).map((p) => ({
+      platform: p,
+      ok: true,
+      url: null,
+      postId: null,
+      status: "playwright_draft",
+      error: null,
+      canonicalUrl,
+    }));
+    for (const r of results) {
+      try {
+        await supabaseAdmin.from("growth_syndication").insert({
+          draft_id: ledgerDraftId,
+          slug,
+          platform: r.platform,
+          status: r.status,
+          canonical_url: r.canonicalUrl,
+          platform_url: null,
+          platform_post_id: null,
+          error: null,
+        });
+      } catch (e) {
+        await logInfo("syndicate-persist-fail", `${slug}:${r.platform}`, (e as Error).message).catch(() => undefined);
+      }
+      await logInfo("syndicate", `${slug}:${r.platform}`, `status=playwright_draft ok=true (local Playwright path)`).catch(() => undefined);
+    }
+    return res.status(200).json({
+      ok: true,
+      requestId,
+      slug,
+      title,
+      results,
+      bodyMarkdown: bodyMd,
+      canonicalUrl,
+      bodySource,
+      mode: "playwright",
+    });
+  }
 
   const results: SyndicationResult[] = await syndicateArticle(platforms as SyndicationPlatform[], {
     draftId: ledgerDraftId,

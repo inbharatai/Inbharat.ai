@@ -29,9 +29,14 @@
  * Usage (run from repo root, after `npm i`):
  *   npx tsx scripts/syndicate-populate.ts --platform devto --slug <article-slug>
  *   npx tsx scripts/syndicate-populate.ts --platform hashnode --slug <article-slug>
- *   npx tsx scripts/syndicate-populate.ts --platform medium --slug <article-slug>
+ *   npx tsx scripts/syndicate-populate.ts --platform medium --slug <article-slug>            (import mode — default)
+ *   npx tsx scripts/syndicate-populate.ts --platform medium --slug <article-slug> --mode story (story composer — paste body)
  *
  *   Optional:
+ *     --mode story|import  Medium only: `story` pastes the body into /new-story + sets
+ *                          the canonical via the ⋯ menu; `import` (default) pastes the
+ *                          canonical URL into /p/import and clicks Import (Medium
+ *                          scrapes the live inbharat.ai article). Ignored for devto/hashnode.
  *     --file <path>     override the body markdown source (default: content/articles/<slug>.md)
  *     --title "..."     override the title (default: the manifest title for the slug)
  *     --canonical <url> override the canonical URL (default: https://www.inbharat.ai/learn-ai-with-reeturaj/<slug>)
@@ -60,8 +65,9 @@ import { SITE } from "../seo.config.js";
 
 // ─── arg parsing ─────────────────────────────────────────────────────────────
 type Platform = "devto" | "hashnode" | "medium";
+type MediumMode = "story" | "import";
 
-function parseArgs(): { platform: Platform; slug: string; file: string | null; title: string | null; canonical: string | null } {
+function parseArgs(): { platform: Platform; slug: string; file: string | null; title: string | null; canonical: string | null; mode: MediumMode } {
   const a = process.argv.slice(2);
   const get = (k: string): string | null => {
     const i = a.indexOf(`--${k}`);
@@ -77,7 +83,13 @@ function parseArgs(): { platform: Platform; slug: string; file: string | null; t
     console.error("ABORT: --slug is required (the published article slug, e.g. evals-for-ai-features-measuring-what-actually-ships).");
     process.exit(2);
   }
-  return { platform, slug, file: get("file"), title: get("title"), canonical: get("canonical") };
+  const modeRaw = get("mode");
+  const mode: MediumMode = modeRaw === "story" || modeRaw === "import" ? modeRaw : "import";
+  if (modeRaw && modeRaw !== "story" && modeRaw !== "import") {
+    console.error(`ABORT: --mode must be "story" or "import" (got "${modeRaw}"); only meaningful for medium.`);
+    process.exit(2);
+  }
+  return { platform, slug, file: get("file"), title: get("title"), canonical: get("canonical"), mode };
 }
 
 // ─── load .env.local (gitignored) — never log passwords ─────────────────────
@@ -153,11 +165,12 @@ async function ensureLoggedIn(
   page: Page,
   ctx: { platform: Platform; editorUrl: string; emailEnv: string; passwordEnv: string; loginHints: string[] },
   env: Record<string, string | undefined>,
+  mode: MediumMode = "import",
 ): Promise<void> {
   await page.goto(ctx.editorUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   // If the editor's title field is present, we are already signed in (session
   // from the persistent profile is still valid) → nothing to do.
-  if (await editorReady(page, ctx.platform)) {
+  if (await editorReady(page, ctx.platform, mode)) {
     console.log(`[${ctx.platform}] session still valid — skipping login.`);
     return;
   }
@@ -175,7 +188,7 @@ async function ensureLoggedIn(
       await pwInput.fill(password).catch(() => undefined);
       await pwInput.press("Enter").catch(() => undefined);
       await page.waitForLoadState("domcontentloaded", { timeout: 30000 }).catch(() => undefined);
-      if (await editorReady(page, ctx.platform)) {
+      if (await editorReady(page, ctx.platform, mode)) {
         console.log(`[${ctx.platform}] login succeeded.`);
         return;
       }
@@ -193,18 +206,19 @@ async function ensureLoggedIn(
   );
   await page.pause();
   // After the human signs in, navigate back to the editor if needed.
-  if (!(await editorReady(page, ctx.platform))) {
+  if (!(await editorReady(page, ctx.platform, mode))) {
     await page.goto(ctx.editorUrl, { waitUntil: "domcontentloaded", timeout: 60000 });
   }
 }
 
 // Heuristic: is the platform's editor title field visible? (Used as "logged in" signal.)
-async function editorReady(page: Page, platform: Platform): Promise<boolean> {
+async function editorReady(page: Page, platform: Platform, mode: MediumMode = "import"): Promise<boolean> {
   try {
     if (platform === "devto") return await page.locator('input[name="title"], textarea[name="title"]').first().isVisible({ timeout: 4000 });
     if (platform === "hashnode") return await page.locator('textarea[placeholder*="title" i], input[placeholder*="title" i], h1[contenteditable="true"]').first().isVisible({ timeout: 4000 });
     if (platform === "medium") {
-      // Medium's importer has a URL input; the new-story editor has an editable title.
+      // story mode → /new-story editor with an editable title h1; import mode → /p/import URL input.
+      if (mode === "story") return await page.locator('h1[contenteditable="true"]').first().isVisible({ timeout: 4000 });
       return await page.locator('input[type="url"], input[placeholder*="url" i], h1[contenteditable="true"]').first().isVisible({ timeout: 4000 });
     }
   } catch {
@@ -349,6 +363,66 @@ async function fillMedium(page: Page, art: ArticleContent): Promise<void> {
   );
 }
 
+// ─── Medium fill (story composer — paste the body markdown) ──────────────────
+// The alternative to the importer: open /new-story, type the title, paste the body
+// (Medium converts markdown on paste), and set the canonical via the ⋯ menu so
+// Google attributes the original to www.inbharat.ai. Use when the article is NOT
+// yet live on inbharat.ai (the importer needs a live URL) or when you want full
+// control of the rendered body. Stops before Publish (RAIL 3).
+async function fillMediumStory(page: Page, art: ArticleContent): Promise<void> {
+  // Title — Medium's new-story title is a contenteditable h1.
+  const title = page.locator('h1[contenteditable="true"]').first();
+  if (await title.isVisible({ timeout: 15000 }).catch(() => false)) {
+    await title.click();
+    await typeText(page, art.title);
+    console.log("[medium:story] title filled.");
+  } else {
+    console.log("[medium:story] title h1 not found — pausing so you can title it by hand.");
+    await page.pause();
+  }
+
+  // Body — Medium's story body is a contenteditable section. Focus it and paste
+  // (the body is already on the clipboard). Medium converts markdown on paste.
+  const body = page.locator('section[contenteditable="true"], div[contenteditable="true"]').first();
+  if (await body.isVisible({ timeout: 10000 }).catch(() => false)) {
+    await body.click();
+    await pasteClipboard(page);
+    console.log("[medium:story] body pasted.");
+  } else {
+    console.log("[medium:story] body editor not found — pausing so you can paste by hand (it is on the clipboard).");
+    await page.pause();
+  }
+
+  // Canonical — three-dot (⋯) story settings menu → "Customize canonical link"
+  // → paste. Best-effort; print a reminder on miss.
+  await setMediumStoryCanonical(page, art.canonicalUrl);
+  console.log(
+    `[medium:story] NOTE: canonical should be ${art.canonicalUrl}\n` +
+    `           (⋯ menu → Customize canonical link to verify). Review + publish by hand.`,
+  );
+}
+
+async function setMediumStoryCanonical(page: Page, canonicalUrl: string): Promise<void> {
+  // Open the three-dot (⋯) story settings menu. Medium rotates the aria label, so
+  // try a few names; every step falls back to a reminder so the founder can do it
+  // by hand.
+  const dots = page.getByRole("button", { name: /⋯|More|Settings|Edit story/i }).first();
+  if (await dots.isVisible({ timeout: 4000 }).catch(() => false)) {
+    await dots.click({ timeout: 5000 }).catch(() => undefined);
+  }
+  const customCanonical = page.getByText(/Customize canonical link/i).first();
+  if (await customCanonical.isVisible({ timeout: 4000 }).catch(() => false)) {
+    await customCanonical.click({ timeout: 5000 }).catch(() => undefined);
+  }
+  const canonical = page.locator('input[placeholder*="canonical" i], input[name*="canonical" i], input[type="url"]').first();
+  if (await canonical.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await canonical.fill(canonicalUrl);
+    console.log(`[medium:story] canonical URL set: ${canonicalUrl}`);
+  } else {
+    console.log(`[medium:story] canonical input not found — set it by hand via ⋯ → Customize canonical link: ${canonicalUrl}`);
+  }
+}
+
 // ─── main ────────────────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   const args = parseArgs();
@@ -372,7 +446,7 @@ async function main(): Promise<void> {
   const editorUrls: Record<Platform, string> = {
     devto: "https://dev.to/new",
     hashnode: "https://hashnode.com/new",
-    medium: "https://medium.com/p/import",
+    medium: args.mode === "story" ? "https://medium.com/new-story" : "https://medium.com/p/import",
   };
   const loginCtx = {
     platform: args.platform,
@@ -387,9 +461,10 @@ async function main(): Promise<void> {
   const page = browser.pages()[0] ?? (await browser.newPage());
 
   try {
-    await ensureLoggedIn(page, loginCtx, env);
+    await ensureLoggedIn(page, loginCtx, env, args.mode);
     if (args.platform === "devto") await fillDevto(page, art);
     else if (args.platform === "hashnode") await fillHashnode(page, art);
+    else if (args.platform === "medium" && args.mode === "story") await fillMediumStory(page, art);
     else await fillMedium(page, art);
 
     console.log(

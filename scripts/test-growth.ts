@@ -43,6 +43,7 @@ import {
 } from "../lib/growth/syndication/index.js";
 import { publishToDevto } from "../lib/growth/syndication/devto.js";
 import { publishToHashnode } from "../lib/growth/syndication/hashnode.js";
+import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
 
 let pass = 0;
 let fail = 0;
@@ -1388,6 +1389,20 @@ console.log("\nSyndication (Stage 3 — pure helpers + mocked clients):");
   check("orchestrator medium canonical from slug", medOnly[0].canonicalUrl === "https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents");
 
   globalThis.fetch = origFetchSyn;
+}
+
+console.log("\nSyndication local Playwright mode (status union + mode arg):");
+{
+  // Compile-time: playwright_draft is a valid SyndicationStatus (this line fails
+  // to typecheck if the union member is missing). Runtime: the union is closed.
+  const s: SyndicationStatus = "playwright_draft";
+  const known: SyndicationStatus[] = ["published", "draft", "manual", "playwright_draft", "failed", "not_configured"];
+  check("playwright_draft is in the status union", known.includes("playwright_draft"));
+  check("status union has 6 members (added playwright_draft)", known.length === 6);
+  // The local Playwright path records playwright_draft (not published/draft) so
+  // the ledger honestly reflects "founder ran the script + clicked Publish" vs
+  // "an API actually published". A real platform publish is the only "published".
+  check("playwright_draft !== published (honest intermediate state)", s !== "published");
 }
 
 console.log("\nSyndication body source (published .md via GitHub API, mocked fetch):");

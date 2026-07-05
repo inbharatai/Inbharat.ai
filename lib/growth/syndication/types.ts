@@ -21,11 +21,16 @@
 /** The platforms Stage 3 can syndicate to. */
 export type SyndicationPlatform = "devto" | "hashnode" | "medium";
 
-/** The lifecycle status of one syndication attempt, persisted to growth_syndication. */
+/** The lifecycle status of one syndication attempt, persisted to growth_syndication.
+ *  `playwright_draft` is the local Playwright path: the "Submit (local) ↗" click
+ *  recorded a ledger row + copied the body/canonical, the founder runs
+ *  scripts/syndicate-populate.ts on their machine to pre-fill the editor, then
+ *  clicks Publish themselves. The deployed app never spawns a browser. */
 export type SyndicationStatus =
   | "published" // live on the platform (Hashnode publishPost)
   | "draft" // created as a platform draft for founder review (DEV.to published:false)
   | "manual" // no API — founder pastes canonical into the platform's importer (Medium)
+  | "playwright_draft" // local Playwright editor pre-fill (founder runs the script + clicks Publish)
   | "failed" // the platform API returned an error
   | "not_configured"; // the platform's env var (API key / publication id) is absent
 

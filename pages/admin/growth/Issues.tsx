@@ -179,16 +179,29 @@ interface SyndHistoryRow {
  *  opened in a new tab on the manual path (no API key, or Medium always) so the
  *  founder pastes the body / canonical into the platform's own composer. */
 const SYND_PLATFORMS: { key: SyndicationPlatform; label: string; openUrl: string }[] = [
-  { key: "devto", label: "DEV.to", openUrl: "https://dev.to/enter" },
+  { key: "devto", label: "DEV.to", openUrl: "https://dev.to/new" },
   { key: "hashnode", label: "Hashnode", openUrl: "https://hashnode.com/new" },
   { key: "medium", label: "Medium", openUrl: MEDIUM_IMPORT_URL },
 ];
+
+/** LOCAL Playwright submit config per platform — the "same process as LinkedIn"
+ *  path the founder asked for: the "Submit (local) ↗" click copies the body (or
+ *  canonical for Medium import) to the clipboard + opens the editor URL, then the
+ *  founder runs scripts/syndicate-populate.ts on their own machine (persistent
+ *  logged-in profile) to pre-fill the editor + clicks Publish themselves. No API
+ *  keys/tokens. `mode` is the --mode flag passed to the script (Medium only). */
+const SYND_LOCAL: Record<SyndicationPlatform, { editorUrl: string; clipboard: "body" | "canonical"; mode: "story" | "import" }> = {
+  devto: { editorUrl: "https://dev.to/new", clipboard: "body", mode: "import" },
+  hashnode: { editorUrl: "https://hashnode.com/new", clipboard: "body", mode: "import" },
+  medium: { editorUrl: "https://medium.com/new-story", clipboard: "body", mode: "story" },
+};
 
 /** Status → tailwind chip color (mirrors PipelineStrip's statusChip palette). */
 const SYND_STATUS_CHIP: Record<string, string> = {
   published: "bg-emerald-500/15 text-emerald-300",
   draft: "bg-sky-500/15 text-sky-300",
   manual: "bg-sky-500/15 text-sky-300",
+  playwright_draft: "bg-amber-500/15 text-amber-300",
   failed: "bg-rose-500/15 text-rose-300",
   not_configured: "bg-slate-500/15 text-slate-300",
 };
@@ -401,6 +414,52 @@ const Issues: React.FC = () => {
     } else if (r.status === "failed") {
       setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label} failed: ${r.error ?? "unknown"}`);
     }
+    void loadSyndHistory();
+  }
+
+  /** LOCAL Playwright submit — the "same process as LinkedIn" path the founder
+   *  asked for. The server (mode:"playwright") resolves the body + canonical and
+   *  records a `playwright_draft` ledger row WITHOUT calling any platform API.
+   *  We then copy the body (or canonical for Medium import) to the clipboard +
+   *  open the platform editor + surface the exact local command to run. The
+   *  founder runs scripts/syndicate-populate.ts on their own machine (persistent
+   *  logged-in browser profile) to pre-fill the editor, then clicks Publish
+   *  themselves. No API keys/tokens. Nothing auto-publishes. */
+  async function syndicateLocal(slug: string, title: string, platform: SyndicationPlatform) {
+    const busyKey = `${slug}:${platform}:local`;
+    setSyndBusy(busyKey);
+    setDraftMsg(null);
+    const { data, error } = await fetchJson<{
+      ok: boolean;
+      slug?: string;
+      bodyMarkdown?: string;
+      canonicalUrl?: string;
+      bodySource?: "published" | "draft";
+      error?: string;
+      code?: string;
+    }>("/api/growth/syndicate", {
+      method: "POST",
+      body: JSON.stringify({ slug, platforms: [platform], mode: "playwright" }),
+    });
+    setSyndBusy(null);
+    if (error || !data?.ok) {
+      setDraftMsg(`Local submit ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}`);
+      void loadSyndHistory();
+      return;
+    }
+    const local = SYND_LOCAL[platform];
+    const clipboardText = local.clipboard === "canonical" ? (data.canonicalUrl ?? "") : (data.bodyMarkdown ?? "");
+    let clipboardOk = false;
+    try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
+    const w = window.open(local.editorUrl, "_blank", "noopener,noreferrer");
+    if (!w) window.location.href = local.editorUrl;
+    const cmd = platform === "medium"
+      ? `npx tsx scripts/syndicate-populate.ts --platform medium --slug ${slug} --mode ${local.mode}`
+      : `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
+    const what = local.clipboard === "canonical" ? "canonical URL" : "article body";
+    setDraftMsg(
+      `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard —" : "copy below, then"} paste into the editor that just opened. Then run locally:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
+    );
     void loadSyndHistory();
   }
 
@@ -1446,7 +1505,7 @@ const Issues: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} />
+                  <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} onSyndicateLocal={syndicateLocal} />
                 </div>
               );
             })}
@@ -1471,7 +1530,8 @@ const SyndicatePanel: React.FC<{
   history: SyndHistoryRow[];
   busy: string | null;
   onSyndicate: (slug: string, title: string, platform: SyndicationPlatform) => void;
-}> = ({ slug, title, history, busy, onSyndicate }) => {
+  onSyndicateLocal: (slug: string, title: string, platform: SyndicationPlatform) => void;
+}> = ({ slug, title, history, busy, onSyndicate, onSyndicateLocal }) => {
   const [open, setOpen] = useState(false);
   const rows = history.filter((h) => h.slug === slug).slice(0, 6);
   return (
@@ -1488,29 +1548,44 @@ const SyndicatePanel: React.FC<{
           <div className="flex flex-wrap gap-1.5">
             {SYND_PLATFORMS.map((p) => {
               const busyKey = `${slug}:${p.key}`;
-              const isBusy = busy === busyKey;
+              const localBusyKey = `${slug}:${p.key}:local`;
               const last = rows.find((r) => r.platform === p.key);
+              const apiDone = last?.status === "published" || last?.status === "draft" || last?.status === "manual";
               return (
-                <button
-                  key={p.key}
-                  onClick={() => onSyndicate(slug, title, p.key)}
-                  disabled={!!busy}
-                  className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-40 ${
-                    last?.status === "published" || last?.status === "draft" || last?.status === "manual"
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-white/15 bg-white/[0.03] text-[#c8d6e8] hover:border-white/30"
-                  }`}
-                  title={last ? `last: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}` : "Syndicate (human-gated)"}
-                >
-                  {isBusy ? "…" : p.label}
-                </button>
+                <div key={p.key} className="flex items-center gap-1">
+                  <button
+                    onClick={() => onSyndicate(slug, title, p.key)}
+                    disabled={!!busy}
+                    className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-40 ${
+                      apiDone
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                        : "border-white/15 bg-white/[0.03] text-[#c8d6e8] hover:border-white/30"
+                    }`}
+                    title={last ? `last: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}` : "Syndicate via platform API (human-gated)"}
+                  >
+                    {busy === busyKey ? "…" : p.label}
+                  </button>
+                  {/* LOCAL Playwright submit — the "same process as LinkedIn" path.
+                      Copies the body/canonical + opens the editor + surfaces the local
+                      script command. No API keys; the founder runs the script on their
+                      own machine and clicks Publish themselves. */}
+                  <button
+                    onClick={() => onSyndicateLocal(slug, title, p.key)}
+                    disabled={!!busy}
+                    className="rounded-md border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-1.5 py-1 text-[10px] font-semibold text-[#f6bf84] disabled:opacity-40 hover:bg-[#f59f4f]/20"
+                    title={`Submit (local Playwright) — opens ${p.label}'s editor + copies the body, then run scripts/syndicate-populate.ts on your machine to pre-fill + click Publish. No API keys.`}
+                  >
+                    {busy === localBusyKey ? "…" : "↗ local"}
+                  </button>
+                </div>
               );
             })}
           </div>
           <p className="mt-1.5 text-[10px] leading-relaxed text-[#7a9ab8]">
-            DEV.to / Hashnode publish directly when their API keys are set; otherwise the body is copied to your clipboard
-            and the editor opens. Medium always opens the importer with the canonical URL copied. The body is the live
-            article on www.inbharat.ai, with the canonical set so Google attributes the original to InBharat.
+            <b className="text-[#f6bf84]">↗ local</b> = the LinkedIn-style path: opens the editor + copies the body, then run
+            the local Playwright script to pre-fill + you click Publish. The plain buttons publish directly when API keys
+            are set (otherwise they copy + open too). The body is the live article on www.inbharat.ai, with the canonical
+            set so Google attributes the original to InBharat.
           </p>
           {rows.length > 0 && (
             <ul className="mt-2 space-y-1">
