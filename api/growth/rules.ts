@@ -131,10 +131,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (patch.ruleText !== undefined) row.rule_text = patch.ruleText;
     if (patch.enabled !== undefined) row.enabled = patch.enabled;
     if (Object.keys(row).length === 0) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "No valid fields", requestId });
-    // Validate the resulting rule won't be a dead non-global row with no scopeKey.
-    if (effectiveScope && effectiveScope !== "global" && (row.scope_key === undefined || row.scope_key === null) && patch.scope === undefined) {
-      // The existing row already had no scope_key (a pre-existing dead row) —
-      // don't let a scopeKey-clearing PATCH re-deaden it silently.
+    // Validate the RESULTING rule won't be a dead non-global row with no scopeKey.
+    // The resulting scope is the explicitly-patched scope (row.scope) OR the
+    // existing row's scope (effectiveScope, fetched above when scopeKey is
+    // patched without scope). When that's non-global AND the resulting
+    // scope_key is null/undefined, the row is unreachable — loadRulesFor
+    // filters by scope_key for domain/repo, so it would never match. This
+    // covers BOTH the scopeKey-clearing case AND the explicit-scope-without-
+    // scopeKey case (PATCH {scope:"domain"} with no scopeKey). The POST guard
+    // at line 100 already rejects the latter on create; the old PATCH guard's
+    // trailing `&& patch.scope === undefined` let it through on update — closed.
+    const resultingScope = (row.scope as AgentRuleScope | undefined) ?? effectiveScope;
+    if (resultingScope && resultingScope !== "global" && (row.scope_key === undefined || row.scope_key === null)) {
       return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "scopeKey is required for domain/repo scopes", requestId });
     }
     const { error } = await supabaseAdmin.from("growth_agent_rules").update(row).eq("id", id);

@@ -76,7 +76,7 @@ export const DEFAULT_STRATEGY: Strategy = {
   cadence:
     "Weekly theme rotation across the portfolio. Mon: SEO/audit deep-dive. Tue: syndication + cross-post the week's article. Wed: LinkedIn founder-voice post. Thu: cover redesign pass. Fri: outcomes review (what moved SEO/GEO). The morning cron ('Build with Reeturaj', 8am IST) drafts the day's article; the founder approves/publishes. 90-day plan: Q1 = SEO foundation + daily article cadence; Q2 = full syndication coverage + LinkedIn rhythm; Q3 = outcomes-led optimization (double down on what moves GSC clicks).",
   kpis:
-    "Articles shipped per week (target: 5–7). Syndicated-platform coverage % (target: every published article on Medium+Hashnode+DEV = 100%). LinkedIn posts per week (target: 3–5). GSC indexed URLs (target: +10%/quarter). Organic clicks (target: +15%/quarter). Cover CTR on LinkedIn (target: beat prior-month baseline). All measured in growth_outcomes; the agent surfaces deltas in the morning plan.",
+    "Articles shipped per week (target: 5–7). Syndicated-platform coverage % (target: every published article on Medium+Hashnode+DEV = 100%). LinkedIn posts per week (target: 3–5). GSC indexed URLs (target: +10%/quarter). Organic clicks (target: +15%/quarter). Cover CTR on LinkedIn (target: beat prior-month baseline — measurement pending, not yet in growth_outcomes). SEO/GEO deltas + issues-resolved ARE measured in growth_outcomes; the agent surfaces them in the morning plan.",
 };
 
 let strategyCache: Strategy | null = null;

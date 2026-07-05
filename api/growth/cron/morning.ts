@@ -122,10 +122,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /**
- * Load the slugs of existing 'article' drafts (any status) so the morning run
- * skips topics already queued/published-as-draft. Best-effort: on any error or
- * when Supabase is absent, returns [] (the picker then treats nothing as
- * drafted — safe, just means a topic could re-draft; the founder sees a
+ * Load the slugs of existing PENDING/APPROVED 'article' drafts so the morning
+ * run skips topics already queued. REJECTED drafts are intentionally excluded
+ * — a reject means "redo this angle", so the topic must stay pickable (else
+ * one reject permanently dead-locks that calendar entry). Best-effort: on any
+ * error or when Supabase is absent, returns [] (the picker then treats nothing
+ * as drafted — safe, just means a topic could re-draft; the founder sees a
  * duplicate pending draft and ignores it). Capped at 200 rows.
  */
 async function loadDraftedArticleSlugs(): Promise<string[]> {
@@ -135,6 +137,12 @@ async function loadDraftedArticleSlugs(): Promise<string[]> {
       .from("growth_drafts")
       .select("schema_json")
       .eq("kind", "article")
+      // Only pending/approved drafts block a calendar topic. A REJECTED draft
+      // means "redo this angle" — the topic should stay pickable so the agent
+      // can re-draft it. Without this filter, a single reject permanently dead-
+      // locked that calendar entry (pickNextCalendarTopic skips any slug in this
+      // set). Matches findDuplicateKnowledge's stance (rejected = not a dup).
+      .in("status", ["pending", "approved"])
       .order("created_at", { ascending: false })
       .limit(200);
     if (error || !Array.isArray(data)) {

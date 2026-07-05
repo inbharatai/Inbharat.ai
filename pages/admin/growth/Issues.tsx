@@ -232,13 +232,18 @@ const Issues: React.FC = () => {
   const [coverGenUrl, setCoverGenUrl] = useState<string | null>(null);
   const [redesigningSlug, setRedesigningSlug] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
-  // Copyable fallback for manual/local syndication: navigator.clipboard.writeText
-  // runs AFTER a network await and can lose transient activation on a cold
-  // serverless start, silently failing the copy. When set, we render the body (or
-  // canonical URL) in a read-only textarea the founder can always Ctrl+C, so the
-  // manual paste flow never dead-ends on "copy below, then paste" with nothing
-  // to copy. Cleared at the start of each syndicate action.
-  const [localBody, setLocalBody] = useState<{ label: string; text: string } | null>(null);
+  // Per-slug syndicate feedback — pins the "body copied / open editor / failed"
+  // message + the clipboard-fallback textarea to the PUBLISHED article row whose
+  // SyndicatePanel the founder clicked, instead of the page-top draftMsg banner
+  // (which sits far above the row and reads as "nothing happened"). Mirrors the
+  // publishOk/publishError per-draft pattern. Cleared at the start of each action.
+  // `syndEditorUrl[slug]` is set ONLY when window.open() was blocked on the manual
+  // path — we then render an <a target=_blank> "Open editor ↗" link as a fresh
+  // click gesture instead of the old window.location.href fallback that navigated
+  // the admin tab away and lost the founder's scroll/state.
+  const [syndMsg, setSyndMsg] = useState<Record<string, string>>({});
+  const [syndBody, setSyndBody] = useState<Record<string, { label: string; text: string }>>({});
+  const [syndEditorUrl, setSyndEditorUrl] = useState<Record<string, string>>({});
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
   const [companyId, setCompanyId] = useState("");
@@ -387,8 +392,7 @@ const Issues: React.FC = () => {
   async function syndicate(slug: string, title: string, platform: SyndicationPlatform) {
     const busyKey = `${slug}:${platform}`;
     setSyndBusy(busyKey);
-    setDraftMsg(null);
-    setLocalBody(null);
+    clearSynd(slug);
     const { data, error } = await fetchJson<{
       ok: boolean;
       slug?: string;
@@ -405,7 +409,7 @@ const Issues: React.FC = () => {
     });
     setSyndBusy(null);
     if (error || !data?.ok || !data.results?.length) {
-      setDraftMsg(`Syndicate ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}`);
+      setSyndMsg((s) => ({ ...s, [slug]: `Syndicate ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}` }));
       // even on failure, refresh history (a failed row is recorded)
       void loadSyndHistory();
       return;
@@ -417,8 +421,11 @@ const Issues: React.FC = () => {
     // Medium) to the clipboard + open the platform editor for the founder to
     // paste. NOTE: clipboard.writeText runs after a network await and can lose
     // transient activation on a cold serverless start — when it fails we render
-    // the text in a read-only textarea (localBody) so the founder can always
-    // Ctrl+C instead of dead-ending on "copy below" with nothing to copy.
+    // the text in a read-only textarea (pinned to this row) so the founder can
+    // always Ctrl+C instead of dead-ending on "copy below" with nothing to copy.
+    // If window.open is blocked too, we surface an <a target=_blank> "Open editor
+    // ↗" link as a fresh gesture rather than window.location.href (which used to
+    // navigate the admin tab away, losing the founder's scroll + state).
     const isManual = platform === "medium" || r.status === "not_configured" || r.status === "manual";
     if (isManual) {
       const clipboardText = platform === "medium" ? canonical : (data.bodyMarkdown ?? "");
@@ -426,16 +433,17 @@ const Issues: React.FC = () => {
       try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
       const open = SYND_PLATFORMS.find((p) => p.key === platform)?.openUrl ?? "";
       const w = window.open(open, "_blank", "noopener,noreferrer");
-      if (!w) window.location.href = open;
+      if (!w) setSyndEditorUrl((s) => ({ ...s, [slug]: open }));
       const what = platform === "medium" ? "canonical URL" : "article body";
-      if (!clipboardOk) setLocalBody({ label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText });
-      setDraftMsg(
-        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy from the box below, then"} paste into the editor that just opened. (body source: ${data.bodySource ?? "?"})`,
-      );
+      if (!clipboardOk) setSyndBody((s) => ({ ...s, [slug]: { label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText } }));
+      setSyndMsg((s) => ({
+        ...s, [slug]:
+          `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy from the box below, then"} paste into the editor${w ? " that just opened" : ""}. (body source: ${data.bodySource ?? "?"})`,
+      }));
     } else if (r.status === "published" || r.status === "draft") {
-      setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label}: ${r.status === "published" ? "published ✓" : "draft created ✓"}${r.url ? ` — ${r.url}` : ""}`);
+      setSyndMsg((s) => ({ ...s, [slug]: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label}: ${r.status === "published" ? "published ✓" : "draft created ✓"}${r.url ? ` — ${r.url}` : ""}` }));
     } else if (r.status === "failed") {
-      setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label} failed: ${r.error ?? "unknown"}`);
+      setSyndMsg((s) => ({ ...s, [slug]: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} failed: ${r.error ?? "unknown"}` }));
     }
     void loadSyndHistory();
   }
@@ -451,8 +459,7 @@ const Issues: React.FC = () => {
   async function syndicateLocal(slug: string, title: string, platform: SyndicationPlatform) {
     const busyKey = `${slug}:${platform}:local`;
     setSyndBusy(busyKey);
-    setDraftMsg(null);
-    setLocalBody(null);
+    clearSynd(slug);
     const { data, error } = await fetchJson<{
       ok: boolean;
       slug?: string;
@@ -467,7 +474,7 @@ const Issues: React.FC = () => {
     });
     setSyndBusy(null);
     if (error || !data?.ok) {
-      setDraftMsg(`Local submit ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}`);
+      setSyndMsg((s) => ({ ...s, [slug]: `Local submit ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}` }));
       void loadSyndHistory();
       return;
     }
@@ -482,11 +489,21 @@ const Issues: React.FC = () => {
       ? `npx tsx scripts/syndicate-populate.ts --platform medium --slug ${slug} --mode ${local.mode}`
       : `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
     const what = local.clipboard === "canonical" ? "canonical URL" : "article body";
-    if (!clipboardOk) setLocalBody({ label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local) — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText });
-    setDraftMsg(
-      `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard." : "copy from the box below."} Run locally to pre-fill + publish:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
-    );
+    if (!clipboardOk) setSyndBody((s) => ({ ...s, [slug]: { label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local) — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText } }));
+    setSyndMsg((s) => ({
+      ...s, [slug]:
+        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard." : "copy from the box below."} Run locally to pre-fill + publish:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
+    }));
     void loadSyndHistory();
+  }
+
+  /** Clear the per-slug syndicate feedback (msg + clipboard-fallback body + blocked
+   *  popup editor link) at the start of a fresh syndicate action so a stale prior
+   *  result for this row doesn't linger. */
+  function clearSynd(slug: string) {
+    setSyndMsg((s) => { const n = { ...s }; delete n[slug]; return n; });
+    setSyndBody((s) => { const n = { ...s }; delete n[slug]; return n; });
+    setSyndEditorUrl((s) => { const n = { ...s }; delete n[slug]; return n; });
   }
 
   useEffect(() => {
@@ -904,17 +921,6 @@ const Issues: React.FC = () => {
       </form>
       {auditMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{auditMsg}</p>}
       {draftMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{draftMsg}</p>}
-      {localBody && (
-        <div className="mt-2">
-          <p className="text-[11px] text-[#7a9ab8]">{localBody.label}</p>
-          <textarea
-            readOnly
-            onFocus={(e) => e.currentTarget.select()}
-            value={localBody.text}
-            className="mt-1 h-40 w-full resize-y rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-2 font-mono text-[11px] text-[#c0cfe0] focus:border-[#f59f4f]/50 focus:outline-none"
-          />
-        </div>
-      )}
       {draftsError && rawPendingCount === 0 && (
         <p className="mt-2 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>
       )}
@@ -1542,7 +1548,17 @@ const Issues: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <SyndicatePanel slug={a.slug} title={a.title} history={syndHistory} busy={syndBusy} onSyndicate={syndicate} onSyndicateLocal={syndicateLocal} />
+                  <SyndicatePanel
+                    slug={a.slug}
+                    title={a.title}
+                    history={syndHistory}
+                    busy={syndBusy}
+                    msg={syndMsg[a.slug]}
+                    body={syndBody[a.slug]}
+                    editorUrl={syndEditorUrl[a.slug]}
+                    onSyndicate={syndicate}
+                    onSyndicateLocal={syndicateLocal}
+                  />
                 </div>
               );
             })}
@@ -1566,11 +1582,17 @@ const SyndicatePanel: React.FC<{
   title: string;
   history: SyndHistoryRow[];
   busy: string | null;
+  msg?: string;
+  body?: { label: string; text: string };
+  editorUrl?: string;
   onSyndicate: (slug: string, title: string, platform: SyndicationPlatform) => void;
   onSyndicateLocal: (slug: string, title: string, platform: SyndicationPlatform) => void;
-}> = ({ slug, title, history, busy, onSyndicate, onSyndicateLocal }) => {
+}> = ({ slug, title, history, busy, msg, body, editorUrl, onSyndicate, onSyndicateLocal }) => {
   const [open, setOpen] = useState(false);
   const rows = history.filter((h) => h.slug === slug).slice(0, 6);
+  // Show platform chips even when collapsed so Medium/DEV/Hashnode are discoverable
+  // (the founder asked "I don't see medium dev to and hashnode" — they were hidden
+  // behind this collapsible). The full buttons + history still require expanding.
   return (
     <div className="mt-2 rounded-md border border-white/10 bg-white/[0.02] p-2">
       <button
@@ -1580,6 +1602,23 @@ const SyndicatePanel: React.FC<{
       >
         <span>{open ? "▾" : "▸"}</span> Syndicate {rows.length > 0 && <span className="text-[10px] text-[#7a9ab8]">· {rows.length} attempt{rows.length === 1 ? "" : "s"}</span>}
       </button>
+      {!open && (
+        <div className="ml-1 mt-1.5 flex flex-wrap gap-1">
+          {SYND_PLATFORMS.map((p) => {
+            const last = rows.find((r) => r.platform === p.key);
+            const apiDone = last?.status === "published" || last?.status === "draft" || last?.status === "manual";
+            return (
+              <span
+                key={p.key}
+                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${apiDone ? "bg-emerald-500/15 text-emerald-300" : "bg-white/[0.04] text-[#7a9ab8]"}`}
+                title={last ? `last: ${last.status}` : "not yet cross-posted"}
+              >
+                {p.label}
+              </span>
+            );
+          })}
+        </div>
+      )}
       {open && (
         <div className="mt-2">
           <div className="flex flex-wrap gap-1.5">
@@ -1637,6 +1676,30 @@ const SyndicatePanel: React.FC<{
                 </li>
               ))}
             </ul>
+          )}
+          {/* Per-row feedback pinned to THIS article (replaces the old page-top
+              draftMsg/localBody banner that sat far above the clicked button). */}
+          {msg && <p className="mt-2 text-[11px] leading-relaxed text-[#9fb2c6]">{msg}</p>}
+          {editorUrl && (
+            <a
+              href={editorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block rounded-md border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-2.5 py-1 text-[11px] font-semibold text-[#f6bf84] hover:bg-[#f59f4f]/20"
+            >
+              Open editor ↗
+            </a>
+          )}
+          {body && (
+            <div className="mt-2">
+              <p className="text-[10px] text-[#7a9ab8]">{body.label}</p>
+              <textarea
+                readOnly
+                onFocus={(e) => e.currentTarget.select()}
+                value={body.text}
+                className="mt-1 h-32 w-full resize-y rounded-lg border border-white/10 bg-[#0a0f18] px-2 py-1.5 font-mono text-[10px] text-[#c0cfe0] focus:border-[#f59f4f]/50 focus:outline-none"
+              />
+            </div>
           )}
         </div>
       )}

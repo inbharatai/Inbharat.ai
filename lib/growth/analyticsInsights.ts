@@ -38,9 +38,6 @@ export interface Ga4Totals {
   totalUsers: number;
   screenPageViews: number;
   averageSessionDuration: number;
-  engagementRate?: number;
-  eventCount?: number;
-  conversions?: number;
 }
 export interface Ga4PageRow {
   path: string;
@@ -60,6 +57,10 @@ export interface Ga4Report {
   byCountry: Ga4DimRow[];
   byDevice: Ga4DimRow[];
   bySource: Ga4DimRow[];
+  /** True when the GA4 totals report returned HTTP 200. False on a 403/failure —
+   *  `totals` is then zeros NOT because there were 0 users, but because the
+   *  report never loaded. The UI must show "unavailable" then, not "0 users". */
+  totalsOk?: boolean;
 }
 export interface GscRow {
   keys: string[];
@@ -336,7 +337,7 @@ function followUpFromQueryByPage(gsc: GscReport): Insight[] {
   return out;
 }
 
-function productTraffic(gsc: GscReport): Insight[] {
+function productTraffic(gsc: GscReport, days: number): Insight[] {
   const out: Insight[] = [];
   const byProduct = new Map<string, number>();
   for (const r of gsc.topPages) {
@@ -352,7 +353,7 @@ function productTraffic(gsc: GscReport): Insight[] {
       source: "Search Console",
       relatedProduct: p as ProductId,
       metrics: { clicks },
-      summary: `The ${p} pages got ${clicks} clicks from search in the last 28 days.`,
+      summary: `The ${p} pages got ${clicks} clicks from search in the last ${days} days.`,
       recommendedAction: `Create a LinkedIn post about ${p} — search demand is real, so amplify it on social and link back to the product page.`,
       priority: clamp(Math.round(45 + Math.min(clicks * 2, 35))),
     });
@@ -449,7 +450,7 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
     out.push(...lowCtrPages(snapshot.gsc));
     out.push(...topQueryInsights(snapshot.gsc));
     out.push(...followUpFromQueryByPage(snapshot.gsc));
-    out.push(...productTraffic(snapshot.gsc));
+    out.push(...productTraffic(snapshot.gsc, snapshot.range.days));
     // Absence-as-signal insights are ONLY valid when the pages report actually
     // succeeded (HTTP 200). When it failed, topPages is empty-from-failure and
     // "not in GSC" means nothing — flagging every published article as
@@ -516,10 +517,12 @@ export function insightToKnowledge(ins: Insight): {
   };
 }
 
-/** A founder-facing summary line for the Performance page + agent narration. */
+/** A founder-facing summary line for the Performance page + agent narration.
+ *  Honest about partial syncs: when some Google calls failed, the real numbers
+ *  we DID get are reported AND the error is appended — never hidden behind a
+ *  generic "error" line that makes it look like nothing was fetched. */
 export function summarizeSnapshot(snapshot: AnalyticsSnapshot): string {
   if (!snapshot.configured) return "Analytics not configured — add the Google service-account credentials in Vercel env.";
-  if (snapshot.error) return `Analytics sync error: ${snapshot.error}`;
   const bits: string[] = [];
   if (snapshot.gsc) {
     const g = snapshot.gsc.totals;
@@ -530,5 +533,10 @@ export function summarizeSnapshot(snapshot: AnalyticsSnapshot): string {
     const t = snapshot.ga4.totals;
     bits.push(`${t.totalUsers} users / ${t.sessions} sessions / ${t.screenPageViews} pageviews`);
   }
-  return bits.length ? `Last ${snapshot.range.days}d — ${bits.join(" · ")}.` : `No analytics data returned for the last ${snapshot.range.days}d.`;
+  const base = bits.length ? `Last ${snapshot.range.days}d — ${bits.join(" · ")}.` : `No analytics data returned for the last ${snapshot.range.days}d.`;
+  // Partial: surface the error ALONGSIDE the data we did get, so a GA4-ok /
+  // GSC-403 sync (the live state today) reports the real GA4 numbers AND notes
+  // the GSC failure — instead of narrating "Analytics sync error" and hiding
+  // the GA4 data the agent could otherwise draft from.
+  return snapshot.error ? `${base} (partial: ${snapshot.error})` : base;
 }

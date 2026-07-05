@@ -301,6 +301,11 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
       const ok = <T>(r: PromiseSettledResult<T>): T | null => (r.status === "fulfilled" ? r.value : null);
       const ga4: Ga4Report = {
         totals,
+        // Flag the totals report's success so the UI can distinguish a real
+        // 0-user window from a 403 that left `totals` at zeros. Without this,
+        // a GA4 totals 403 renders "Users 0" — indistinguishable from "no
+        // traffic", which is misleading during the SA-not-yet-a-Viewer window.
+        totalsOk: totalsRes.ok,
         topPages: ok(pagesR)?.rows.map((r) => ({ path: r.key, screenPageViews: r.metrics.screenPageViews ?? 0, sessions: r.metrics.sessions, users: r.metrics.totalUsers })) ?? [],
         byCountry: ok(countryR)?.rows.map((r) => ({ key: r.key, sessions: r.metrics.sessions ?? 0 })) ?? [],
         byDevice: ok(deviceR)?.rows.map((r) => ({ key: r.key, sessions: r.metrics.sessions ?? 0 })) ?? [],
@@ -371,8 +376,12 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
     }
   }
 
-  if (errors.length && !snapshot.ga4 && !snapshot.gsc) snapshot.error = errors.join("; ");
-  else if (errors.length) snapshot.error = errors.join("; "); // partial — surface but still return data
+  // Surface partial-failure errors alongside the data we did get. Both branches
+  // of the old if/else assigned identically, so the `!snapshot.ga4 && !snapshot.gsc`
+  // guard was dead code. A partial sync (one of GA4/GSC failed) still returns
+  // whatever the other fetched; `summarizeSnapshot` reports the data AND appends
+  // the error rather than hiding the numbers.
+  if (errors.length) snapshot.error = errors.join("; ");
   return snapshot;
 }
 

@@ -7,7 +7,7 @@
 
 ## 1. The thesis
 
-The Growth Agent is already a **closed measurement loop**, not just a writer:
+The Growth Agent is already a **reach + engagement measurement loop** (not just a writer) — but conversion is the open side. Today the loop closes for *reach* (impressions, pageviews, queries) and *engagement* (reactions, comments); it does **not** yet close for *conversion* (a visitor who became a contact/waitlist/signup). That is the gap this design fills:
 
 ```
    draft (caption/cover/article/video-script)
@@ -65,7 +65,7 @@ The agent gains four new CMO capabilities, each emitting a **human-gated draft**
 3. **Lead scoring + segmentation.** The agent classifies new leads by ICP fit (founder-defined criteria: role, company size, intent kind) and surfaces "hot this week" on the admin Overview. Pure read + label; no outbound automation.
 4. **Follow-up outreach drafting.** For a lead the founder marks `contacted`/`qualified`, the agent drafts a personalized first-touch message (email or LinkedIn) grounded in the article they came from — "you read our harness-engineering piece; here's how JAK Swarm applies it." Drafted, **never sent**. The founder reviews; if it's a LinkedIn message, the local `scripts/linkedin-populate.ts` tool can auto-fill it (same human gate as captions).
 
-Every one of these is a draft + a learned-rule proposal, not an autonomous action. The closed loop now has a conversion signal feeding back into the same rule-distillation pipeline.
+Every one of these is a draft + a learned-rule proposal, not an autonomous action. With lead capture live, the loop would then have a conversion signal feeding back into the same rule-distillation pipeline — closing the open side flagged in §1.
 
 ---
 

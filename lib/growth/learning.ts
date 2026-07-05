@@ -242,8 +242,14 @@ function coerceRule(r: ProposedRule): {
   return { kind, ruleText, scope, scopeKey };
 }
 
-function avg(xs: number[]): number {
-  if (!xs.length) return 0;
+function avg(xs: number[]): number | null {
+  // null (not 0) when there's nothing to average. Early on, when no article has
+  // a measured baseline yet, every seoDelta/geoDelta is null → the evidence
+  // payload must NOT report `avgSeoDelta: 0` (the model would read "flat
+  // outcomes" and propose accordingly). null tells the model "not measured",
+  // which is the truth, and JSON.stringify keeps it as `null` in the evidence
+  // blob rather than silently fabricating a neutral 0.
+  if (!xs.length) return null;
   return Math.round((xs.reduce((s, n) => s + n, 0) / xs.length) * 10) / 10;
 }
 

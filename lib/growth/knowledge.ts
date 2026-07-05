@@ -352,10 +352,42 @@ export async function retrieveForTopic(topic: string, product?: string | null): 
 export async function findDuplicateKnowledge(topic: string, product?: string | null): Promise<{ duplicate: boolean; existing?: KnowledgeItem; reason?: string }> {
   const t = (topic || "").trim();
   if (!t) return { duplicate: false };
-  // 1) Published ARTICLES titles (no DB needed — in-memory manifest).
-  const publishedTitles = ARTICLES.map((a) => a.title);
-  if (isParaphraseOf(t, publishedTitles)) {
-    return { duplicate: true, reason: "matches a published article title — consider update_existing instead of a new article" };
+  // 1) Published ARTICLES titles (no DB needed — in-memory manifest). Set a
+  //    synthetic `existing` with status:"published" so composeTopic computes
+  //    recommendedAction "update_existing" consistently — without it, the
+  //    action came out "skip" while the reason said "consider update_existing",
+  //    contradicting itself and telling the agent to skip a topic we should
+  //    actually refresh. linkedArticleId carries the matched slug for the update.
+  const publishedHit = ARTICLES.find((a) => isParaphraseOf(t, [a.title]));
+  if (publishedHit) {
+    return {
+      duplicate: true,
+      existing: {
+        id: `published:${publishedHit.slug}`,
+        type: "article",
+        title: publishedHit.title,
+        summary: null,
+        body: null,
+        sourceUrl: null,
+        sourceType: null,
+        relatedProduct: null,
+        topicCluster: null,
+        keywords: [],
+        intentScore: null,
+        freshnessScore: null,
+        authorityScore: null,
+        riskLevel: "low",
+        status: "published",
+        linkedArticleId: publishedHit.slug,
+        linkedPostId: null,
+        contentHash: null,
+        useCount: 0,
+        lastUsedAt: null,
+        createdAt: "",
+        updatedAt: "",
+      },
+      reason: "matches a published article title — consider update_existing instead of a new article",
+    };
   }
   if (!supabaseAdmin) return { duplicate: false };
   // 2) Pending/approved drafted articles (kind='article') — title paraphrase OR
@@ -486,6 +518,12 @@ export async function boostTopic(topicTitle: string, sign: number): Promise<void
       .from("growth_knowledge")
       .select("id,title,summary,intent_score,status")
       .in("type", ["topic", "source", "competitor_gap"])
+      // Don't boost high-risk topics — pickApprovedTopicFallback hard-excludes
+      // risk_level='high' from auto-draft, so inflating a high-risk topic's
+      // intent_score would only surface it higher in the Knowledge UI's intent
+      // ordering as a misleading "strong" signal the founder might act on. Keep
+      // the boost aligned with what the fallback will actually pick.
+      .neq("risk_level", "high")
       .order("created_at", { ascending: false })
       .limit(120);
     if (error || !Array.isArray(data)) return;

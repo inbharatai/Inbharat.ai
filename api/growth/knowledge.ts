@@ -37,7 +37,11 @@ const PostBody = z.object({
   title: z.string().min(1).max(500),
   summary: z.string().max(2000).nullish(),
   body: z.string().max(50000).nullish(),
-  sourceUrl: z.string().max(1000).nullish(),
+  // sourceUrl must be an http(s) URL — a `javascript:` scheme would execute
+  // in the Knowledge UI's <a href={it.sourceUrl}> on click. The agent's Gemini
+  // grounding chunks are always https, so this only gates the founder-paste path,
+  // but it's a real XSS vector against the admin UI otherwise.
+  sourceUrl: z.string().max(1000).refine((v) => !v || /^https?:\/\/.+/i.test(v), "sourceUrl must be an http(s) URL").nullish(),
   sourceType: z.string().max(120).nullish(),
   relatedProduct: z.string().max(120).nullish(),
   topicCluster: z.string().max(120).nullish(),

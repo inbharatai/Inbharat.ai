@@ -216,13 +216,20 @@ export async function runAgentTurn(
     // a 6k-char review_text call logged ~0 completion tokens. Now counts args too.
     const lastText = result.text ?? "";
     const toolArgsChars = result.toolCalls.reduce((n, tc) => n + JSON.stringify(tc.args ?? {}).length, 0);
-    const totalTokens = Math.ceil((system.length + lastText.length + toolArgsChars) / 4) + 200;
+    const completionTokens = Math.ceil((lastText.length + toolArgsChars) / 4);
+    // Prompt = system + the full replayed contents (history + user msg + prior
+    // tool-result turns). Counting only `system.length` undercounted spend by a
+    // factor of 3–5× on long threads — the soft monthly cap is a guard, but the
+    // accounting should still be honest. The backstop scan above already pays
+    // the JSON.stringify(contents) cost, so this reuses the same size.
+    const promptTokens = Math.ceil((system.length + JSON.stringify(contents).length) / 4);
+    const totalTokens = promptTokens + completionTokens + 200;
     await logUsage({
       model: choice.model, task: "chat",
-      promptTokens: Math.ceil(system.length / 4),
-      completionTokens: Math.ceil((lastText.length + toolArgsChars) / 4),
+      promptTokens,
+      completionTokens,
       totalTokens, costUsd: estimateCost(choice, totalTokens),
-      status: "ok", contextUrl: null, provider: choice.provider,
+      status: result.finishReason === "MALFORMED_FUNCTION_CALL" ? "malformed" : "ok", contextUrl: null, provider: choice.provider,
     });
 
     // Recover from a malformed function call (truncated/invalid JSON args) by
@@ -294,6 +301,12 @@ export async function runAgentTurn(
       await persistMessage(tid, "tool", null, tc.name, tc.args, toolResult);
       responseParts.push({ functionResponse: { name: tc.name, response: toolResult as Record<string, unknown> } });
     }
+    // Gemini's function-calling protocol expects the model turn to faithfully
+    // carry BOTH the narration text AND the functionCall parts when the model
+    // emitted both. Pushing only functionCall parts (the old code) dropped the
+    // model's own text from the next iteration's context, which could cause
+    // repetition or lost continuity across multi-round tool turns.
+    if (result.text) modelParts.unshift({ text: result.text });
     contents.push({ role: "model", parts: modelParts });
     contents.push({ role: "user", parts: responseParts });
     // If the model gave text AND tool calls, keep looping so it can close after
@@ -416,14 +429,22 @@ export function summarizeToolResult(name: string, result: ToolResult | null): st
 export function detectNarratedToolCall(text: string, toolNames: string[]): string | null {
   if (!text || toolNames.length === 0) return null;
   // Calling verbs that signal "the model is describing a tool invocation" vs
-  // "the model is documenting what a tool does". Keep the alternation tight so
-  // the regex stays readable + auditable.
-  const VERBS = "called|calling|call|invoke|invoking|invoked|use|using|used|run|running|ran|let me|i'll|i will|going to|will now|now i'll";
+  // "the model is documenting what a tool does". Two branches:
+  //   STRONG — unambiguous calling verbs + first-person intent phrases that can
+  //            sit directly before the tool name ("Called tool X(", "I'll X(").
+  //   USE    — "use/using/used" ONLY when preceded by a first-person intent
+  //            phrase. Bare "use write_article( to create a draft" or "you can
+  //            use write_article(...)" is DOCUMENTATION, not a narration —
+  //            matching it caused a false-positive recovery retry. Requiring
+  //            "I'll/I will/let me … use X(" keeps the real narration path
+  //            ("I will use generate_cover(...)") while excluding the doc path.
+  const STRONG = "called|calling|call|invoke|invoking|invoked|run|running|ran|i'll|i will|let me|going to|will now|now i'll";
+  const USE = "(?:i'll|i will|let me|going to|will now|now i'll)\\s+(?:use|using|used)";
   for (const name of toolNames) {
     // Escape the tool name (they're all \w+ here, but be safe) — no special chars,
     // so a plain escape is fine.
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(`(?:${VERBS})\\s+(?:tool\\s+)?${esc}\\s*\\(`, "i");
+    const re = new RegExp(`(?:${STRONG}|${USE})\\s+(?:tool\\s+)?${esc}\\s*\\(`, "i");
     if (re.test(text)) return name;
   }
   return null;

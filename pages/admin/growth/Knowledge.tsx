@@ -171,7 +171,7 @@ const KnowledgePage: React.FC = () => {
                 <p className="mt-1.5 text-[14px] font-semibold text-white">{it.title}</p>
                 {it.summary && <p className="mt-1 text-[12px] leading-relaxed text-[#9fb2c6]">{it.summary}</p>}
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-[#5f7c98]">
-                  {it.sourceUrl && <a href={it.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#7ab9e6] hover:underline truncate max-w-[300px]">source ↗</a>}
+                  {it.sourceUrl && /^https?:\/\//i.test(it.sourceUrl) && <a href={it.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[#7ab9e6] hover:underline truncate max-w-[300px]">source ↗</a>}
                   {it.linkedArticleId && <span>article: {it.linkedArticleId}</span>}
                   {it.intentScore != null && <span>intent {it.intentScore}</span>}
                   {it.keywords.length > 0 && <span className="truncate max-w-[260px]">#{it.keywords.join(" #")}</span>}

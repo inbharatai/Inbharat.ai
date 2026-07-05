@@ -794,6 +794,8 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
   check("narration: 'I will use generate_cover(...)' → generate_cover", detectNarratedToolCall("I will use generate_cover({\"draftId\":\"abc\"}).", NARR_TOOLS) === "generate_cover");
   // False positives must NOT fire — these are normal text answers, not narrations.
   check("narration: doc-style 'write_article(topic, instruction) creates a draft' → null", detectNarratedToolCall("The write_article(topic, instruction) tool creates a long-form article draft you review in Issues.", NARR_TOOLS) === null);
+  check("narration: doc-style 'you can use write_article(...) to create' → null (use=doc, not call)", detectNarratedToolCall("You can use write_article(topic, instruction) to create a draft when you need long-form content.", NARR_TOOLS) === null);
+  check("narration: bare 'use write_article(...) to create' → null", detectNarratedToolCall("Use write_article(topic, instruction) to create a draft.", NARR_TOOLS) === null);
   check("narration: normal closing 'Drafted the article — review in Issues' → null", detectNarratedToolCall("Done. I drafted the article and its LinkedIn caption — review both in Issues, then approve to publish.", NARR_TOOLS) === null);
   check("narration: empty text → null", detectNarratedToolCall("", NARR_TOOLS) === null);
   check("narration: no tool names in text → null", detectNarratedToolCall("I'll call the thingamajig tool now.", NARR_TOOLS) === null);
@@ -1765,10 +1767,27 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
   const sum = summarizeSnapshot(snap);
   check("summarizeSnapshot surfaces clicks + users", /clicks/.test(sum) && /users/.test(sum), sum);
 
-  // 14) failed-API handling: snapshot with error still returns data + error string.
+  // 14) failed-API handling: a partial snapshot surfaces BOTH the real data we
+  //     DID get AND the error — never hides GA4 numbers behind a generic "error"
+  //     line (the live 403 window: GA4 ok, GSC 403 → report GA4 users + note the
+  //     GSC failure, so the agent can still draft from GA4).
   const partial: AnalyticsSnapshot = { ...snap, error: "GA4 totals 403" };
-  check("summarizeSnapshot surfaces error when configured", /error/i.test(summarizeSnapshot(partial)), summarizeSnapshot(partial));
+  const partialSum = summarizeSnapshot(partial);
+  check("summarizeSnapshot partial surfaces the data (clicks + users)", /clicks/.test(partialSum) && /users/.test(partialSum), partialSum);
+  check("summarizeSnapshot partial surfaces the error note", /partial: GA4 totals 403/i.test(partialSum), partialSum);
+  check("summarizeSnapshot partial does NOT hide data behind bare 'error'", !/^Analytics sync error:/.test(partialSum), partialSum);
   check("generateInsights still emits from partial snapshot", generateInsights({ snapshot: partial, now: Date.parse("2026-07-04") }).length > 0);
+
+  // 14b) product_traffic summary uses the ACTUAL window (snapshot.range.days), not
+  //      a hardcoded "28 days" — a 90d sync must say "last 90 days".
+  const snap90: AnalyticsSnapshot = { ...snap, range: { days: 90, start: "2026-05-06", end: "2026-07-04" } };
+  const pt90 = generateInsights({ snapshot: snap90, now: Date.parse("2026-07-04") }).find((i) => i.type === "product_traffic");
+  check("product_traffic summary uses actual window days (90)", !!pt90 && /last 90 days/.test(pt90.summary ?? "") && !/28 days/.test(pt90.summary ?? ""), pt90?.summary ?? "");
+
+  // 14c) totalsOk flag: a GA4 report whose totals fetch FAILED (totalsOk:false)
+  //      must let the UI show "unavailable" even though snapshot.ga4 is set with
+  //      zero totals — the honest distinction between "0 users" and "report failed".
+  check("Ga4Report carries totalsOk so UI can distinguish 403-zeros from real zero", snap.ga4 && snap.ga4.totalsOk === undefined);
 
   // 15) pagesOk gating: when the GSC pages report FAILED (pagesOk:false), the empty
   //     topPages is "data didn't load", not "no pages have traffic" — so absence-

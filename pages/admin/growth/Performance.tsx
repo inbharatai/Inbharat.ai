@@ -18,7 +18,7 @@ interface GscRow { keys: string[]; clicks: number; impressions: number; ctr: num
 interface Ga4Totals { sessions: number; totalUsers: number; screenPageViews: number; averageSessionDuration: number; }
 interface Ga4PageRow { path: string; screenPageViews: number; sessions?: number; users?: number; }
 interface Ga4DimRow { key: string; sessions: number; }
-interface Ga4Report { totals: Ga4Totals; topPages: Ga4PageRow[]; byCountry: Ga4DimRow[]; byDevice: Ga4DimRow[]; bySource: Ga4DimRow[]; }
+interface Ga4Report { totals: Ga4Totals; topPages: Ga4PageRow[]; byCountry: Ga4DimRow[]; byDevice: Ga4DimRow[]; bySource: Ga4DimRow[]; totalsOk?: boolean; }
 interface GscReport { totals: GscTotals; topQueries: GscRow[]; topPages: GscRow[]; queryByPage: GscRow[]; }
 interface Snapshot {
   configured: boolean;
@@ -181,7 +181,7 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY----
                 ["Pageviews", snap.ga4.totals.screenPageViews],
                 ["Avg session (s)", snap.ga4.totals.averageSessionDuration ? Number(snap.ga4.totals.averageSessionDuration).toFixed(1) : null],
               ] : []
-            } note={!snap.ga4 ? "GA4 data unavailable this window." : undefined} />
+            } note={!snap.ga4 || snap.ga4.totalsOk === false ? "GA4 data unavailable this window (the report failed — likely the service account isn't a Viewer on the property yet)." : undefined} />
             <TotalsPanel title="Google Search Console" range={snap.range.start + "…" + snap.range.end} rows={
               snap.gsc ? [
                 ["Clicks", snap.gsc.totals.clicks],

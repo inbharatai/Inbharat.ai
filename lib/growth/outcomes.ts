@@ -291,8 +291,9 @@ export async function loadOutcomes(): Promise<OutcomeView[]> {
       const measuredSeo = (r.measured_seo as number | null) ?? null;
       const measuredGeo = (r.measured_geo as number | null) ?? null;
       // Real issues-resolved count from the stored baseline vs measured issue
-      // arrays (previously hardcoded 0 with a misleading comment). Null when
-      // either side hasn't been measured yet.
+      // arrays (previously hardcoded 0 with a misleading comment). 0 when either
+      // side hasn't been measured yet — the field is typed `number` (the UI
+      // consumes a number), so we surface 0 rather than null for un-measured rows.
       const baselineIssues = Array.isArray(r.baseline_issues) ? (r.baseline_issues as AuditIssue[]) : null;
       const measuredIssues = Array.isArray(r.measured_issues) ? (r.measured_issues as AuditIssue[]) : null;
       const issuesResolved =

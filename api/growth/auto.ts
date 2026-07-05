@@ -27,12 +27,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // schedules this every 30 min). authorizeCron accepts the vercel-cron
   // signature, a CRON_SECRET, or an authenticated admin (the dashboard "Run
   // now" button). Must be checked BEFORE the admin-gated GET-mode fetch below,
-  // or Vercel cron 401s every run (it sends no bearer token).
-  if (req.query?.action === "run") {
+  // or Vercel cron 401s every run (it sends no bearer token). Method-restricted
+  // to GET/POST so a PATCH/DELETE with ?action=run can't trigger the loop.
+  if (req.query?.action === "run" && (req.method === "GET" || req.method === "POST")) {
     const cron = await authorizeCron(req);
     if (isCronAuthErr(cron)) return res.status(cron.status).json(cron.body);
     const result = await runAutoLoop();
     return res.status(200).json({ ok: true, requestId: cron.requestId, trigger: cron.source, ...result });
+  }
+
+  if (req.query?.action === "run") {
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).json({ ok: false, code: "SERVER_ERROR", error: "Method not allowed for ?action=run", requestId });
   }
 
   if (req.method === "GET") {

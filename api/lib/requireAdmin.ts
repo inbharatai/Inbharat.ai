@@ -33,16 +33,10 @@ function isLocalDev(): boolean {
 export type AdminOk = { ok: true; userId: string; requestId: string };
 export type AdminErr = { ok: false; status: number; requestId: string; body: Record<string, unknown> };
 
-export type CronOk = { ok: true; requestId: string };
-export type CronResult = CronOk | AdminErr;
-
-/** Explicit type guards — required because this project has no strictNullChecks,
+/** Explicit type guard — required because this project has no strictNullChecks,
  *  so truthiness narrowing (`!admin.ok`) would not narrow the discriminated union.
  *  Mirrors the existing isVerifyErr pattern in verifySupabaseUser.ts. */
 export function isAdminErr(a: AdminOk | AdminErr): a is AdminErr {
-  return a.ok === false;
-}
-export function isCronErr(a: CronResult): a is AdminErr {
   return a.ok === false;
 }
 
@@ -52,8 +46,12 @@ export async function requireAdmin(req: VercelRequest): Promise<AdminOk | AdminE
 
   if (!supabaseAdmin) {
     // No Supabase configured. Allow only in local dev (defense in depth); reject in prod.
+    // 503 (not 500): the database is a downstream dependency the operator can fix,
+    // not a server bug. Callers that 503-before-mutations rely on this to surface
+    // "DB not configured" cleanly; a 500 here previously made their 503 branches
+    // unreachable in prod.
     if (isLocalDev()) return { ok: true, userId: "local-dev", requestId };
-    return { ok: false, status: 500, requestId, body: { ok: false, code: "SERVER_ERROR" } };
+    return { ok: false, status: 503, requestId, body: { ok: false, code: "SERVER_ERROR", error: "Database not configured", requestId } };
   }
 
   const verified = await verifySupabaseUser(req);
@@ -78,22 +76,6 @@ export async function requireAdmin(req: VercelRequest): Promise<AdminOk | AdminE
   // No allow-list configured and no role: allow only in local dev.
   if (isLocalDev()) return { ok: true, userId, requestId };
   return { ok: false, status: 403, requestId, body: { ok: false, code: "FORBIDDEN", requestId } };
-}
-
-/** Verify a cron request via shared CRON_SECRET header. */
-export function requireCron(req: VercelRequest): CronResult {
-  const requestId = getRequestId(req);
-  const secret = process.env.CRON_SECRET;
-  const provided =
-    (req.headers?.["x-cron-secret"] as string | undefined) ||
-    (req.headers?.["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
-  if (!secret) {
-    // No secret configured → allow only in local dev (so dev cron tests work).
-    if (isLocalDev()) return { ok: true, requestId };
-    return { ok: false, status: 500, requestId, body: { ok: false, code: "SERVER_ERROR", requestId } };
-  }
-  if (provided && provided === secret) return { ok: true, requestId };
-  return { ok: false, status: 401, requestId, body: { ok: false, code: "UNAUTHORIZED", requestId } };
 }
 
 /** Send a 405 with Allow header. */
