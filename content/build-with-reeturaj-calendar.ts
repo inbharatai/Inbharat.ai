@@ -41,11 +41,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // the slug is in articles.meta.ts the slug-collision guard trips in
   // scripts/test-growth.ts, and pickNextCalendarTopic would skip it every morning
   // anyway — so it is removed.
-  {
-    topic: "Token economics — pricing an AI feature without losing money",
-    category: "AI Foundations",
-    angle: "Per-request vs per-token vs per-seat; modeling the p95 long tail; how to set a price floor that survives a viral day.",
-  },
+  // NOTE: "Token economics — pricing an AI feature without losing money" was
+  // retired because it shipped as the article of the same title
+  // (slug token-economics-pricing-an-ai-feature-without-losing-money). Now that
+  // the slug is in articles.meta.ts the slug-collision guard trips in
+  // scripts/test-growth.ts, and pickNextCalendarTopic would skip it every morning
+  // anyway — so it is removed.
   {
     topic: "Model routing and cost control across Gemini tiers",
     category: "AI Foundations",
@@ -125,5 +126,10 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     topic: "Build with Reeturaj — what this series is and how to follow",
     category: "InBharat",
     angle: "A orientation post: who this is for, what we cover, the cadence, and where to ask questions.",
+  },
+  {
+    topic: "AI agent memory — durable context across sessions",
+    category: "Engineering",
+    angle: "Retrieval before drafting, cross-source dedupe, learning signals; when FTS+token beats embeddings.",
   },
 ];

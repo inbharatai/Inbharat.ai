@@ -654,13 +654,14 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 14 tools (10 base + 4 KB)", AGENT_TOOLS.length === 14, `got ${names.join(",")}`);
+  check("agent tools registry has 15 tools (10 base + 4 KB + 1 topic discovery)", AGENT_TOOLS.length === 15, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
     ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script", "promote_article"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("agent tools include the knowledge-base set (Phase 2)",
     ["save_knowledge", "search_knowledge", "list_knowledge", "find_duplicate"].every((n) => names.includes(n)),
     JSON.stringify(names));
+  check("agent tools include find_high_intent_topics (Phase 3)", names.includes("find_high_intent_topics"), JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
   // dispatchTool: unknown tool → ok:false (never throws).
@@ -1515,6 +1516,62 @@ console.log("\nKnowledge base (FTS + token-match, cross-source dedupe):");
   // 5) findDuplicateKnowledge — a novel topic (no DB) → not a duplicate.
   const novel = await findDuplicateKnowledge("zzz-novel-untouched-topic-qwx-12345");
   check("findDuplicateKnowledge novel topic → not a duplicate", novel.duplicate === false);
+}
+
+console.log("\nTopic discovery (Phase 3 — 12-dim scoring + dedupe + honest intent):");
+{
+  const { scoreTopic, composeTopic, discoverTopics, SCORE_DIMENSIONS, DISCOVERY_PRODUCTS } = await import("../lib/growth/topicDiscovery.js");
+
+  // 1) SCORE_DIMENSIONS has exactly 12 named dimensions.
+  check("SCORE_DIMENSIONS has 12 dimensions", SCORE_DIMENSIONS.length === 12, `got ${SCORE_DIMENSIONS.length}`);
+  check("SCORE_DIMENSIONS includes risk_level", SCORE_DIMENSIONS.includes("risk_level" as never));
+
+  // 2) scoreTopic — pure, returns priority 0-100 + all 12 dimension scores.
+  const organic = [
+    { title: "Best AI agent for Indian startups 2026", link: "https://example.com/a", snippet: "comparison of AI tools for business", date: "2026-06-01" },
+    { title: "How to build an agentic AI workflow", link: "https://github.com/foo/agent", snippet: "tutorial: deploy an AI agent for business", date: "2026-05-01" },
+    { title: "MCP security guide for agents 2026", link: "https://medium.com/x", snippet: "governance for AI agents", date: "2026-04-01" },
+  ];
+  const s = scoreTopic("best AI agent for Indian startups", organic, "inbharat");
+  check("scoreTopic priority is 0-100", s.priority >= 0 && s.priority <= 100, `got ${s.priority}`);
+  check("scoreTopic returns 12 dimension scores", s.scores.length === 12, `got ${s.scores.length}`);
+  check("scoreTopic every dimension score 0-100", s.scores.every((x: { score: number }) => x.score >= 0 && x.score <= 100));
+
+  // 3) Risk detection — medical/legal keywords flip risk_level to high/medium.
+  const risky = scoreTopic("AI for medical diagnosis and patent filing visa applications", [{ title: "clinical treatment FDA", link: "x", snippet: "legal compliance" }], "sahayaak-seva");
+  check("scoreTopic flags regulated topics as high risk", risky.riskLevel === "high", `got ${risky.riskLevel}`);
+  const safe = scoreTopic("best AI agent for Indian startups", organic, "inbharat");
+  check("scoreTopic non-regulated topic → low risk", safe.riskLevel === "low", `got ${safe.riskLevel}`);
+
+  // 4) composeTopic — honest "estimated intent" label, NOT confirmed volume.
+  const t = composeTopic("best AI agent for Indian startups", organic, "inbharat", { duplicate: false });
+  check("composeTopic marks intent as estimated (honest)", t.estimatedIntent.includes("estimated intent") && !t.estimatedIntent.includes("confirmed volume"), t.estimatedIntent);
+  check("composeTopic duplicate:false → draft_new", t.recommendedAction === "draft_new");
+  check("composeTopic cites source links", t.sourceLinks.length > 0 && t.sourceLinks.length <= 5);
+  check("composeTopic priority is 0-100", t.priority >= 0 && t.priority <= 100);
+
+  // 5) composeTopic — duplicate of a published item → update_existing / skip.
+  const tDup = composeTopic("best AI agent for Indian startups", organic, "inbharat", {
+    duplicate: true,
+    existing: { id: "k1", type: "topic", title: "best AI agent", summary: null, body: null, sourceUrl: null, sourceType: null, relatedProduct: null, topicCluster: null, keywords: [], intentScore: null, freshnessScore: null, authorityScore: null, riskLevel: "low", status: "published", linkedArticleId: "slug", linkedPostId: null, contentHash: null, useCount: 0, lastUsedAt: null, createdAt: "", updatedAt: "" },
+    reason: "matches published",
+  });
+  check("composeTopic duplicate of published → update_existing", tDup.recommendedAction === "update_existing", tDup.recommendedAction);
+  check("composeTopic flags duplicate:true", tDup.duplicate === true);
+
+  // 6) discoverTopics — honest degradation when SERPER_API_KEY is unset. No key
+  //    in the test env → notConfigured:true, zero topics, never throws.
+  const savedKey = process.env.SERPER_API_KEY;
+  delete process.env.SERPER_API_KEY;
+  const r = await discoverTopics("inbharat", 3);
+  check("discoverTopics no key → notConfigured:true", r.notConfigured === true, JSON.stringify(r));
+  check("discoverTopics no key → 0 discovered", r.discovered === 0);
+  check("discoverTopics unknown product → notConfigured + empty", (await discoverTopics("nope" as never, 1)).discovered === 0);
+  if (savedKey !== undefined) process.env.SERPER_API_KEY = savedKey;
+
+  // 7) DISCOVERY_PRODUCTS lists all 7 InBharat products.
+  check("DISCOVERY_PRODUCTS has 7 products", DISCOVERY_PRODUCTS.length === 7, `got ${DISCOVERY_PRODUCTS.length}`);
+  check("DISCOVERY_PRODUCTS includes sahayaak-seva + jak-shield", DISCOVERY_PRODUCTS.includes("sahayaak-seva") && DISCOVERY_PRODUCTS.includes("jak-shield"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

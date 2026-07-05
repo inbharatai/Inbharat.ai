@@ -33,6 +33,7 @@ import {
   findDuplicateKnowledge,
   type KnowledgeType,
 } from "./knowledge.js";
+import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
 
@@ -265,6 +266,19 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         product: { type: "string", description: "Optional: scope the duplicate check to a product." },
       },
       required: ["topic"],
+    },
+  },
+  {
+    name: "find_high_intent_topics",
+    description:
+      "Search the web for high-intent topic opportunities for an InBharat product (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep), score each 0-100 across 12 dimensions (intent, product fit, SEO/GEO opportunity, lead potential, freshness, competition, risk), dedupe against existing KB + published articles, and save the survivors to the knowledge base as discovered topic rows. The founder reviews + approves them in the Knowledge UI before any draft. Honest: intent is estimated from result signals, NOT confirmed search volume. Regulated topics (medical/legal/patent/visa/finance) are flagged risk_level='high' + status='needs_review' for extra review. Requires SERPER_API_KEY.",
+    parameters: {
+      type: "object",
+      properties: {
+        product: { type: "string", description: "The InBharat product to find topics for (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep)." },
+        count: { type: "number", description: "Optional: max queries to run per product (default 4, max 6)." },
+      },
+      required: ["product"],
     },
   },
 ];
@@ -604,6 +618,42 @@ async function listKnowledgeTool(args: Args): Promise<ToolResult> {
 
 type KnowledgeStatus2 = "discovered" | "needs_review" | "approved" | "drafted" | "published" | "skipped" | "update_existing" | "outdated" | "archived";
 
+/** find_high_intent_topics — Serper-backed topic discovery (Phase 3). Scores
+ *  topics 0-100 across 12 dimensions, dedupes, saves survivors as KB topic rows
+ *  (status='discovered' or 'needs_review' for high-risk). Never auto-drafts. */
+async function findHighIntentTopicsTool(args: Args): Promise<ToolResult> {
+  const product = str(args.product) as ProductId;
+  if (!DISCOVERY_PRODUCTS.includes(product)) {
+    return { ok: false, message: `unknown product "${product}" — valid: ${DISCOVERY_PRODUCTS.join(", ")}` };
+  }
+  const count = num(args.count, 4, 6);
+  const result = await discoverTopics(product, count);
+  if (result.notConfigured) {
+    return { ok: false, message: "web search not configured (SERPER_API_KEY not set) — topic discovery needs Serper" };
+  }
+  if (result.discovered === 0) {
+    return { ok: true, message: `no topics discovered for ${product} (Serper returned no results)`, product, discovered: 0, topics: [] };
+  }
+  return {
+    ok: true,
+    message: `${result.discovered} topic(s) discovered for ${product} — ${result.saved} new, ${result.duplicates} duplicate (skipped). Saved to the knowledge base (status='discovered' or 'needs_review'); the founder reviews + approves in the Knowledge UI before any draft. Intent is estimated, NOT confirmed volume.`,
+    product,
+    discovered: result.discovered,
+    saved: result.saved,
+    duplicates: result.duplicates,
+    topics: result.topics.map((t) => ({
+      title: t.suggestedArticleTitle,
+      query: t.query,
+      priority: t.priority,
+      riskLevel: t.riskLevel,
+      recommendedAction: t.recommendedAction,
+      duplicate: t.duplicate,
+      searchIntent: t.searchIntent,
+      sourceLinks: t.sourceLinks,
+    })),
+  };
+}
+
 /** find_duplicate — cross-source near-duplicate check before drafting. */
 async function findDuplicateTool(args: Args): Promise<ToolResult> {
   const topic = str(args.topic);
@@ -765,6 +815,7 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "search_knowledge": return searchKnowledgeTool(args);
     case "list_knowledge": return listKnowledgeTool(args);
     case "find_duplicate": return findDuplicateTool(args);
+    case "find_high_intent_topics": return findHighIntentTopicsTool(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
   }
 }

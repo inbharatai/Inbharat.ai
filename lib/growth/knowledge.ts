@@ -418,6 +418,43 @@ export async function deleteKnowledge(id: string): Promise<boolean> {
   }
 }
 
+/**
+ * Phase 3 calendar fallback — when the founder-authored calendar file is
+ * exhausted, pick the highest-intent founder-APPROVED KB topic that isn't
+ * already a published slug or a drafted article. Returns a CalendarTopic-shaped
+ * {topic, category, angle} the morning cron can hand straight to buildMorningPrompt,
+ * or null when nothing qualifies. Best-effort, never throws.
+ */
+export async function pickApprovedTopicFallback(
+  publishedSlugs: Set<string>,
+  draftedSlugs: string[],
+): Promise<{ topic: string; category: string; angle?: string } | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_knowledge")
+      .select("id,title,summary,topic_cluster,intent_score,keywords")
+      .eq("type", "topic")
+      .eq("status", "approved")
+      .order("intent_score", { ascending: false, nullsFirst: false })
+      .limit(40);
+    if (error || !Array.isArray(data)) return null;
+    const drafted = new Set(draftedSlugs.map((s) => s.toLowerCase()));
+    for (const r of data as Array<{ id: string; title: string; summary: string | null; topic_cluster: string | null; intent_score: number | null; keywords: string[] | null }>) {
+      // Reuse the article slugifier so the fallback matches what write_article
+      // would produce. Lazy-import to avoid a static cycle (articleWriter -> knowledge).
+      const { slugifyTitle } = await import("./articleWriter.js");
+      const slug = slugifyTitle(r.title).toLowerCase();
+      if (publishedSlugs.has(slug) || drafted.has(slug)) continue;
+      const angle = r.summary ? r.summary.slice(0, 200) : (r.topic_cluster ?? undefined);
+      return { topic: r.title, category: "AI Foundations", angle: angle ?? undefined };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── prompt formatting ──────────────────────────────────────────────────────
 
 /**

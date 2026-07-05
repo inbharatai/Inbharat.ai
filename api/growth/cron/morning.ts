@@ -3,6 +3,7 @@ import { getRequestId, isCronAuthErr, authorizeCron } from "../../lib/requireAdm
 import { logInfo, logError } from "../../../lib/growth/authorization.js";
 import { runAgentTurn, ensureNamedThread } from "../../../lib/growth/agent.js";
 import { pickNextCalendarTopic } from "../../../lib/growth/calendar.js";
+import { pickApprovedTopicFallback } from "../../../lib/growth/knowledge.js";
 import { slugifyTitle } from "../../../lib/growth/articleWriter.js";
 import { BUILD_WITH_REETURAJ_CALENDAR } from "../../../content/build-with-reeturaj-calendar.js";
 import { ARTICLES } from "../../../content/articles.meta.js";
@@ -49,12 +50,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const draftedSlugs = await loadDraftedArticleSlugs();
 
     const pick = pickNextCalendarTopic(BUILD_WITH_REETURAJ_CALENDAR, publishedSlugs, draftedSlugs);
-    const prompt = buildMorningPrompt(pick, draftedSlugs);
+    // Phase 3: when the founder-authored calendar is exhausted, fall back to the
+    // highest-intent founder-APPROVED KB topic (type='topic', status='approved')
+    // before resorting to free-plan web_search. The calendar file stays primary;
+    // KB approved topics are the fallback queue (no DB-backed calendar migration).
+    let pickSource: "calendar" | "knowledge" | "free-plan" = pick ? "calendar" : "free-plan";
+    let kbFallback = pick;
+    if (!kbFallback) {
+      kbFallback = await pickApprovedTopicFallback(publishedSlugs, draftedSlugs);
+      if (kbFallback) pickSource = "knowledge";
+    }
+    const prompt = buildMorningPrompt(kbFallback, draftedSlugs);
 
     await logInfo(
       "cron-morning-pick",
       "global",
-      `topic=${pick ? pick.topic : "free-plan"} published=${publishedSlugs.size} drafted=${draftedSlugs.length}`,
+      `topic=${kbFallback ? kbFallback.topic : "free-plan"} source=${pickSource} published=${publishedSlugs.size} drafted=${draftedSlugs.length}`,
     );
 
     const result = await runAgentTurn(prompt, threadId, []);
@@ -62,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await logInfo(
       "cron-morning-done",
       "global",
-      `trigger=${cron.source} topic=${pick ? pick.topic : "free-plan"} ok=${result.ok} tools=${result.turnTools.map((t) => `${t.name}:${t.ok ? "ok" : "fail"}`).join(",") || "none"} thread=${threadId}`,
+      `trigger=${cron.source} topic=${kbFallback ? kbFallback.topic : "free-plan"} ok=${result.ok} tools=${result.turnTools.map((t) => `${t.name}:${t.ok ? "ok" : "fail"}`).join(",") || "none"} thread=${threadId}`,
     );
     // The agent turn can return ok:false (e.g. note "model not configured" / "no
     // db" / "budget exhausted") — meaning ZERO drafts were created. Previously the
@@ -84,7 +95,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // not buried in the done-log. (The dashboard "Run morning plan now" UI also
     // gates success on write_article actually running, via toolTrail.)
     if (result.ok && result.turnTools.length === 0) {
-      await logError("cron-morning-no-tools", "global", `topic=${pick ? pick.topic : "free-plan"} note=${result.note ?? "none"} reply=${(result.reply ?? "").slice(0, 200)}`).catch(() => undefined);
+      await logError("cron-morning-no-tools", "global", `topic=${kbFallback ? kbFallback.topic : "free-plan"} note=${result.note ?? "none"} reply=${(result.reply ?? "").slice(0, 200)}`).catch(() => undefined);
     }
 
     return res.status(200).json({
@@ -92,8 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       requestId: cron.requestId,
       trigger: cron.source,
       threadId,
-      topic: pick ? pick.topic : "free-plan",
-      mode: pick ? "calendar" : "free-plan",
+      topic: kbFallback ? kbFallback.topic : "free-plan",
+      mode: pickSource,
       reply: result.reply,
       note: result.note ?? null,
       // The tool trail for THIS run (name + ok + short message, execution order)
