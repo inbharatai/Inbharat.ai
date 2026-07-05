@@ -122,6 +122,7 @@ const ORG_SAMEAS = [
   'https://www.uniassist.ai',
   'https://openclawfix.pro',
   'https://sahayaakseva.in',
+  'https://swasthyascore-ai.vercel.app',
 ];
 
 const baseOrganization = {
@@ -414,6 +415,39 @@ const productSuite = {
         url: 'https://openclawfix.pro',
         description:
           'One-click installer for the OpenClaw IDE via Docker — auto-configures gateway tokens and 16 AI providers.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 13,
+      item: {
+        '@type': 'WebApplication',
+        name: 'UnoOne',
+        url: 'https://github.com/inbharatai/UnoOne-Local-Agent',
+        description:
+          'Offline-first Android AI companion with on-device Whisper STT and MMS TTS in Hindi, Bengali, Tamil, Telugu, Kannada, and Malayalam — voice, wake word, and skills run locally without the cloud.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 14,
+      item: {
+        '@type': 'WebApplication',
+        name: 'SwasthyaScore AI',
+        url: 'https://swasthyascore-ai.vercel.app',
+        description:
+          'Personal NCD self-screening PWA — obesity, diabetes, and blood-pressure risk in 60 seconds. Camera-based rPPG vital estimation, lab-report OCR, and voice symptom assessment. Screening only, not a medical diagnosis.',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 15,
+      item: {
+        '@type': 'WebApplication',
+        name: 'JAK Shield',
+        url: 'https://github.com/inbharatai/jak-shield',
+        description:
+          'Universal agent security layer — risk-based approvals, PII detection, sandboxed execution, and tamper-evident audit trails for AI agents. Open-source and self-hostable.',
       },
     },
   ],
