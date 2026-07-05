@@ -34,6 +34,9 @@ import {
   type KnowledgeType,
 } from "./knowledge.js";
 import { groundedSearch } from "./search.js";
+import { getAnalyticsSnapshot, syncAnalyticsToKB } from "./performance.js";
+import { listAnalyticsInsights } from "./knowledge.js";
+import { generateInsights, summarizeSnapshot, type Insight } from "./analyticsInsights.js";
 import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
@@ -280,6 +283,31 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
         count: { type: "number", description: "Optional: max queries to run per product (default 4, max 6)." },
       },
       required: ["product"],
+    },
+  },
+  {
+    name: "read_analytics",
+    description:
+      "Read the Growth Analytics inbox (Google Analytics 4 + Search Console, last 28 days by default) and the recommendations saved by the last sync. Use this for ANY analytics question: 'show analytics summary', 'show top pages', 'show top search queries', 'which articles need update', 'which pages have low CTR', 'which topics should we write next', 'show traffic for JAK Shield / Sahayaak / from India'. Pass `view` to scope the answer (summary | top_pages | top_queries | low_ctr | needs_update | recommendations), and optional `product` (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep) / `country` to filter. Returns the live snapshot + stored insights. When analytics isn't configured, says so honestly — do not fabricate numbers.",
+    parameters: {
+      type: "object",
+      properties: {
+        view: { type: "string", description: "What to surface: summary | top_pages | top_queries | low_ctr | needs_update | recommendations. Default 'summary'." },
+        product: { type: "string", description: "Optional: scope to a product (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep)." },
+        country: { type: "string", description: "Optional: scope to a country name (e.g. 'India', 'US')." },
+        days: { type: "integer", description: "Optional: lookback window in days (7–90, default 28).", minimum: 7, maximum: 90 },
+      },
+    },
+  },
+  {
+    name: "sync_analytics",
+    description:
+      "Pull fresh GA4 + Search Console data for the last 28 days, generate actionable insights (low-CTR pages, rising/falling pages, top queries, follow-up article opportunities, product/country/device angles), and save them to the knowledge base so they're retrieved before every future draft. This is the 'Sync Analytics now' action. Returns the count of insights stored + a short summary. Requires the Google service-account credentials (GA4_PROPERTY_ID / GSC_SITE_URL + GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY) in env — when absent, returns configured:false honestly instead of failing.",
+    parameters: {
+      type: "object",
+      properties: {
+        days: { type: "integer", description: "Optional: lookback window in days (7–90, default 28).", minimum: 7, maximum: 90 },
+      },
     },
   },
 ];
@@ -641,6 +669,122 @@ async function findHighIntentTopicsTool(args: Args): Promise<ToolResult> {
   };
 }
 
+/** read_analytics — Growth Analytics inbox (GA4 + GSC snapshot + stored insights).
+ *  Never fabricates numbers; says so honestly when not configured. */
+async function readAnalyticsTool(args: Args): Promise<ToolResult> {
+  const days = clampDaysArg(args.days, 28);
+  const view = (str(args.view) || "summary") as
+    | "summary" | "top_pages" | "top_queries" | "low_ctr" | "needs_update" | "recommendations";
+  const product = str(args.product) || undefined;
+  const country = str(args.country) || undefined;
+  const snapshot = await getAnalyticsSnapshot(days);
+  if (!snapshot.configured) {
+    return {
+      ok: false,
+      message: "Analytics isn't configured yet — add the Google service-account credentials (GA4_PROPERTY_ID / GSC_SITE_URL + GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY) in the Vercel env, then say 'sync analytics'. I won't guess traffic numbers.",
+      configured: false,
+    };
+  }
+  const stored = await listAnalyticsInsights(30);
+  // Re-derive live insights (no previous-period fetch on read — rising/falling
+  // come from the last sync's stored rows to keep reads cheap). For low_ctr /
+  // top_pages / top_queries we use the live snapshot directly.
+  const liveInsights = generateInsights({ snapshot, now: Date.now() });
+  const filterInsights = (arr: Insight[]) => {
+    let out = arr;
+    if (product) out = out.filter((i) => !i.relatedProduct || i.relatedProduct === product);
+    if (country) out = out.filter((i) => (i.country ?? "").toLowerCase().includes(country.toLowerCase()));
+    return out;
+  };
+  const payload: Record<string, unknown> = { configured: true, days, summary: summarizeSnapshot(snapshot) };
+  if (snapshot.gsc) {
+    payload.gscTotals = snapshot.gsc.totals;
+    payload.topQueries = snapshot.gsc.topQueries.slice(0, 10).map((r) => ({ query: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
+    payload.topPages = snapshot.gsc.topPages.slice(0, 10).map((r) => ({ page: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
+  }
+  if (snapshot.ga4) {
+    payload.ga4Totals = snapshot.ga4.totals;
+    payload.topPagesGa4 = snapshot.ga4.topPages.slice(0, 10).map((p) => ({ path: p.path, views: p.screenPageViews, sessions: p.sessions, users: p.users }));
+    payload.countries = snapshot.ga4.byCountry.slice(0, 8);
+    payload.devices = snapshot.ga4.byDevice;
+    payload.sources = snapshot.ga4.bySource.slice(0, 8);
+  }
+  if (snapshot.error) payload.note = `partial — ${snapshot.error}`;
+
+  const lowCtr = filterInsights(liveInsights.filter((i) => i.type === "low_ctr_page"));
+  const needsUpdate = filterInsights([
+    ...liveInsights.filter((i) => i.type === "no_traffic_page"),
+    ...liveInsights.filter((i) => i.type === "falling_page"),
+    ...stored.filter((s) => s.type === "performance" && /refresh|archive|update/i.test(s.summary ?? "")).slice(0, 8).map((s) => ({ type: "no_traffic_page" as const, source: "Search Console" as const, page: s.sourceUrl ?? undefined, summary: s.title, recommendedAction: s.summary ?? "", priority: s.intentScore ?? 0, metrics: {}, linkedArticleSlug: s.linkedArticleId ?? undefined, relatedProduct: s.relatedProduct ?? undefined })),
+  ]);
+  const recs = filterInsights(liveInsights.slice(0, 12));
+
+  let message = summarizeSnapshot(snapshot);
+  if (view === "top_pages") {
+    message = snapshot.gsc
+      ? `Top ${payload.topPages ? 10 : 0} pages by clicks (last ${days}d).`
+      : "No Search Console page data in this window.";
+  } else if (view === "top_queries") {
+    message = snapshot.gsc ? `Top search queries by impressions (last ${days}d).` : "No Search Console query data in this window.";
+  } else if (view === "low_ctr") {
+    message = lowCtr.length ? `${lowCtr.length} page(s) with high impressions but low CTR — improve their titles/meta.` : "No low-CTR opportunities above the noise threshold right now.";
+    payload.lowCtr = lowCtr.map(insightToLight);
+  } else if (view === "needs_update") {
+    message = needsUpdate.length ? `${needsUpdate.length} article(s) need a refresh or archive.` : "No articles flagged for refresh right now.";
+    payload.needsUpdate = needsUpdate.map(insightToLight);
+  } else if (view === "recommendations") {
+    message = recs.length ? `${recs.length} content recommendations from the live snapshot.` : "No recommendations yet — try 'sync analytics' first.";
+    payload.recommendations = recs.map(insightToLight);
+  }
+  return { ok: true, message, view, ...payload };
+}
+
+/** sync_analytics — manual sync (pull snapshot → generate insights → store to KB). */
+async function syncAnalyticsTool(args: Args): Promise<ToolResult> {
+  const days = clampDaysArg(args.days, 28);
+  const result = await syncAnalyticsToKB(days);
+  if (!result.configured) {
+    return {
+      ok: false,
+      message: "Analytics isn't configured — add GA4_PROPERTY_ID / GSC_SITE_URL + GOOGLE_CLIENT_EMAIL / GOOGLE_PRIVATE_KEY in the Vercel env, then retry. Nothing was synced.",
+      configured: false,
+    };
+  }
+  return {
+    ok: true,
+    configured: true,
+    days,
+    insights: result.insights,
+    synced: result.synced,
+    errors: result.errors,
+    summary: result.summary,
+    message: `Synced analytics for the last ${days}d — ${result.insights} insights generated, ${result.synced} saved to the knowledge base (${result.errors} errors). ${result.summary}${result.error ? ` (partial: ${result.error})` : ""}`,
+    top: result.top.map(insightToLight),
+  };
+}
+
+function clampDaysArg(v: unknown, def: number): number {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : def;
+  if (!Number.isFinite(n) || n < 7) return def;
+  return Math.min(Math.round(n), 90);
+}
+
+function insightToLight(i: Insight): Record<string, unknown> {
+  return {
+    type: i.type,
+    source: i.source,
+    page: i.page,
+    query: i.query,
+    country: i.country,
+    device: i.device,
+    product: i.relatedProduct,
+    summary: i.summary,
+    action: i.recommendedAction,
+    priority: i.priority,
+    articleSlug: i.linkedArticleSlug,
+  };
+}
+
 /** find_duplicate — cross-source near-duplicate check before drafting. */
 async function findDuplicateTool(args: Args): Promise<ToolResult> {
   const topic = str(args.topic);
@@ -803,6 +947,8 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "list_knowledge": return listKnowledgeTool(args);
     case "find_duplicate": return findDuplicateTool(args);
     case "find_high_intent_topics": return findHighIntentTopicsTool(args);
+    case "read_analytics": return readAnalyticsTool(args);
+    case "sync_analytics": return syncAnalyticsTool(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
   }
 }

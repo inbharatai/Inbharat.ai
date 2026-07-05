@@ -19,12 +19,17 @@
     {
       "path": "/api/growth/cron/topic-discovery",
       "schedule": "23 3 * * 1"
+    },
+    {
+      "path": "/api/growth/cron/analytics-sync",
+      "schedule": "47 3 * * *"
     }
   ],
   "functions": {
     "api/growth/cron/morning.ts": { "maxDuration": 300 },
     "api/growth/cron/daily.ts": { "maxDuration": 300 },
     "api/growth/cron/topic-discovery.ts": { "maxDuration": 300 },
+    "api/growth/cron/analytics-sync.ts": { "maxDuration": 300 },
     "api/growth/auto.ts": { "maxDuration": 120 },
     "api/growth/agent.ts": { "maxDuration": 120 }
   },

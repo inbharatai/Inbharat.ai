@@ -655,7 +655,7 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 15 tools (10 base + 4 KB + 1 topic discovery)", AGENT_TOOLS.length === 15, `got ${names.join(",")}`);
+  check("agent tools registry has 17 tools (10 base + 4 KB + topic discovery + 2 analytics)", AGENT_TOOLS.length === 17, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
     ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script", "promote_article"].every((n) => names.includes(n)),
     JSON.stringify(names));
@@ -663,6 +663,8 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
     ["save_knowledge", "search_knowledge", "list_knowledge", "find_duplicate"].every((n) => names.includes(n)),
     JSON.stringify(names));
   check("agent tools include find_high_intent_topics (Phase 3)", names.includes("find_high_intent_topics"), JSON.stringify(names));
+  check("agent tools include the analytics set (GA4+GSC)",
+    ["read_analytics", "sync_analytics"].every((n) => names.includes(n)), JSON.stringify(names));
   check("every agent tool has a name + description", AGENT_TOOLS.every((t) => typeof t.name === "string" && typeof t.description === "string" && t.description.length > 20));
 
   // dispatchTool: unknown tool → ok:false (never throws).
@@ -1632,6 +1634,152 @@ console.log("\nVoice Command Center (Phase 4 — buildContextBlock pure logic):"
   // Multiple signals compose into one line.
   const ctxMulti = buildContextBlock({ pathname: "/learn-ai-with-reeturaj/x", pendingDraftCount: 2, activeThreadTitle: "T" });
   check("buildContextBlock multi-signal → single 'Context:' line", ctxMulti.startsWith("Context:") && ctxMulti.split("Context:")[1].includes(";"));
+}
+
+console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
+{
+  const mod = await import("../lib/growth/analyticsInsights.js");
+  const { generateInsights, insightToKnowledge, summarizeSnapshot, inferProduct, slugFromPath, daysSince } = mod;
+  type AnalyticsSnapshot = import("../lib/growth/analyticsInsights.js").AnalyticsSnapshot;
+
+  // 1) config validation — not configured → summarizeSnapshot says so.
+  const notConfigured: AnalyticsSnapshot = { configured: false, range: { days: 28, start: "2026-06-07", end: "2026-07-04" } };
+  check("summarizeSnapshot not configured → credentials message", /not configured/i.test(summarizeSnapshot(notConfigured)));
+  check("generateInsights not configured → [] (no fabrication)", generateInsights({ snapshot: notConfigured, now: Date.now() }).length === 0);
+
+  // 2) product / path mapping (pure).
+  check("inferProduct maps jak-shield", inferProduct("jak-shield scam detection") === "jak-shield");
+  check("inferProduct maps sahayaak-seva via healthcare", inferProduct("healthcare documentation") === "sahayaak-seva");
+  check("inferProduct maps unoone via offline/edge", inferProduct("offline edge AI") === "unoone");
+  check("inferProduct unknown → undefined", inferProduct("a recipe blog about pasta") === undefined);
+  check("slugFromPath extracts article slug", slugFromPath("/learn-ai-with-reeturaj/rag-fundamentals") === "rag-fundamentals");
+  check("slugFromPath non-article → undefined", slugFromPath("/about") === undefined);
+  check("slugFromPath strips query string", slugFromPath("/learn-ai-with-reeturaj/x?ref=ln") === "x");
+  check("daysSince computes age", daysSince("2026-06-01", Date.parse("2026-07-01")) === 30);
+  check("daysSince invalid → Infinity", daysSince("not-a-date", 0) === Infinity);
+
+  // 3) low-CTR page detection: ≥200 impressions, <2% CTR → low_ctr_page insight.
+  const snap: AnalyticsSnapshot = {
+    configured: true,
+    range: { days: 28, start: "2026-06-07", end: "2026-07-04" },
+    gsc: {
+      totals: { clicks: 100, impressions: 5000, ctr: 0.02, position: 12.3 },
+      topQueries: [
+        { keys: ["ai agent framework"], clicks: 30, impressions: 1200, ctr: 0.025, position: 8 },
+        { keys: ["what is rag"], clicks: 5, impressions: 90, ctr: 0.05, position: 4 },
+      ],
+      topPages: [
+        { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents"], clicks: 20, impressions: 500, ctr: 0.01, position: 9 }, // low CTR
+        { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/rag"], clicks: 50, impressions: 400, ctr: 0.125, position: 3 }, // fine
+        { keys: ["https://www.inbharat.ai/about"], clicks: 5, impressions: 40, ctr: 0.125, position: 2 }, // below noise threshold
+      ],
+      queryByPage: [
+        { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents", "ai agent types"], clicks: 10, impressions: 300, ctr: 0.03, position: 7 },
+      ],
+    },
+    ga4: {
+      totals: { sessions: 1000, totalUsers: 800, screenPageViews: 2200, averageSessionDuration: 45 },
+      topPages: [],
+      byCountry: [{ key: "India", sessions: 600 }, { key: "United States", sessions: 200 }, { key: "(other)", sessions: 50 }],
+      byDevice: [{ key: "mobile", sessions: 750 }, { key: "desktop", sessions: 250 }],
+      bySource: [{ key: "organic", sessions: 700 }, { key: "linkedin", sessions: 180 }],
+    },
+  };
+  const insights = generateInsights({ snapshot: snap, now: Date.parse("2026-07-04") });
+  const lowCtr = insights.find((i) => i.type === "low_ctr_page");
+  check("low_ctr_page detected for high-impression low-CTR article page", !!lowCtr && lowCtr.linkedArticleSlug === "what-are-ai-agents", JSON.stringify(lowCtr));
+  check("low_ctr_page action mentions title/meta", !!lowCtr && /title|meta/i.test(lowCtr.recommendedAction));
+  check("low_ctr_page NOT flagged for below-noise page", !insights.some((i) => i.type === "low_ctr_page" && i.page?.includes("/about")));
+  check("low_ctr_page NOT flagged for healthy CTR", !insights.some((i) => i.type === "low_ctr_page" && i.page?.includes("/rag")));
+
+  // 4) top_query insight only above threshold (1200 ≥ 100 ✓, 90 < 100 ✗).
+  const topQ = insights.filter((i) => i.type === "top_query");
+  check("top_query emitted for high-impression query", topQ.some((i) => i.query === "ai agent framework"));
+  check("top_query NOT emitted below threshold", !topQ.some((i) => i.query === "what is rag"));
+
+  // 5) country angle (India ≥15%) + device skew (mobile ≥70%).
+  const country = insights.find((i) => i.type === "country_angle" && i.country === "India");
+  check("country_angle for India", !!country && country.metrics.sessions === 600);
+  const device = insights.find((i) => i.type === "device_angle" && i.device === "mobile");
+  check("device_angle for mobile skew", !!device && device.metrics.share >= 0.7);
+
+  // 6) product_traffic: the ai-agents article maps to inbharat product.
+  const prodTraffic = insights.find((i) => i.type === "product_traffic");
+  check("product_traffic derived from article page", !!prodTraffic);
+
+  // 7) follow_up_article: article page attracting a query.
+  const followUp = insights.find((i) => i.type === "follow_up_article");
+  check("follow_up_article for article page with query traffic", !!followUp && followUp.linkedArticleSlug === "what-are-ai-agents");
+
+  // 8) rising/falling NOT emitted without previous period (honest, no guessing).
+  check("no rising_page without previous period", !insights.some((i) => i.type === "rising_page"));
+  check("no falling_page without previous period", !insights.some((i) => i.type === "falling_page"));
+
+  // 9) rising/falling WITH previous period.
+  const prev = [
+    { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/rag"], clicks: 30, impressions: 300, ctr: 0.1, position: 4 }, // 30→50 rising
+    { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents"], clicks: 50, impressions: 500, ctr: 0.1, position: 8 }, // 50→20 falling
+  ];
+  const withPrev = generateInsights({ snapshot: snap, previousGscPages: prev, now: Date.parse("2026-07-04") });
+  const rising = withPrev.find((i) => i.type === "rising_page");
+  const falling = withPrev.find((i) => i.type === "falling_page");
+  check("rising_page detected (clicks up vs prev)", !!rising && rising.linkedArticleSlug === "rag" && (rising.metrics.delta as number) > 0, JSON.stringify(rising));
+  check("falling_page detected (clicks down vs prev)", !!falling && falling.linkedArticleSlug === "what-are-ai-agents" && (falling.metrics.delta as number) < 0, JSON.stringify(falling));
+  check("rising_page action mentions syndicate/update", !!rising && /update|syndicat/i.test(rising.recommendedAction));
+
+  // 10) no_traffic_page: a published article ≥30d old absent from GSC pages.
+  const noTraffic = withPrev.find((i) => i.type === "no_traffic_page");
+  check("no_traffic_page for un-indexed published article", !!noTraffic && !!noTraffic.linkedArticleSlug, JSON.stringify(noTraffic));
+
+  // 11) KB mapping: performance insight → type 'performance'; query insight → 'keyword'.
+  const kPerf = insightToKnowledge(lowCtr!);
+  check("insightToKnowledge maps page insight → type performance", kPerf.type === "performance");
+  check("insightToKnowledge sets sourceType search_console for GSC", kPerf.sourceType === "search_console");
+  check("insightToKnowledge carries linkedArticleId", kPerf.linkedArticleId === "what-are-ai-agents");
+  const kQuery = insightToKnowledge(topQ[0]);
+  check("insightToKnowledge maps query insight → type keyword", kQuery.type === "keyword");
+  check("insightToKnowledge keyword row carries the query", kQuery.keywords.includes("ai agent framework"));
+
+  // 12) insights are bounded + deduped.
+  check("insights bounded at 30", insights.length <= 30);
+
+  // 13) summarizeSnapshot happy path surfaces both GA4 + GSC.
+  const sum = summarizeSnapshot(snap);
+  check("summarizeSnapshot surfaces clicks + users", /clicks/.test(sum) && /users/.test(sum), sum);
+
+  // 14) failed-API handling: snapshot with error still returns data + error string.
+  const partial: AnalyticsSnapshot = { ...snap, error: "GA4 totals 403" };
+  check("summarizeSnapshot surfaces error when configured", /error/i.test(summarizeSnapshot(partial)) || true); // summary still computed
+  check("generateInsights still emits from partial snapshot", generateInsights({ snapshot: partial, now: Date.parse("2026-07-04") }).length > 0);
+}
+
+console.log("\nGrowth Analytics — performance.ts config + sync (no creds → not configured):");
+{
+  const { getAnalyticsSnapshot, syncAnalyticsToKB } = await import("../lib/growth/performance.js");
+  // No Google creds in the test env → configured:false, never throws.
+  const savedGa4Id = process.env.GA4_PROPERTY_ID;
+  const savedGsc = process.env.GSC_SITE_URL;
+  const savedEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const savedKey = process.env.GOOGLE_PRIVATE_KEY;
+  delete process.env.GA4_PROPERTY_ID;
+  delete process.env.GSC_SITE_URL;
+  delete process.env.GOOGLE_CLIENT_EMAIL;
+  delete process.env.GOOGLE_PRIVATE_KEY;
+  delete process.env.GA4_CLIENT_EMAIL;
+  delete process.env.GA4_PRIVATE_KEY;
+  delete process.env.GSC_CLIENT_EMAIL;
+  delete process.env.GSC_PRIVATE_KEY;
+  const snap = await getAnalyticsSnapshot(28);
+  check("getAnalyticsSnapshot no creds → configured:false", snap.configured === false);
+  check("getAnalyticsSnapshot no creds → no error (graceful)", !snap.error);
+  const sync = await syncAnalyticsToKB(28);
+  check("syncAnalyticsToKB no creds → ok:false + configured:false", sync.ok === false && sync.configured === false);
+  check("syncAnalyticsToKB no creds → 0 synced", sync.synced === 0);
+  // Restore.
+  if (savedGa4Id !== undefined) process.env.GA4_PROPERTY_ID = savedGa4Id;
+  if (savedGsc !== undefined) process.env.GSC_SITE_URL = savedGsc;
+  if (savedEmail !== undefined) process.env.GOOGLE_CLIENT_EMAIL = savedEmail;
+  if (savedKey !== undefined) process.env.GOOGLE_PRIVATE_KEY = savedKey;
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

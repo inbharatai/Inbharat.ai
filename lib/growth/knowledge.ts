@@ -284,6 +284,51 @@ export async function listKnowledge(opts: SearchOptions = {}): Promise<Knowledge
 }
 
 /**
+ * Recent analytics insights stored by syncAnalyticsToKB (source_type 'analytics'
+ * or 'search_console'). Used by the Performance page + the read_analytics agent
+ * tool so the founder sees the last sync's recommendations without re-fetching
+ * Google. Newest-first; never throws. Also the basis for `lastAnalyticsSyncAt`.
+ */
+export async function listAnalyticsInsights(limit = 30): Promise<KnowledgeItem[]> {
+  if (!supabaseAdmin) return [];
+  const cap = Math.max(1, Math.min(limit, 100));
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_knowledge")
+      .select("*")
+      .in("source_type", ["analytics", "search_console"])
+      .order("created_at", { ascending: false })
+      .limit(cap);
+    if (error || !Array.isArray(data)) {
+      await logError("kb-analytics-list-fail", "analytics", String(error?.message || "no data")).catch(() => undefined);
+      return [];
+    }
+    return (data as KnowledgeRow[]).map(toItem);
+  } catch (e) {
+    await logError("kb-analytics-list-fail", "analytics", String((e as Error)?.message || "throw")).catch(() => undefined);
+    return [];
+  }
+}
+
+/** Timestamp of the most recent analytics insight row (the last successful
+ *  sync), or null when none exists yet. Never throws. */
+export async function lastAnalyticsSyncAt(): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_knowledge")
+      .select("created_at")
+      .in("source_type", ["analytics", "search_console"])
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error || !Array.isArray(data) || data.length === 0) return null;
+    return (data[0] as { created_at?: string }).created_at ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The pre-draft retrieval. Returns a compact set of relevant KB items: sources,
  * related prior articles/posts, competitor gaps, founder notes for the topic +
  * product. Used by articleWriter + promoter to ground a new draft in what the
