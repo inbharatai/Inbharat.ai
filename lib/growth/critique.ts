@@ -25,6 +25,23 @@ import { callGemini } from "./gemini.js";
 import { insertKnowledge } from "./knowledge.js";
 import type { CritiqueInput, CritiqueResult, CritiqueWeakness } from "./types.js";
 
+/** Trailing hashtag line: one-or-more `#Tag` tokens at the end of the text. */
+const TRAILING_HASHTAGS = /#[\w-]+(?:\s+#[\w-]+)*\s*$/;
+
+/**
+ * Deterministic hashtag-preservation backstop. If the original draft ended with
+ * a trailing hashtag line (`#ai #bharat #safety`) and the critique revision does
+ * NOT end with hashtags, re-append the original line. If the revision already
+ * ends with hashtags (the model kept or edited them), leave it. If the original
+ * had no trailing hashtags, return the revised unchanged. Pure.
+ */
+export function preserveTrailingHashtags(original: string, revised: string): string {
+  const m = original.match(TRAILING_HASHTAGS);
+  if (!m) return revised; // original had no trailing hashtag line
+  if (TRAILING_HASHTAGS.test(revised.trimEnd())) return revised; // revision kept some
+  return `${revised.trimEnd()}\n${m[0].trim()}`;
+}
+
 /**
  * Critique + revise a candidate draft body. Returns the revised body (or null
  * to keep the candidate) plus the weaknesses found + a status for logging/UI.
@@ -126,7 +143,12 @@ export async function critiqueAndRevise(input: CritiqueInput): Promise<CritiqueR
   });
 
   // Keep the candidate if the model returned no revision (or it's identical).
-  const finalRevised = revised && revised !== input.draftBody ? revised : null;
+  // Deterministic hashtag-preservation backstop: the critique PROMPT asks the
+  // model to preserve the trailing hashtag line, but a revision can silently drop
+  // it — and the caption/article ships without discoverability tags with no
+  // signal to the founder. Re-append the original trailing hashtag line when the
+  // revised text ends with no hashtags. Structural guarantee, not model-dependent.
+  const finalRevised = revised && revised !== input.draftBody ? preserveTrailingHashtags(input.draftBody, revised) : null;
 
   // Phase 2: best-effort KB write — capture critique weaknesses as a learning
   // note for this topic so future drafts avoid the same issues. content_hash

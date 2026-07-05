@@ -66,7 +66,13 @@ export function isModelConfigured(choice: ModelChoice): boolean {
   // Growth Agent must use its OWN key path — never the chat backend's
   // OPENAI_API_KEY (would conflate spend + violate isolation). Only
   // GROWTH_OPENAI_API_KEY is accepted for growth tasks.
-  if (choice.provider === "openai") return !!process.env.GROWTH_OPENAI_API_KEY;
+  // NOTE: every growth call site (callGemini / callGeminiAgent / callGeminiVision
+  // / callGeminiImage) implements the GEMINI path only — there is NO OpenAI call
+  // path. So even if GROWTH_OPENAI_API_KEY is set, an openai choice has no
+  // executor and would throw "GEMINI_API_KEY not set" (misleading). We return
+  // false so growth tasks degrade honestly to "not configured" instead of
+  // crashing. To use OpenAI for growth, an OpenAI call path must be added first.
+  if (choice.provider === "openai") return false;
   return !!process.env.GEMINI_API_KEY;
 }
 

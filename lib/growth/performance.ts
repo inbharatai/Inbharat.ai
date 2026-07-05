@@ -42,11 +42,11 @@ function env(name: string): string | undefined {
 }
 
 /** Service-account email: GA4_CLIENT_EMAIL → GSC_CLIENT_EMAIL → GOOGLE_CLIENT_EMAIL. */
-function googleClientEmail(): string | undefined {
+export function googleClientEmail(): string | undefined {
   return env("GA4_CLIENT_EMAIL") ?? env("GSC_CLIENT_EMAIL") ?? env("GOOGLE_CLIENT_EMAIL");
 }
 /** Service-account private key: GA4_PRIVATE_KEY → GSC_PRIVATE_KEY → GOOGLE_PRIVATE_KEY. */
-function googlePrivateKey(): string | undefined {
+export function googlePrivateKey(): string | undefined {
   const k = env("GA4_PRIVATE_KEY") ?? env("GSC_PRIVATE_KEY") ?? env("GOOGLE_PRIVATE_KEY");
   return k ? fmtKey(k) : undefined;
 }
@@ -321,10 +321,15 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
           headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
           body: JSON.stringify(body),
         });
-      const [totRes, qRes, pRes, qpRes] = await Promise.all([
+      // allSettled (not Promise.all): one failed fetch / bad JSON must not sink the
+      // other three GSC reports. Each result is handled individually below.
+      const [totR, qR, pR, qpR] = await Promise.allSettled([
         q({ startDate: start, endDate: end, dimensions: [], rowLimit: 1 }),
         q({ startDate: start, endDate: end, dimensions: ["query"], rowLimit: 25 }),
-        q({ startDate: start, endDate: end, dimensions: ["page"], rowLimit: 25 }),
+        // page rowLimit 250 (not 25) so no_traffic_page's seen-set covers articles
+        // beyond the top-25 displayed pages — otherwise a healthy article at GSC
+        // rank 26+ is falsely flagged "0 impressions". GSC caps at 25000.
+        q({ startDate: start, endDate: end, dimensions: ["page"], rowLimit: 250 }),
         q({ startDate: start, endDate: end, dimensions: ["page", "query"], rowLimit: 50 }),
       ]);
       const toRows = async (res: Response): Promise<GscRow[]> => {
@@ -332,7 +337,16 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
         const j = (await res.json()) as any;
         return (j?.rows ?? []).map((r: any) => ({ keys: Array.isArray(r.keys) ? r.keys.map(String) : [], clicks: Number(r.clicks ?? 0), impressions: Number(r.impressions ?? 0), ctr: Number(r.ctr ?? 0), position: Number(r.position ?? 0) }));
       };
-      const [totRows, topQueries, topPages, queryByPage] = await Promise.all([toRows(totRes), toRows(qRes), toRows(pRes), toRows(qpRes)]);
+      // Guarded extraction: a rejected fetch or a toRows throw is isolated to its
+      // own report; the others still populate the snapshot.
+      const rowsOf = async (r: PromiseSettledResult<Response>, label: string): Promise<GscRow[]> => {
+        if (r.status === "rejected") { errors.push(`GSC ${label}: ${String((r.reason as Error)?.message ?? r.reason).slice(0, 120)}`); return []; }
+        try { return await toRows(r.value); }
+        catch (e) { errors.push(`GSC ${label}: ${String((e as Error)?.message ?? e).slice(0, 120)}`); return []; }
+      };
+      const [totRows, topQueries, topPages, queryByPage] = await Promise.all([
+        rowsOf(totR, "totals"), rowsOf(qR, "queries"), rowsOf(pR, "pages"), rowsOf(qpR, "queryByPage"),
+      ]);
       const t = totRows[0];
       const gsc: GscReport = {
         totals: { clicks: t?.clicks ?? 0, impressions: t?.impressions ?? 0, ctr: t?.ctr ?? 0, position: t?.position ?? 0 },

@@ -139,10 +139,14 @@ function normalizeKeywords(ks: string[] | undefined): string[] {
   return out;
 }
 
-/** sha-256 of the normalized title + body (dedupe key). Node 18+ has webcrypto. */
-async function contentHash(title: string, body?: string | null): Promise<string | null> {
+/** sha-256 of the normalized type + title + body (dedupe key). Node 18+ has webcrypto.
+ *  `type` is part of the key so a `source` row and a `topic` row with the same
+ *  title+body don't collide — without it, insertKnowledge returns the existing
+ *  cross-type row and the new row is silently dropped (and the caller's `saved`
+ *  counter inflates). */
+async function contentHash(type: string, title: string, body?: string | null): Promise<string | null> {
   try {
-    const norm = `${(title || "").trim().toLowerCase()}\n${(body ?? "").trim().toLowerCase()}`;
+    const norm = `${(type || "").trim().toLowerCase()}\n${(title || "").trim().toLowerCase()}\n${(body ?? "").trim().toLowerCase()}`;
     if (!norm.trim()) return null;
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(norm));
     return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -162,7 +166,7 @@ export async function insertKnowledge(input: InsertKnowledgeInput): Promise<Know
     const title = (input.title || "").trim().slice(0, 500);
     if (!title) return null;
     const body = input.body ? input.body.slice(0, 50000) : null;
-    const hash = await contentHash(title, body);
+    const hash = await contentHash(input.type, title, body);
     // Idempotent: if the same content_hash exists, return it unchanged.
     if (hash) {
       const { data: existing } = await supabaseAdmin
@@ -341,9 +345,9 @@ export async function retrieveForTopic(topic: string, product?: string | null): 
 /**
  * Cross-source duplicate detection — the missing piece. Returns true when `topic`
  * is a near-duplicate (token Jaccard ≥ 0.8) of any existing KB title/summary, any
- * published ARTICLES title, OR any drafted article's topic. The agent pivots
- * angle / updates existing / skips instead of re-drafting the same thing. Best-
- * effort: on any DB error returns false (no duplicate found → proceed).
+ * published ARTICLES title, OR any pending/approved drafted article's title/slug.
+ * The agent pivots angle / updates existing / skips instead of re-drafting the
+ * same thing. Best-effort: on any DB error returns false (no duplicate → proceed).
  */
 export async function findDuplicateKnowledge(topic: string, product?: string | null): Promise<{ duplicate: boolean; existing?: KnowledgeItem; reason?: string }> {
   const t = (topic || "").trim();
@@ -354,8 +358,39 @@ export async function findDuplicateKnowledge(topic: string, product?: string | n
     return { duplicate: true, reason: "matches a published article title — consider update_existing instead of a new article" };
   }
   if (!supabaseAdmin) return { duplicate: false };
+  // 2) Pending/approved drafted articles (kind='article') — title paraphrase OR
+  //    slug collision. Without this, a topic can be re-discovered + re-drafted
+  //    while an article on the same angle is still pending (not yet published, so
+  //    not in the ARTICLES manifest). Lazy-import slugifyTitle to avoid the
+  //    articleWriter → knowledge import cycle.
   try {
-    // 2) Existing KB titles + summaries (topic-type rows first, then everything).
+    const { data: drafts } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("title,url,status")
+      .eq("kind", "article")
+      .in("status", ["pending", "approved"])
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (Array.isArray(drafts) && drafts.length) {
+      const draftTitles = drafts.map((d) => String(d.title ?? "")).filter(Boolean);
+      if (isParaphraseOf(t, draftTitles)) {
+        return { duplicate: true, reason: "matches a pending/approved article draft's title — pivot the angle or update the existing draft instead of a new article" };
+      }
+      const { slugifyTitle } = await import("./articleWriter.js");
+      const topicSlug = slugifyTitle(t).toLowerCase();
+      const draftSlugHit = drafts.some((d) => {
+        const urlSlug = String(d.url ?? "").split("/learn-ai-with-reeturaj/")[1]?.split(/[/?#]/)[0]?.toLowerCase();
+        return (urlSlug && urlSlug === topicSlug) || slugifyTitle(String(d.title ?? "")).toLowerCase() === topicSlug;
+      });
+      if (draftSlugHit) {
+        return { duplicate: true, reason: "matches a pending/approved article draft's slug — pivot the angle or update the existing draft" };
+      }
+    }
+  } catch (e) {
+    await logError("kb-dedup-drafts-fail", t, String((e as Error)?.message || "throw")).catch(() => undefined);
+  }
+  try {
+    // 3) Existing KB titles + summaries (topic-type rows first, then everything).
     let req = supabaseAdmin
       .from("growth_knowledge")
       .select("id,type,title,summary,related_product,status")
@@ -503,9 +538,15 @@ export async function pickApprovedTopicFallback(
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_knowledge")
-      .select("id,title,summary,topic_cluster,related_product,intent_score,keywords")
+      .select("id,title,summary,topic_cluster,related_product,intent_score,keywords,risk_level")
       .eq("type", "topic")
       .eq("status", "approved")
+      // Hard-exclude regulated (high-risk) topics from the auto-fallback queue —
+      // a 'high' risk_level is a fig leaf at priority-time (weight 0.03), so the
+      // structural gate belongs here: the morning cron must never auto-draft
+      // medical/legal/patent/visa/finance content. The founder can still draft one
+      // manually after reviewing it in the Knowledge UI.
+      .neq("risk_level", "high")
       .order("intent_score", { ascending: false, nullsFirst: false })
       .limit(40);
     if (error || !Array.isArray(data)) return null;

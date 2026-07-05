@@ -299,13 +299,19 @@ const origCronSecret = process.env.CRON_SECRET;
 const origLocalPort = process.env.LOCAL_API_PORT;
 const origNodeEnv = process.env.NODE_ENV;
 try {
-  // 1. Vercel scheduled cron identifies itself via the vercel-cron user-agent.
-  let r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0" }));
-  check("vercel-cron UA allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron", JSON.stringify(r));
+  // 1. Vercel scheduled cron sends BOTH the vercel-cron user-agent AND the
+  //    x-vercel-cron-schedule header. We require BOTH (not either alone) so a
+  //    single spoofed client header isn't enough to bypass the secret.
+  let r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0", "x-vercel-cron-schedule": "0 6 * * *" }));
+  check("vercel-cron UA + schedule header allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron", JSON.stringify(r));
 
-  // 2. … or via the x-vercel-cron-schedule header.
+  // 2. UA alone is NOT enough (spoofable single header) — denied.
+  r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0" }));
+  check("vercel-cron UA alone denied", r.ok === false, JSON.stringify(r));
+
+  // 2b. Schedule header alone is NOT enough either — denied.
   r = await authorizeCron(fakeReq({ "x-vercel-cron-schedule": "0 6 * * *" }));
-  check("x-vercel-cron-schedule header allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron");
+  check("x-vercel-cron-schedule header alone denied", r.ok === false, JSON.stringify(r));
 
   // 3. External scheduler carrying the shared CRON_SECRET (x-cron-secret).
   process.env.CRON_SECRET = "topsecret";
@@ -489,6 +495,15 @@ try {
   const pf = await critiqueAndRevise({ draftBody: "Some draft.", context: { url: "https://inbharat.ai/x", kind: "linkedin" } });
   check("critique parse_failed → status parse_failed", pf.status === "parse_failed", `got ${pf.status}`);
   check("critique parse_failed → keeps candidate (revised null)", pf.revised === null);
+
+  // preserveTrailingHashtags: deterministic backstop re-appends the hashtag line
+  // when the critique revision dropped it; leaves revisions that kept hashtags
+  // alone; passes through when the original had none.
+  const { preserveTrailingHashtags } = await import("../lib/growth/critique.js");
+  const orig = "Built a thing today.\n#ai #bharat #startups";
+  check("preserveTrailingHashtags re-appends dropped line", preserveTrailingHashtags(orig, "Built a thing today.") === "Built a thing today.\n#ai #bharat #startups");
+  check("preserveTrailingHashtags keeps revision with hashtags", preserveTrailingHashtags(orig, "New hook.\n#ai #india") === "New hook.\n#ai #india");
+  check("preserveTrailingHashtags no-op when original had none", preserveTrailingHashtags("Plain text.", "Revised plain text.") === "Revised plain text.");
 
   // skipped: review model unconfigured (no key) → status skipped, no fetch.
   critCalls = 0;
@@ -1728,8 +1743,11 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
   check("rising_page action mentions syndicate/update", !!rising && /update|syndicat/i.test(rising.recommendedAction));
 
   // 10) no_traffic_page: a published article ≥30d old absent from GSC pages.
+  //     The summary must report the ACTUAL window (snapshot.range.days), not a
+  //     hardcoded "28 days" — a manual 90d sync would otherwise fabricate "28d".
   const noTraffic = withPrev.find((i) => i.type === "no_traffic_page");
   check("no_traffic_page for un-indexed published article", !!noTraffic && !!noTraffic.linkedArticleSlug, JSON.stringify(noTraffic));
+  check("no_traffic_page summary uses actual window days", !!noTraffic && /last \d+ days/.test(noTraffic.summary ?? "") && !/in 28 days/.test(noTraffic.summary ?? ""), noTraffic?.summary ?? "");
 
   // 11) KB mapping: performance insight → type 'performance'; query insight → 'keyword'.
   const kPerf = insightToKnowledge(lowCtr!);
@@ -1749,7 +1767,7 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
 
   // 14) failed-API handling: snapshot with error still returns data + error string.
   const partial: AnalyticsSnapshot = { ...snap, error: "GA4 totals 403" };
-  check("summarizeSnapshot surfaces error when configured", /error/i.test(summarizeSnapshot(partial)) || true); // summary still computed
+  check("summarizeSnapshot surfaces error when configured", /error/i.test(summarizeSnapshot(partial)), summarizeSnapshot(partial));
   check("generateInsights still emits from partial snapshot", generateInsights({ snapshot: partial, now: Date.parse("2026-07-04") }).length > 0);
 }
 

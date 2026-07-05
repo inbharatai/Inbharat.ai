@@ -24,7 +24,7 @@ import { critiqueAndRevise } from "./critique.js";
 import { sanitizeMermaidFences } from "./mermaid-validate.js";
 import { stripCitationMarkers } from "./citations.js";
 import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
-import { retrieveForTopic, formatKnowledgeBlock, markUsed } from "./knowledge.js";
+import { retrieveForTopic, formatKnowledgeBlock, markUsed, findDuplicateKnowledge } from "./knowledge.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -103,6 +103,15 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
   const skip = (note: string): ArticleDraftResult => ({ draftId: null, status: "skipped", note });
   if (!isModelConfigured(choice) || !(await withinBudget())) {
     return skip("article model not configured or monthly budget exhausted");
+  }
+
+  // Structural duplicate backstop: even when the NL router forgets to call
+  // find_duplicate first (the free-plan / direct write_article path), refuse to
+  // draft a near-duplicate of a published article, a pending draft, or an
+  // existing KB entry. Best-effort (DB down → proceed, never breaks the pipeline).
+  const dup = await findDuplicateKnowledge(topic);
+  if (dup.duplicate) {
+    return skip(`duplicate topic — ${dup.reason ?? "matches existing content"}. Pivot the angle or update the existing article instead.`);
   }
 
   // Sibling context: titles + slugs + categories so the draft can cross-link.

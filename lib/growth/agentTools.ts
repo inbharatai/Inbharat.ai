@@ -36,7 +36,7 @@ import {
 import { groundedSearch } from "./search.js";
 import { getAnalyticsSnapshot, syncAnalyticsToKB } from "./performance.js";
 import { listAnalyticsInsights } from "./knowledge.js";
-import { generateInsights, summarizeSnapshot, type Insight } from "./analyticsInsights.js";
+import { generateInsights, summarizeSnapshot, inferProduct, type Insight } from "./analyticsInsights.js";
 import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
@@ -697,15 +697,22 @@ async function readAnalyticsTool(args: Args): Promise<ToolResult> {
     return out;
   };
   const payload: Record<string, unknown> = { configured: true, days, summary: summarizeSnapshot(snapshot) };
+  // Product / country filters scope the views the system prompt promises they
+  // scope ("show traffic for JAK Shield / from India"). Without these the tool
+  // would return ALL pages/queries/countries regardless of the filter and the
+  // model would either misreport or call the tool a liar. Product matches via
+  // inferProduct on the page path / query text; country matches by name.
+  const matchesProduct = (text: string) => !product || inferProduct(text) === product;
+  const matchesCountry = (name: string) => !country || name.toLowerCase().includes(country.toLowerCase());
   if (snapshot.gsc) {
     payload.gscTotals = snapshot.gsc.totals;
-    payload.topQueries = snapshot.gsc.topQueries.slice(0, 10).map((r) => ({ query: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
-    payload.topPages = snapshot.gsc.topPages.slice(0, 10).map((r) => ({ page: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
+    payload.topQueries = snapshot.gsc.topQueries.filter((r) => matchesProduct(r.keys[0] ?? "")).slice(0, 10).map((r) => ({ query: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
+    payload.topPages = snapshot.gsc.topPages.filter((r) => matchesProduct(r.keys[0] ?? "")).slice(0, 10).map((r) => ({ page: r.keys[0], impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position }));
   }
   if (snapshot.ga4) {
     payload.ga4Totals = snapshot.ga4.totals;
-    payload.topPagesGa4 = snapshot.ga4.topPages.slice(0, 10).map((p) => ({ path: p.path, views: p.screenPageViews, sessions: p.sessions, users: p.users }));
-    payload.countries = snapshot.ga4.byCountry.slice(0, 8);
+    payload.topPagesGa4 = snapshot.ga4.topPages.filter((p) => matchesProduct(p.path)).slice(0, 10).map((p) => ({ path: p.path, views: p.screenPageViews, sessions: p.sessions, users: p.users }));
+    payload.countries = snapshot.ga4.byCountry.filter((c) => matchesCountry(c.key)).slice(0, 8);
     payload.devices = snapshot.ga4.byDevice;
     payload.sources = snapshot.ga4.bySource.slice(0, 8);
   }
@@ -722,7 +729,7 @@ async function readAnalyticsTool(args: Args): Promise<ToolResult> {
   let message = summarizeSnapshot(snapshot);
   if (view === "top_pages") {
     message = snapshot.gsc
-      ? `Top ${payload.topPages ? 10 : 0} pages by clicks (last ${days}d).`
+      ? `Top ${(payload.topPages as unknown[] | undefined)?.length ?? 0} pages by clicks (last ${days}d).`
       : "No Search Console page data in this window.";
   } else if (view === "top_queries") {
     message = snapshot.gsc ? `Top search queries by impressions (last ${days}d).` : "No Search Console query data in this window.";
@@ -872,6 +879,17 @@ async function analyzeImage(
     void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: item.storage_path, provider: choice.provider });
     return { ok: false, message: `vision call failed: ${(e as Error).message}` };
   }
+  // Post-scan the model's text output for secrets. The image bytes themselves
+  // can't be pre-scanned without OCR, but if the founder uploaded a screenshot
+  // of an .env / service-account JSON / DB URL, the vision model transcribes
+  // the secret into `analysis` — catch it BEFORE persisting to the inbox + chat
+  // so the secret never lands in the DB or the transcript.
+  const redactedAnalysis = redact(analysis);
+  if (redactedAnalysis.containedSecret) {
+    void logUsage({ model: choice.model, task, promptTokens: Math.ceil(instruction.length / 4), completionTokens: Math.ceil(analysis.length / 4), totalTokens: Math.ceil((instruction.length + analysis.length) / 4) + Math.ceil(buf.length / 4), costUsd: estimateCost(choice, Math.ceil((instruction.length + analysis.length) / 4)), status: "ok", contextUrl: item.storage_path, provider: choice.provider });
+    await logInfo("agent-analyze-image-secret-blocked", item.storage_path, "vision output contained a secret; aborted before save").catch(() => undefined);
+    return { ok: false, message: "I caught what looks like a secret in the image (the vision model transcribed it). I did NOT save the analysis. Remove the secret from the image and re-upload." };
+  }
   const totalTokens = Math.ceil((instruction.length + analysis.length) / 4) + Math.ceil(buf.length / 4);
   void logUsage({
     model: choice.model, task,
@@ -1003,14 +1021,21 @@ async function writeVideoScript(args: Args): Promise<ToolResult> {
 async function promoteArticleTool(args: Args): Promise<ToolResult> {
   const url = str(args.url);
   if (!url) return { ok: false, message: "need the article url" };
-  // Reject anything that isn't a clean http(s) URL — new URL() would throw.
+  // Reject anything that isn't a clean http(s) URL on an inbharat.ai host. The
+  // host check prevents a prompt-injected URL like evil.com/learn-ai-with-
+  // reeturaj/foo from passing the path-only check and producing a caption that
+  // links the founder to an attacker-controlled domain.
+  let parsed: URL;
   try {
-    const u = new URL(url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return { ok: false, message: "url must be http/https" };
-    }
+    parsed = new URL(url);
   } catch {
     return { ok: false, message: "invalid url" };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { ok: false, message: "url must be http/https" };
+  }
+  if (!parsed.hostname.endsWith("inbharat.ai")) {
+    return { ok: false, message: "url must point to inbharat.ai/learn-ai-with-reeturaj/<slug>" };
   }
   if (!url.includes("/learn-ai-with-reeturaj/")) {
     return { ok: false, message: "url must point to inbharat.ai/learn-ai-with-reeturaj/<slug>" };

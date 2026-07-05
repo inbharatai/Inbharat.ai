@@ -233,6 +233,12 @@ function coerceRule(r: ProposedRule): {
   const scope = r.scope as AgentRuleScope;
   if (scope !== "global" && scope !== "domain" && scope !== "repo") return null;
   const scopeKey = typeof r.scopeKey === "string" && r.scopeKey.trim() ? r.scopeKey.trim() : null;
+  // A non-global rule with no scopeKey is dead on arrival — loadRulesFor queries
+  // `.eq("scope_key", scopeKey ?? "")` for domain/repo scopes, so a null
+  // scope_key never matches any URL/repo and the rule is unreachable forever.
+  // Reject it here (mirrors the UI's validateScopeKey) so the distiller can't
+  // insert a dead row that misleads the founder in the Learning tab.
+  if (scope !== "global" && !scopeKey) return null;
   return { kind, ruleText, scope, scopeKey };
 }
 

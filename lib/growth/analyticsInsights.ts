@@ -243,7 +243,7 @@ function fallingPages(current: GscRow[], previous: GscRow[]): Insight[] {
   return out;
 }
 
-function noTrafficPages(gsc: GscReport, now: number): Insight[] {
+function noTrafficPages(gsc: GscReport, now: number, days: number): Insight[] {
   const seen = new Set<string>();
   for (const r of gsc.topPages) {
     const slug = slugFromPath(r.keys[0] ?? "");
@@ -262,7 +262,7 @@ function noTrafficPages(gsc: GscReport, now: number): Insight[] {
       linkedArticleSlug: a.slug,
       relatedProduct: inferProduct(a.slug + " " + a.title),
       metrics: { impressions: 0, clicks: 0, ageDays: age },
-      summary: `Article "${a.slug}" has no Search Console impressions in 28 days (published ${age}d ago).`,
+      summary: `Article "${a.slug}" has no Search Console impressions in the last ${days} days (published ${age}d ago).`,
       recommendedAction: `Refresh or archive "${a.slug}" — update the angle, improve on-page SEO, or retire it if the topic no longer fits.`,
       priority: clamp(Math.round(40 + Math.min(age / 5, 30))),
     });
@@ -442,7 +442,7 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
     out.push(...topQueryInsights(snapshot.gsc));
     out.push(...followUpFromQueryByPage(snapshot.gsc));
     out.push(...productTraffic(snapshot.gsc));
-    out.push(...noTrafficPages(snapshot.gsc, now));
+    out.push(...noTrafficPages(snapshot.gsc, now, snapshot.range.days));
     if (previousGscPages && previousGscPages.length > 0) {
       out.push(...risingPages(snapshot.gsc.topPages, previousGscPages));
       out.push(...fallingPages(snapshot.gsc.topPages, previousGscPages));

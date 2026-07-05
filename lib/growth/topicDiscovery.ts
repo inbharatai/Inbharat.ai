@@ -350,12 +350,17 @@ export async function discoverTopics(product: ProductId, count = 6): Promise<Dis
   return { product, discovered: topics.length, duplicates, saved, topics, notConfigured: false };
 }
 
-/** Run discovery across ALL products (the weekly cron). Best-effort per product. */
+/** Run discovery across ALL products (the weekly cron). Best-effort per product.
+ *  Products run CONCURRENTLY (Promise.all) so 7 products × 4 queries of Gemini
+ *  google_search can't blow the 300s cron maxDuration — sequential worst case
+ *  was 28 × 20s timeout = 560s. Each product's failure is isolated (catch →
+ *  notConfigured result) so one bad product doesn't sink the run. */
 export async function discoverAllProducts(): Promise<DiscoverResult[]> {
-  const results: DiscoverResult[] = [];
-  for (const product of DISCOVERY_PRODUCTS) {
-    try { results.push(await discoverTopics(product, 4)); }
-    catch { results.push({ product, discovered: 0, duplicates: 0, saved: 0, topics: [], notConfigured: true }); }
-  }
+  const results = await Promise.all(
+    DISCOVERY_PRODUCTS.map(async (product) => {
+      try { return await discoverTopics(product, 4); }
+      catch { return { product, discovered: 0, duplicates: 0, saved: 0, topics: [], notConfigured: true } as DiscoverResult; }
+    }),
+  );
   return results;
 }

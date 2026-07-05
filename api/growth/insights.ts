@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { monthStartIso, spendBlock } from "../../lib/growth/spend.js";
+import { googleClientEmail, googlePrivateKey } from "../../lib/growth/performance.js";
 
 /**
  * GET /api/growth/insights — single ops snapshot for the admin dashboard
@@ -120,7 +121,11 @@ function integrationFlags() {
     growthOpenai: !!process.env.GROWTH_OPENAI_API_KEY,
     supabase: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     cronSecret: !!process.env.CRON_SECRET,
-    ga4: !!(process.env.GA4_PROPERTY_ID && process.env.GA4_CLIENT_EMAIL && process.env.GA4_PRIVATE_KEY),
-    gsc: !!(process.env.GSC_SITE_URL && process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY),
+    // Match the real read path in performance.ts: the shared GOOGLE_* pair backs
+    // BOTH panels (GA4_CLIENT_EMAIL → GSC_CLIENT_EMAIL → GOOGLE_CLIENT_EMAIL, same
+    // for the key). Without this, the panel reports "not configured" while data
+    // flows when the operator sets only GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY.
+    ga4: !!(process.env.GA4_PROPERTY_ID && googleClientEmail() && googlePrivateKey()),
+    gsc: !!(process.env.GSC_SITE_URL && googleClientEmail() && googlePrivateKey()),
   };
 }

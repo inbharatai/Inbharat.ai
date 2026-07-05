@@ -126,10 +126,19 @@ export function isCronAuthErr(a: CronAuthResult): a is AdminErr {
 export async function authorizeCron(req: VercelRequest): Promise<CronAuthResult> {
   const requestId = getRequestId(req);
 
-  // 1. Vercel's scheduled cron (GET, vercel-cron UA / schedule header).
+  // 1. Vercel's scheduled cron (GET). Vercel sends BOTH the `vercel-cron` user-
+  // agent AND the `x-vercel-cron-schedule` header on every cron invocation. We
+  // require BOTH (not either alone) so a single spoofed client header isn't
+  // enough — an attacker must know to set both. This path is inherently UA-based
+  // (Vercel cron cannot send a custom secret), so for true security set
+  // CRON_SECRET and drive these endpoints from an external scheduler (path 2).
+  // In production, log a warning so the spoofable path is visible in logs.
   const ua = (req.headers?.["user-agent"] as string | undefined) || "";
   const hasSchedule = !!req.headers?.["x-vercel-cron-schedule"];
-  if (/vercel-cron/i.test(ua) || hasSchedule) {
+  if (/vercel-cron/i.test(ua) && hasSchedule) {
+    if (!isLocalDev() && process.env.NODE_ENV === "production") {
+      console.warn("[cron] endpoint authed via vercel-cron UA (spoofable); set CRON_SECRET + external scheduler for true security");
+    }
     return { ok: true, requestId, source: "vercel-cron" };
   }
 

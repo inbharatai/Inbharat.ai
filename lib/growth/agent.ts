@@ -147,7 +147,16 @@ export async function runAgentTurn(
   }
 
   // ─── Function-calling loop ─────────────────────────────────────────────────
-  let iteration = 0;
+  // workIterations counts rounds where the model made REAL tool calls (the
+  // "6 calls" cap the founder sees). recoveryIterations counts malformed +
+  // narration retries — these are corrective and must NOT consume the work
+  // budget, or 4 recovery retries could starve real tool calls (leaving only 2
+  // of 6 for actual work). Bounded separately: MAX_WORK=6 tool-call rounds,
+  // MAX_RECOVERY=4 corrective retries, hard total cap = 10 model calls.
+  let workIterations = 0;
+  let recoveryIterations = 0;
+  const MAX_WORK = MAX_ITERATIONS;
+  const MAX_RECOVERY = 4;
   let reply: string | null = null;
   let malformedCount = 0;
   // Tool calls made THIS turn, in execution order, so callers (the morning cron)
@@ -160,13 +169,13 @@ export async function runAgentTurn(
   const toolNames = AGENT_TOOLS.map((t) => t.name);
   // Bounded corrective retries for narration-as-text (sibling to malformedCount).
   let narrationRetries = 0;
-  for (; iteration < MAX_ITERATIONS; iteration++) {
-    // Re-check the budget each iteration (not only at turn start). A turn that
-    // starts just under the cap can otherwise run MAX_ITERATIONS model calls +
-    // several tool-internal model calls, pushing spend past the cap before any
-    // re-check. logUsage (awaited below) busts the spend cache so this re-check
-    // observes the spend from the previous iteration.
-    if (iteration > 0 && !(await withinBudget())) {
+  while (workIterations < MAX_WORK && workIterations + recoveryIterations < MAX_WORK + MAX_RECOVERY) {
+    // Re-check the budget each model call (not only at turn start). A turn that
+    // starts just under the cap can otherwise run several model calls + tool-
+    // internal model calls, pushing spend past the cap before any re-check.
+    // logUsage (awaited below) busts the spend cache so this re-check observes
+    // the spend from the previous call.
+    if (workIterations + recoveryIterations > 0 && !(await withinBudget())) {
       reply = "I hit the monthly budget mid-turn — the work I queued is in Issues for you to review. Raise the cap in Settings to continue.";
       await persistMessage(tid, "assistant", reply, null, null, null);
       break;
@@ -221,7 +230,8 @@ export async function runAgentTurn(
     // the 8192 cap this is rare, but it's defense-in-depth for very long pastes.
     if (result.finishReason === "MALFORMED_FUNCTION_CALL" && result.toolCalls.length === 0) {
       malformedCount++;
-      if (malformedCount > 2) {
+      recoveryIterations++;
+      if (malformedCount > 2 || recoveryIterations > MAX_RECOVERY) {
         reply = "I kept getting a malformed tool call — that usually means the pasted text is too long for one shot. Try pasting a shorter excerpt, or ask me to review it in two halves.";
         await persistMessage(tid, "assistant", reply, null, null, null);
         break;
@@ -244,8 +254,9 @@ export async function runAgentTurn(
       // bounded so it can't spin. After the retries exhaust, fall through to the
       // normal text-answer end (the caller surfaces "no tools ran" honestly).
       const narrated = result.text ? detectNarratedToolCall(result.text, toolNames) : null;
-      if (narrated && result.text && narrationRetries < 2) {
+      if (narrated && result.text && narrationRetries < 2 && recoveryIterations < MAX_RECOVERY) {
         narrationRetries++;
+        recoveryIterations++;
         await persistMessage(tid, "assistant", result.text, null, null, null);
         contents.push({
           role: "user",
@@ -261,7 +272,9 @@ export async function runAgentTurn(
 
     // The model wants tools. Persist its narration (if any) + each tool call,
     // then execute + feed results back. Gemini wants functionCall in a "model"
-    // turn and functionResponse in a "user" turn.
+    // turn and functionResponse in a "user" turn. This round counts as ONE work
+    // iteration toward the MAX_WORK cap (recovery retries don't).
+    workIterations++;
     if (result.text) await persistMessage(tid, "assistant", result.text, null, null, null);
     const modelParts: unknown[] = [];
     const responseParts: unknown[] = [];
@@ -287,11 +300,12 @@ export async function runAgentTurn(
     // seeing results. If it gave ONLY tool calls, loop to get the closing text.
   }
 
-  if (iteration >= MAX_ITERATIONS && reply === null) {
-    // Distinct from the budget-exhausted message (line 170, "monthly budget")
-    // and the malformed/narration retry-exhausted messages (lines 225/247): this
-    // is the per-turn tool-call bound (6 calls) — the model kept calling tools
-    // without producing a closing text answer. Honest about the cause.
+  if (workIterations >= MAX_WORK && reply === null) {
+    // Distinct from the budget-exhausted message above ("monthly budget") and
+    // the malformed/narration retry-exhausted messages: this is the per-turn
+    // tool-call bound (6 work rounds) — the model kept calling tools without
+    // producing a closing text answer. Recovery retries don't count against this
+    // cap, so the founder gets the full 6 rounds of real work. Honest about cause.
     reply = "I reached my per-turn tool-call limit (6 calls) without a closing summary — the work I finished is queued in Issues for your review. Send \"continue\" and I'll pick up where I left off.";
     await persistMessage(tid, "assistant", reply, null, null, null);
   }

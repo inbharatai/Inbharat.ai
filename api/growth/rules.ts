@@ -47,6 +47,14 @@ function toRow(p: { scope: AgentRuleScope; scopeKey?: string | null; kind: Agent
   };
 }
 
+/** A non-global rule with no scopeKey is unreachable (loadRulesFor filters by
+ *  scope_key for domain/repo). Reject it at the API so a curl POST can't insert
+ *  a dead row the UI would have blocked. */
+function validateScopeKey(scope: AgentRuleScope, scopeKey: string | null | undefined): string | true {
+  if (scope !== "global" && !scopeKey) return "scopeKey is required for domain/repo scopes";
+  return true;
+}
+
 async function audit(userId: string, action: string, detail: string): Promise<void> {
   if (!supabaseAdmin) return;
   // Postgrest builders are PromiseLike (.then) but NOT Promises — .catch throws
@@ -89,6 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "POST") {
     const parsed = PostBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
+    const scopeCheck = validateScopeKey(parsed.data.scope, parsed.data.scopeKey);
+    if (scopeCheck !== true) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: scopeCheck, requestId });
     const row = toRow(parsed.data);
     const { data, error } = await supabaseAdmin.from("growth_agent_rules").insert(row).select("id").single();
     if (error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB insert failed", requestId });
@@ -101,13 +111,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = PatchBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
     const { id, patch } = parsed.data;
+    // Resolve the EFFECTIVE scope before touching scope_key. When patch.scope is
+    // undefined, the existing row's scope is what's in effect — and the old guard
+    // (`patch.scope !== "global"`) was true for undefined, so a PATCH of scopeKey
+    // alone onto a GLOBAL rule silently wrote scope_key onto it. Fetch the stored
+    // scope when needed so the guard sees the real effective scope.
+    let effectiveScope: AgentRuleScope | undefined = patch.scope;
+    if (patch.scopeKey !== undefined && effectiveScope === undefined && supabaseAdmin) {
+      const { data: existing } = await supabaseAdmin.from("growth_agent_rules").select("scope").eq("id", id).maybeSingle();
+      effectiveScope = (existing?.scope as AgentRuleScope | undefined) ?? undefined;
+    }
     const row: Record<string, unknown> = {};
     if (patch.scope !== undefined) { row.scope = patch.scope; row.scope_key = patch.scope === "global" ? null : patch.scopeKey ?? null; }
-    if (patch.scopeKey !== undefined && patch.scope !== "global") row.scope_key = patch.scopeKey ?? null;
+    // Only apply a standalone scopeKey patch when the effective scope is non-global
+    // (patch.scope explicit OR the existing row's scope). A global rule gets its
+    // scope_key cleared only via an explicit scope:"global" patch above.
+    if (patch.scopeKey !== undefined && effectiveScope && effectiveScope !== "global") row.scope_key = patch.scopeKey ?? null;
     if (patch.kind !== undefined) row.kind = patch.kind;
     if (patch.ruleText !== undefined) row.rule_text = patch.ruleText;
     if (patch.enabled !== undefined) row.enabled = patch.enabled;
     if (Object.keys(row).length === 0) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "No valid fields", requestId });
+    // Validate the resulting rule won't be a dead non-global row with no scopeKey.
+    if (effectiveScope && effectiveScope !== "global" && (row.scope_key === undefined || row.scope_key === null) && patch.scope === undefined) {
+      // The existing row already had no scope_key (a pre-existing dead row) —
+      // don't let a scopeKey-clearing PATCH re-deaden it silently.
+      return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "scopeKey is required for domain/repo scopes", requestId });
+    }
     const { error } = await supabaseAdmin.from("growth_agent_rules").update(row).eq("id", id);
     if (error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB update failed", requestId });
     bustRulesCache();
