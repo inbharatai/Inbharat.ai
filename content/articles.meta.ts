@@ -605,6 +605,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['LLMStreaming', 'AIUX', 'IndianTech', 'InBharatAI', 'Engineering'],
   },
+  {
+    slug: 'token-economics-pricing-an-ai-feature-without-losing-money',
+    title: 'Token Economics: Pricing AI Features Without Bleeding Money',
+    description: 'Learn how to price AI features effectively. Reeturaj Goswami on per-request vs. per-token, handling long tails, and setting a price floor for Indian AI products',
+    category: 'AI Foundations',
+    datePublished: '2026-07-05',
+    readMinutes: 8,
+    abstract: 'Pricing AI features is tricky: a viral day can quickly turn profit into loss if your token economics are off. We\'ll explore per-request vs. per-token models, how to account for the long tail of complex queries, and setting a price floor that keeps your Indian AI product sustainable.',
+    faq: [
+      { q: 'How do I explain token pricing to my users who are used to fixed prices?', a: 'The best approach is often to offer token bundles or credits. Instead of saying "you pay per token," say "buy 10,000 credits for ₹100, where each credit is roughly X tokens." Provide a simple calculator or estimate for common actions so users can gauge their usage. Transparency is key, even if simplified.' },
+      { q: 'What if my AI feature uses multiple LLMs with different token costs?', a: 'You\'ll need to track token usage per model. When calculating the cost for a user\'s request, sum up the token costs from all models involved. This can get complex, so consider abstracting it behind a single "credit" system where different actions consume different amounts of credits based on their underlying model costs.' },
+      { q: 'Is it better to start with per-request or per-token pricing for a new AI product?', a: 'For initial launch and user adoption, per-request pricing is often simpler for users to grasp. However, internally, you must model your costs on a per-token basis. As your product matures and users become more sophisticated, you can introduce per-token bundles or advanced tiers. Always start with a solid understanding of your token costs, regardless of your external pricing model.' },
+    ],
+    hashtags: ['AIPricing', 'TokenEconomics', 'IndianAI', 'FinOps', 'ProductManagement'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
