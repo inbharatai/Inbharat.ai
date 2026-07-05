@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
+import { useVoiceInput, useVoiceOutput, buildContextBlock } from "../../../lib/speech";
 import PipelineStrip from "../../../components/growth/PipelineStrip";
 import MarkdownText from "../../../components/growth/MarkdownText";
 
@@ -88,6 +89,17 @@ const Agent: React.FC = () => {
   const [stripKey, setStripKey] = useState(0);
   const [searchParams] = useSearchParams();
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Phase 4: Voice Command Center. Mic → STT feeds the input textarea (the founder
+  // still clicks Send — nothing auto-submits/publishes). TTS toggle reads back the
+  // latest agent reply via free browser speechSynthesis. Both no-op when unsupported.
+  const location = useLocation();
+  const [ttsOn, setTtsOn] = useState(false);
+  const [interim, setInterim] = useState("");
+  const voice = useVoiceInput({
+    onFinal: (t) => { setInterim(""); setInput((prev) => (prev ? prev + " " : "") + t); },
+    onInterim: (t) => setInterim(t),
+  });
+  const tts = useVoiceOutput();
 
   // Cross-tab signal: when an agent run creates drafts, tell any open Issues
   // tab to refresh + toast. BroadcastChannel does not deliver to the posting
@@ -143,6 +155,18 @@ const Agent: React.FC = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
+  // Phase 4: TTS read-back — when the founder has TTS on, speak the latest
+  // assistant reply as it arrives. Tool-only messages are skipped (they have no
+  // spoken content). Only fires when a NEW assistant message lands.
+  useEffect(() => {
+    if (!ttsOn || !tts.supported) return;
+    const last = messages[messages.length - 1];
+    if (last && last.role === "assistant" && last.content) {
+      tts.speak(last.content.slice(0, 500));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, ttsOn]);
+
   function newChat() {
     setActiveId(null);
     setMessages([]);
@@ -187,19 +211,25 @@ const Agent: React.FC = () => {
   }
 
   async function send() {
-    const text = input.trim();
-    if (!text || sending) return;
+    const raw = input.trim();
+    if (!raw || sending) return;
     setSending(true);
     setError(null);
     setNotice(null);
     const attIds = attachments.map((a) => a.itemId);
-    // Optimistic user echo.
+    // Phase 4: append a screen-awareness context block so the agent knows where the
+    // founder is when issuing a voice command ("what should I publish today?").
+    const activeTitle = threads.find((t) => t.id === activeId)?.title ?? null;
+    const ctx = buildContextBlock({ pathname: location.pathname, activeThreadTitle: activeTitle });
+    const text = ctx ? `${raw}\n\n${ctx}` : raw;
+    // Optimistic user echo (show the founder's words, not the context block).
     const optimistic: AgentMessage = {
-      id: `tmp-${Date.now()}`, threadId: activeId ?? "", role: "user", content: text,
+      id: `tmp-${Date.now()}`, threadId: activeId ?? "", role: "user", content: raw,
       toolName: null, toolArgs: null, toolResult: null, createdAt: new Date().toISOString(),
     };
     setMessages((m) => [...m, optimistic]);
     setInput("");
+    setInterim("");
     const { data, error } = await fetchJson<{ threadId?: string; reply?: string | null; messages?: AgentMessage[] }>(
       "/api/growth/agent",
       { method: "POST", body: JSON.stringify({ message: text, threadId: activeId ?? undefined, attachmentItemIds: attIds.length ? attIds : undefined }) },
@@ -466,12 +496,30 @@ const Agent: React.FC = () => {
               <input type="file" multiple className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={(e) => onPickFiles(e.target.files)} />
               📁
             </label>
+            {voice.supported && (
+              <button
+                onClick={voice.toggle}
+                className={`rounded-lg border px-2.5 py-2 text-[13px] ${voice.listening ? "border-rose-400/50 bg-rose-500/15 text-rose-300 animate-pulse" : "border-white/10 text-[#9fb2c6] hover:border-white/25"}`}
+                title={voice.listening ? "Listening… click to stop" : "Speak your command (mic → text); you still click Send"}
+              >
+                {voice.listening ? "●" : "🎙"}
+              </button>
+            )}
+            {tts.supported && (
+              <button
+                onClick={() => { if (ttsOn) tts.cancel(); setTtsOn((v) => !v); }}
+                className={`rounded-lg border px-2.5 py-2 text-[13px] ${ttsOn ? "border-[#f59f4f]/50 bg-[#f59f4f]/15 text-[#f59f4f]" : "border-white/10 text-[#9fb2c6] hover:border-white/25"}`}
+                title={ttsOn ? "Voice read-back ON — click to stop" : "Turn on voice read-back of agent replies"}
+              >
+                🔊
+              </button>
+            )}
             <textarea
-              value={input}
+              value={input + (voice.listening && interim ? (input ? " " : "") + interim : "")}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
               rows={1}
-              placeholder="Tell the agent what to do… (Enter to send, Shift+Enter for newline)"
+              placeholder={voice.listening ? "Listening… (speak, then review + Send)" : "Tell the agent what to do… (Enter to send, Shift+Enter for newline)"}
               className="min-w-0 flex-1 resize-none rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-2 text-[13px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
             />
             <button onClick={send} disabled={sending || !input.trim()} className="rounded-lg bg-[#f59f4f] px-4 py-2 text-[13px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90 disabled:opacity-40">

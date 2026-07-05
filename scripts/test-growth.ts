@@ -1574,6 +1574,28 @@ console.log("\nTopic discovery (Phase 3 — 12-dim scoring + dedupe + honest int
   check("DISCOVERY_PRODUCTS includes sahayaak-seva + jak-shield", DISCOVERY_PRODUCTS.includes("sahayaak-seva") && DISCOVERY_PRODUCTS.includes("jak-shield"));
 }
 
+console.log("\nVoice Command Center (Phase 4 — buildContextBlock pure logic):");
+{
+  const { buildContextBlock } = await import("../lib/speech.js");
+  // Empty context → "" (no noise appended to the message).
+  check("buildContextBlock empty → ''", buildContextBlock({ pathname: "/" }) === "");
+  // Article page → slug surfaced.
+  const ctxArticle = buildContextBlock({ pathname: "/learn-ai-with-reeturaj/rag-fundamentals" });
+  check("buildContextBlock article page → slug surfaced", ctxArticle.includes("rag-fundamentals") && ctxArticle.startsWith("Context:"), ctxArticle);
+  // Pending drafts count surfaced.
+  const ctxDrafts = buildContextBlock({ pathname: "/admin/growth", pendingDraftCount: 3 });
+  check("buildContextBlock pending drafts → count surfaced", ctxDrafts.includes("3 pending draft(s)"), ctxDrafts);
+  // Last outcome delta surfaced.
+  const ctxDelta = buildContextBlock({ pathname: "/", lastOutcomeDelta: 12 });
+  check("buildContextBlock outcome delta → surfaced", ctxDelta.includes("SEO delta: 12"), ctxDelta);
+  // Active thread title surfaced.
+  const ctxThread = buildContextBlock({ pathname: "/", activeThreadTitle: "Daily Plan" });
+  check("buildContextBlock active thread → title surfaced", ctxThread.includes("Daily Plan"), ctxThread);
+  // Multiple signals compose into one line.
+  const ctxMulti = buildContextBlock({ pathname: "/learn-ai-with-reeturaj/x", pendingDraftCount: 2, activeThreadTitle: "T" });
+  check("buildContextBlock multi-signal → single 'Context:' line", ctxMulti.startsWith("Context:") && ctxMulti.split("Context:")[1].includes(";"));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");
