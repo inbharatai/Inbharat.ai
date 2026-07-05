@@ -922,13 +922,13 @@ const PRODUCT_DEFS = [
   // ── Consumer & Culture ──
   { name: 'Sahayaak AI', bucket: 'consumer', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai-public', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
   { name: 'KathaKitaab', bucket: 'consumer', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
-  { name: 'UniBot', bucket: 'consumer', tagKey: 'landProdUnibotTag', descKey: 'landProdUnibotDesc', ctaKey: 'landProdUnibotCta', typeKey: 'landProdUnibotType', href: '#chatbot', logo: '/unibot-logo.png', internal: false, color: '#25D366', tech: ['WhatsApp API', 'NLP', 'Multilingual'] },
+  { name: 'UniBot', bucket: 'eduCareer', tagKey: 'landProdUnibotTag', descKey: 'landProdUnibotDesc', ctaKey: 'landProdUnibotCta', typeKey: 'landProdUnibotType', href: '#chatbot', logo: '/unibot-logo.png', internal: false, color: '#25D366', tech: ['WhatsApp API', 'NLP', 'Multilingual'] },
   { name: 'Phoring', bucket: 'consumer', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://github.com/inbharatai/phoring', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
   // ── Education & Career ──
   { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
   { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
-  { name: 'UnoOne', bucket: 'eduCareer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
-  { name: 'OpenClawFix', bucket: 'eduCareer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
+  { name: 'UnoOne', bucket: 'agentOps', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
+  { name: 'OpenClawFix', bucket: 'consumer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
   // ── Health & Public Service ──
   { name: 'Sahayaak Seva', bucket: 'health', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://sahayaakseva.in', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
   { name: 'SwasthyaScore AI', bucket: 'health', tagKey: 'landProdSwasthyaTag', descKey: 'landProdSwasthyaDesc', ctaKey: 'landProdSwasthyaCta', typeKey: 'landProdSwasthyaType', href: 'https://github.com/inbharatai/swasthyascore-ai', logo: null, icon: Target, internal: false, color: '#0ea5e9', tech: ['PWA', 'rPPG Vitals', 'Lab OCR', 'Voice Screening'] },
@@ -1524,21 +1524,18 @@ const Landing: React.FC = () => {
             </a>
           </div>
 
-          <div className="space-y-14">
+          <div className="space-y-8">
             {BUCKETS.map((bucket) => {
               const products = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key);
               if (products.length === 0) return null;
               return (
                 <div key={bucket.key}>
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08]" style={{ backgroundColor: `${bucket.color}10` }}>
-                      <bucket.icon size={16} style={{ color: bucket.color }} />
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08]" style={{ backgroundColor: `${bucket.color}10` }}>
+                      <bucket.icon size={13} style={{ color: bucket.color }} />
                     </div>
-                    <div>
-                      <h3 className="text-[15px] font-bold text-white">{t(bucket.labelKey)}</h3>
-                      <p className="text-[12px] leading-relaxed text-[#96b0c8]">{t(bucket.descKey)}</p>
-                    </div>
-                    <span className="ml-auto rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-0.5 text-[10px] font-semibold text-[#7a9ab8]">{products.length}</span>
+                    <h3 className="text-[13px] font-bold uppercase tracking-wide text-white">{t(bucket.labelKey)}</h3>
+                    <span className="ml-auto rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[10px] font-semibold text-[#7a9ab8]">{products.length}</span>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {products.map((product, i) => (
