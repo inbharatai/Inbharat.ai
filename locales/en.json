@@ -546,7 +546,7 @@
   "landProdUnooneType": "Open Source",
   "landProdSwasthyaTag": "Personal Health Screening",
   "landProdSwasthyaDesc": "Personal NCD self-screening PWA — check obesity, diabetes, and blood-pressure risk in 60 seconds. Camera-based rPPG vital estimation, lab-report OCR, and voice symptom assessment. Screening only, not a medical diagnosis.",
-  "landProdSwasthyaCta": "View on GitHub",
+  "landProdSwasthyaCta": "Visit website",
   "landProdSwasthyaType": "HealthTech",
   "landProdJakshieldTag": "Universal Agent Security Layer",
   "landProdJakshieldDesc": "Risk-based approval gate for AI agents — PII detection, sandboxed execution, and tamper-evident audit trails. Open-source and self-hostable.",

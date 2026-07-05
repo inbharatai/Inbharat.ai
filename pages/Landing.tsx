@@ -1864,8 +1864,18 @@ const Landing: React.FC = () => {
             {BUCKETS.map((bucket) => {
               const products = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key);
               if (products.length === 0) return null;
+              // Size the row to its content so sparse buckets (1-2 cards) don't
+              // sit stranded in a wide 4-col grid: cap the row width by card count
+              // and center the whole row. Cards are a fixed 280px (full-width on
+              // mobile) so the capped row holds them snug, no void on either side.
+              const cap = Math.min(products.length, 4);
+              const maxW =
+                cap <= 1 ? 'sm:max-w-[300px]'
+                : cap === 2 ? 'sm:max-w-[592px]'
+                : cap === 3 ? 'sm:max-w-[888px]'
+                : 'sm:max-w-[1168px]';
               return (
-                <div key={bucket.key}>
+                <div key={bucket.key} className={`mx-auto ${maxW}`}>
                   <div className="mb-3 flex items-center gap-2.5">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08]" style={{ backgroundColor: `${bucket.color}10` }}>
                       <bucket.icon size={13} style={{ color: bucket.color }} />
@@ -1873,7 +1883,7 @@ const Landing: React.FC = () => {
                     <h3 className="text-[13px] font-bold uppercase tracking-wide text-white">{t(bucket.labelKey)}</h3>
                     <span className="ml-auto rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[10px] font-semibold text-[#7a9ab8]">{products.length}</span>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="flex flex-wrap justify-center gap-4">
                     {products.map((product, i) => (
                       <motion.article
                         key={product.name}
@@ -1882,7 +1892,7 @@ const Landing: React.FC = () => {
                         initial="hidden"
                         whileInView="visible"
                         viewport={{ once: true, amount: 0.15 }}
-                        className="glow-card group flex h-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12]"
+                        className="glow-card group flex h-full w-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12] sm:w-[280px]"
                       >
                         <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
                           <ProductLogo
