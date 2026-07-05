@@ -612,6 +612,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-07-05',
     readMinutes: 8,
+    visual: 'token-economics-pricing-an-ai-feature-without-losing-money.png',
     abstract: 'Pricing AI features is tricky: a viral day can quickly turn profit into loss if your token economics are off. We\'ll explore per-request vs. per-token models, how to account for the long tail of complex queries, and setting a price floor that keeps your Indian AI product sustainable.',
     faq: [
       { q: 'How do I explain token pricing to my users who are used to fixed prices?', a: 'The best approach is often to offer token bundles or credits. Instead of saying "you pay per token," say "buy 10,000 credits for ₹100, where each credit is roughly X tokens." Provide a simple calculator or estimate for common actions so users can gauge their usage. Transparency is key, even if simplified.' },
