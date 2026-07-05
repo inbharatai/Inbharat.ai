@@ -485,6 +485,11 @@ const Agent: React.FC = () => {
             </div>
           )}
           {uploading && <p className="px-3 text-[11px] text-[#f59f4f]">Uploading {uploading}…</p>}
+          {/* Phase 4: live STT interim transcript (shown as a muted line, NOT merged
+              into the textarea value — merging would cause cursor-jump/duplication). */}
+          {voice.listening && interim && (
+            <p className="px-3 pt-2 text-[11px] italic text-[#7a9ab8]">… {interim}</p>
+          )}
 
           {/* composer */}
           <div className="flex items-end gap-2 border-t border-white/10 p-3">
@@ -515,7 +520,7 @@ const Agent: React.FC = () => {
               </button>
             )}
             <textarea
-              value={input + (voice.listening && interim ? (input ? " " : "") + interim : "")}
+              value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
               rows={1}
