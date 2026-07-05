@@ -23,6 +23,7 @@ import { statusChip } from "../lib/growth/pipelineStatus.js";
 import { istStartOfDayIso } from "../lib/growth/spend.js";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../lib/growth/articleSlug.js";
 import { mapResults, formatGroundingBlock } from "../lib/growth/retrieval.js";
+import { extractResults } from "../lib/growth/search.js";
 import { extractMermaidFences, detectUnclosedFences, validateMermaidFences, sanitizeMermaidFences } from "../lib/growth/mermaid-validate.js";
 import { stripCitationMarkers } from "../lib/growth/citations.js";
 import { isParaphraseOf } from "../lib/growth/learning.js";
@@ -1116,15 +1117,15 @@ console.log("\nArticle slug extraction (slugFromArticleUrl):");
 
 console.log("\nGrounding retrieval (mapResults + formatGroundingBlock):");
 {
-  const snips = mapResults({ organic: [
-    { title: "Gemini 2.5 Flash release", link: "https://blog.google/x", snippet: "Released 2025." },
-    { title: "Other", link: "https://other.example", snippet: "noise" },
-  ] });
+  const snips = mapResults([
+    { title: "Gemini 2.5 Flash release", url: "https://blog.google/x", snippet: "Released 2025." },
+    { title: "Other", url: "https://other.example", snippet: "noise" },
+  ]);
   check("mapResults returns up to 4 with truncated fields", snips.length === 2 && snips[0].title === "Gemini 2.5 Flash release" && snips[0].url === "https://blog.google/x");
-  check("mapResults handles missing organic array", mapResults({}).length === 0);
-  check("mapResults drops rows with no title+snippet", mapResults({ organic: [{ link: "https://x" }, { title: "ok", snippet: "s" }] }).length === 1);
+  check("mapResults handles empty array", mapResults([]).length === 0);
+  check("mapResults drops rows with no title+snippet", mapResults([{ url: "https://x" }, { title: "ok", snippet: "s" }]).length === 1);
   // Truncation: a 500-char title/snippet is capped at 200/300.
-  const long = mapResults({ organic: [{ title: "T".repeat(500), snippet: "S".repeat(500), link: "u" }] })[0];
+  const long = mapResults([{ title: "T".repeat(500), snippet: "S".repeat(500), url: "u" }])[0];
   check("mapResults truncates title to 200", long.title.length === 200);
   check("mapResults truncates snippet to 300", long.snippet.length === 300);
   const block = formatGroundingBlock(snips);
@@ -1132,6 +1133,43 @@ console.log("\nGrounding retrieval (mapResults + formatGroundingBlock):");
   check("formatGroundingBlock empty when no snippets", formatGroundingBlock([]) === "");
   // No model call / no throw on bad input.
   check("formatGroundingBlock ignores empty-string snippet entries gracefully", formatGroundingBlock([{ title: "x", url: "", snippet: "" }]).includes("x"));
+}
+
+console.log("\nGemini google_search grounding (extractResults pure logic):");
+{
+  // No grounding chunks → empty.
+  check("extractResults empty when no groundingMetadata", extractResults({}).length === 0);
+  check("extractResults empty when no chunks", extractResults({ candidates: [{ groundingMetadata: {} }] }).length === 0);
+  // Chunks → rows with title/url; snippet pulled from groundingSupports segment.
+  const rows = extractResults({
+    candidates: [{
+      content: { parts: [{ text: "Gemini 2.5 Flash shipped in 2025." }] },
+      groundingMetadata: {
+        groundingChunks: [
+          { web: { uri: "https://blog.google/x", title: "Gemini 2.5 Flash release" } },
+          { web: { uri: "https://other.example", title: "Other" } },
+        ],
+        groundingSupports: [
+          { segment: { text: "Gemini 2.5 Flash shipped in 2025." }, groundingChunkIndices: [0] },
+        ],
+      },
+    }],
+  });
+  check("extractResults maps chunks to rows", rows.length === 2 && rows[0].title === "Gemini 2.5 Flash release" && rows[0].url === "https://blog.google/x", JSON.stringify(rows));
+  check("extractResults pulls snippet from support segment", rows[0].snippet === "Gemini 2.5 Flash shipped in 2025.");
+  check("extractResults empty snippet when no support maps to chunk", rows[1].snippet === "");
+  // Drops chunks with neither uri nor title; caps at 8.
+  const mixed = extractResults({
+    candidates: [{
+      groundingMetadata: {
+        groundingChunks: [
+          { web: {} },
+          { web: { uri: "https://a", title: "A" } },
+        ],
+      },
+    }],
+  });
+  check("extractResults drops empty chunks", mixed.length === 1 && mixed[0].title === "A");
 }
 
 console.log("\nMermaid fence dry-run (extractMermaidFences + validateMermaidFences):");
@@ -1559,15 +1597,15 @@ console.log("\nTopic discovery (Phase 3 — 12-dim scoring + dedupe + honest int
   check("composeTopic duplicate of published → update_existing", tDup.recommendedAction === "update_existing", tDup.recommendedAction);
   check("composeTopic flags duplicate:true", tDup.duplicate === true);
 
-  // 6) discoverTopics — honest degradation when SERPER_API_KEY is unset. No key
+  // 6) discoverTopics — honest degradation when GEMINI_API_KEY is unset. No key
   //    in the test env → notConfigured:true, zero topics, never throws.
-  const savedKey = process.env.SERPER_API_KEY;
-  delete process.env.SERPER_API_KEY;
+  const savedKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
   const r = await discoverTopics("inbharat", 3);
   check("discoverTopics no key → notConfigured:true", r.notConfigured === true, JSON.stringify(r));
   check("discoverTopics no key → 0 discovered", r.discovered === 0);
   check("discoverTopics unknown product → notConfigured + empty", (await discoverTopics("nope" as never, 1)).discovered === 0);
-  if (savedKey !== undefined) process.env.SERPER_API_KEY = savedKey;
+  if (savedKey !== undefined) process.env.GEMINI_API_KEY = savedKey;
 
   // 7) DISCOVERY_PRODUCTS lists all 7 InBharat products.
   check("DISCOVERY_PRODUCTS has 7 products", DISCOVERY_PRODUCTS.length === 7, `got ${DISCOVERY_PRODUCTS.length}`);

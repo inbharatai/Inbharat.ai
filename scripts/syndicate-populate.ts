@@ -135,12 +135,28 @@ function resolveArticle(args: { slug: string; file: string | null; title: string
   return { title, bodyMarkdown, hashtags, canonicalUrl };
 }
 
-// Copy text to the Windows clipboard as a manual-paste fallback. Best-effort.
+// Copy text to the OS clipboard as a manual-paste fallback. Cross-platform:
+// pbcopy on macOS, xclip/wl-copy on Linux, PowerShell Set-Clipboard on Windows.
+// Best-effort — the clipboard is a convenience, not a requirement (the script
+// also types/pastes directly). Without these branches the fallback silently
+// no-op'd on Mac/Linux, leaving the founder with nothing to Ctrl+V.
 async function copyToClipboard(text: string, label: string): Promise<void> {
   try {
     const { execFileSync } = await import("node:child_process");
-    execFileSync("powershell", ["-NoProfile", "-Command", `Set-Clipboard -Value ${JSON.stringify(text)}`], { stdio: "ignore" });
-    console.log(`[${label}] copied to clipboard (fallback: Ctrl+V into the editor).`);
+    if (process.platform === "darwin") {
+      execFileSync("pbcopy", { input: text, stdio: ["pipe", "ignore", "ignore"] });
+    } else if (process.platform === "win32") {
+      execFileSync("powershell", ["-NoProfile", "-Command", `Set-Clipboard -Value ${JSON.stringify(text)}`], { stdio: "ignore" });
+    } else {
+      // Linux: try xclip first, then wl-copy (Wayland). The clip helper is a
+      // fallback — if neither is installed, typeText/pasteClipboard still work.
+      try {
+        execFileSync("xclip", ["-selection", "clipboard"], { input: text, stdio: ["pipe", "ignore", "ignore"] });
+      } catch {
+        execFileSync("wl-copy", { input: text, stdio: ["pipe", "ignore", "ignore"] });
+      }
+    }
+    console.log(`[${label}] copied to clipboard (fallback: paste into the editor).`);
   } catch {
     /* clipboard is a convenience, not a requirement */
   }
@@ -154,10 +170,13 @@ async function typeText(page: Page, text: string): Promise<void> {
 
 // Paste from the clipboard into the currently-focused element (most reliable way
 // to drop a large markdown body into a rich-text editor — it survives the
-// platform's input sanitization better than fill() / setInputFiles).
+// platform's input sanitization better than fill() / setInputFiles). On macOS
+// the paste shortcut is Cmd+V (Playwright Meta+V) — Control+Shift+V is
+// "paste and match style" and silently fails in most editors, so the body never
+// landed on Mac. Fixed to Meta+V.
 async function pasteClipboard(page: Page): Promise<void> {
   const isMac = process.platform === "darwin";
-  await page.keyboard.press(isMac ? "Control+Shift+V" : "Control+V");
+  await page.keyboard.press(isMac ? "Meta+V" : "Control+V");
 }
 
 // ─── login: best-effort email/password, else pause for manual one-time sign-in ─

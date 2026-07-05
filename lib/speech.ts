@@ -62,6 +62,13 @@ export function useVoiceInput(opts: VoiceInputOptions = {}): VoiceInput {
   const supported = Ctor !== null;
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   const wantOnRef = useRef(false);
+  // Restart guard: with continuous=false the browser ends after each final
+  // segment, so a noisy room / silent pause can spin start→onend→start in a
+  // tight loop with no cap. Cap restarts per session and back off between them;
+  // reset the counter when real final speech arrives.
+  const restartCountRef = useRef(0);
+  const RESTART_MAX = 12;
+  const RESTART_BACKOFF_MS = 250;
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const optsRef = useRef(opts);
@@ -69,6 +76,7 @@ export function useVoiceInput(opts: VoiceInputOptions = {}): VoiceInput {
 
   const stop = useCallback(() => {
     wantOnRef.current = false;
+    restartCountRef.current = 0;
     try { recRef.current?.stop(); } catch { /* ignore */ }
     setListening(false);
   }, []);
@@ -90,6 +98,7 @@ export function useVoiceInput(opts: VoiceInputOptions = {}): VoiceInput {
         }
         if (interimText) optsRef.current.onInterim?.(interimText);
         if (finalText) {
+          restartCountRef.current = 0; // real speech → reset the restart budget
           setTranscript((prev) => (prev ? prev + " " : "") + finalText.trim());
           optsRef.current.onFinal?.(finalText.trim());
         }
@@ -97,19 +106,27 @@ export function useVoiceInput(opts: VoiceInputOptions = {}): VoiceInput {
       rec.onend = () => {
         // If the user hasn't toggled off, restart so a pause doesn't kill the
         // session mid-sentence. The browser sometimes fires onend spuriously.
-        if (wantOnRef.current) {
-          try { rec.start(); return; } catch { /* fall through */ }
+        // But cap restarts + back off so a noisy room can't spin a tight loop
+        // (battery/heat + the mic indicator stuck on). When the budget is spent,
+        // stop cleanly and let the founder toggle the mic back on.
+        if (wantOnRef.current && restartCountRef.current < RESTART_MAX) {
+          restartCountRef.current += 1;
+          try { setTimeout(() => { if (wantOnRef.current) try { rec.start(); } catch { /* ignore */ } }, RESTART_BACKOFF_MS); return; } catch { /* fall through */ }
         }
+        wantOnRef.current = false;
+        restartCountRef.current = 0;
         setListening(false);
         optsRef.current.onEnd?.();
       };
       rec.onerror = () => {
         wantOnRef.current = false;
+        restartCountRef.current = 0;
         setListening(false);
       };
       recRef.current = rec;
     }
     wantOnRef.current = true;
+    restartCountRef.current = 0;
     try { recRef.current.start(); setListening(true); } catch { /* already started */ }
   }, [Ctor]);
 
@@ -163,14 +180,20 @@ export function useVoiceOutput(): VoiceOutput {
  */
 export function buildContextBlock(opts: {
   pathname: string;
+  /** Pending drafts awaiting the founder's review (from /api/growth/pipeline). */
   pendingDraftCount?: number;
+  /** Last published article's measured SEO delta (from outcomes). */
   lastOutcomeDelta?: number | null;
   activeThreadTitle?: string | null;
+  /** Optional explicit "where am I" label (e.g. "agent command center") for
+   *  routes that don't carry a useful pathname signal (the agent page itself). */
+  viewing?: string | null;
 }): string {
   const bits: string[] = [];
   // Article slug when the founder is viewing a published article page.
   const m = opts.pathname.match(/\/learn-ai-with-reeturaj\/([a-z0-9-]+)/i);
   if (m) bits.push(`viewing article slug: ${m[1]}`);
+  if (opts.viewing) bits.push(`on the ${opts.viewing}`);
   if (typeof opts.pendingDraftCount === "number" && opts.pendingDraftCount > 0) {
     bits.push(`${opts.pendingDraftCount} pending draft(s) awaiting review`);
   }

@@ -271,7 +271,14 @@ function safeParseArticle(raw: string): ParsedArticle | null {
   try {
     obj = JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    // Model may wrap JSON in prose / fences. Extract the first balanced {...} block.
+    // Model may wrap JSON in prose / fences. Extract the outermost {...} block.
+    // NOTE: this regex is GREEDY (\{[\s\S]*\}) — it spans from the first "{" to
+    // the LAST "}" in the raw text, NOT a balanced pair. That is intentional and
+    // safe here: when the model wraps one JSON object in prose, the last "}" is
+    // that object's closing brace, so the greedy match captures the whole object.
+    // It would mis-capture if trailing prose contained extra "}" after the JSON;
+    // in that rare case JSON.parse fails and we return null (honest parse_failed),
+    // no corruption. Not "balanced" extraction — do not label it as such.
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) return null;
     try {

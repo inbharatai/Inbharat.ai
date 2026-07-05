@@ -19,6 +19,7 @@
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { isParaphraseOf } from "./learning.js";
 import { ARTICLES } from "../../content/articles.meta.js";
+import { logError } from "./authorization.js";
 
 export type KnowledgeType =
   | "source" | "topic" | "article" | "post" | "draft" | "note"
@@ -243,12 +244,16 @@ export async function searchKnowledge(query: string, opts: SearchOptions = {}): 
     if (opts.type) req = req.eq("type", opts.type);
     if (opts.status) req = req.eq("status", opts.status);
     const { data, error } = await req;
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) {
+      await logError("kb-search-fail", q, String(error?.message || "no data")).catch(() => undefined);
+      return [];
+    }
     const items = (data as KnowledgeRow[]).map(toItem);
     // Rerank by token-Jaccard against the query (FTS recall + lexical precision).
     items.sort((a, b) => jaccard(b.title + " " + (b.summary ?? ""), q) - jaccard(a.title + " " + (a.summary ?? ""), q));
     return items.slice(0, limit);
-  } catch {
+  } catch (e) {
+    await logError("kb-search-fail", q, String((e as Error)?.message || "throw")).catch(() => undefined);
     return [];
   }
 }
@@ -267,9 +272,13 @@ export async function listKnowledge(opts: SearchOptions = {}): Promise<Knowledge
     if (opts.type) req = req.eq("type", opts.type);
     if (opts.status) req = req.eq("status", opts.status);
     const { data, error } = await req;
-    if (error || !Array.isArray(data)) return [];
+    if (error || !Array.isArray(data)) {
+      await logError("kb-list-fail", opts.type || "all", String(error?.message || "no data")).catch(() => undefined);
+      return [];
+    }
     return (data as KnowledgeRow[]).map(toItem);
-  } catch {
+  } catch (e) {
+    await logError("kb-list-fail", opts.type || "all", String((e as Error)?.message || "throw")).catch(() => undefined);
     return [];
   }
 }
@@ -309,7 +318,10 @@ export async function findDuplicateKnowledge(topic: string, product?: string | n
       .limit(200);
     if (product) req = req.eq("related_product", product);
     const { data, error } = await req;
-    if (error || !Array.isArray(data)) return { duplicate: false };
+    if (error || !Array.isArray(data)) {
+      await logError("kb-dedup-fail", t, String(error?.message || "no data")).catch(() => undefined);
+      return { duplicate: false };
+    }
     const rows = data as Array<{ id: string; type: KnowledgeType; title: string; summary: string | null; related_product: string | null; status: KnowledgeStatus }>;
     const texts = rows.map((r) => `${r.title} ${r.summary ?? ""}`);
     if (isParaphraseOf(t, texts)) {
@@ -317,7 +329,8 @@ export async function findDuplicateKnowledge(topic: string, product?: string | n
       return { duplicate: true, existing: hit ? toItem({ ...({} as KnowledgeRow), ...hit }) : undefined, reason: "matches an existing knowledge-base entry" };
     }
     return { duplicate: false };
-  } catch {
+  } catch (e) {
+    await logError("kb-dedup-fail", t, String((e as Error)?.message || "throw")).catch(() => undefined);
     return { duplicate: false };
   }
 }
@@ -383,18 +396,30 @@ export async function boostTopic(topicTitle: string, sign: number): Promise<void
   if (!supabaseAdmin) return;
   const t = (topicTitle || "").trim();
   if (!t) return;
+  // sign === 0 means the outcome measurement produced no usable delta — there is
+  // nothing to boost or deprioritize on, so don't touch any rows. (The old code
+  // treated 0 as >= 0 and bumped every similar topic by Math.max(1, 0) = +1,
+  // polluting intent_scores on a no-signal event.)
+  if (!Number.isFinite(sign) || sign === 0) return;
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_knowledge")
-      .select("id,title,intent_score,status")
+      .select("id,title,summary,intent_score,status")
       .in("type", ["topic", "source", "competitor_gap"])
       .order("created_at", { ascending: false })
       .limit(120);
     if (error || !Array.isArray(data)) return;
-    for (const r of data as Array<{ id: string; title: string; intent_score: number | null; status: KnowledgeStatus }>) {
-      if (jaccard(r.title, t) < 0.34) continue; // only genuinely similar items
-      if (sign >= 0) {
-        const next = Math.min(((r.intent_score ?? 50) + Math.max(1, sign)), 100);
+    // Threshold lowered from 0.34 → 0.18: Jaccard on titles alone is brutal
+    // (two paraphrases often share only a stopword-stripped stem or two), so the
+    // old 0.34 gate almost never fired and outcome learning was effectively a
+    // no-op. 0.18 keeps it honest (still rejects clearly-unrelated rows) while
+    // letting genuine same-angle topics receive the signal. Jaccard is computed
+    // against title + summary so richer topic rows match more reliably.
+    const THRESH = 0.18;
+    for (const r of data as Array<{ id: string; title: string; summary: string | null; intent_score: number | null; status: KnowledgeStatus }>) {
+      if (jaccard(`${r.title} ${r.summary ?? ""}`, t) < THRESH) continue;
+      if (sign > 0) {
+        const next = Math.min(((r.intent_score ?? 50) + Math.max(1, Math.round(sign))), 100);
         await patchRow(r.id, { intent_score: next });
       } else {
         // Negative delta → deprioritize discovered/needs_review topics of this angle.
@@ -433,26 +458,47 @@ export async function pickApprovedTopicFallback(
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_knowledge")
-      .select("id,title,summary,topic_cluster,intent_score,keywords")
+      .select("id,title,summary,topic_cluster,related_product,intent_score,keywords")
       .eq("type", "topic")
       .eq("status", "approved")
       .order("intent_score", { ascending: false, nullsFirst: false })
       .limit(40);
     if (error || !Array.isArray(data)) return null;
     const drafted = new Set(draftedSlugs.map((s) => s.toLowerCase()));
-    for (const r of data as Array<{ id: string; title: string; summary: string | null; topic_cluster: string | null; intent_score: number | null; keywords: string[] | null }>) {
+    for (const r of data as Array<{ id: string; title: string; summary: string | null; topic_cluster: string | null; related_product: string | null; intent_score: number | null; keywords: string[] | null }>) {
       // Reuse the article slugifier so the fallback matches what write_article
       // would produce. Lazy-import to avoid a static cycle (articleWriter -> knowledge).
       const { slugifyTitle } = await import("./articleWriter.js");
       const slug = slugifyTitle(r.title).toLowerCase();
       if (publishedSlugs.has(slug) || drafted.has(slug)) continue;
       const angle = r.summary ? r.summary.slice(0, 200) : (r.topic_cluster ?? undefined);
-      return { topic: r.title, category: "AI Foundations", angle: angle ?? undefined };
+      return { topic: r.title, category: deriveCalendarCategory(r.topic_cluster, r.related_product), angle: angle ?? undefined };
     }
     return null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Map a KB topic's cluster/product to one of the calendar's category labels
+ * (AI Foundations / AI Tools / Engineering / Security / InBharat) so a fallback
+ * topic slots into the morning prompt cleanly instead of always being stamped
+ * "AI Foundations". cluster wins when it already matches a calendar category;
+ * otherwise the product maps (JAK Shield → Security, Sahayaak Seva/UnoOne →
+ * Engineering, InBharat → InBharat); default AI Foundations.
+ */
+function deriveCalendarCategory(cluster: string | null, product: string | null): string {
+  const cats = ["AI Foundations", "AI Tools", "Engineering", "Security", "InBharat"];
+  const c = (cluster ?? "").trim();
+  if (c && cats.some((k) => k.toLowerCase() === c.toLowerCase())) {
+    return cats.find((k) => k.toLowerCase() === c.toLowerCase())!;
+  }
+  const p = (product ?? "").trim().toLowerCase();
+  if (p.includes("jak") || p.includes("shield")) return "Security";
+  if (p.includes("sahayaak") || p.includes("unoone") || p.includes("uniassist") || p.includes("katha") || p.includes("test")) return "Engineering";
+  if (p.includes("inbharat")) return "InBharat";
+  return "AI Foundations";
 }
 
 // ─── prompt formatting ──────────────────────────────────────────────────────

@@ -33,6 +33,7 @@ import {
   findDuplicateKnowledge,
   type KnowledgeType,
 } from "./knowledge.js";
+import { groundedSearch } from "./search.js";
 import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
@@ -176,7 +177,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "web_search",
     description:
-      "Search the web (Google via Serper) for current facts, recent news, dates, numbers, or to verify a claim before writing it. USE THIS whenever the founder asks about something current or factual, or you would otherwise guess a date/number/'latest' claim — search instead of guessing. Returns the top results with title, url, and a short snippet. One query per call; prefer a focused query.",
+      "Search the web (Google via Gemini google_search grounding) for current facts, recent news, dates, numbers, or to verify a claim before writing it. USE THIS whenever the founder asks about something current or factual, or you would otherwise guess a date/number/'latest' claim — search instead of guessing. Returns the top results with title, url, a short snippet, and a short grounded answer. One query per call; prefer a focused query.",
     parameters: {
       type: "object",
       properties: {
@@ -271,7 +272,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "find_high_intent_topics",
     description:
-      "Search the web for high-intent topic opportunities for an InBharat product (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep), score each 0-100 across 12 dimensions (intent, product fit, SEO/GEO opportunity, lead potential, freshness, competition, risk), dedupe against existing KB + published articles, and save the survivors to the knowledge base as discovered topic rows. The founder reviews + approves them in the Knowledge UI before any draft. Honest: intent is estimated from result signals, NOT confirmed search volume. Regulated topics (medical/legal/patent/visa/finance) are flagged risk_level='high' + status='needs_review' for extra review. Requires SERPER_API_KEY.",
+      "Search the web for high-intent topic opportunities for an InBharat product (inbharat|sahayaak-seva|jak-shield|unoone|uniassist|kathakitaab|testsprep), score each 0-100 across 12 dimensions (intent, product fit, SEO/GEO opportunity, lead potential, freshness, competition, risk), dedupe against existing KB + published articles, and save the survivors to the knowledge base as discovered topic rows. The founder reviews + approves them in the Knowledge UI before any draft. Honest: intent is estimated from result signals, NOT confirmed search volume. Regulated topics (medical/legal/patent/visa/finance) are flagged risk_level='high' + status='needs_review' for extra review. Requires GEMINI_API_KEY (uses Gemini google_search grounding — no Serper key needed).",
     parameters: {
       type: "object",
       properties: {
@@ -511,52 +512,38 @@ async function loadStyleSample(itemId: string): Promise<CoverStyleSample | strin
   return { base64, mimeType, source: `inbox:${item.id} (${item.original_name ?? item.storage_path})` };
 }
 
-/** web_search — Google via Serper. One focused query; returns top results with
+/** web_search — Google via Gemini google_search grounding (reuses GEMINI_API_KEY,
+ *  no separate Serper key). One focused query; returns top results with
  *  title/url/snippet so the agent can ground claims in current facts instead of
- *  guessing. Not a model call (no budget/logUsage); results re-enter the model
- *  context via the tool result, where the agent loop's backstop redact scan
- *  catches anything sensitive. */
+ *  guessing. IS a Gemini model call (token-billed + per-query grounding fee,
+ *  logged in lib/growth/search.ts); results re-enter the model context via the
+ *  tool result, where the agent loop's backstop redact scan catches anything
+ *  sensitive. */
 async function webSearch(args: Args): Promise<ToolResult> {
   const query = str(args.query).slice(0, 500).trim();
   if (!query) return { ok: false, message: "need a search query" };
-  const key = process.env.SERPER_API_KEY;
-  if (!key) return { ok: false, message: "web search not configured (SERPER_API_KEY not set)" };
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 6 }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return { ok: false, message: `search failed: HTTP ${res.status}` };
-    const data = (await res.json()) as { organic?: Array<{ title?: string; link?: string; snippet?: string }> };
-    const organic = Array.isArray(data.organic) ? data.organic : [];
-    const results = organic.slice(0, 6).map((o) => ({
-      title: (o.title ?? "").slice(0, 200),
-      url: o.link ?? "",
-      snippet: (o.snippet ?? "").slice(0, 300),
-    }));
-    if (results.length === 0) return { ok: true, message: `no web results for "${query}"`, query, results: [] };
-    // Best-effort: persist each result to the knowledge base so future drafts can
-    // retrieve + cite these sources (dedupes by content hash). Never blocks/throws.
-    for (const r of results) {
-      void insertKnowledge({
-        type: "source",
-        title: r.title || r.url || query,
-        summary: r.snippet || null,
-        sourceUrl: r.url || null,
-        sourceType: "web",
-        topicCluster: query.slice(0, 80),
-        keywords: tokenizeLite(query),
-      }).catch(() => undefined);
-    }
-    return { ok: true, message: `${results.length} web result(s) for "${query}"`, query, results };
-  } catch (e) {
-    return { ok: false, message: `search error: ${(e as Error).message}` };
+  const res = await groundedSearch(query);
+  if (!res) return { ok: false, message: "web search not configured or returned nothing (GEMINI_API_KEY not set, call failed, or no grounding chunks)" };
+  const results = res.results.slice(0, 6).map((o) => ({
+    title: (o.title ?? "").slice(0, 200),
+    url: o.url ?? "",
+    snippet: (o.snippet ?? "").slice(0, 300),
+  }));
+  if (results.length === 0) return { ok: true, message: `no web results for "${query}"`, query, results: [], answer: res.answer.slice(0, 500) || undefined };
+  // Best-effort: persist each result to the knowledge base so future drafts can
+  // retrieve + cite these sources (dedupes by content hash). Never blocks/throws.
+  for (const r of results) {
+    void insertKnowledge({
+      type: "source",
+      title: r.title || r.url || query,
+      summary: r.snippet || null,
+      sourceUrl: r.url || null,
+      sourceType: "web",
+      topicCluster: query.slice(0, 80),
+      keywords: tokenizeLite(query),
+    }).catch(() => undefined);
   }
+  return { ok: true, message: `${results.length} web result(s) for "${query}"`, query, results, answer: res.answer.slice(0, 500) || undefined };
 }
 
 /** Tiny tokenizer for keyword extraction from a query (mirrors knowledge.ts tokenize). */
@@ -629,10 +616,10 @@ async function findHighIntentTopicsTool(args: Args): Promise<ToolResult> {
   const count = num(args.count, 4, 6);
   const result = await discoverTopics(product, count);
   if (result.notConfigured) {
-    return { ok: false, message: "web search not configured (SERPER_API_KEY not set) — topic discovery needs Serper" };
+    return { ok: false, message: "web search not configured (GEMINI_API_KEY not set, call failed, or no grounding) — topic discovery needs Gemini google_search" };
   }
   if (result.discovered === 0) {
-    return { ok: true, message: `no topics discovered for ${product} (Serper returned no results)`, product, discovered: 0, topics: [] };
+    return { ok: true, message: `no topics discovered for ${product} (search returned no results)`, product, discovered: 0, topics: [] };
   }
   return {
     ok: true,

@@ -1,24 +1,28 @@
 /**
  * InBharat Growth Agent — Module: High-intent topic discovery (Phase 3).
  *
- * For each InBharat product, run Serper /search against the founder's high-intent
- * query templates, score the resulting topics 0–100 across 12 dimensions, dedupe
- * against the KB + published articles (findDuplicateKnowledge), and store the
- * survivors as growth_knowledge rows (type='topic', status='discovered' — or
- * 'needs_review' for high-risk medical/legal/patent/visa/finance/government
- * topics). The founder approves/rejects in the Knowledge UI; the approved topics
- * are the morning cron's calendar-fallback queue (pickApprovedTopicFallback).
+ * For each InBharat product, run Gemini google_search grounding (via
+ * lib/growth/search.ts — reuses GEMINI_API_KEY, no Serper key) against the
+ * founder's high-intent query templates, score the resulting topics 0–100 across
+ * 12 dimensions, dedupe against the KB + published articles
+ * (findDuplicateKnowledge), and store the survivors as growth_knowledge rows
+ * (type='topic', status='discovered' — or 'needs_review' for high-risk
+ * medical/legal/patent/visa/finance/government topics). The founder
+ * approves/rejects in the Knowledge UI; the approved topics are the morning
+ * cron's calendar-fallback queue (pickApprovedTopicFallback).
  *
- * HONESTY: Serper /search returns organic results, NOT search volume. We never
- * fabricate volume — intent is marked "estimated intent", derived from result
- * signals (intent keywords in titles/snippets, result count, source authority,
- * freshness). Source links are cited. Regulated topics get risk_level='high' and
- * status='needs_review' so the founder reviews them before drafting.
+ * HONESTY: Gemini google_search returns a grounded answer + citation chunks,
+ * NOT a raw organic result list and NOT search volume. We never fabricate
+ * volume — intent is marked "estimated intent", derived from result signals
+ * (intent keywords in titles/answer text, result count, source authority,
+ * freshness). Source links are cited. Regulated topics get risk_level='high'
+ * and status='needs_review' so the founder reviews them before drafting.
  *
  * No pgvector; dedupe is token-Jaccard via findDuplicateKnowledge. Never throws —
- * degrades to empty/[] on any failure (Serper down, DB absent). Server-only.
+ * degrades to empty/[] on any failure (Gemini down, DB absent). Server-only.
  */
 import { insertKnowledge, findDuplicateKnowledge, type KnowledgeItem } from "./knowledge.js";
+import { groundedSearch } from "./search.js";
 
 export type ProductId =
   | "inbharat" | "sahayaak-seva" | "jak-shield" | "unoone"
@@ -98,29 +102,18 @@ export interface DiscoveredTopic {
   duplicate: boolean;
 }
 
-interface SerperOrganic { title?: string; link?: string; snippet?: string; date?: string; }
+interface OrganicHit { title?: string; link?: string; snippet?: string; }
 
-/** Fetch Serper organic results for one query. Never throws; returns [] on any
- *  failure (key missing, HTTP error, timeout, network). num capped at 8. */
-async function serperSearch(query: string): Promise<SerperOrganic[]> {
-  const key = process.env.SERPER_API_KEY;
-  if (!key) return [];
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 8 }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return [];
-    const data = (await res.json()) as { organic?: SerperOrganic[] };
-    return Array.isArray(data.organic) ? data.organic.slice(0, 8) : [];
-  } catch {
-    return [];
-  }
+/** Fetch search results for one query via Gemini google_search grounding. Never
+ *  throws; returns [] on any failure (key missing, HTTP error, timeout, network,
+ *  no grounding chunks). Capped at 8. Maps groundedSearch's {title,url,snippet}
+ *  rows to the {title,link,snippet} shape scoreTopic/composeTopic read. No
+ *  per-result date — Gemini grounding doesn't expose one (scoreTopic reads year
+ *  mentions from query+title+snippet text, not a date field, so this is fine). */
+async function searchHits(query: string): Promise<OrganicHit[]> {
+  const res = await groundedSearch(query);
+  if (!res) return [];
+  return res.results.slice(0, 8).map((r) => ({ title: r.title, link: r.url, snippet: r.snippet }));
 }
 
 /** Lowercase word tokens (length ≥ 2). Pure. */
@@ -144,7 +137,7 @@ const RISK_KEYWORDS = [
  *  Derives signals from the organic results + query text — never fabricates. */
 export function scoreTopic(
   query: string,
-  organic: SerperOrganic[],
+  organic: OrganicHit[],
   product: ProductId,
 ): { scores: TopicScore[]; priority: number; riskLevel: "low" | "medium" | "high" } {
   const qTokens = tokenize(query);
@@ -176,7 +169,9 @@ export function scoreTopic(
   const geo_opportunity = clamp(Math.round(intent_strength * 0.6 + (allText.includes("how to") ? 20 : 0) + 10));
 
   // 7) lead_potential — B2B "for business"/"for startups" signals = buyer demand.
-  const leadHits = ["business", "startups", "enterprise", "company", "team"].filter((t) => allText.includes(t) ? true : false).length;
+  // Substring match on allText (query + titles + snippets, lowercased) so a
+  // signal word anywhere in the result set counts; matches the intentHits pattern.
+  const leadHits = ["business", "startups", "enterprise", "company", "team"].filter((t) => allText.includes(t)).length;
   const lead_potential = clamp(Math.round((leadHits / 4) * 100 + 25));
 
   // 8) follower_potential — broad-audience topics (learning/build) grow audience.
@@ -247,7 +242,7 @@ function clamp(n: number): number {
 /** Compose the topic output from a query + its organic results. Pure (no DB). */
 export function composeTopic(
   query: string,
-  organic: SerperOrganic[],
+  organic: OrganicHit[],
   product: ProductId,
   duplicate: { duplicate: boolean; existing?: KnowledgeItem; reason?: string },
 ): DiscoveredTopic {
@@ -310,22 +305,23 @@ export interface DiscoverResult {
 }
 
 /**
- * Run discovery for one product. Runs each query template through Serper, composes
- * a topic per query, dedupes via findDuplicateKnowledge (skip / update_existing /
- * draft_new), and inserts survivors as growth_knowledge topic rows. Never throws.
- * Returns notConfigured:true when SERPER_API_KEY is unset (honest degradation).
+ * Run discovery for one product. Runs each query template through Gemini
+ * google_search grounding, composes a topic per query, dedupes via
+ * findDuplicateKnowledge (skip / update_existing / draft_new), and inserts
+ * survivors as growth_knowledge topic rows. Never throws. Returns
+ * notConfigured:true when GEMINI_API_KEY is unset (honest degradation).
  */
 export async function discoverTopics(product: ProductId, count = 6): Promise<DiscoverResult> {
   const template = PRODUCT_TEMPLATES.find((p) => p.product === product);
   if (!template) return { product, discovered: 0, duplicates: 0, saved: 0, topics: [], notConfigured: true };
-  if (!process.env.SERPER_API_KEY) {
+  if (!process.env.GEMINI_API_KEY) {
     return { product, discovered: 0, duplicates: 0, saved: 0, topics: [], notConfigured: true };
   }
   const topics: DiscoveredTopic[] = [];
   let duplicates = 0;
   let saved = 0;
   for (const query of template.queries.slice(0, Math.max(1, Math.min(count, template.queries.length)))) {
-    const organic = await serperSearch(query);
+    const organic = await searchHits(query);
     if (organic.length === 0) continue;
     const dup = await findDuplicateKnowledge(query, product);
     const topic = composeTopic(query, organic, product, dup);

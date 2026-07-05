@@ -132,7 +132,7 @@ After deploying to Vercel, confirm static assets are public:
 | `SUPABASE_SERVICE_ROLE_KEY` | Auth | Supabase service role key (server-only). |
 | `VITE_GA_ID` | No | GA4 Measurement ID (e.g. `G-XXXX`) baked into every SEO shell. |
 | `GSC_SITE_VERIFICATION` | No | Google Search Console verification token (baked into the home shell). |
-| `SERPER_API_KEY` | No | [Serper](https://serper.dev) for web search in Research mode + the Growth Agent's grounding retrieval. |
+| `SERPER_API_KEY` | No | [Serper](https://serper.dev) for live web search in the **chat** Research/Browser mode + `/api/search` + `/api/news`. The Growth Agent's `web_search` tool, draft-time grounding, and weekly topic discovery use Gemini `google_search` grounding (reuses `GEMINI_API_KEY`, no Serper key). |
 | `GITHUB_TOKEN` | Growth | GitHub PAT (private-read) for the Growth Agent's repo discovery + drop-folder. |
 | `DEVTO_API_KEY` | Syndication | DEV.to API key (Forem v1 `api-key` header) for cross-posting approved articles. |
 | `HASHNODE_TOKEN` | Syndication | Hashnode Personal Access Token for GraphQL `publishPost`. |

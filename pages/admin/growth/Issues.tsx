@@ -205,6 +205,18 @@ const SYND_STATUS_CHIP: Record<string, string> = {
   failed: "bg-rose-500/15 text-rose-300",
   not_configured: "bg-slate-500/15 text-slate-300",
 };
+// Honest display labels for syndication ledger statuses. The stored status
+// `playwright_draft` reads as "a draft exists on the platform" — false: only a
+// clipboard copy happened; the founder still has to run the local script + click
+// Publish. Render it as "LOCAL PENDING" so the founder isn't misled.
+const SYND_STATUS_LABEL: Record<string, string> = {
+  published: "published",
+  draft: "draft",
+  manual: "manual",
+  playwright_draft: "local pending",
+  failed: "failed",
+  not_configured: "not configured",
+};
 
 const Issues: React.FC = () => {
   const { fetchJson } = useAdminApi();
@@ -220,6 +232,13 @@ const Issues: React.FC = () => {
   const [coverGenUrl, setCoverGenUrl] = useState<string | null>(null);
   const [redesigningSlug, setRedesigningSlug] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
+  // Copyable fallback for manual/local syndication: navigator.clipboard.writeText
+  // runs AFTER a network await and can lose transient activation on a cold
+  // serverless start, silently failing the copy. When set, we render the body (or
+  // canonical URL) in a read-only textarea the founder can always Ctrl+C, so the
+  // manual paste flow never dead-ends on "copy below, then paste" with nothing
+  // to copy. Cleared at the start of each syndicate action.
+  const [localBody, setLocalBody] = useState<{ label: string; text: string } | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
   const [companyId, setCompanyId] = useState("");
@@ -369,6 +388,7 @@ const Issues: React.FC = () => {
     const busyKey = `${slug}:${platform}`;
     setSyndBusy(busyKey);
     setDraftMsg(null);
+    setLocalBody(null);
     const { data, error } = await fetchJson<{
       ok: boolean;
       slug?: string;
@@ -395,8 +415,10 @@ const Issues: React.FC = () => {
     // Manual path: Medium always, or DEV.to/Hashnode when their API keys are
     // absent (status === "not_configured"). Copy the body (or canonical for
     // Medium) to the clipboard + open the platform editor for the founder to
-    // paste. Runs inside the click gesture so clipboard.writeText + window.open
-    // are within the browser's transient-activation window.
+    // paste. NOTE: clipboard.writeText runs after a network await and can lose
+    // transient activation on a cold serverless start — when it fails we render
+    // the text in a read-only textarea (localBody) so the founder can always
+    // Ctrl+C instead of dead-ending on "copy below" with nothing to copy.
     const isManual = platform === "medium" || r.status === "not_configured" || r.status === "manual";
     if (isManual) {
       const clipboardText = platform === "medium" ? canonical : (data.bodyMarkdown ?? "");
@@ -406,8 +428,9 @@ const Issues: React.FC = () => {
       const w = window.open(open, "_blank", "noopener,noreferrer");
       if (!w) window.location.href = open;
       const what = platform === "medium" ? "canonical URL" : "article body";
+      if (!clipboardOk) setLocalBody({ label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText });
       setDraftMsg(
-        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy below, then"} paste into the editor that just opened. (body source: ${data.bodySource ?? "?"})`,
+        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy from the box below, then"} paste into the editor that just opened. (body source: ${data.bodySource ?? "?"})`,
       );
     } else if (r.status === "published" || r.status === "draft") {
       setDraftMsg(`${SYND_PLATFORMS.find((p) => p.key === platform)?.label}: ${r.status === "published" ? "published ✓" : "draft created ✓"}${r.url ? ` — ${r.url}` : ""}`);
@@ -429,6 +452,7 @@ const Issues: React.FC = () => {
     const busyKey = `${slug}:${platform}:local`;
     setSyndBusy(busyKey);
     setDraftMsg(null);
+    setLocalBody(null);
     const { data, error } = await fetchJson<{
       ok: boolean;
       slug?: string;
@@ -451,14 +475,16 @@ const Issues: React.FC = () => {
     const clipboardText = local.clipboard === "canonical" ? (data.canonicalUrl ?? "") : (data.bodyMarkdown ?? "");
     let clipboardOk = false;
     try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
-    const w = window.open(local.editorUrl, "_blank", "noopener,noreferrer");
-    if (!w) window.location.href = local.editorUrl;
+    // Do NOT window.open the platform editor here — the local script opens the
+    // editor in its own persistent logged-in Playwright profile; opening a
+    // second logged-out tab here just gives the founder a dead tab to close.
     const cmd = platform === "medium"
       ? `npx tsx scripts/syndicate-populate.ts --platform medium --slug ${slug} --mode ${local.mode}`
       : `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
     const what = local.clipboard === "canonical" ? "canonical URL" : "article body";
+    if (!clipboardOk) setLocalBody({ label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local) — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText });
     setDraftMsg(
-      `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard —" : "copy below, then"} paste into the editor that just opened. Then run locally:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
+      `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard." : "copy from the box below."} Run locally to pre-fill + publish:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
     );
     void loadSyndHistory();
   }
@@ -878,6 +904,17 @@ const Issues: React.FC = () => {
       </form>
       {auditMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{auditMsg}</p>}
       {draftMsg && <p className="mt-2 text-[12px] text-[#9fb2c6]">{draftMsg}</p>}
+      {localBody && (
+        <div className="mt-2">
+          <p className="text-[11px] text-[#7a9ab8]">{localBody.label}</p>
+          <textarea
+            readOnly
+            onFocus={(e) => e.currentTarget.select()}
+            value={localBody.text}
+            className="mt-1 h-40 w-full resize-y rounded-lg border border-white/10 bg-[#0a0f18] px-3 py-2 font-mono text-[11px] text-[#c0cfe0] focus:border-[#f59f4f]/50 focus:outline-none"
+          />
+        </div>
+      )}
       {draftsError && rawPendingCount === 0 && (
         <p className="mt-2 text-[12px] text-rose-300">Could not load drafts: {draftsError}</p>
       )}
@@ -1483,7 +1520,7 @@ const Issues: React.FC = () => {
                             title={`last ${p.label}: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}`}
                             className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${SYND_STATUS_CHIP[last.status] || "bg-slate-500/15 text-slate-300"}`}
                           >
-                            {p.label}:{last.status}
+                            {p.label}:{SYND_STATUS_LABEL[last.status] ?? last.status}
                           </span>
                         );
                       })}
@@ -1591,7 +1628,7 @@ const SyndicatePanel: React.FC<{
             <ul className="mt-2 space-y-1">
               {rows.map((r) => (
                 <li key={r.id} className="flex items-center gap-2 text-[10px]">
-                  <span className={`rounded px-1.5 py-0.5 font-bold uppercase ${SYND_STATUS_CHIP[r.status] ?? "bg-slate-500/15 text-slate-300"}`}>{r.status}</span>
+                  <span className={`rounded px-1.5 py-0.5 font-bold uppercase ${SYND_STATUS_CHIP[r.status] ?? "bg-slate-500/15 text-slate-300"}`}>{SYND_STATUS_LABEL[r.status] ?? r.status}</span>
                   <span className="font-semibold text-[#c8d6e8]">{SYND_PLATFORMS.find((p) => p.key === r.platform)?.label ?? r.platform}</span>
                   {r.platform_url && (
                     <a href={r.platform_url} target="_blank" rel="noopener noreferrer" className="truncate text-[#7ab9e6] hover:underline">view ↗</a>

@@ -3,21 +3,25 @@
  *
  * Stage 2 "trustworthy" guard. The article drafter used to invent dates, numbers,
  * API names, and version strings because it had no source of truth in context.
- * This module runs ONE focused Serper (Google) web_search for the topic before
- * the draft model call, and the snippets are injected into the article prompt as
- * a GROUNDING block the model must cite instead of inventing. The critique pass
- * gets the same block so it can flag any numeric/date/version claim not present in
- * the grounding (see critique.ts Stage 2 fact-check branch).
+ * This module runs ONE focused web_search for the topic before the draft model
+ * call, and the snippets are injected into the article prompt as a GROUNDING
+ * block the model must cite instead of inventing. The critique pass gets the
+ * same block so it can flag any numeric/date/version claim not present in the
+ * grounding (see critique.ts Stage 2 fact-check branch).
  *
- * Not a model call — no budget / no logUsage. Serper results re-enter model context
- * via the prompt, where the existing redact() on the combined prompt catches
- * anything sensitive (same boundary as the web_search tool). Graceful: when
- * SERPER_API_KEY is unset, the request fails, or Serper returns nothing, we
- * return [] and the drafter proceeds UNGROUNDED (the prior behavior) — grounding is
- * an accuracy upgrade, never a hard gate that blocks drafting.
+ * Search is powered by Gemini's google_search grounding (lib/growth/search.ts),
+ * which reuses the agent's own GEMINI_API_KEY — no separate Serper key. It IS a
+ * model call (token-billed + per-query grounding fee, logged in search.ts), but
+ * grounding stays a best-effort accuracy upgrade, never a hard gate: when
+ * GEMINI_API_KEY is unset, the call fails/times out, or Gemini returns no
+ * grounding chunks, we return [] and the drafter proceeds UNGROUNDED (the prior
+ * behavior). Results re-enter model context via the prompt, where the existing
+ * redact() on the combined prompt catches anything sensitive.
  *
  * Server-only. Never touches the chat backend.
  */
+
+import { groundedSearch } from "./search.js";
 
 export interface GroundingSnippet {
   title: string;
@@ -25,54 +29,36 @@ export interface GroundingSnippet {
   snippet: string;
 }
 
-/** How many Serper results to keep + inject. Snippets are capped (see mapResult),
- *  so 4 keeps the prompt overhead small while giving the model real sources to cite. */
+/** How many results to keep + inject. Snippets are capped (see mapResults), so 4
+ *  keeps the prompt overhead small while giving the model real sources to cite. */
 const MAX_SNIPPETS = 4;
 /** One focused query, truncated so a runaway topic can't blow up the request body. */
 const MAX_QUERY = 200;
-/** Hard timeout so a hung Serper call can never stall the draft pipeline. */
-const SEARCH_TIMEOUT_MS = 12000;
 
 /**
  * Run one focused web_search for the topic and return up to MAX_SNIPPETS results.
- * Returns [] (not a throw) when: SERPER_API_KEY unset, the request fails/times out,
- * Serper returns non-OK, or there are no organic results — so the caller always gets
- * an array and can proceed ungrounded. Pure-ish (one network call); hermetically
- * testable via mapResults + formatGroundingBlock (the network call itself is not
- * asserted, only its pure transforms).
+ * Returns [] (not a throw) when: GEMINI_API_KEY unset, the request fails/times
+ * out, Gemini returns no grounding chunks, or there are no results — so the
+ * caller always gets an array and can proceed ungrounded. Pure-ish (one network
+ * call); hermetically testable via mapResults + formatGroundingBlock (the
+ * network call itself is not asserted, only its pure transforms).
  */
 export async function gatherGrounding(topic: string): Promise<GroundingSnippet[]> {
   const query = (topic ?? "").trim().slice(0, MAX_QUERY);
   if (!query) return [];
-  const key = process.env.SERPER_API_KEY;
-  if (!key) return [];
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
-  try {
-    const res = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 6 }),
-      signal: controller.signal,
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { organic?: Array<{ title?: string; link?: string; snippet?: string }> };
-    return mapResults(data);
-  } catch {
-    // AbortController timeout, network error, or bad JSON — grounding is best-effort.
-    return [];
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  const res = await groundedSearch(query);
+  if (!res) return [];
+  return mapResults(res.results);
 }
 
-/** Map + truncate Serper's organic results into GroundingSnippets. Pure + hermetic. */
-export function mapResults(data: { organic?: Array<{ title?: string; link?: string; snippet?: string }> }): GroundingSnippet[] {
-  const organic = Array.isArray(data?.organic) ? data.organic : [];
-  return organic
+/** Map + truncate search results into GroundingSnippets. Pure + hermetic. Accepts
+ *  the SearchResult shape from lib/growth/search.ts (title/url/snippet). */
+export function mapResults(results: Array<{ title?: string; url?: string; snippet?: string }>): GroundingSnippet[] {
+  const rows = Array.isArray(results) ? results : [];
+  return rows
     .map((o) => ({
       title: (o?.title ?? "").slice(0, 200),
-      url: typeof o?.link === "string" ? o.link : "",
+      url: typeof o?.url === "string" ? o.url : "",
       snippet: (o?.snippet ?? "").slice(0, 300),
     }))
     .filter((o) => o.title || o.snippet)

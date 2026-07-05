@@ -288,7 +288,11 @@ export async function runAgentTurn(
   }
 
   if (iteration >= MAX_ITERATIONS && reply === null) {
-    reply = "I hit my tool-call limit for this turn — the work is queued in Issues for you to review. Tell me to continue if you need more.";
+    // Distinct from the budget-exhausted message (line 170, "monthly budget")
+    // and the malformed/narration retry-exhausted messages (lines 225/247): this
+    // is the per-turn tool-call bound (6 calls) — the model kept calling tools
+    // without producing a closing text answer. Honest about the cause.
+    reply = "I reached my per-turn tool-call limit (6 calls) without a closing summary — the work I finished is queued in Issues for your review. Send \"continue\" and I'll pick up where I left off.";
     await persistMessage(tid, "assistant", reply, null, null, null);
   }
 

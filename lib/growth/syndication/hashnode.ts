@@ -164,13 +164,18 @@ export async function publishToHashnode(args: {
       };
     }
     const post = data.data?.publishPost?.post;
+    // Honesty: a "published" status with no URL is not verifiable and misleads the
+    // founder (and the ledger chip would show "published ✓" with no link). If the
+    // API omitted post.url (partial response / breaking API change), treat it as a
+    // soft failure so the founder knows to check the Hashnode dashboard manually.
+    const hasUrl = typeof post?.url === "string" && !!post.url;
     return {
       platform: "hashnode",
-      ok: true,
-      url: post?.url || null,
+      ok: hasUrl,
+      url: hasUrl ? post!.url : null,
       postId: post?.id || null,
-      status: "published",
-      error: null,
+      status: hasUrl ? "published" : "failed",
+      error: hasUrl ? null : "Hashnode published but returned no post URL — verify on your Hashnode dashboard.",
       canonicalUrl,
     };
   } catch (e) {

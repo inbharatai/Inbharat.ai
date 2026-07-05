@@ -26,7 +26,7 @@ import { logInfo } from "./authorization.js";
 import { redact } from "./redaction.js";
 import { pickModel, isModelConfigured, withinBudget, logUsage, estimateCoverCost, type GrowthTask } from "./model-router.js";
 import { callGeminiImage } from "./gemini.js";
-import { articlePath, ARTICLE_HUB_PATH } from "../../content/articles.meta.js";
+import { articlePath, ARTICLE_HUB_PATH, ARTICLES } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 import type { ArticleMeta } from "../../content/articles.meta.js";
 
@@ -302,15 +302,25 @@ export async function hasExistingCoverDraft(url: string): Promise<boolean> {
  * Bytes are passed inline to the image model and never persisted by this helper.
  */
 export async function fetchStyleSample(): Promise<CoverStyleSample | null> {
-  const candidates = ["harness-engineering", "what-are-ai-agents", "generative-ai", "rag"];
-  for (const slug of candidates) {
-    const url = `${SITE.url}${ARTICLE_HUB_PATH}/${slug}.png`;
+  // Source style-sample candidates from the live article manifest (ARTICLES with
+  // a `visual` set) rather than a hardcoded slug list. The old hardcoded list
+  // (`harness-engineering`, `what-are-ai-agents`, `generative-ai`, `rag`) broke
+  // silently when slugs changed and only worked when `visual === `${slug}.png``
+  // — several articles use truncated visual filenames (e.g.
+  // `building-unoone-leaf-indias-local-agi-fabric.png`), so a slug-derived URL
+  // 404s. Using the actual `visual` filename always hits the right asset.
+  const candidates = ARTICLES
+    .filter((a) => typeof a.visual === "string" && a.visual.endsWith(".png"))
+    .slice(0, 8)
+    .map((a) => a.visual as string);
+  for (const visual of candidates) {
+    const url = `${SITE.url}${ARTICLE_HUB_PATH}/${visual}`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
       if (!res.ok) continue;
       const buf = Buffer.from(await res.arrayBuffer());
       if (buf.length < 1024) continue; // guard against an empty/error placeholder
-      return { base64: buf.toString("base64"), mimeType: "image/png", source: `live-cover:${slug}.png` };
+      return { base64: buf.toString("base64"), mimeType: "image/png", source: `live-cover:${visual}` };
     } catch {
       continue;
     }

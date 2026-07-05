@@ -9,6 +9,7 @@ import { syndicateArticle } from "../../lib/growth/syndication/index.js";
 import { fetchPublishedArticleBody } from "../../lib/growth/syndication/articleBody.js";
 import { stripCitationMarkers } from "../../lib/growth/citations.js";
 import { sanitizeMermaidFences } from "../../lib/growth/mermaid-validate.js";
+import { containsSecret } from "../../lib/growth/redaction.js";
 import type { SyndicationPlatform, SyndicationResult } from "../../lib/growth/syndication/types.js";
 
 /**
@@ -210,6 +211,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Nothing publishes here. No API keys/tokens required (the whole point).
   if (mode === "playwright") {
     const canonicalUrl = `${SITE.url}/learn-ai-with-reeturaj/${slug}`;
+    // Secret scan up front — mirror syndicateArticle (index.ts:41). The Playwright
+    // path returns bodyMarkdown to the client for clipboard copy + paste into
+    // DEV.to/Hashnode/Medium; a stray secret in a draft would land on the
+    // founder's clipboard and get pasted public. Abort before any ledger row.
+    if (containsSecret(bodyMd)) {
+      return res.status(409).json({
+        ok: false,
+        code: "CONFLICT",
+        error: "article body contains a secret pattern; local syndication aborted before copy (clean the draft and retry).",
+        requestId,
+      });
+    }
     const results: SyndicationResult[] = (platforms as SyndicationPlatform[]).map((p) => ({
       platform: p,
       ok: true,

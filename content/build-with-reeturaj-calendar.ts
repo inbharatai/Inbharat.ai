@@ -62,10 +62,17 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     category: "AI Foundations",
     angle: "pgvector vs dedicated stores; when the Postgres you already have is enough.",
   },
+  // NOTE: "Agentic memory — giving an agent durable context" was retired because
+  // it duplicates the more concrete "AI agent memory — durable context across
+  // sessions" entry below (line ~131), which is grounded in what we actually
+  // built (retrieval before drafting, cross-source dedupe, FTS+token vs
+  // embeddings). Two near-identical topics meant the founder could be served
+  // either angle on different mornings for the same article. Replaced with a
+  // distinct, non-overlapping topic to keep the calendar slot useful.
   {
-    topic: "Agentic memory — giving an agent durable context",
+    topic: "Agent observability — logging decisions, not just outputs",
     category: "AI Foundations",
-    angle: "Thread memory, summaries, and external stores; what to persist vs recompute.",
+    angle: "What to record per turn (tool calls, reasons, spend, failures) so a shipped agent is debuggable and auditable.",
   },
   {
     topic: "MCP servers in plain English",

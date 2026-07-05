@@ -95,6 +95,13 @@ const Agent: React.FC = () => {
   const location = useLocation();
   const [ttsOn, setTtsOn] = useState(false);
   const [interim, setInterim] = useState("");
+  // Phase 4 screen-awareness: pending draft count for the voice context block
+  // (so "what should I publish today?" gets a real answer, not a guess). Fetched
+  // from the existing /api/growth/pipeline bundle on mount + after each send.
+  const [pendingDraftCount, setPendingDraftCount] = useState(0);
+  // TTS: only narrate NEW assistant arrivals while ttsOn — never re-narrate a
+  // stale last message on toggle, and never narrate across a thread switch.
+  const lastSpokenIdRef = useRef<string | null>(null);
   const voice = useVoiceInput({
     onFinal: (t) => { setInterim(""); setInput((prev) => (prev ? prev + " " : "") + t); },
     onInterim: (t) => setInterim(t),
@@ -116,7 +123,16 @@ const Agent: React.FC = () => {
   /** Bump the pipeline strip refresh key + ping any other tab that drafts moved. */
   function notifyDraftsUpdated() {
     setStripKey((k) => k + 1);
+    void loadPendingCount();
     try { channelRef.current?.postMessage({ type: "drafts-updated" }); } catch { /* ignore */ }
+  }
+
+  /** Fetch the pipeline bundle + count pending drafts for the voice context block. */
+  async function loadPendingCount() {
+    const { data } = await fetchJson<{ article?: { status?: string } | null; linkedin?: { status?: string } | null; cover?: { status?: string } | null }>("/api/growth/pipeline");
+    if (!data) return;
+    const parts = [data.article, data.linkedin, data.cover].filter(Boolean) as { status?: string }[];
+    setPendingDraftCount(parts.filter((p) => p.status === "pending").length);
   }
 
   async function loadThreads() {
@@ -134,6 +150,7 @@ const Agent: React.FC = () => {
   useEffect(() => {
     void loadThreads();
     void loadAuto();
+    void loadPendingCount();
     // Deep-link preselect: ?thread=<id> (from an Issues "View in Agent" link)
     // opens that conversation directly instead of the blank new-chat state.
     const t = searchParams.get("thread");
@@ -155,15 +172,22 @@ const Agent: React.FC = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
-  // Phase 4: TTS read-back — when the founder has TTS on, speak the latest
-  // assistant reply as it arrives. Tool-only messages are skipped (they have no
-  // spoken content). Only fires when a NEW assistant message lands.
+  // Phase 4: TTS read-back — narrate only NEW assistant replies while ttsOn.
+  // Never re-narrate a stale last message when the founder toggles TTS on, and
+  // never narrate across a thread switch (lastSpokenIdRef guards both). Tool-
+  // only messages are skipped (no spoken content). When the reply is longer
+  // than 500 chars, append a short "truncated" cue so the founder knows there's
+  // more on screen rather than hearing the agent stop mid-sentence.
   useEffect(() => {
     if (!ttsOn || !tts.supported) return;
     const last = messages[messages.length - 1];
-    if (last && last.role === "assistant" && last.content) {
-      tts.speak(last.content.slice(0, 500));
-    }
+    if (!last || last.role !== "assistant" || !last.content) return;
+    if (lastSpokenIdRef.current === last.id) return;
+    lastSpokenIdRef.current = last.id;
+    const text = last.content.length > 500
+      ? `${last.content.slice(0, 500)}… (truncated — see the full reply on screen)`
+      : last.content;
+    tts.speak(text);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, ttsOn]);
 
@@ -216,11 +240,21 @@ const Agent: React.FC = () => {
     setSending(true);
     setError(null);
     setNotice(null);
+    // Stop any in-progress TTS narration so the previous reply doesn't talk
+    // over the founder's new message during the "agent is working…" wait.
+    if (ttsOn) tts.cancel();
     const attIds = attachments.map((a) => a.itemId);
-    // Phase 4: append a screen-awareness context block so the agent knows where the
-    // founder is when issuing a voice command ("what should I publish today?").
+    // Phase 4: append a screen-awareness context block so the agent knows where
+    // the founder is when issuing a voice command ("what should I publish
+    // today?"). pendingDraftCount comes from the live pipeline bundle so the
+    // agent can answer queue questions without an extra tool round-trip.
     const activeTitle = threads.find((t) => t.id === activeId)?.title ?? null;
-    const ctx = buildContextBlock({ pathname: location.pathname, activeThreadTitle: activeTitle });
+    const ctx = buildContextBlock({
+      pathname: location.pathname,
+      pendingDraftCount,
+      activeThreadTitle: activeTitle,
+      viewing: "agent command center",
+    });
     const text = ctx ? `${raw}\n\n${ctx}` : raw;
     // Optimistic user echo (show the founder's words, not the context block).
     const optimistic: AgentMessage = {

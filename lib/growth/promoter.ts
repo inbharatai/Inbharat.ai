@@ -143,18 +143,23 @@ async function hasExistingDraft(url: string): Promise<boolean> {
   if (!supabaseAdmin) return false;
   try {
     // Only treat the article as "already drafted" when a draft with a USABLE
-    // (non-null) caption exists. A parse_failed / model-error draft has
-    // body_md = null — counting that as "done" permanently orphaned every
-    // article from ever getting a caption (one thinking-budget-starvation run
-    // on 26 Jun left all 11 articles with null-caption rows, after which the
-    // idempotency gate skipped them forever, even after the model was fixed).
-    // Re-drafting a null-caption article is always safe + desired.
+    // (non-null) caption exists AND it hasn't been rejected. A parse_failed /
+    // model-error draft has body_md = null — counting that as "done" permanently
+    // orphaned every article from ever getting a caption (one thinking-budget-
+    // starvation run on 26 Jun left all 11 articles with null-caption rows, after
+    // which the idempotency gate skipped them forever, even after the model was
+    // fixed). A REJECTED caption (body_md non-null, status='rejected') is also
+    // not "done" — the founder rejected it because it was weak, so the article
+    // must be re-draftable. Without this `.neq("status","rejected")` the gate
+    // permanently killed LinkedIn promotion for any article whose caption was
+    // ever rejected. Re-drafting a null-caption OR rejected article is safe.
     const { data } = await supabaseAdmin
       .from("growth_drafts")
       .select("id")
       .eq("url", url)
       .eq("kind", "linkedin")
       .not("body_md", "is", null)
+      .neq("status", "rejected")
       .limit(1);
     return Array.isArray(data) && data.length > 0;
   } catch {

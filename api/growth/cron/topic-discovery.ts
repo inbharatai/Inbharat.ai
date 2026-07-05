@@ -4,17 +4,18 @@ import { logInfo, logError } from "../../../lib/growth/authorization.js";
 import { discoverAllProducts, type DiscoverResult } from "../../../lib/growth/topicDiscovery.js";
 
 /**
- * Weekly topic-discovery cron (Phase 3). Runs discoverAllProducts — Serper-backed
- * high-intent topic search across every InBharat product, scored 0-100 across 12
- * dimensions, deduped against the KB + published articles, and saved as
- * discovered/needs_review topic rows in growth_knowledge. The founder approves/
- * rejects in the Knowledge UI; approved topics become the calendar fallback.
+ * Weekly topic-discovery cron (Phase 3). Runs discoverAllProducts — Gemini
+ * google_search-grounded high-intent topic search across every InBharat product
+ * (reuses GEMINI_API_KEY, no Serper key), scored 0-100 across 12 dimensions,
+ * deduped against the KB + published articles, and saved as discovered/
+ * needs_review topic rows in growth_knowledge. The founder approves/rejects in
+ * the Knowledge UI; approved topics become the calendar fallback.
  *
  * Invoked three ways, all authenticated by authorizeCron:
  *   - Vercel's scheduled cron (GET, user-agent vercel-cron) — the weekly run.
  *   - An external scheduler carrying CRON_SECRET.
  *   - An authenticated admin hitting "Run now" (POST).
- * Degrades honestly to notConfigured when SERPER_API_KEY is unset.
+ * Degrades honestly to notConfigured when GEMINI_API_KEY is unset.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);
