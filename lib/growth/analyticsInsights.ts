@@ -73,6 +73,14 @@ export interface GscReport {
   topQueries: GscRow[];
   topPages: GscRow[];
   queryByPage: GscRow[];
+  /** True when the pages report returned HTTP 200 (empty is still true). False
+   *  when the fetch FAILED (403/network/parse) — `topPages` is then an empty
+   *  array NOT because no pages have traffic, but because the data never
+   *  loaded. Absence-as-signal insights (no_traffic / rising / falling) must
+   *  NOT fire then, or every published article is falsely flagged. */
+  pagesOk?: boolean;
+  /** True when the queries report returned HTTP 200. */
+  queriesOk?: boolean;
 }
 export interface AnalyticsSnapshot {
   configured: boolean;
@@ -442,10 +450,18 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
     out.push(...topQueryInsights(snapshot.gsc));
     out.push(...followUpFromQueryByPage(snapshot.gsc));
     out.push(...productTraffic(snapshot.gsc));
-    out.push(...noTrafficPages(snapshot.gsc, now, snapshot.range.days));
-    if (previousGscPages && previousGscPages.length > 0) {
-      out.push(...risingPages(snapshot.gsc.topPages, previousGscPages));
-      out.push(...fallingPages(snapshot.gsc.topPages, previousGscPages));
+    // Absence-as-signal insights are ONLY valid when the pages report actually
+    // succeeded (HTTP 200). When it failed, topPages is empty-from-failure and
+    // "not in GSC" means nothing — flagging every published article as
+    // no_traffic / falling / rising off a 403 is a false-positive flood.
+    // Guard with `pagesOk !== false` so a snapshot built before the flag existed
+    // (treated as undefined → allowed) still works, but an explicit failure stops it.
+    if (snapshot.gsc.pagesOk !== false) {
+      out.push(...noTrafficPages(snapshot.gsc, now, snapshot.range.days));
+      if (previousGscPages && previousGscPages.length > 0) {
+        out.push(...risingPages(snapshot.gsc.topPages, previousGscPages));
+        out.push(...fallingPages(snapshot.gsc.topPages, previousGscPages));
+      }
     }
   }
   if (snapshot.ga4) {

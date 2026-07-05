@@ -1769,6 +1769,28 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
   const partial: AnalyticsSnapshot = { ...snap, error: "GA4 totals 403" };
   check("summarizeSnapshot surfaces error when configured", /error/i.test(summarizeSnapshot(partial)), summarizeSnapshot(partial));
   check("generateInsights still emits from partial snapshot", generateInsights({ snapshot: partial, now: Date.parse("2026-07-04") }).length > 0);
+
+  // 15) pagesOk gating: when the GSC pages report FAILED (pagesOk:false), the empty
+  //     topPages is "data didn't load", not "no pages have traffic" — so absence-
+  //     as-signal insights (no_traffic/rising/falling) must NOT fire. This is the
+  //     false-positive flood we hit live on first sync (11 fake no_traffic rows off
+  //     a 403). Presence-based insights on an empty array simply emit nothing.
+  const failedPages: AnalyticsSnapshot = {
+    ...snap,
+    gsc: { ...snap.gsc!, topPages: [], pagesOk: false },
+  };
+  const failedInsights = generateInsights({ snapshot: failedPages, previousGscPages: prev, now: Date.parse("2026-07-04") });
+  check("pagesOk:false → no no_traffic_page flood", !failedInsights.some((i) => i.type === "no_traffic_page"), `got ${failedInsights.filter((i) => i.type === "no_traffic_page").length} no_traffic`);
+  check("pagesOk:false → no rising_page", !failedInsights.some((i) => i.type === "rising_page"));
+  check("pagesOk:false → no falling_page", !failedInsights.some((i) => i.type === "falling_page"));
+  // pagesOk:true with empty topPages is LEGIT absence (HTTP 200, zero rows) →
+  // no_traffic DOES fire. This is the honest "refresh or archive" signal.
+  const emptyButOk: AnalyticsSnapshot = {
+    ...snap,
+    gsc: { ...snap.gsc!, topPages: [], pagesOk: true },
+  };
+  const okEmptyInsights = generateInsights({ snapshot: emptyButOk, now: Date.parse("2026-07-04") });
+  check("pagesOk:true + empty topPages → no_traffic fires (legit absence)", okEmptyInsights.some((i) => i.type === "no_traffic_page"));
 }
 
 console.log("\nGrowth Analytics — performance.ts config + sync (no creds → not configured):");

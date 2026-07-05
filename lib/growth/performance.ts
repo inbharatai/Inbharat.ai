@@ -233,7 +233,10 @@ async function ga4DimensionReport(
       dateRanges: [{ startDate: start, endDate: end }],
       dimensions: [{ name: dimension }],
       metrics,
-      orderBys: [{ metric: { metricType: "metricTypeUnspecified", name: metrics[0].name }, desc: true }],
+      // GA4 Data API `OrderBy.metric` has fields `metricName` + optional
+      // `selectionType` — NOT `name`/`metricType` (those are unknown names and
+      // the API rejects the whole report with 400 "Unknown name metricType").
+      orderBys: [{ metric: { metricName: metrics[0].name }, desc: true }],
       limit: rowLimit,
     }),
   });
@@ -332,27 +335,35 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
         q({ startDate: start, endDate: end, dimensions: ["page"], rowLimit: 250 }),
         q({ startDate: start, endDate: end, dimensions: ["page", "query"], rowLimit: 50 }),
       ]);
-      const toRows = async (res: Response): Promise<GscRow[]> => {
-        if (!res.ok) { errors.push(`GSC ${res.status}`); return []; }
+      const parseRows = async (res: Response): Promise<GscRow[]> => {
         const j = (await res.json()) as any;
         return (j?.rows ?? []).map((r: any) => ({ keys: Array.isArray(r.keys) ? r.keys.map(String) : [], clicks: Number(r.clicks ?? 0), impressions: Number(r.impressions ?? 0), ctr: Number(r.ctr ?? 0), position: Number(r.position ?? 0) }));
       };
-      // Guarded extraction: a rejected fetch or a toRows throw is isolated to its
-      // own report; the others still populate the snapshot.
-      const rowsOf = async (r: PromiseSettledResult<Response>, label: string): Promise<GscRow[]> => {
-        if (r.status === "rejected") { errors.push(`GSC ${label}: ${String((r.reason as Error)?.message ?? r.reason).slice(0, 120)}`); return []; }
-        try { return await toRows(r.value); }
-        catch (e) { errors.push(`GSC ${label}: ${String((e as Error)?.message ?? e).slice(0, 120)}`); return []; }
+      // Guarded extraction: a rejected fetch or a parse throw is isolated to its
+      // own report; the others still populate the snapshot. Returns the rows AND
+      // an `ok` flag so absence-as-signal insights (no_traffic / rising / falling)
+      // can be suppressed when the pages report FAILED. Empty-from-failure is
+      // NOT empty-from-success: a 403 with zero rows is not "every published
+      // article has no traffic" — flagging all 11 articles off a failed fetch
+      // was a false-positive flood we hit live on the first sync.
+      const rowsOf = async (r: PromiseSettledResult<Response>, label: string): Promise<{ rows: GscRow[]; ok: boolean }> => {
+        if (r.status === "rejected") { errors.push(`GSC ${label}: ${String((r.reason as Error)?.message ?? r.reason).slice(0, 120)}`); return { rows: [], ok: false }; }
+        const res = r.value;
+        if (!res.ok) { errors.push(`GSC ${res.status}`); return { rows: [], ok: false }; }
+        try { return { rows: await parseRows(res), ok: true }; }
+        catch (e) { errors.push(`GSC ${label}: ${String((e as Error)?.message ?? e).slice(0, 120)}`); return { rows: [], ok: false }; }
       };
-      const [totRows, topQueries, topPages, queryByPage] = await Promise.all([
+      const [totRows, qRows, pRows, qpRows] = await Promise.all([
         rowsOf(totR, "totals"), rowsOf(qR, "queries"), rowsOf(pR, "pages"), rowsOf(qpR, "queryByPage"),
       ]);
-      const t = totRows[0];
+      const t = totRows.rows[0];
       const gsc: GscReport = {
         totals: { clicks: t?.clicks ?? 0, impressions: t?.impressions ?? 0, ctr: t?.ctr ?? 0, position: t?.position ?? 0 },
-        topQueries: topQueries.sort((a, b) => b.impressions - a.impressions),
-        topPages: topPages.sort((a, b) => b.clicks - a.clicks),
-        queryByPage,
+        topQueries: qRows.rows.sort((a, b) => b.impressions - a.impressions),
+        topPages: pRows.rows.sort((a, b) => b.clicks - a.clicks),
+        queryByPage: qpRows.rows,
+        pagesOk: pRows.ok,
+        queriesOk: qRows.ok,
       };
       snapshot.gsc = gsc;
     } catch (e) {
