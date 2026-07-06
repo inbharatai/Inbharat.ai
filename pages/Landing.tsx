@@ -929,23 +929,21 @@ const PRODUCT_DEFS = [
   // ── Education & Career ──
   { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
   { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
-  { name: 'UnoOne', bucket: 'agentOps', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
+  { name: 'UnoOne', bucket: 'consumer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
   { name: 'OpenClawFix', bucket: 'consumer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
   // ── Health & Public Service ──
   { name: 'Sahayaak Seva', bucket: 'health', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://sahayaakseva.in', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
   { name: 'SwasthyaScore AI', bucket: 'health', tagKey: 'landProdSwasthyaTag', descKey: 'landProdSwasthyaDesc', ctaKey: 'landProdSwasthyaCta', typeKey: 'landProdSwasthyaType', href: 'https://swasthyascore-ai.vercel.app', logo: null, icon: Target, internal: false, color: '#0ea5e9', tech: ['PWA', 'rPPG Vitals', 'Lab OCR', 'Voice Screening'] },
 ] as const;
 
-// Six verticals organizing the ecosystem. Order here is the display order on the
-// landing page. Each bucket header is a one-line framing above its product cards
-// so the grid reads as an organized ecosystem, not a flat 14-card wall.
+// Six verticals = the tabs in the product browser. Order here is the tab order.
 const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }>; color: string }[] = [
   { key: 'core', labelKey: 'landBucketCore', descKey: 'landBucketCoreDesc', icon: Brain, color: '#f59f4f' },
   { key: 'agentOps', labelKey: 'landBucketAgentOps', descKey: 'landBucketAgentOpsDesc', icon: ShieldCheck, color: '#ef4444' },
-  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', icon: Target, color: '#7C3AED' },
   { key: 'consumer', labelKey: 'landBucketConsumer', descKey: 'landBucketConsumerDesc', icon: MessageCircle, color: '#ff9933' },
   { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', icon: BookOpen, color: '#3b82f6' },
   { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', icon: Users, color: '#059669' },
+  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', icon: Target, color: '#7C3AED' },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -1000,6 +998,9 @@ const Landing: React.FC = () => {
     }, shellRef);
     return () => ctx.revert();
   }, [reduceMotion]);
+
+  // Product browser: one vertical at a time. Default = InBharat Core AI.
+  const [activeBucket, setActiveBucket] = useState<ProductBucket>('core');
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
@@ -1848,6 +1849,7 @@ const Landing: React.FC = () => {
             <div>
               <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
               <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
+              <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[#96b0c8]">{t('landProdSub')}</p>
             </div>
             <a
               href="https://github.com/inbharatai"
@@ -1860,63 +1862,123 @@ const Landing: React.FC = () => {
             </a>
           </div>
 
-          <div className="space-y-8">
+          {/* Vertical tabs — desktop horizontal bar, mobile wraps to chips */}
+          <div className="mb-10 flex flex-wrap justify-center gap-2">
             {BUCKETS.map((bucket) => {
-              const products = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key);
-              if (products.length === 0) return null;
-              // Size the row to its content so sparse buckets (1-2 cards) don't
-              // sit stranded in a wide 4-col grid: cap the row width by card count
-              // and center the whole row. Cards are a fixed 280px (full-width on
-              // mobile) so the capped row holds them snug, no void on either side.
-              const cap = Math.min(products.length, 4);
-              const maxW =
-                cap <= 1 ? 'sm:max-w-[300px]'
-                : cap === 2 ? 'sm:max-w-[592px]'
-                : cap === 3 ? 'sm:max-w-[888px]'
-                : 'sm:max-w-[1168px]';
+              const count = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key).length;
+              const active = bucket.key === activeBucket;
               return (
-                <div key={bucket.key} className={`mx-auto ${maxW}`}>
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.08]" style={{ backgroundColor: `${bucket.color}10` }}>
-                      <bucket.icon size={13} style={{ color: bucket.color }} />
+                <button
+                  key={bucket.key}
+                  type="button"
+                  onClick={() => setActiveBucket(bucket.key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 ${active ? 'border-white/20 bg-white/[0.07] text-white shadow-[0_0_24px_-8px_rgba(255,255,255,0.25)]' : 'border-white/[0.08] bg-white/[0.02] text-[#96b0c8] hover:border-white/15 hover:text-white'}`}
+                >
+                  <bucket.icon size={14} style={{ color: bucket.color }} />
+                  <span>{t(bucket.labelKey)}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/10 text-white' : 'bg-white/[0.04] text-[#7a9ab8]'}`}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active vertical content — one tab at a time */}
+          {(() => {
+            const products = ALL_PRODUCTS.filter((p) => p.bucket === activeBucket);
+            if (products.length === 0) return null;
+
+            // InBharat Core AI → full-width featured panel (not a tiny lonely card).
+            if (activeBucket === 'core') {
+              const p = products[0];
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease }}
+                  className="relative overflow-hidden rounded-[24px] border border-[#f59f4f]/20 bg-gradient-to-br from-[#1a0f05] via-[#120a06] to-[#030508] p-6 sm:p-10"
+                >
+                  <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse 700px 340px at 15% -10%, rgba(245,159,79,0.20), transparent 55%)' }} />
+                  <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
+                    <div>
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+                          <ProductLogo logo={p.logo as string | null} name={p.name} color={p.color} icon={p.iconComp} />
+                        </div>
+                        <div>
+                          <TypeBadge color={p.color}>{p.type}</TypeBadge>
+                          <h3 className="mt-1.5 text-2xl font-bold text-white sm:text-3xl">{p.name}</h3>
+                        </div>
+                      </div>
+                      <p className="max-w-xl text-[15px] leading-relaxed text-[#b4c8de] line-clamp-3">{p.desc}</p>
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {p.tech.slice(0, 4).map((tech) => (
+                          <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>
+                        ))}
+                      </div>
+                      <div className="mt-7">
+                        {p.internal ? (
+                          <Link to={p.href} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
+                            {p.cta} <ArrowRight size={16} />
+                          </Link>
+                        ) : (
+                          <a href={p.href} target={p.href.startsWith('http') ? '_blank' : undefined} rel={p.href.startsWith('http') ? 'noopener noreferrer' : undefined} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
+                            {p.cta} {p.href.startsWith('http') ? <ExternalLink size={16} /> : <ArrowRight size={16} />}
+                          </a>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="text-[13px] font-bold uppercase tracking-wide text-white">{t(bucket.labelKey)}</h3>
-                    <span className="ml-auto rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-0.5 text-[10px] font-semibold text-[#7a9ab8]">{products.length}</span>
+                    <div className="flex items-center justify-center">
+                      <img src="/inbharat-logo.svg" alt="InBharat AI logo" className="h-28 w-28 opacity-90 sm:h-36 sm:w-36" width={144} height={144} loading="lazy" decoding="async" />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-4">
-                    {products.map((product, i) => (
-                      <motion.article
-                        key={product.name}
-                        custom={i}
-                        variants={itemReveal}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true, amount: 0.15 }}
-                        className="glow-card group flex h-full w-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12] sm:w-[280px]"
-                      >
-                        <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
-                          <ProductLogo
-                            logo={product.logo as string | null}
-                            name={product.name}
-                            color={product.color}
-                            icon={product.iconComp}
-                          />
-                        </div>
-                        <div className="mb-2 flex items-center gap-2">
-                          <TypeBadge color={product.color}>{product.type}</TypeBadge>
-                          <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
-                        </div>
-                        <p className="text-[10px] font-medium text-[#a8bfd4]">{product.tagline}</p>
-                        <p className="mt-2 flex-1 text-[13px] leading-relaxed text-[#9aafc6]">{product.desc}</p>
-                        <div className="mt-3 flex flex-wrap gap-1">
-                          {product.tech.map((t) => (
-                            <span key={t} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{t}</span>
-                          ))}
-                        </div>
+                </motion.div>
+              );
+            }
+
+            // Other verticals → equal-height cards in a content-sized centered row.
+            const cap = Math.min(products.length, 4);
+            const maxW =
+              cap <= 1 ? 'sm:max-w-[300px]'
+              : cap === 2 ? 'sm:max-w-[592px]'
+              : cap === 3 ? 'sm:max-w-[888px]'
+              : 'sm:max-w-[1168px]';
+            return (
+              <div key={activeBucket} className={`mx-auto ${maxW}`}>
+                <div className="flex flex-wrap justify-center gap-4">
+                  {products.map((product, i) => (
+                    <motion.article
+                      key={product.name}
+                      custom={i}
+                      variants={itemReveal}
+                      initial="hidden"
+                      whileInView="visible"
+                      viewport={{ once: true, amount: 0.15 }}
+                      className="glow-card group flex h-full w-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12] sm:w-[280px]"
+                    >
+                      <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
+                        <ProductLogo
+                          logo={product.logo as string | null}
+                          name={product.name}
+                          color={product.color}
+                          icon={product.iconComp}
+                        />
+                      </div>
+                      <div className="mb-2 flex items-center gap-2">
+                        <TypeBadge color={product.color}>{product.type}</TypeBadge>
+                        <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
+                      </div>
+                      <p className="text-[13px] leading-relaxed text-[#9aafc6] line-clamp-2">{product.desc}</p>
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {product.tech.slice(0, 3).map((tech) => (
+                          <span key={tech} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{tech}</span>
+                        ))}
+                      </div>
+                      <div className="mt-auto pt-4">
                         {product.internal ? (
                           <Link
                             to={product.href}
-                            className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
+                            className="inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
                           >
                             {product.cta}
                             <ArrowRight size={14} />
@@ -1926,19 +1988,19 @@ const Landing: React.FC = () => {
                             href={product.href}
                             target={product.href.startsWith('http') ? '_blank' : undefined}
                             rel={product.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                            className="mt-4 inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
+                            className="inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
                           >
                             {product.cta}
                             {product.href.startsWith('http') ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
                           </a>
                         )}
-                      </motion.article>
-                    ))}
-                  </div>
+                      </div>
+                    </motion.article>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })()}
         </div>
       </Reveal>
 
