@@ -11,27 +11,20 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
-  Briefcase,
   ChevronDown,
-  Code2,
   ExternalLink,
   FileText,
-  FlaskConical,
   Github,
   Globe,
-  GraduationCap,
   Instagram,
-  Languages,
   Linkedin,
   Menu,
   MessageCircle,
   Monitor,
   Play,
-  Search,
   ShieldCheck,
   Share2,
   Shield,
-  ShoppingCart,
   Sparkles,
   Target,
   Trophy,
@@ -887,21 +880,22 @@ type ProductLogoProps = {
   logo: string | null;
   name: string;
   color: string;
+  size?: number;
   icon?: React.FC<{ size?: number; color?: string; className?: string }>;
 };
 
-const ProductLogo: React.FC<ProductLogoProps> = ({ logo, name, color, icon: Icon }) => {
+const ProductLogo: React.FC<ProductLogoProps> = ({ logo, name, color, size = 40, icon: Icon }) => {
   if (logo) {
-    return <img src={logo} alt={`${name} logo`} className="h-10 w-10 object-contain opacity-95" width={40} height={40} loading="lazy" decoding="async" />;
+    return <img src={logo} alt={`${name} logo`} style={{ height: size, width: size }} className="object-contain opacity-95" width={size} height={size} loading="lazy" decoding="async" />;
   }
   if (Icon) {
-    return <Icon size={40} color={color} className="opacity-90" />;
+    return <Icon size={size} color={color} className="opacity-90" />;
   }
   const initials = name.replace(/[^A-Za-z0-9]/g, '').substring(0, 2).toUpperCase();
   return (
     <div
-      className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white select-none"
-      style={{ backgroundColor: `${color}20`, border: `1.5px solid ${color}40` }}
+      className="flex items-center justify-center rounded-xl font-bold text-white select-none"
+      style={{ height: size, width: size, backgroundColor: `${color}20`, border: `1.5px solid ${color}40`, fontSize: size >= 32 ? 14 : 11 }}
     >
       {initials}
     </div>
@@ -952,37 +946,6 @@ const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; roleKey:
   { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', roleKey: 'landBucketRoleEduCareer', icon: BookOpen, color: '#3b82f6' },
   { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', roleKey: 'landBucketRoleHealth', icon: Users, color: '#059669' },
   { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', roleKey: 'landBucketRoleGrowth', icon: Target, color: '#7C3AED' },
-];
-
-// Module/tool cards shown in the LEFT column below the CTA. This fills the
-// blank space under the hero detail and gives each vertical a tangible
-// "what's inside" view that balances the right-side Six Verticals panel.
-//   - Core AI and Growth have a single product each, so instead of a lonely
-//     product picker they show their internal agent modes / publishing tools.
-//   - Other verticals render their real products as a polished switcher
-//     (handled inline in the JSX, not here).
-type ModuleDef = { nameKey: string; descKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }> };
-
-// InBharat Core AI — the 7 specialized agents from the platform copy. Six sit
-// in an even 2/3-column mini-grid; "Voice + Multilingual" is rendered as a
-// full-width feature bar below so the grid never ends on a lone card.
-const CORE_MODULES: ModuleDef[] = [
-  { nameKey: 'landModAiSearch', descKey: 'landModAiSearchDesc', icon: Search },
-  { nameKey: 'landModCoding', descKey: 'landModCodingDesc', icon: Code2 },
-  { nameKey: 'landModResearch', descKey: 'landModResearchDesc', icon: FlaskConical },
-  { nameKey: 'landModEducation', descKey: 'landModEducationDesc', icon: GraduationCap },
-  { nameKey: 'landModShopper', descKey: 'landModShopperDesc', icon: ShoppingCart },
-  { nameKey: 'landModExecutive', descKey: 'landModExecutiveDesc', icon: Briefcase },
-];
-const CORE_VOICE_MODULE: ModuleDef = { nameKey: 'landModVoice', descKey: 'landModVoiceDesc', icon: Languages };
-
-// Growth & Publishing — SocialFlow is one product, so surface its publishing
-// modules instead of an empty single-product picker.
-const GROWTH_MODULES: ModuleDef[] = [
-  { nameKey: 'landModLinkedIn', descKey: 'landModLinkedInDesc', icon: Linkedin },
-  { nameKey: 'landModBlog', descKey: 'landModBlogDesc', icon: FileText },
-  { nameKey: 'landModDemo', descKey: 'landModDemoDesc', icon: Play },
-  { nameKey: 'landModSeo', descKey: 'landModSeoDesc', icon: Search },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -1041,10 +1004,21 @@ const Landing: React.FC = () => {
   // Product browser: one vertical at a time. Default = InBharat Core AI.
   const [activeBucket, setActiveBucket] = useState<ProductBucket>('core');
   // Which product within the active vertical is shown in the hero detail (left
-  // column). Resets to the first product whenever the vertical changes so a stale
-  // index never points past a shorter vertical's product list.
+  // column). Index is into the active vertical's filtered product list. We do
+  // NOT auto-reset on vertical change: the right-panel/top-tab switchers reset
+  // explicitly to 0, while the Core "Ecosystem Tools" launcher jumps to a
+  // specific product in a *different* vertical, so an auto-reset would clobber
+  // that. Call sites that change the vertical are responsible for setting the
+  // desired product index.
   const [activeProductIndex, setActiveProductIndex] = useState(0);
-  useEffect(() => { setActiveProductIndex(0); }, [activeBucket]);
+
+  // Switch vertical AND which product to highlight in one shot. Used by the
+  // Core ecosystem launcher (chips live in other verticals) and by the
+  // right-panel/top-tab selectors (which pass 0 for the first product).
+  const selectVertical = (bucket: ProductBucket, productIndexInBucket = 0) => {
+    setActiveBucket(bucket);
+    setActiveProductIndex(productIndexInBucket);
+  };
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
@@ -1906,8 +1880,10 @@ const Landing: React.FC = () => {
             </a>
           </div>
 
-          {/* Vertical tabs — desktop horizontal bar, mobile wraps to chips */}
-          <div className="mb-10 flex flex-wrap justify-center gap-2">
+          {/* Vertical tabs — mobile/tablet only. On desktop the right-side Six
+              Verticals panel is the sole vertical selector, so this row is
+              hidden to avoid duplicate navigation layers. Shown below lg. */}
+          <div className="mb-8 flex flex-wrap justify-center gap-2 lg:hidden">
             {BUCKETS.map((bucket) => {
               const count = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key).length;
               const active = bucket.key === activeBucket;
@@ -1915,7 +1891,7 @@ const Landing: React.FC = () => {
                 <button
                   key={bucket.key}
                   type="button"
-                  onClick={() => setActiveBucket(bucket.key)}
+                  onClick={() => selectVertical(bucket.key, 0)}
                   aria-pressed={active}
                   className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 ${active ? 'border-white/20 bg-white/[0.07] text-white shadow-[0_0_24px_-8px_rgba(255,255,255,0.25)]' : 'border-white/[0.08] bg-white/[0.02] text-[#96b0c8] hover:border-white/15 hover:text-white'}`}
                 >
@@ -1986,117 +1962,72 @@ const Landing: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Left-bottom module/product section — fills the space below the
-                        CTA so the left column never trails off into blankness.
-                          Core AI  → "InBharat AI Modules": the 7 agent modes as compact
-                                     cards + a full-width Voice feature bar.
-                          Growth   → "Growth Modules": SocialFlow's publishing tools as
-                                     compact cards (single product, no empty picker).
-                          Others   → "{Label} Products": a polished switcher of the real
-                                     products in this vertical; clicking updates the hero
-                                     detail above (the right ecosystem panel tracks the
-                                     vertical, not the product, so it stays put).
-                        Cards use the active vertical's color accent, equal heights, and
-                        glassmorphism to match the dark command-center UI. */}
-                    {activeBucket === 'core' && (
-                      <div className="mt-7">
-                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t('landModCoreTitle')}</p>
-                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{t('landModCoreSub')}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {CORE_MODULES.map((m) => (
-                            <div
-                              key={m.nameKey}
-                              className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors hover:border-white/15 hover:bg-white/[0.04]"
-                            >
-                              <div
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                                style={{ backgroundColor: `${bucketDef.color}14`, border: `1px solid ${bucketDef.color}33` }}
-                              >
-                                <m.icon size={14} color={bucketDef.color} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-[11px] font-bold text-white">{t(m.nameKey)}</p>
-                                <p className="truncate text-[10px] text-[#7a9ab8]">{t(m.descKey)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        {/* Voice + Multilingual — full-width feature bar so the grid
-                            never ends on a lone card and the agent count reads as 7. */}
-                        <div
-                          className="mt-2 flex items-center gap-2.5 rounded-xl border p-2.5"
-                          style={{ borderColor: `${bucketDef.color}33`, background: `${bucketDef.color}10` }}
-                        >
-                          <div
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                            style={{ backgroundColor: `${bucketDef.color}1f` }}
-                          >
-                            <CORE_VOICE_MODULE.icon size={14} color={bucketDef.color} />
+                    {/* Left-bottom product launcher — fills the space below the CTA
+                        with real ecosystem products (never internal console modes).
+                          Core AI  → "Ecosystem Tools": every other product in the studio
+                                     as a cross-vertical launcher. Clicking one jumps to
+                                     that product's vertical + product (hero, left launcher,
+                                     and right Six-Verticals panel all resync).
+                          Others   → "{Label} Tools": the products inside this vertical as
+                                     a switcher; clicking updates the hero detail above
+                                     (right panel tracks the vertical, so it stays put).
+                        3-col compact grid on desktop, 2-col on mobile. Each chip reuses
+                        the existing ProductLogo asset/icon, shows name + short tagline,
+                        and highlights the active product with its own color accent. */}
+                    {(() => {
+                      const isCore = activeBucket === 'core';
+                      // Core surfaces the whole studio (everything except the core
+                      // product already shown in the hero). Other verticals surface
+                      // only their own products.
+                      const toolProducts = isCore
+                        ? ALL_PRODUCTS.filter((pp) => pp.bucket !== 'core')
+                        : products;
+                      if (toolProducts.length === 0) return null;
+                      const title = isCore ? t('landModEcoTitle') : `${t(bucketDef.labelKey)} ${t('landModToolsLabel')}`;
+                      const sub = isCore ? t('landModEcoSub') : `${toolProducts.length} ${t('landModToolsLabel').toLowerCase()}`;
+                      // Index of a product within its OWN vertical's filtered list —
+                      // needed so the Core launcher can target a specific product when
+                      // it switches verticals (selectVertical takes a per-bucket index).
+                      const indexOfInBucket = (name: string, bucket: ProductBucket) =>
+                        ALL_PRODUCTS.filter((x) => x.bucket === bucket).findIndex((x) => x.name === name);
+                      return (
+                        <div className="mt-7">
+                          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{title}</p>
+                            <span className="shrink-0 text-[10px] text-[#7a9ab8]">{sub}</span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[11px] font-bold text-white">{t(CORE_VOICE_MODULE.nameKey)}</p>
-                            <p className="truncate text-[10px] text-[#b4c8de]">{t(CORE_VOICE_MODULE.descKey)}</p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {toolProducts.map((prod) => {
+                              const sel = !isCore && prod.name === p.name;
+                              const onClick = isCore
+                                ? () => selectVertical(prod.bucket, indexOfInBucket(prod.name, prod.bucket))
+                                : () => {
+                                    const i = products.findIndex((x) => x.name === prod.name);
+                                    if (i >= 0) setActiveProductIndex(i);
+                                  };
+                              return (
+                                <button
+                                  key={prod.name}
+                                  type="button"
+                                  onClick={onClick}
+                                  aria-pressed={sel}
+                                  className={`group flex items-center gap-2 rounded-xl border p-2 text-left transition-all duration-200 ${sel ? 'bg-white/[0.05]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]'} ${toolProducts.length === 1 ? 'sm:col-span-3' : ''}`}
+                                  style={sel ? { borderColor: `${prod.color}80`, boxShadow: `0 0 16px -8px ${prod.color}66` } : undefined}
+                                >
+                                  <span className="flex shrink-0 items-center justify-center">
+                                    <ProductLogo logo={prod.logo as string | null} name={prod.name} color={prod.color} icon={prod.iconComp} size={22} />
+                                  </span>
+                                  <span className="min-w-0">
+                                    <span className={`block truncate text-[11px] font-bold ${sel ? 'text-white' : 'text-[#c8d6e8]'} group-hover:text-white`}>{prod.name}</span>
+                                    <span className="block truncate text-[10px] text-[#7a9ab8]">{prod.tagline}</span>
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {activeBucket === 'growth' && (
-                      <div className="mt-7">
-                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t('landModGrowthTitle')}</p>
-                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{t('landModGrowthSub')}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                          {GROWTH_MODULES.map((m, i) => (
-                            <div
-                              key={m.nameKey}
-                              className={`flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors hover:border-white/15 hover:bg-white/[0.04] ${i === GROWTH_MODULES.length - 1 ? 'sm:col-span-3' : ''}`}
-                            >
-                              <div
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                                style={{ backgroundColor: `${bucketDef.color}14`, border: `1px solid ${bucketDef.color}33` }}
-                              >
-                                <m.icon size={14} color={bucketDef.color} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate text-[11px] font-bold text-white">{t(m.nameKey)}</p>
-                                <p className="truncate text-[10px] text-[#7a9ab8]">{t(m.descKey)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {activeBucket !== 'core' && activeBucket !== 'growth' && products.length > 1 && (
-                      <div className="mt-7">
-                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t(bucketDef.labelKey)} · {t('landModProductsLabel')}</p>
-                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{products.length} products</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {products.map((prod, i) => {
-                            const sel = i === idx;
-                            return (
-                              <button
-                                key={prod.name}
-                                type="button"
-                                onClick={() => setActiveProductIndex(i)}
-                                aria-pressed={sel}
-                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${sel ? 'text-white' : 'border-white/[0.08] bg-white/[0.02] text-[#9aafc6] hover:border-white/20 hover:text-white'}`}
-                                style={sel ? { borderColor: `${prod.color}80`, backgroundColor: `${prod.color}1f`, boxShadow: `0 0 18px -8px ${prod.color}66` } : undefined}
-                              >
-                                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: prod.color }} />
-                                {prod.name}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   {/* RIGHT — Six Verticals ecosystem panel.
@@ -2118,7 +2049,7 @@ const Landing: React.FC = () => {
                           <button
                             key={b.key}
                             type="button"
-                            onClick={() => setActiveBucket(b.key)}
+                            onClick={() => selectVertical(b.key, 0)}
                             aria-pressed={active}
                             className={`group flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-200 ${
                               active
