@@ -48,6 +48,7 @@ import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
 import { formatKnowledgeBlock, findDuplicateKnowledge, type KnowledgeItem, type KnowledgeType } from "../lib/growth/knowledge.js";
 import { syndicationSummary, type PublishedMemoryItem } from "../lib/growth/publishedMemory.js";
 import { runAccuracyGates, draftToPageMeta, scoreSources, claimVsGroundingCheck, checkProductNames, checkPlatformFormat, checkClaimRisk } from "../lib/growth/gates.js";
+import { stageChip, PIPELINE_STAGE_ORDER } from "../lib/growth/cockpit/stageChip.js";
 
 let pass = 0;
 let fail = 0;
@@ -1963,6 +1964,28 @@ console.log("\nAccuracy Gates (pure sub-gates + orchestrator):");
   }, { duplicateLookup: dupNo });
   check("orchestrator: critical critique weakness → gate4 fail + overall fail", runCritFail.gates[3].status === "fail" && runCritFail.overall === "fail");
   check("orchestrator: seo_geo skipped for linkedin (pass + note)", runCritFail.gates[5].status === "pass" && runCritFail.gates[5].findings.length === 1);
+}
+
+console.log("\nPipeline Board (stage chips + read-only aggregator):");
+{
+  // stageChip: 9 stages, each with a label + tailwind cls.
+  check("stageChip: 9 stages in canonical order", PIPELINE_STAGE_ORDER.length === 9 && PIPELINE_STAGE_ORDER[0] === "idea" && PIPELINE_STAGE_ORDER[8] === "measured");
+  check("stageChip: idea → violet", stageChip("idea").cls.includes("violet"));
+  check("stageChip: measured → rose", stageChip("measured").cls.includes("rose"));
+  check("stageChip: published → emerald", stageChip("published").cls.includes("emerald"));
+  check("stageChip: ready → teal", stageChip("ready").cls.includes("teal"));
+  check("stageChip: unknown stage → neutral fallback", stageChip("nope" as never).cls.includes("bg-white/5"));
+
+  // getPipelineBoard without a DB → 9 empty stages + configured:false (hermetic —
+  // supabaseAdmin is null in the test process). Never throws.
+  const { getPipelineBoard } = await import("../lib/growth/cockpit/pipelineBoard.js");
+  const board = await getPipelineBoard({});
+  check("pipelineBoard: no DB → 9 stages", board.stages.length === 9);
+  check("pipelineBoard: no DB → configured:false", board.configured === false);
+  check("pipelineBoard: every stage has count 0 + empty items when unconfigured", board.stages.every((s) => s.count === 0 && s.items.length === 0));
+  check("pipelineBoard: brief stage carries the honest ephemeral note", board.stages.find((s) => s.stage === "brief")?.note?.includes("ephemeral") === true);
+  check("pipelineBoard: measured stage carries the LinkedIn-only note", board.stages.find((s) => s.stage === "measured")?.note?.includes("LinkedIn") === true);
+  check("pipelineBoard: never throws on filters with no DB", (await getPipelineBoard({ status: "pending", platform: "linkedin", cap: 10 })).stages.length === 9);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
