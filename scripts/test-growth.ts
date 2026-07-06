@@ -47,6 +47,7 @@ import { publishToHashnode } from "../lib/growth/syndication/hashnode.js";
 import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
 import { formatKnowledgeBlock, findDuplicateKnowledge, type KnowledgeItem, type KnowledgeType } from "../lib/growth/knowledge.js";
 import { syndicationSummary, type PublishedMemoryItem } from "../lib/growth/publishedMemory.js";
+import { runAccuracyGates, draftToPageMeta, scoreSources, claimVsGroundingCheck, checkProductNames, checkPlatformFormat, checkClaimRisk } from "../lib/growth/gates.js";
 
 let pass = 0;
 let fail = 0;
@@ -671,7 +672,7 @@ console.log("\nPhase C agent (tools registry, dispatch, vision, auto-mode, no DB
 {
   const { AGENT_TOOLS, dispatchTool } = await import("../lib/growth/agentTools.js");
   const names = AGENT_TOOLS.map((t) => t.name);
-  check("agent tools registry has 17 tools (10 base + 4 KB + topic discovery + 2 analytics)", AGENT_TOOLS.length === 17, `got ${names.join(",")}`);
+  check("agent tools registry has 18 tools (17 + run_accuracy_gates)", AGENT_TOOLS.length === 18, `got ${names.join(",")}`);
   check("agent tools include the CMO command set",
     ["list_recent_drafts", "redraft_caption", "review_text", "generate_cover", "list_inbox_folder", "analyze_attachment", "write_article", "web_search", "write_video_script", "promote_article"].every((n) => names.includes(n)),
     JSON.stringify(names));
@@ -1859,6 +1860,109 @@ console.log("\nPublished Memory (syndicationSummary, pure):");
   check("devto only → deposited, [devto]", syndicationSummary(base({ devto: { url: "https://dev.to/x", status: "published", at: "x" } })).deposited === true && syndicationSummary(base({ devto: { url: "https://dev.to/x", status: "published", at: "x" } })).platforms.join(",") === "devto");
   check("all three → deposited, 3 platforms", syndicationSummary(base({ devto: { url: "u", status: "draft", at: "a" }, hashnode: { url: "u", status: "published", at: "a" }, medium: { url: null, status: "manual", at: "a" } })).platforms.length === 3);
   check("not_configured still counts as a platform attempt", syndicationSummary(base({ hashnode: { url: null, status: "not_configured", at: "a" } })).deposited === true);
+}
+
+console.log("\nAccuracy Gates (pure sub-gates + orchestrator):");
+{
+  // Gate 6 adapter: draftToPageMeta
+  const pm = draftToPageMeta({
+    kind: "article", slug: "evals-for-ai-features", title: "Evals for AI features",
+    description: "A practical guide to evaluating AI features in production.",
+    bodyMd: [
+      "> Direct answer: test your AI features like real software.",
+      "",
+      "## What it is",
+      "Evals matter. Read more at https://inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai and https://example.com/post.",
+      "## FAQ",
+      "Q: What? A: This. Build with Reeturaj and try it today.",
+    ].join("\n"),
+  });
+  check("draftToPageMeta: canonical derived for article", pm.canonical === "https://www.inbharat.ai/learn-ai-with-reeturaj/evals-for-ai-features");
+  check("draftToPageMeta: h2Count counts ## lines", pm.h2Count === 2);
+  check("draftToPageMeta: internal + external links split", pm.internalLinks === 1 && pm.externalLinks === 1);
+  check("draftToPageMeta: wordCount > 0 from prose", (pm.wordCount ?? 0) > 0);
+  check("draftToPageMeta: faqPresent detected", pm.faqPresent === true);
+  check("draftToPageMeta: hasCta detected in tail", pm.hasCta === true);
+  check("draftToPageMeta: non-article has no canonical", draftToPageMeta({ kind: "linkedin", slug: "x", title: "t", bodyMd: "hi" }).canonical === undefined);
+
+  // Gate 2: scoreSources
+  const sq = scoreSources([], "anything");
+  check("scoreSources: empty snippets → 100 + minor skip-note", sq.score === 100 && sq.findings.some((f) => f.severity === "minor"));
+  const sqGood = scoreSources([{ url: "https://arxiv.org/abs/2401.00001", title: "Evals for AI features in production", snippet: "evals ai features production" }], "Evals for AI features");
+  check("scoreSources: trusted arxiv domain → high score", sqGood.score >= 80);
+  const sketchy = scoreSources([{ url: "https://random-blog.example.com/x", title: "off topic", snippet: "completely unrelated text here" }], "Evals for AI features");
+  check("scoreSources: untrusted + irrelevant → low-ish score", sketchy.score < 80);
+
+  // Gate 3: claimVsGroundingCheck
+  const fc = claimVsGroundingCheck("We grew 300% in 2025.", [{ url: "u", title: "t", snippet: "growth was 300 percent in 2025" }]);
+  check("factCheck: grounded percentage → 0 ungrounded", fc.ungrounded.length === 0 && fc.findings.length === 0);
+  const fcBad = claimVsGroundingCheck("We have 50000 users and 99.9% uptime.", [{ url: "u", title: "t", snippet: "nothing relevant here at all" }]);
+  check("factCheck: ungrounded claims flagged", fcBad.ungrounded.length >= 1 && fcBad.findings.length >= 1);
+  const fcNone = claimVsGroundingCheck("No numbers here at all.", [{ url: "u", title: "t", snippet: "x" }]);
+  check("factCheck: no claims → empty findings", fcNone.findings.length === 0);
+
+  // Gate 5: checkProductNames
+  const pnBad = checkProductNames("Why RHCF Seva matters", "RHCF Seva is great and UniGurus too.");
+  check("productNames: RHCF Seva → major + good suggestion", pnBad.findings.some((f) => f.severity === "major" && f.message.includes("Sahayaak Seva")));
+  check("productNames: UniGurus → minor finding", pnBad.findings.some((f) => f.severity === "minor" && f.message.includes("UniAssist")));
+  const pnClean = checkProductNames("Sahayaak Seva for Anganwadi workers", "Sahayaak Seva is the healthcare field assistant.");
+  check("productNames: clean canonical → 0 findings", pnClean.findings.length === 0);
+
+  // Gate 7: checkPlatformFormat
+  const lfLong = checkPlatformFormat("A".repeat(3100), "linkedin");
+  check("platformFormat: linkedin >3000 chars → major", lfLong.findings.some((f) => f.severity === "major" && f.message.includes("3000")));
+  const lfMd = checkPlatformFormat("**bold** _italic_ caption here that is long enough to pass the word count minimum easily yes yes yes yes yes yes", "linkedin");
+  check("platformFormat: linkedin markdown → major", lfMd.findings.some((f) => f.severity === "major" && f.message.includes("markdown")));
+  const devUnbalanced = checkPlatformFormat("## Title\n```python\nprint('hi')\nrest of body", "devto");
+  check("platformFormat: devto unbalanced fences → major", devUnbalanced.findings.some((f) => f.severity === "major" && f.message.includes("Unbalanced")));
+  const hnTags = checkPlatformFormat("tags: [a, b, c, d, e, f]\n\nbody", "hashnode");
+  check("platformFormat: hashnode >5 tags → major", hnTags.findings.some((f) => f.severity === "major" && f.message.includes("hard cap")));
+  const inbharat = checkPlatformFormat("any article body", "inbharat");
+  check("platformFormat: inbharat article → no findings", inbharat.findings.length === 0);
+
+  // Gate 8: checkClaimRisk
+  const crClean = checkClaimRisk("A practical guide to building AI features in India.");
+  check("claimRisk: clean prose → 0 findings", crClean.findings.length === 0);
+  const crRisk = checkClaimRisk("Trusted by millions of users. We partnered with Google. 99.9% uptime guaranteed. We are the leading provider.");
+  check("claimRisk: risky phrases flagged", crRisk.hits.length >= 4);
+  check("claimRisk: ≥3 distinct patterns → major escalation", crRisk.findings.some((f) => f.severity === "major"));
+
+  // Orchestrator: runAccuracyGates with injected duplicateLookup
+  const dupYes = async () => ({ duplicate: true, reason: "matches existing article" });
+  const runFail = await runAccuracyGates({
+    kind: "article", slug: "x", title: "Duplicate topic", bodyMd: "## H\ntest body content here",
+    platform: "inbharat", snippets: [], critique: null,
+  }, { duplicateLookup: dupYes });
+  check("orchestrator: duplicate → gate1 fail + overall fail", runFail.overall === "fail" && runFail.gates[0].status === "fail");
+  check("orchestrator: 8 gates present", runFail.gates.length === 8);
+  check("orchestrator: costUsd always 0 (no model calls)", runFail.costUsd === 0);
+
+  const dupNo = async () => ({ duplicate: false });
+  const runClean = await runAccuracyGates({
+    kind: "article", slug: "evals-for-ai-features", title: "Evals for AI features",
+    description: "A practical guide to evaluating AI features in production for Indian small businesses.",
+    bodyMd: [
+      "> Direct answer: test AI features like real software.",
+      "",
+      "## What it is",
+      "Evals matter for Indian small businesses. Read more at https://inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai.",
+      "Proof: our benchmark measured p95 latency. See the case study.",
+      "## FAQ",
+      "Q: What? A: This.",
+    ].join("\n"),
+    platform: "inbharat", snippets: [{ url: "https://arxiv.org/abs/2401", title: "Evals for AI features", snippet: "evals ai features" }],
+    critique: { weaknesses: [{ severity: "minor", area: "intro", fix: "tighten" }], status: "ok" },
+  }, { duplicateLookup: dupNo });
+  check("orchestrator: clean article → overall pass or warn (not fail)", runClean.overall === "pass" || runClean.overall === "warn");
+  check("orchestrator: gate4 maps minor weakness → pass", runClean.gates[3].status === "pass");
+  check("orchestrator: gate6 runs for article kind", runClean.gates[5].id === "seo_geo" && typeof runClean.gates[5].score === "number");
+
+  const runCritFail = await runAccuracyGates({
+    kind: "linkedin", slug: "x", title: "t", bodyMd: "a caption", platform: "linkedin",
+    critique: { weaknesses: [{ severity: "critical", area: "hype", fix: "remove" }], status: "revised" },
+  }, { duplicateLookup: dupNo });
+  check("orchestrator: critical critique weakness → gate4 fail + overall fail", runCritFail.gates[3].status === "fail" && runCritFail.overall === "fail");
+  check("orchestrator: seo_geo skipped for linkedin (pass + note)", runCritFail.gates[5].status === "pass" && runCritFail.gates[5].findings.length === 1);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

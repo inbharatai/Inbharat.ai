@@ -25,6 +25,7 @@ import { sanitizeMermaidFences } from "./mermaid-validate.js";
 import { stripCitationMarkers } from "./citations.js";
 import { gatherGrounding, formatGroundingBlock } from "./retrieval.js";
 import { retrieveForTopic, formatKnowledgeBlock, markUsed, findDuplicateKnowledge } from "./knowledge.js";
+import { runAccuracyGates, type GateRun } from "./gates.js";
 import { ARTICLES, ARTICLE_CATEGORIES, articlePath, type ArticleCategory } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -46,6 +47,9 @@ export interface DraftedArticle {
     status: string;
     note: string;
   } | null;
+  /** Advisory 8-gate pre-approval verdict (run post-critique, pre-persist). Null
+   *  if the gates couldn't run. NEVER blocks — approval stays a human click. */
+  gates?: GateRun | null;
 }
 
 export interface ArticleDraftResult {
@@ -243,6 +247,32 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
   // Best-effort: no DB → only the in-memory ARTICLES set is checked.
   const uniqueSlug = await ensureUniqueArticleSlug(baseSlug);
 
+  // 8 accuracy gates — advisory pre-approval verdict, run AFTER the final slug +
+  // final body (post-critique, post-mermaid-strip, post-citation-strip) so the
+  // gates see exactly what the founder will review. Reuses the critique already
+  // computed (gate 4) + the grounding snippets already gathered (gates 2/3) —
+  // NO new model call, NO new retrieval. Best-effort + never throws: on any
+  // error the gates are set to null and drafting proceeds (approval is still a
+  // human click). Stored on schema_json.gates so the cockpit inspector surfaces
+  // it; the API can re-run via POST /api/growth/gates.
+  let gates: GateRun | null = null;
+  try {
+    gates = await runAccuracyGates({
+      kind: "article",
+      slug: uniqueSlug,
+      title: parsed.title,
+      description: parsed.description,
+      abstract: parsed.abstract,
+      bodyMd: finalBody,
+      platform: "inbharat",
+      hashtags: parsed.hashtags,
+      critique: { weaknesses: crit.weaknesses, status: crit.status, revised: crit.revised, note: crit.note },
+      snippets: groundingSnippets,
+    });
+  } catch {
+    // A gate failure never blocks the draft — the founder reviews regardless.
+  }
+
   const article: DraftedArticle = {
     slug: uniqueSlug,
     title: parsed.title,
@@ -255,6 +285,7 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
     faq: parsed.faq,
     hashtags: parsed.hashtags,
     critique: { revised: crit.revised, weaknesses: crit.weaknesses, status: crit.status, note: crit.note },
+    gates,
   };
 
   const draftId = await persistArticleDraft(topic, instruction, article);
@@ -401,6 +432,10 @@ async function persistArticleDraft(topic: string, instruction: string | undefine
           topic,
           instruction: instruction ?? null,
           critique: a.critique ? { weaknesses: a.critique.weaknesses, revised: a.critique.revised !== null, status: a.critique.status, note: a.critique.note } : null,
+          // Advisory 8-gate verdict (never blocks). Stored so the cockpit
+          // inspector + POST /api/growth/gates "re-run" can show it without a
+          // model call. Null when gates couldn't run.
+          gates: a.gates ?? null,
         },
         status: "pending",
       })

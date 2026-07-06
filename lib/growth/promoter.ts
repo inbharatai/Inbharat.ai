@@ -25,6 +25,8 @@ import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { retrieveForTopic, formatKnowledgeBlock } from "./knowledge.js";
 import { critiqueAndRevise } from "./critique.js";
+import { runAccuracyGates, type GateRun } from "./gates.js";
+import { slugFromArticleUrl } from "./articleSlug.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 
@@ -42,6 +44,9 @@ export interface PromoteDraft {
   internalLinks: string[];
   status: "pending" | "skipped";
   note?: string;
+  /** Advisory 8-gate verdict (never blocks). Null when caption generation was
+   *  skipped or gates couldn't run. */
+  gates?: GateRun | null;
 }
 
 const ARTICLE_PATH_PREFIX = "/learn-ai-with-reeturaj/";
@@ -85,17 +90,43 @@ export async function promoteArticle(
   // Generate the caption + internal-link suggestions (or skip if no model/budget).
   const generated = await generatePromotionDraft(url, title, description, abstract);
 
+  // 8 accuracy gates — advisory pre-approval verdict on the LinkedIn caption.
+  // Reuses the critique already computed in generatePromotionDraft (gate 4) —
+  // NO new model call. LinkedIn captions carry no grounding snippets, so gates
+  // 2/3 skip-with-note honestly (the source article's grounding lives upstream).
+  // Best-effort + never throws: a gate failure never blocks the draft. Stored
+  // on schema_json.gates so the cockpit inspector surfaces it.
+  let gates: GateRun | null = null;
+  if (generated.caption) {
+    try {
+      gates = await runAccuracyGates({
+        kind: "linkedin",
+        slug: slugFromArticleUrl(url) ?? "",
+        title,
+        description,
+        bodyMd: generated.caption,
+        platform: "linkedin",
+        critique: generated.critique
+          ? { weaknesses: generated.critique.weaknesses, status: generated.critique.status, revised: generated.critique.revised }
+          : null,
+        snippets: [],
+      });
+    } catch {
+      // Never block the draft on a gate failure.
+    }
+  }
+
   // Persist a growth_tasks row + a growth_drafts row.
   const surfacedNote = generated.critique
     ? `${generated.note || ""}${generated.note ? " " : ""}(critique: ${generated.critique.status}${generated.critique.revised ? "; revised" : ""})`.trim()
     : generated.note;
-  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, surfacedNote, generated.critique, description);
+  const { taskId, draftId } = await persistDraft(url, title, generated.caption, generated.internalLinks, surfacedNote, generated.critique, description, gates);
 
   await logInfo(
     "promote-draft",
     scope,
     generated.caption
-      ? `drafted linkedin caption for ${url} (${generated.internalLinks.length} internal links${generated.critique ? `; critique ${generated.critique.status}` : ""})`
+      ? `drafted linkedin caption for ${url} (${generated.internalLinks.length} internal links${generated.critique ? `; critique ${generated.critique.status}` : ""}${gates ? `; gates ${gates.overall}` : ""})`
       : `created pending draft for ${url} (caption needs manual write: ${generated.note || "model unavailable"})`,
   );
 
@@ -107,6 +138,7 @@ export async function promoteArticle(
     internalLinks: generated.internalLinks,
     status: "pending",
     note: surfacedNote,
+    gates,
   };
 }
 
@@ -362,6 +394,7 @@ async function persistDraft(
   note?: string,
   critique?: GeneratedDraft["critique"],
   articleDescription?: string,
+  gates?: GateRun | null,
 ): Promise<{ taskId: string | null; draftId: string | null }> {
   if (!supabaseAdmin) return { taskId: null, draftId: null };
   try {
@@ -409,6 +442,9 @@ async function persistDraft(
           critique: critique
             ? { weaknesses: critique.weaknesses, revised: critique.revised !== null, status: critique.status, note: critique.note }
             : null,
+          // Advisory 8-gate verdict (never blocks approval). Null when gates
+          // couldn't run or caption generation was skipped.
+          gates: gates ?? null,
         },
         status: "pending",
       })

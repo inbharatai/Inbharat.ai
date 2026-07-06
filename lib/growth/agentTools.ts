@@ -26,6 +26,7 @@ import { loadInboxContext, formatInboxBlock, INBOX_BUCKET } from "./inbox.js";
 import { loadRulesForUrl, loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { critiqueAndRevise } from "./critique.js";
+import { runAccuracyGates, type GateInput } from "./gates.js";
 import {
   insertKnowledge,
   searchKnowledge,
@@ -307,6 +308,19 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
       type: "object",
       properties: {
         days: { type: "integer", description: "Optional: lookback window in days (7–90, default 28).", minimum: 7, maximum: 90 },
+      },
+    },
+  },
+  {
+    name: "run_accuracy_gates",
+    description:
+      "Re-run the 8 advisory accuracy gates (duplicate, source-quality, fact-check, brand-voice, product-naming, SEO/GEO, platform-format, claim-risk) on an existing draft by id, OR on text the founder pastes. Returns the per-gate pass/warn/fail verdict + findings. ADVISORY ONLY — never blocks approval; the founder still clicks Approve. Honest limits: source-quality + fact-check reuse the ORIGINAL grounding snippets only when re-running on a draft that stored them; on a re-run without snippets those gates skip-with-note. SEO/GEO is a static markdown pre-check (the full crawl audit runs post-publish). claim-risk is a regex flagger, not legal review.",
+    parameters: {
+      type: "object",
+      properties: {
+        draftId: { type: "string", description: "The growth_drafts id of the draft to gate-check." },
+        text: { type: "string", description: "Optional: raw text to gate-check when the founder pastes (not a draft). Used when draftId is omitted." },
+        kind: { type: "string", description: "Optional with `text`: 'article' | 'linkedin' | 'video-script'. Default 'article'." },
       },
     },
   },
@@ -770,6 +784,69 @@ async function syncAnalyticsTool(args: Args): Promise<ToolResult> {
   };
 }
 
+/** run_accuracy_gates — re-run the 8 advisory gates on a draft (by id) or pasted
+ *  text. Loads the draft's stored critique (gate 4 reuses it — NO new model call)
+ *  + title/body/slug/description/abstract from schema_json. Honest: grounding
+ *  snippets are NOT persisted per-draft, so on a re-run gates 2/3 skip-with-note
+ *  (the original grounding lived upstream at draft time). Advisory — never blocks. */
+async function runAccuracyGatesTool(args: Args): Promise<ToolResult> {
+  const draftId = str(args.draftId);
+  const text = str(args.text);
+  if (!draftId && !text) return { ok: false, message: "need a draftId (to gate-check a draft) or text (to gate-check pasted text)" };
+
+  if (draftId) {
+    if (!supabaseAdmin) return { ok: false, message: "database not configured" };
+    const { data: row, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,kind,url,title,body_md,schema_json")
+      .eq("id", draftId)
+      .maybeSingle();
+    if (error || !row) return { ok: false, message: "draft not found" };
+    const r = row as { id: string; kind: string; url: string | null; title: string | null; body_md: string | null; schema_json: Record<string, unknown> | null };
+    const sj = (r.schema_json ?? {}) as {
+      slug?: string; description?: string; abstract?: string;
+      critique?: { weaknesses?: { severity: string; area: string; fix: string }[]; status?: string; revised?: string | null } | null;
+    };
+    const kind = (r.kind === "linkedin" || r.kind === "video-script" ? r.kind : "article") as GateInput["kind"];
+    const platform = kind === "linkedin" ? "linkedin" : kind === "article" ? "inbharat" : "inbharat";
+    const slug = typeof sj.slug === "string" ? sj.slug : (r.url ? (r.url.split("/learn-ai-with-reeturaj/")[1] ?? "").split(/[/?#]/)[0] : "");
+    const input: GateInput = {
+      kind,
+      slug,
+      title: r.title ?? "",
+      description: typeof sj.description === "string" ? sj.description : undefined,
+      abstract: typeof sj.abstract === "string" ? sj.abstract : undefined,
+      bodyMd: r.body_md ?? "",
+      platform,
+      critique: sj.critique && Array.isArray(sj.critique.weaknesses) ? { weaknesses: sj.critique.weaknesses, status: sj.critique.status ?? "ok", revised: sj.critique.revised ?? null } : null,
+      snippets: [],
+    };
+    const run = await runAccuracyGates(input);
+    return {
+      ok: true,
+      message: `Accuracy gates on draft ${draftId}: ${run.summary}`,
+      draftId,
+      overall: run.overall,
+      summary: run.summary,
+      gates: run.gates,
+    };
+  }
+
+  // Pasted-text path: gate-check raw text directly (no draft row).
+  const kind = (str(args.kind) === "linkedin" || str(args.kind) === "video-script" ? str(args.kind) : "article") as GateInput["kind"];
+  const platform = kind === "linkedin" ? "linkedin" : "inbharat";
+  const input: GateInput = {
+    kind,
+    slug: "",
+    title: text.split(/\n/)[0]?.slice(0, 120) || "Pasted text",
+    bodyMd: text,
+    platform,
+    snippets: [],
+  };
+  const run = await runAccuracyGates(input);
+  return { ok: true, message: `Accuracy gates on pasted ${kind}: ${run.summary}`, overall: run.overall, summary: run.summary, gates: run.gates };
+}
+
 function clampDaysArg(v: unknown, def: number): number {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : def;
   if (!Number.isFinite(n) || n < 7) return def;
@@ -967,6 +1044,7 @@ export async function dispatchTool(name: string, args: Args): Promise<ToolResult
     case "find_high_intent_topics": return findHighIntentTopicsTool(args);
     case "read_analytics": return readAnalyticsTool(args);
     case "sync_analytics": return syncAnalyticsTool(args);
+    case "run_accuracy_gates": return runAccuracyGatesTool(args);
     default: return { ok: false, message: `unknown tool: ${name}` };
   }
 }
