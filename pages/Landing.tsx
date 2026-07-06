@@ -937,13 +937,14 @@ const PRODUCT_DEFS = [
 ] as const;
 
 // Six verticals = the tabs in the product browser. Order here is the tab order.
-const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }>; color: string }[] = [
-  { key: 'core', labelKey: 'landBucketCore', descKey: 'landBucketCoreDesc', icon: Brain, color: '#f59f4f' },
-  { key: 'agentOps', labelKey: 'landBucketAgentOps', descKey: 'landBucketAgentOpsDesc', icon: ShieldCheck, color: '#ef4444' },
-  { key: 'consumer', labelKey: 'landBucketConsumer', descKey: 'landBucketConsumerDesc', icon: MessageCircle, color: '#ff9933' },
-  { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', icon: BookOpen, color: '#3b82f6' },
-  { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', icon: Users, color: '#059669' },
-  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', icon: Target, color: '#7C3AED' },
+// roleKey = the 2-4 word role label shown on the right-side ecosystem panel.
+const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; roleKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }>; color: string }[] = [
+  { key: 'core', labelKey: 'landBucketCore', descKey: 'landBucketCoreDesc', roleKey: 'landBucketRoleCore', icon: Brain, color: '#f59f4f' },
+  { key: 'agentOps', labelKey: 'landBucketAgentOps', descKey: 'landBucketAgentOpsDesc', roleKey: 'landBucketRoleAgentOps', icon: ShieldCheck, color: '#ef4444' },
+  { key: 'consumer', labelKey: 'landBucketConsumer', descKey: 'landBucketConsumerDesc', roleKey: 'landBucketRoleConsumer', icon: MessageCircle, color: '#ff9933' },
+  { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', roleKey: 'landBucketRoleEduCareer', icon: BookOpen, color: '#3b82f6' },
+  { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', roleKey: 'landBucketRoleHealth', icon: Users, color: '#059669' },
+  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', roleKey: 'landBucketRoleGrowth', icon: Target, color: '#7C3AED' },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -1001,6 +1002,11 @@ const Landing: React.FC = () => {
 
   // Product browser: one vertical at a time. Default = InBharat Core AI.
   const [activeBucket, setActiveBucket] = useState<ProductBucket>('core');
+  // Which product within the active vertical is shown in the hero detail (left
+  // column). Resets to the first product whenever the vertical changes so a stale
+  // index never points past a shorter vertical's product list.
+  const [activeProductIndex, setActiveProductIndex] = useState(0);
+  useEffect(() => { setActiveProductIndex(0); }, [activeBucket]);
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
@@ -1883,122 +1889,140 @@ const Landing: React.FC = () => {
             })}
           </div>
 
-          {/* Active vertical content — one tab at a time */}
+          {/* Active vertical content — a 2-column hero card.
+              LEFT  (~55-60%): active product details (small logo, category label,
+                name, 2-line desc, max 3-4 chips, CTA) + a compact product picker
+                when the vertical has more than one product.
+              RIGHT (~40-45%): the Six Verticals ecosystem panel — every vertical at
+                a glance, with the active vertical highlighted. Clicking a vertical
+                on the right switches the main tab above (and resets the picker).
+              The giant InBharat star/logo that used to sit on the right of the core
+              panel is GONE — the right side now explains the ecosystem instead of
+              decorating it. Product logos stay small, next to the product name. */}
           {(() => {
             const products = ALL_PRODUCTS.filter((p) => p.bucket === activeBucket);
             if (products.length === 0) return null;
-
-            // InBharat Core AI → full-width featured panel (not a tiny lonely card).
-            if (activeBucket === 'core') {
-              const p = products[0];
-              return (
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease }}
-                  className="relative overflow-hidden rounded-[24px] border border-[#f59f4f]/20 bg-gradient-to-br from-[#1a0f05] via-[#120a06] to-[#030508] p-6 sm:p-10"
-                >
-                  <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse 700px 340px at 15% -10%, rgba(245,159,79,0.20), transparent 55%)' }} />
-                  <div className="relative grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-center">
-                    <div>
-                      <div className="mb-5 flex items-center gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
-                          <ProductLogo logo={p.logo as string | null} name={p.name} color={p.color} icon={p.iconComp} />
-                        </div>
-                        <div>
-                          <TypeBadge color={p.color}>{p.type}</TypeBadge>
-                          <h3 className="mt-1.5 text-2xl font-bold text-white sm:text-3xl">{p.name}</h3>
-                        </div>
+            const idx = Math.min(activeProductIndex, products.length - 1);
+            const p = products[idx];
+            const bucketDef = BUCKETS.find((b) => b.key === activeBucket)!;
+            const isHttp = p.href.startsWith('http');
+            return (
+              <motion.div
+                key={activeBucket}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease }}
+                className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-gradient-to-br from-[#0b0f17] via-[#090c12] to-[#030508] p-5 sm:p-7 lg:p-8"
+              >
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{ background: `radial-gradient(ellipse 640px 320px at 12% -10%, ${bucketDef.color}22, transparent 55%)` }}
+                />
+                <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.95fr] lg:items-stretch">
+                  {/* LEFT — active product details */}
+                  <div className="flex flex-col">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                        <ProductLogo logo={p.logo as string | null} name={p.name} color={p.color} icon={p.iconComp} />
                       </div>
-                      <p className="max-w-xl text-[15px] leading-relaxed text-[#b4c8de] line-clamp-3">{p.desc}</p>
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {p.tech.slice(0, 4).map((tech) => (
-                          <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>
-                        ))}
-                      </div>
-                      <div className="mt-7">
-                        {p.internal ? (
-                          <Link to={p.href} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
-                            {p.cta} <ArrowRight size={16} />
-                          </Link>
-                        ) : (
-                          <a href={p.href} target={p.href.startsWith('http') ? '_blank' : undefined} rel={p.href.startsWith('http') ? 'noopener noreferrer' : undefined} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
-                            {p.cta} {p.href.startsWith('http') ? <ExternalLink size={16} /> : <ArrowRight size={16} />}
-                          </a>
-                        )}
+                      <div className="min-w-0">
+                        <TypeBadge color={p.color}>{p.type}</TypeBadge>
+                        <h3 className="mt-1 truncate text-xl font-bold text-white sm:text-2xl">{p.name}</h3>
                       </div>
                     </div>
-                    <div className="flex items-center justify-center">
-                      <img src="/inbharat-logo.svg" alt="InBharat AI logo" className="h-28 w-28 opacity-90 sm:h-36 sm:w-36" width={144} height={144} loading="lazy" decoding="async" />
+                    <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de] line-clamp-2">{p.desc}</p>
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {p.tech.slice(0, 4).map((tech) => (
+                        <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>
+                      ))}
+                    </div>
+                    <div className="mt-6">
+                      {p.internal ? (
+                        <Link to={p.href} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
+                          {p.cta} <ArrowRight size={16} />
+                        </Link>
+                      ) : (
+                        <a href={p.href} target={isHttp ? '_blank' : undefined} rel={isHttp ? 'noopener noreferrer' : undefined} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
+                          {p.cta} {isHttp ? <ExternalLink size={16} /> : <ArrowRight size={16} />}
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Product picker — only when the vertical has more than one product.
+                        Switches which product is detailed on the left (the right ecosystem
+                        panel stays unaffected; it tracks the vertical, not the product). */}
+                    {products.length > 1 && (
+                      <div className="mt-6">
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a9ab8]">{t('landBucket' + activeBucket.charAt(0).toUpperCase() + activeBucket.slice(1))} · {products.length} products</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {products.map((prod, i) => {
+                            const sel = i === idx;
+                            return (
+                              <button
+                                key={prod.name}
+                                type="button"
+                                onClick={() => setActiveProductIndex(i)}
+                                aria-pressed={sel}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${sel ? 'border-[#f59f4f]/50 bg-[#f59f4f]/15 text-white' : 'border-white/[0.08] bg-white/[0.02] text-[#9aafc6] hover:border-white/20 hover:text-white'}`}
+                              >
+                                <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: prod.color }} />
+                                {prod.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RIGHT — Six Verticals ecosystem panel.
+                      Desktop/tablet: a vertical list inside the hero card. Mobile: a
+                      compact 2-column grid (grid-cols-2 → lg:flex lg:flex-col) so the
+                      ecosystem stays visible without overflowing a narrow viewport.
+                      Active vertical highlighted with a stronger border + glow + filled
+                      gradient; clicking a vertical switches the main tab. */}
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4">
+                    <div className="mb-3 flex items-baseline justify-between">
+                      <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">{t('landEcoPanelTitle')}</h4>
+                      <span className="text-[10px] text-[#7a9ab8]">{t('landEcoPanelSub')}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-1.5">
+                      {BUCKETS.map((b) => {
+                        const count = ALL_PRODUCTS.filter((pp) => pp.bucket === b.key).length;
+                        const active = b.key === activeBucket;
+                        return (
+                          <button
+                            key={b.key}
+                            type="button"
+                            onClick={() => setActiveBucket(b.key)}
+                            aria-pressed={active}
+                            className={`group flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-200 ${
+                              active
+                                ? 'border-[2px] bg-gradient-to-br from-white/[0.07] to-white/[0.02]'
+                                : 'border-white/[0.06] bg-white/[0.01] hover:border-white/15 hover:bg-white/[0.03]'
+                            }`}
+                            style={active ? { borderColor: `${b.color}80`, boxShadow: `0 0 24px -6px ${b.color}55` } : undefined}
+                          >
+                            <div
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
+                              style={{ backgroundColor: `${b.color}12`, borderColor: active ? `${b.color}55` : 'rgba(255,255,255,0.06)' }}
+                            >
+                              <b.icon size={15} color={b.color} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`truncate text-[12px] font-bold ${active ? 'text-white' : 'text-[#c8d6e8]'}`}>{t(b.labelKey)}</span>
+                                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-white/[0.05] text-[#7a9ab8]'}`}>{count}</span>
+                              </div>
+                              <p className={`mt-0.5 truncate text-[10px] ${active ? 'text-[#b4c8de]' : 'text-[#7a9ab8]'}`}>{t(b.roleKey)}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </motion.div>
-              );
-            }
-
-            // Other verticals → equal-height cards in a content-sized centered row.
-            const cap = Math.min(products.length, 4);
-            const maxW =
-              cap <= 1 ? 'sm:max-w-[300px]'
-              : cap === 2 ? 'sm:max-w-[592px]'
-              : cap === 3 ? 'sm:max-w-[888px]'
-              : 'sm:max-w-[1168px]';
-            return (
-              <div key={activeBucket} className={`mx-auto ${maxW}`}>
-                <div className="flex flex-wrap justify-center gap-4">
-                  {products.map((product, i) => (
-                    <motion.article
-                      key={product.name}
-                      custom={i}
-                      variants={itemReveal}
-                      initial="hidden"
-                      whileInView="visible"
-                      viewport={{ once: true, amount: 0.15 }}
-                      className="glow-card group flex h-full w-full flex-col rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-400 hover:border-white/[0.12] sm:w-[280px]"
-                    >
-                      <div className="mb-4 flex h-20 items-center justify-center overflow-hidden rounded-xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent">
-                        <ProductLogo
-                          logo={product.logo as string | null}
-                          name={product.name}
-                          color={product.color}
-                          icon={product.iconComp}
-                        />
-                      </div>
-                      <div className="mb-2 flex items-center gap-2">
-                        <TypeBadge color={product.color}>{product.type}</TypeBadge>
-                        <h3 className="text-[14px] font-semibold text-white">{product.name}</h3>
-                      </div>
-                      <p className="text-[13px] leading-relaxed text-[#9aafc6] line-clamp-2">{product.desc}</p>
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {product.tech.slice(0, 3).map((tech) => (
-                          <span key={tech} className="rounded-md bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium text-[#96b0c8]">{tech}</span>
-                        ))}
-                      </div>
-                      <div className="mt-auto pt-4">
-                        {product.internal ? (
-                          <Link
-                            to={product.href}
-                            className="inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
-                          >
-                            {product.cta}
-                            <ArrowRight size={14} />
-                          </Link>
-                        ) : (
-                          <a
-                            href={product.href}
-                            target={product.href.startsWith('http') ? '_blank' : undefined}
-                            rel={product.href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                            className="inline-flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-[13px] font-semibold text-[#c0cfe0] transition-all hover:border-[#f59f4f]/30 hover:text-white"
-                          >
-                            {product.cta}
-                            {product.href.startsWith('http') ? <ExternalLink size={14} /> : <ArrowRight size={14} />}
-                          </a>
-                        )}
-                      </div>
-                    </motion.article>
-                  ))}
                 </div>
-              </div>
+              </motion.div>
             );
           })()}
         </div>
