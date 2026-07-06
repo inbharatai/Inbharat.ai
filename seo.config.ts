@@ -524,6 +524,11 @@ const ARTICLE_ROUTES: SeoRoute[] = ARTICLES.map((meta) => ({
  */
 const ADMIN_GROWTH_PATHS = [
   '/admin/growth',
+  // Added 2026-07-06: the Jervis Cockpit is now the index route at /admin/growth
+  // (replacing Overview as index). Overview moved to /admin/growth/overview — its
+  // own shell so the SPA boots there (same reason as every other child route: the
+  // catch-all rewrite does not serve the SPA for shell-less admin routes).
+  '/admin/growth/overview',
   '/admin/growth/usage',
   '/admin/growth/sites',
   '/admin/growth/repos',

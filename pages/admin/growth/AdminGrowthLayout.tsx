@@ -10,7 +10,8 @@ import { RequireAdmin } from "../../../lib/growth/adminGuard";
  * mirrors the brand shell without landing animations.
  */
 const NAV: { to: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { to: "", label: "Overview", icon: Activity },
+  { to: "", label: "Cockpit", icon: Activity },
+  { to: "overview", label: "Overview", icon: Activity },
   { to: "usage", label: "Usage", icon: Wallet },
   { to: "sites", label: "Sites", icon: Globe },
   { to: "repos", label: "Repos", icon: GitBranch },
