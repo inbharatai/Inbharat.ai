@@ -11,20 +11,27 @@ import {
   ArrowRight,
   BookOpen,
   Brain,
+  Briefcase,
   ChevronDown,
+  Code2,
   ExternalLink,
   FileText,
+  FlaskConical,
   Github,
   Globe,
+  GraduationCap,
   Instagram,
+  Languages,
   Linkedin,
   Menu,
   MessageCircle,
   Monitor,
   Play,
+  Search,
   ShieldCheck,
   Share2,
   Shield,
+  ShoppingCart,
   Sparkles,
   Target,
   Trophy,
@@ -945,6 +952,37 @@ const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; roleKey:
   { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', roleKey: 'landBucketRoleEduCareer', icon: BookOpen, color: '#3b82f6' },
   { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', roleKey: 'landBucketRoleHealth', icon: Users, color: '#059669' },
   { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', roleKey: 'landBucketRoleGrowth', icon: Target, color: '#7C3AED' },
+];
+
+// Module/tool cards shown in the LEFT column below the CTA. This fills the
+// blank space under the hero detail and gives each vertical a tangible
+// "what's inside" view that balances the right-side Six Verticals panel.
+//   - Core AI and Growth have a single product each, so instead of a lonely
+//     product picker they show their internal agent modes / publishing tools.
+//   - Other verticals render their real products as a polished switcher
+//     (handled inline in the JSX, not here).
+type ModuleDef = { nameKey: string; descKey: string; icon: React.FC<{ size?: number; color?: string; className?: string }> };
+
+// InBharat Core AI — the 7 specialized agents from the platform copy. Six sit
+// in an even 2/3-column mini-grid; "Voice + Multilingual" is rendered as a
+// full-width feature bar below so the grid never ends on a lone card.
+const CORE_MODULES: ModuleDef[] = [
+  { nameKey: 'landModAiSearch', descKey: 'landModAiSearchDesc', icon: Search },
+  { nameKey: 'landModCoding', descKey: 'landModCodingDesc', icon: Code2 },
+  { nameKey: 'landModResearch', descKey: 'landModResearchDesc', icon: FlaskConical },
+  { nameKey: 'landModEducation', descKey: 'landModEducationDesc', icon: GraduationCap },
+  { nameKey: 'landModShopper', descKey: 'landModShopperDesc', icon: ShoppingCart },
+  { nameKey: 'landModExecutive', descKey: 'landModExecutiveDesc', icon: Briefcase },
+];
+const CORE_VOICE_MODULE: ModuleDef = { nameKey: 'landModVoice', descKey: 'landModVoiceDesc', icon: Languages };
+
+// Growth & Publishing — SocialFlow is one product, so surface its publishing
+// modules instead of an empty single-product picker.
+const GROWTH_MODULES: ModuleDef[] = [
+  { nameKey: 'landModLinkedIn', descKey: 'landModLinkedInDesc', icon: Linkedin },
+  { nameKey: 'landModBlog', descKey: 'landModBlogDesc', icon: FileText },
+  { nameKey: 'landModDemo', descKey: 'landModDemoDesc', icon: Play },
+  { nameKey: 'landModSeo', descKey: 'landModSeoDesc', icon: Search },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -1881,7 +1919,7 @@ const Landing: React.FC = () => {
                   aria-pressed={active}
                   className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 ${active ? 'border-white/20 bg-white/[0.07] text-white shadow-[0_0_24px_-8px_rgba(255,255,255,0.25)]' : 'border-white/[0.08] bg-white/[0.02] text-[#96b0c8] hover:border-white/15 hover:text-white'}`}
                 >
-                  <bucket.icon size={14} style={{ color: bucket.color }} />
+                  <bucket.icon size={14} color={bucket.color} />
                   <span>{t(bucket.labelKey)}</span>
                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/10 text-white' : 'bg-white/[0.04] text-[#7a9ab8]'}`}>{count}</span>
                 </button>
@@ -1948,12 +1986,97 @@ const Landing: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Product picker — only when the vertical has more than one product.
-                        Switches which product is detailed on the left (the right ecosystem
-                        panel stays unaffected; it tracks the vertical, not the product). */}
-                    {products.length > 1 && (
-                      <div className="mt-6">
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a9ab8]">{t('landBucket' + activeBucket.charAt(0).toUpperCase() + activeBucket.slice(1))} · {products.length} products</p>
+                    {/* Left-bottom module/product section — fills the space below the
+                        CTA so the left column never trails off into blankness.
+                          Core AI  → "InBharat AI Modules": the 7 agent modes as compact
+                                     cards + a full-width Voice feature bar.
+                          Growth   → "Growth Modules": SocialFlow's publishing tools as
+                                     compact cards (single product, no empty picker).
+                          Others   → "{Label} Products": a polished switcher of the real
+                                     products in this vertical; clicking updates the hero
+                                     detail above (the right ecosystem panel tracks the
+                                     vertical, not the product, so it stays put).
+                        Cards use the active vertical's color accent, equal heights, and
+                        glassmorphism to match the dark command-center UI. */}
+                    {activeBucket === 'core' && (
+                      <div className="mt-7">
+                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t('landModCoreTitle')}</p>
+                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{t('landModCoreSub')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {CORE_MODULES.map((m) => (
+                            <div
+                              key={m.nameKey}
+                              className="flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors hover:border-white/15 hover:bg-white/[0.04]"
+                            >
+                              <div
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                                style={{ backgroundColor: `${bucketDef.color}14`, border: `1px solid ${bucketDef.color}33` }}
+                              >
+                                <m.icon size={14} color={bucketDef.color} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-bold text-white">{t(m.nameKey)}</p>
+                                <p className="truncate text-[10px] text-[#7a9ab8]">{t(m.descKey)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Voice + Multilingual — full-width feature bar so the grid
+                            never ends on a lone card and the agent count reads as 7. */}
+                        <div
+                          className="mt-2 flex items-center gap-2.5 rounded-xl border p-2.5"
+                          style={{ borderColor: `${bucketDef.color}33`, background: `${bucketDef.color}10` }}
+                        >
+                          <div
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                            style={{ backgroundColor: `${bucketDef.color}1f` }}
+                          >
+                            <CORE_VOICE_MODULE.icon size={14} color={bucketDef.color} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[11px] font-bold text-white">{t(CORE_VOICE_MODULE.nameKey)}</p>
+                            <p className="truncate text-[10px] text-[#b4c8de]">{t(CORE_VOICE_MODULE.descKey)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBucket === 'growth' && (
+                      <div className="mt-7">
+                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t('landModGrowthTitle')}</p>
+                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{t('landModGrowthSub')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {GROWTH_MODULES.map((m, i) => (
+                            <div
+                              key={m.nameKey}
+                              className={`flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5 transition-colors hover:border-white/15 hover:bg-white/[0.04] ${i === GROWTH_MODULES.length - 1 ? 'sm:col-span-3' : ''}`}
+                            >
+                              <div
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                                style={{ backgroundColor: `${bucketDef.color}14`, border: `1px solid ${bucketDef.color}33` }}
+                              >
+                                <m.icon size={14} color={bucketDef.color} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-[11px] font-bold text-white">{t(m.nameKey)}</p>
+                                <p className="truncate text-[10px] text-[#7a9ab8]">{t(m.descKey)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBucket !== 'core' && activeBucket !== 'growth' && products.length > 1 && (
+                      <div className="mt-7">
+                        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{t(bucketDef.labelKey)} · {t('landModProductsLabel')}</p>
+                          <span className="shrink-0 text-[10px] text-[#7a9ab8]">{products.length} products</span>
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {products.map((prod, i) => {
                             const sel = i === idx;
@@ -1963,7 +2086,8 @@ const Landing: React.FC = () => {
                                 type="button"
                                 onClick={() => setActiveProductIndex(i)}
                                 aria-pressed={sel}
-                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${sel ? 'border-[#f59f4f]/50 bg-[#f59f4f]/15 text-white' : 'border-white/[0.08] bg-white/[0.02] text-[#9aafc6] hover:border-white/20 hover:text-white'}`}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${sel ? 'text-white' : 'border-white/[0.08] bg-white/[0.02] text-[#9aafc6] hover:border-white/20 hover:text-white'}`}
+                                style={sel ? { borderColor: `${prod.color}80`, backgroundColor: `${prod.color}1f`, boxShadow: `0 0 18px -8px ${prod.color}66` } : undefined}
                               >
                                 <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: prod.color }} />
                                 {prod.name}
