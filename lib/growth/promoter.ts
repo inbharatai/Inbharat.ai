@@ -365,6 +365,10 @@ async function persistDraft(
 ): Promise<{ taskId: string | null; draftId: string | null }> {
   if (!supabaseAdmin) return { taskId: null, draftId: null };
   try {
+    // Source-article slug, recovered from the url (the row's url IS the article
+    // URL). Stored on schema_json so published-memory + dedupe can join linkedin
+    // drafts to articles by slug without re-parsing the url downstream.
+    const slug = url.includes(ARTICLE_PATH_PREFIX) ? url.split(ARTICLE_PATH_PREFIX)[1]?.replace(/\/+$/, "") ?? "" : "";
     let taskId: string | null = null;
     const taskInsert = await supabaseAdmin
       .from("growth_tasks")
@@ -392,6 +396,7 @@ async function persistDraft(
         title,
         body_md: caption,
         schema_json: {
+          slug: slug || null,
           internalLinks,
           note: note || null,
           // Store the source article's one-line description + title/url so the

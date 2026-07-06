@@ -421,6 +421,35 @@ export async function findDuplicateKnowledge(topic: string, product?: string | n
   } catch (e) {
     await logError("kb-dedup-drafts-fail", t, String((e as Error)?.message || "throw")).catch(() => undefined);
   }
+  // 2.5) Published LinkedIn captions for the same article — without this, the
+  //   agent can re-promote an article whose LinkedIn caption already shipped.
+  //   kind='linkedin' status='published'; the url is the article URL, so the
+  //   slug is recoverable. Title paraphrase OR url-slug collision with the topic.
+  try {
+    const { data: liDrafts } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("title,url")
+      .eq("kind", "linkedin")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (Array.isArray(liDrafts) && liDrafts.length) {
+      if (isParaphraseOf(t, liDrafts.map((d) => String(d.title ?? "")).filter(Boolean))) {
+        return { duplicate: true, reason: "matches a published LinkedIn caption's title — the article was already promoted on LinkedIn; refresh the angle instead of a new caption" };
+      }
+      const { slugifyTitle } = await import("./articleWriter.js");
+      const topicSlug = slugifyTitle(t).toLowerCase();
+      const liSlugHit = liDrafts.some((d) => {
+        const urlSlug = String(d.url ?? "").split("/learn-ai-with-reeturaj/")[1]?.split(/[/?#]/)[0]?.toLowerCase();
+        return urlSlug && urlSlug === topicSlug;
+      });
+      if (liSlugHit) {
+        return { duplicate: true, reason: "matches an article already promoted on LinkedIn — refresh the caption instead of drafting a new one" };
+      }
+    }
+  } catch (e) {
+    await logError("kb-dedup-linkedin-fail", t, String((e as Error)?.message || "throw")).catch(() => undefined);
+  }
   try {
     // 3) Existing KB titles + summaries (topic-type rows first, then everything).
     let req = supabaseAdmin

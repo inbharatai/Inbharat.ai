@@ -46,6 +46,7 @@ import { publishToDevto } from "../lib/growth/syndication/devto.js";
 import { publishToHashnode } from "../lib/growth/syndication/hashnode.js";
 import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
 import { formatKnowledgeBlock, findDuplicateKnowledge, type KnowledgeItem, type KnowledgeType } from "../lib/growth/knowledge.js";
+import { syndicationSummary, type PublishedMemoryItem } from "../lib/growth/publishedMemory.js";
 
 let pass = 0;
 let fail = 0;
@@ -1839,6 +1840,25 @@ console.log("\nGrowth Analytics — performance.ts config + sync (no creds → n
   if (savedGsc !== undefined) process.env.GSC_SITE_URL = savedGsc;
   if (savedEmail !== undefined) process.env.GOOGLE_CLIENT_EMAIL = savedEmail;
   if (savedKey !== undefined) process.env.GOOGLE_PRIVATE_KEY = savedKey;
+}
+
+console.log("\nPublished Memory (syndicationSummary, pure):");
+{
+  const base = (over: Partial<PublishedMemoryItem> = {}): PublishedMemoryItem => ({
+    slug: "s", title: "t", canonicalUrl: "https://www.inbharat.ai/learn-ai-with-reeturaj/s",
+    publishDate: "2026-07-01", category: null, keywords: [], sourceMetaSha: null, syncedAt: null,
+    inbharatStatus: "published",
+    devto: { url: null, status: null, at: null },
+    hashnode: { url: null, status: null, at: null },
+    medium: { url: null, status: null, at: null },
+    linkedin: { url: null, status: null, at: null },
+    measuredAt: null,
+    ...over,
+  });
+  check("no syndication → not deposited, 0 platforms", syndicationSummary(base()).deposited === false && syndicationSummary(base()).platforms.length === 0);
+  check("devto only → deposited, [devto]", syndicationSummary(base({ devto: { url: "https://dev.to/x", status: "published", at: "x" } })).deposited === true && syndicationSummary(base({ devto: { url: "https://dev.to/x", status: "published", at: "x" } })).platforms.join(",") === "devto");
+  check("all three → deposited, 3 platforms", syndicationSummary(base({ devto: { url: "u", status: "draft", at: "a" }, hashnode: { url: "u", status: "published", at: "a" }, medium: { url: null, status: "manual", at: "a" } })).platforms.length === 3);
+  check("not_configured still counts as a platform attempt", syndicationSummary(base({ hashnode: { url: null, status: "not_configured", at: "a" } })).deposited === true);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
