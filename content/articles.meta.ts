@@ -628,6 +628,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-06',
     readMinutes: 8,
+    visual: 'model-routing-and-cost-control-across-gemini-tiers.png',
     abstract: 'Optimizing LLM costs is critical for Indian AI products. We cut our Gemini API spend by 60% by implementing a simple routing strategy: matching task complexity to model capabilities (Flash for simple, Pro for complex) and aggressively caching results. This approach ensures efficiency without sacrificing performance.',
     faq: [
       { q: 'What is the main benefit of model routing?', a: 'The primary benefit is cost reduction. By using less powerful (and cheaper) models for simpler tasks and reserving more expensive, capable models for complex ones, you optimize your API spend. It also improves latency for simple queries.' },
