@@ -621,6 +621,22 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AIPricing', 'TokenEconomics', 'IndianAI', 'FinOps', 'ProductManagement'],
   },
+  {
+    slug: 'model-routing-and-cost-control-across-gemini-tiers',
+    title: 'Smart Model Routing: How to Cut Your Gemini API Costs by 60% with a Simple Strategy',
+    description: 'Learn how InBharat AI uses intelligent model routing across Gemini tiers to optimize costs and performance for Indian AI products. Concrete examples and a routi',
+    category: 'AI Tools',
+    datePublished: '2026-07-06',
+    readMinutes: 8,
+    abstract: 'Optimizing LLM costs is critical for Indian AI products. We cut our Gemini API spend by 60% by implementing a simple routing strategy: matching task complexity to model capabilities (Flash for simple, Pro for complex) and aggressively caching results. This approach ensures efficiency without sacrificing performance.',
+    faq: [
+      { q: 'What is the main benefit of model routing?', a: 'The primary benefit is cost reduction. By using less powerful (and cheaper) models for simpler tasks and reserving more expensive, capable models for complex ones, you optimize your API spend. It also improves latency for simple queries.' },
+      { q: 'How do I determine which model is right for a specific task?', a: 'Generally, tasks requiring deep contextual understanding, multi-step reasoning, or generating long, creative content benefit from `Gemini 1.5 Pro`. Simpler tasks like summarization, sentiment analysis, or short translations are well-suited for `Gemini 1.5 Flash`. Experimentation with your specific use case is key.' },
+      { q: 'Is caching really that effective for LLM calls?', a: 'Yes, incredibly so. Many user queries are repetitive, especially for information retrieval or common questions. Caching these responses eliminates redundant API calls, saving significant cost and improving response times. A simple key-value store based on the prompt text works wonders.' },
+      { q: 'What if a task requires a powerful model but my budget is very tight?', a: 'Consider a multi-stage approach. First, try a simpler model with a constrained prompt. If it fails or the quality is insufficient, then escalate to a more powerful model. For critical tasks, you might also implement a human review fallback, especially if the cost of an incorrect AI output is high.' },
+    ],
+    hashtags: ['AIStrategy', 'CostOptimization', 'GeminiAPI', 'IndianAI', 'LLMOps'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
