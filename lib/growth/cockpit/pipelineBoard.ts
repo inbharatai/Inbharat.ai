@@ -153,10 +153,10 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
     const seen = new Set<string>();
     const items: PipelineCard[] = [];
     for (const s of syndication) {
-      const slug = s.slug || s.draftId || s.id;
+      const slug = s.slug || s.draft_id || s.id;
       if (!slug || seen.has(slug)) continue;
       seen.add(slug);
-      items.push({ id: s.id, title: s.slug || "syndicated", slug: s.slug, url: s.platformUrl, platform: s.platform, status: s.status, createdAt: s.createdAt });
+      items.push({ id: s.id, title: s.slug || "syndicated", slug: s.slug, url: s.platform_url, platform: s.platform, status: s.status, createdAt: s.created_at });
     }
     const c = capItems(items, cardCap);
     const note = platform && c.count === 0 ? `no syndication on platform "${platform}"` : undefined;
@@ -166,10 +166,10 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
   // 8. published — published_articles (website) + linkedin published drafts
   {
     const webItems: PipelineCard[] = publishedArticles.map((a) => ({
-      id: a.slug, title: a.title, slug: a.slug, url: a.canonicalUrl, platform: "inbharat", status: "published", createdAt: a.publishDate,
+      id: a.slug, title: a.title, slug: a.slug, url: a.canonical_url, platform: "inbharat", status: "published", createdAt: a.publish_date,
     }));
     const liItems: PipelineCard[] = linkedinPublished.map((d) => ({
-      id: d.id, title: d.title, url: d.url, platform: "linkedin", status: "published", createdAt: d.createdAt,
+      id: d.id, title: d.title, url: d.url, platform: "linkedin", status: "published", createdAt: d.created_at,
     }));
     let items = [...webItems, ...liItems];
     if (platform) items = items.filter((it) => it.platform === platform);
@@ -180,7 +180,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
   // 9. measured — outcomes with measured_at (LinkedIn only — honest)
   {
     const items: PipelineCard[] = outcomes.map((o) => ({
-      id: o.id, title: o.title || "LinkedIn outcome", platform: "linkedin", status: "measured", createdAt: o.measuredAt,
+      id: o.id, title: o.title || "LinkedIn outcome", platform: "linkedin", status: "measured", createdAt: o.measured_at,
     }));
     const c = capItems(items, cardCap);
     stages.push({

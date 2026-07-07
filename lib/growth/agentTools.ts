@@ -647,9 +647,11 @@ async function listKnowledgeTool(args: Args): Promise<ToolResult> {
 
 type KnowledgeStatus2 = "discovered" | "needs_review" | "approved" | "drafted" | "published" | "skipped" | "update_existing" | "outdated" | "archived";
 
-/** find_high_intent_topics — Serper-backed topic discovery (Phase 3). Scores
- *  topics 0-100 across 12 dimensions, dedupes, saves survivors as KB topic rows
- *  (status='discovered' or 'needs_review' for high-risk). Never auto-drafts. */
+/** find_high_intent_topics — Gemini google_search-grounded topic discovery.
+ *  Scores topics 0-100 across 12 dimensions, dedupes, saves survivors as KB
+ *  topic rows (status='discovered' or 'needs_review' for high-risk). Uses the
+ *  Growth Agent's own GEMINI_API_KEY (no Serper key) — the Serper→Gemini swap
+ *  landed 2026-07-05. Never auto-drafts. */
 async function findHighIntentTopicsTool(args: Args): Promise<ToolResult> {
   const product = str(args.product) as ProductId;
   if (!DISCOVERY_PRODUCTS.includes(product)) {

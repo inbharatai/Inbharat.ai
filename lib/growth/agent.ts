@@ -469,7 +469,11 @@ function replayHistory(rows: MessageRow[]): unknown[] {
       }
     } else if (r.role === "tool" && r.tool_name) {
       // Narrate the prior tool result as a user text turn (so the model sees it).
-      out.push({ role: "user", parts: [{ text: redact(summarizeToolResult(r.tool_name, r.toolResult)).redacted }] });
+      // r.tool_result (snake_case) — the DB column from loadHistory's select; the
+      // old `r.toolResult` was always undefined, so prior tool RESULTS were silently
+      // dropped from history and the model only saw "Called tool X(args)" without
+      // what X returned. Multi-turn agent quality depended on this; now fixed.
+      out.push({ role: "user", parts: [{ text: redact(summarizeToolResult(r.tool_name, r.tool_result)).redacted }] });
     }
   }
   return out;

@@ -166,33 +166,69 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
 
   let raw: string;
   try {
-    // 8192 output tokens: a full 800–1500-word article as JSON (bodyMd alone is
+    // 16384 output tokens: a full 800–1500-word article as JSON (bodyMd alone is
     // ~2000–3000 tokens once escaped) plus title/description/abstract/faq/hashtags
-    // + JSON overhead needs the headroom. 4096 was right at the ceiling and the
-    // model hit it mid-body, producing unusable output. gemini-2.5-flash supports
-    // far more, so 8192 is safe.
-    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 8192 });
+    // + JSON overhead + table/mermaid/code-heavy bodies need real headroom. 4096
+    // truncated mid-body (unusable); 8192 was right at the ceiling for table-heavy
+    // articles like the Gemini routing piece. gemini-2.5-flash supports up to
+    // 65536 output tokens, so 16384 is safe and removes the truncation failure
+    // mode without extra cost (billed per generated token, not per cap).
+    raw = await callGemini(choice, system, user, { temperature: 0.6, maxOutputTokens: 16384 });
   } catch (e) {
     void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
     return skip(`article model call failed: ${(e as Error).message}`);
   }
 
-  const parsed = safeParseArticle(raw);
-  const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
+  let result = safeParseArticle(raw);
+  let rawOut = raw;
+
+  // One-shot retry on stub-failure. With responseMimeType=application/json the
+  // response is always syntactically valid JSON, so a `missing_fields` result
+  // means the model returned a metadata stub (title/description/category) with no
+  // bodyMd/abstract — NOT a parse error. Re-prompt ONCE with a sharper instruction
+  // before skipping, so the morning run drafts an article instead of stalling on
+  // a stub (the 2026-07-07 morning run failed exactly this way on the Gemini
+  // routing topic). Bounded: a single retry, re-checks withinBudget, only on
+  // missing_fields (a hard no_json parse failure is not retried — that's
+  // truncation/prose, a different cause). Best-effort: any retry error falls
+  // through to the honest skip note below. The extra call is logged via logUsage.
+  const stubMissing = result.reason === "missing_fields" ? result.missing : null;
+  if (stubMissing && (await withinBudget())) {
+    const retryUser =
+      `Topic: ${topic}\n` +
+      (instruction ? `Founder instruction: ${instruction}\n` : "") +
+      `Your previous response was JSON with these required fields missing or empty: ${stubMissing.join(", ")}.\n` +
+      `That means you returned a metadata stub, not the full article. Return the COMPLETE article now as compact JSON with EVERY field populated: title, description (<=160 chars), category, abstract (40-60 word direct answer), bodyMd (the FULL markdown body, 800-1500 words, starting with a > blockquote then ## headings; mermaid fences and code fences allowed when they aid explanation), faq (2-4 {q,a} pairs), hashtags. JSON only — no prose, no stub.`;
+    try {
+      rawOut = await callGemini(choice, system, retryUser, { temperature: 0.6, maxOutputTokens: 16384 });
+      result = safeParseArticle(rawOut);
+    } catch {
+      // retry call itself failed — fall through to the honest skip note below
+    }
+  }
+
+  const parsed = result.parsed;
+  const totalTokens = Math.ceil((system.length + user.length + (rawOut?.length ?? 0)) / 4);
   void logUsage({
     model: choice.model, task,
     promptTokens: Math.ceil((system.length + user.length) / 4),
-    completionTokens: Math.ceil((raw?.length ?? 0) / 4),
+    completionTokens: Math.ceil((rawOut?.length ?? 0) / 4),
     totalTokens, costUsd: estimateCost(choice, totalTokens),
     status: parsed ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
   });
   if (!parsed) {
-    // Surface the actual model output (not an opaque "no usable JSON") so the
-    // failure is diagnosable: a wrong key name, prose instead of JSON, an empty
-    // required field, or a truncated body all look different here. Capped so the
-    // note stays readable; the full raw is already logged via logUsage above.
-    const preview = raw.replace(/\s+/g, " ").slice(0, 280);
-    return skip(`article model returned no usable JSON; nothing drafted. Raw (first 280 chars): ${preview}`);
+    // Honest, diagnosable skip note. The two failure modes look different and
+    // must not be conflated: `missing_fields` = JSON parsed but the model returned
+    // a stub (and the one-shot retry above already failed to recover); `no_json` =
+    // the output didn't parse at all (truncation or prose-wrapping). The old
+    // "article model returned no usable JSON" message lied for the missing-fields
+    // case — it IS usable JSON, just incomplete. Capped preview keeps the note
+    // readable; the full raw is already logged via logUsage above.
+    const preview = rawOut.replace(/\s+/g, " ").slice(0, 280);
+    const diag = result.reason === "missing_fields"
+      ? `article JSON parsed but required field(s) missing/empty: ${result.missing.join(", ")} — the model returned a metadata stub, not a full article (one retry already failed to recover)`
+      : `article model output did not parse as JSON (likely truncated or prose-wrapped)`;
+    return skip(`${diag}. Nothing drafted. Raw (first 280 chars): ${preview}`);
   }
 
   // Self-critique + revision on the body (kept when critique unavailable). The
@@ -306,7 +342,28 @@ interface ParsedArticle {
   hashtags: string[];
 }
 
-function safeParseArticle(raw: string): ParsedArticle | null {
+interface ArticleParseResult {
+  /** The parsed article when reason === "ok"; null otherwise. */
+  parsed: ParsedArticle | null;
+  /** "ok" = full article parsed; "no_json" = output didn't parse (truncated/prose);
+   *  "missing_fields" = JSON parsed but a required field was empty/absent (a stub). */
+  reason: "ok" | "no_json" | "missing_fields";
+  /** Which required fields were empty/absent (only meaningful for missing_fields). */
+  missing: string[];
+  raw: string;
+}
+
+/** Parse the model's article JSON. Returns a flat result so the caller can give
+ *  an HONEST skip note: `no_json` (didn't parse — truncated or prose-wrapped) vs
+ *  `missing_fields` (parsed fine but a required field was empty/absent — the
+ *  model returned a metadata stub, not a full article). The old `null` return
+ *  forced both cases into the misleading "no usable JSON" message, which is
+ *  especially wrong here because callGemini uses responseMimeType=application/
+ *  json — the response is ALWAYS syntactically valid JSON, so a failure was
+ *  almost always "missing fields", never a parse failure. Tolerates common
+ *  schema-key drift (body under `body`/`content`/`markdown`, abstract under
+ *  `summary`/`tldr`) so a usable article isn't discarded over a wrong key name. */
+function safeParseArticle(raw: string): ArticleParseResult {
   let obj: Record<string, unknown> | null = null;
   try {
     obj = JSON.parse(raw) as Record<string, unknown>;
@@ -317,26 +374,42 @@ function safeParseArticle(raw: string): ParsedArticle | null {
     // safe here: when the model wraps one JSON object in prose, the last "}" is
     // that object's closing brace, so the greedy match captures the whole object.
     // It would mis-capture if trailing prose contained extra "}" after the JSON;
-    // in that rare case JSON.parse fails and we return null (honest parse_failed),
-    // no corruption. Not "balanced" extraction — do not label it as such.
+    // in that rare case JSON.parse fails and we return no_json (honest), no
+    // corruption. Not "balanced" extraction — do not label it as such. (This
+    // branch is unreachable when responseMimeType=application/json is set, but
+    // kept for the non-JSON call sites that share this parser.)
     const m = raw.match(/\{[\s\S]*\}/);
-    if (!m) return null;
+    if (!m) return { parsed: null, reason: "no_json", missing: [], raw };
     try {
       obj = JSON.parse(m[0]) as Record<string, unknown>;
     } catch {
-      return null;
+      return { parsed: null, reason: "no_json", missing: [], raw };
     }
   }
-  const s = (k: string): string => (typeof obj?.[k] === "string" ? (obj[k] as string).trim() : "");
-  const title = s("title");
-  const bodyMd = s("bodyMd");
-  const description = s("description");
-  const abstract = s("abstract");
-  if (!title || !bodyMd || !abstract) return null;
-  const rawCategory = s("category");
+  // Tolerate schema-key drift: the model occasionally emits the body under
+  // `body`/`content`/`markdown` or the abstract under `summary`/`tldr` despite
+  // the prompt's schema. Accept the aliases (first non-empty wins) so a usable
+  // article isn't discarded as "missing bodyMd" over a wrong key name.
+  const firstNonEmpty = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = obj?.[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+  };
+  const title = firstNonEmpty("title");
+  const bodyMd = firstNonEmpty("bodyMd", "body", "content", "markdown", "articleBody");
+  const description = firstNonEmpty("description", "metaDescription", "desc");
+  const abstract = firstNonEmpty("abstract", "summary", "tldr", "tl;dr", "dek");
+  const missing: string[] = [];
+  if (!title) missing.push("title");
+  if (!bodyMd) missing.push("bodyMd");
+  if (!abstract) missing.push("abstract");
+  if (missing.length > 0) return { parsed: null, reason: "missing_fields", missing, raw };
+  const rawCategory = firstNonEmpty("category");
   const category = (CATEGORY_SET.has(rawCategory) ? rawCategory : "AI Foundations") as ArticleCategory;
   // Prefer an explicit slug if the model gave a clean one; else slugify the title.
-  const rawSlug = s("slug");
+  const rawSlug = firstNonEmpty("slug");
   const slug = /^[a-z0-9-]+$/.test(rawSlug) ? rawSlug : slugifyTitle(title);
   const faq = Array.isArray(obj?.faq)
     ? (obj.faq as Array<Record<string, unknown>>)
@@ -347,7 +420,7 @@ function safeParseArticle(raw: string): ParsedArticle | null {
   const hashtags = Array.isArray(obj?.hashtags)
     ? (obj.hashtags as unknown[]).filter((h) => typeof h === "string").map(String).slice(0, 12)
     : [];
-  return { slug, title, description: description.slice(0, 160), category, abstract, bodyMd, faq, hashtags };
+  return { parsed: { slug, title, description: description.slice(0, 160), category, abstract, bodyMd, faq, hashtags }, reason: "ok", missing: [], raw };
 }
 
 /** Today's ISO date (YYYY-MM-DD). Server runtime only (Date is fine here —
@@ -501,7 +574,8 @@ export async function draftVideoScript(topic: string, instruction?: string): Pro
     void logUsage({ model: choice.model, task, promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
     return skip(`model call failed: ${(e as Error).message}`);
   }
-  const parsed = safeParseScript(raw);
+  const result = safeParseScript(raw);
+  const parsed = result.parsed;
   const totalTokens = Math.ceil((system.length + user.length + (raw?.length ?? 0)) / 4);
   void logUsage({
     model: choice.model, task,
@@ -510,30 +584,59 @@ export async function draftVideoScript(topic: string, instruction?: string): Pro
     totalTokens, costUsd: estimateCost(choice, totalTokens),
     status: parsed ? "ok" : "parse_failed", contextUrl: null, provider: choice.provider,
   });
-  if (!parsed) return skip("model returned no usable JSON; nothing drafted");
+  if (!parsed) {
+    // Honest, diagnosable skip note (see safeParseArticle for the rationale —
+    // responseMimeType=application/json means a failure here is almost always
+    // missing_fields, not a parse error). Capped preview keeps the note readable.
+    const preview = raw.replace(/\s+/g, " ").slice(0, 280);
+    const diag = result.reason === "missing_fields"
+      ? `script JSON parsed but required field(s) missing/empty: ${result.missing.join(", ")} — the model returned a stub, not a full script`
+      : `script model output did not parse as JSON (likely truncated or prose-wrapped)`;
+    return skip(`${diag}. Nothing drafted. Raw (first 280 chars): ${preview}`);
+  }
   const script: DraftedVideoScript = { ...parsed, topic, slug: parsed.slug };
   const draftId = await persistScriptDraft(topic, instruction, script);
   return { draftId, status: "pending", script, note: draftId ? "Video script drafted — review in Issues, then publish to commit it to the repo." : "drafted but DB persist failed" };
 }
 
-function safeParseScript(raw: string): Omit<DraftedVideoScript, "topic"> | null {
+interface ScriptParseResult {
+  parsed: Omit<DraftedVideoScript, "topic"> | null;
+  reason: "ok" | "no_json" | "missing_fields";
+  missing: string[];
+  raw: string;
+}
+
+/** Parse the model's video-script JSON. Flat result (see safeParseArticle):
+ *  distinguishes `no_json` (truncated/prose) from `missing_fields` (parsed but a
+ *  required field was empty — a stub) so the skip note is honest. Tolerates
+ *  body-key drift (body/content/markdown). */
+function safeParseScript(raw: string): ScriptParseResult {
   let obj: Record<string, unknown> | null = null;
   try {
     obj = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     const m = raw.match(/\{[\s\S]*\}/);
-    if (!m) return null;
-    try { obj = JSON.parse(m[0]) as Record<string, unknown>; } catch { return null; }
+    if (!m) return { parsed: null, reason: "no_json", missing: [], raw };
+    try { obj = JSON.parse(m[0]) as Record<string, unknown>; } catch { return { parsed: null, reason: "no_json", missing: [], raw }; }
   }
-  const s = (k: string): string => (typeof obj?.[k] === "string" ? (obj[k] as string).trim() : "");
-  const title = s("title");
-  const bodyMd = s("bodyMd");
-  const hook = s("hook");
-  if (!title || !bodyMd) return null;
+  const firstNonEmpty = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = obj?.[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return "";
+  };
+  const title = firstNonEmpty("title");
+  const bodyMd = firstNonEmpty("bodyMd", "body", "content", "markdown", "script");
+  const hook = firstNonEmpty("hook");
+  const missing: string[] = [];
+  if (!title) missing.push("title");
+  if (!bodyMd) missing.push("bodyMd");
+  if (missing.length > 0) return { parsed: null, reason: "missing_fields", missing, raw };
   const durationMinutes = Math.max(1, Math.min(10, Number(obj?.durationMinutes) || 2));
-  const rawSlug = s("slug");
+  const rawSlug = firstNonEmpty("slug");
   const slug = /^[a-z0-9-]+$/.test(rawSlug) ? rawSlug : slugifyTitle(title);
-  return { slug, title, durationMinutes, hook: hook || title, bodyMd };
+  return { parsed: { slug, title, durationMinutes, hook: hook || title, bodyMd }, reason: "ok", missing: [], raw };
 }
 
 async function persistScriptDraft(topic: string, instruction: string | undefined, v: DraftedVideoScript): Promise<string | null> {

@@ -47,11 +47,11 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // the slug is in articles.meta.ts the slug-collision guard trips in
   // scripts/test-growth.ts, and pickNextCalendarTopic would skip it every morning
   // anyway — so it is removed.
-  {
-    topic: "Model routing and cost control across Gemini tiers",
-    category: "AI Foundations",
-    angle: "Route by task difficulty, cache aggressively, fail closed on budget — a routing table you can copy.",
-  },
+  // NOTE: "Model routing and cost control across Gemini tiers" was retired because
+  // it shipped as the article of the same title
+  // (slug model-routing-and-cost-control-across-gemini-tiers). Now that the slug is
+  // in articles.meta.ts the slug-collision guard trips in scripts/test-growth.ts,
+  // and pickNextCalendarTopic would skip it every morning anyway — so it is removed.
   {
     topic: "Context engineering — managing what the model actually sees",
     category: "AI Foundations",
@@ -138,5 +138,16 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     topic: "AI agent memory — durable context across sessions",
     category: "Engineering",
     angle: "Retrieval before drafting, cross-source dedupe, learning signals; when FTS+token beats embeddings.",
+  },
+  // Replenished 2026-07-07 after "Model routing and cost control across Gemini
+  // tiers" shipped (retired above). The calendar keeps ≥17 live topics so the
+  // morning cadence never stalls into free-plan; this slot replaces the retired
+  // one with a distinct, non-colliding angle. Directly relevant — the 2026-07-07
+  // morning run failed on a JSON-stub from the model, so a founder-voice piece on
+  // reliable structured output is on-brand and timely.
+  {
+    topic: "Structured outputs — making LLM JSON reliable",
+    category: "Engineering",
+    angle: "responseMimeType=application/json, schema/key-drift tolerance, one-shot retry on stubs, truncation vs missing-fields — what actually works in production.",
   },
 ];

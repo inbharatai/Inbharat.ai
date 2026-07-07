@@ -166,9 +166,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .then(() => ({ error: null as unknown }), (e: unknown) => ({ error: e }));
 
   if (error) {
-    await audit("lead-capture-fail", `kind=${b.kind} site=${row.source_site} slug=${b.source_slug ?? "-"}`);
+    await audit("lead-capture-fail", `kind=${b.kind} site=${row.source_site} slug=${b.sourceSlug ?? "-"}`);
     return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Could not save your details. Please email info@inbharat.ai.", requestId });
   }
-  await audit("lead-captured", `kind=${b.kind} site=${row.source_site} slug=${b.source_slug ?? "-"}`);
+  await audit("lead-captured", `kind=${b.kind} site=${row.source_site} slug=${b.sourceSlug ?? "-"}`);
   return res.status(200).json({ ok: true, requestId, accepted: true });
 }
