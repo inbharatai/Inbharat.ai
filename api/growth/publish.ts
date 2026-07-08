@@ -10,6 +10,7 @@ import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
 import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/growth/mermaid-validate.js";
 import { stripCitationMarkers } from "../../lib/growth/citations.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
+import { slugifyTitle } from "../../lib/growth/articleWriter.js";
 import { SITE } from "../../seo.config.js";
 
 /**
@@ -368,22 +369,34 @@ async function findPendingCompanionCover(slug: string): Promise<string | null> {
 
 /**
  * Scoped edit of articles.meta.ts: find the article entry whose `slug: '<slug>'`
- * line we're targeting, then insert `visual: '<filename>',` on the next line
- * that currently has `readMinutes: <n>,` (the visual field belongs right after
- * readMinutes per the file's existing convention). If a `visual:` field already
- * exists for that slug, return null (no-op). Returns the edited text, or null
- * when no change is needed / the slug can't be safely located.
+ * line we're targeting, then insert `visual: '<filename>',` right after the
+ * `readMinutes: <n>,` line (the visual field belongs there per the file's
+ * convention). If a `visual:` field already exists ANYWHERE in that entry, return
+ * null (no-op) — this is the idempotency guard that prevents a duplicate `visual:`
+ * line when the cover is shipped twice for the same slug (e.g. once via the
+ * article-bundle companion path and once via an explicit "Publish cover" click).
+ * Returns the edited text, or null when no change is needed / the slug can't be
+ * safely located.
  */
-function insertVisualField(source: string, slug: string, filename: string): string | null {
-  // Locate `slug: 'harness-engineering',` (handles single or double quotes).
-  const slugRe = new RegExp(`(slug:\\s*['"]${escapeRe(slug)}['"]\\s*,[\\s\\S]*?readMinutes:\\s*\\d+\\s*,)`, "m");
-  const m = source.match(slugRe);
+export function insertVisualField(source: string, slug: string, filename: string): string | null {
+  // Match the WHOLE article entry: from `slug: '<slug>',` through the entry's
+  // closing `  },` line. Non-greedy so it stops at THIS entry's close (the faq
+  // array closes with `]`, not `  },`, so the first `\n  },` is the entry close).
+  const entryRe = new RegExp(
+    `(slug:\\s*['"]${escapeRe(slug)}['"]\\s*,[\\s\\S]*?readMinutes:\\s*\\d+\\s*,)([\\s\\S]*?\\n  \\},)`,
+    "m",
+  );
+  const m = source.match(entryRe);
   if (!m) return null; // slug not found → don't touch the file
-  const segment = m[1];
-  // If a visual field already exists between slug and readMinutes, no-op.
-  if (/visual\s*:\s*['"]/.test(segment)) return null;
+  const head = m[1]; // slug ... readMinutes: <n>,
+  const tail = m[2]; // rest of the entry through `  },`
+  // Idempotency: if a visual field already exists anywhere in this entry, no-op.
+  // (The previous version only checked between slug and readMinutes, but the
+  // visual is inserted AFTER readMinutes — so a re-run never saw the existing
+  // visual and inserted a second one, producing a duplicate `visual:` line.)
+  if (/visual\s*:\s*['"]/.test(head + tail)) return null;
   const insertion = `\n    visual: '${filename}',`;
-  return source.replace(slugRe, `${segment}${insertion}`);
+  return source.replace(entryRe, `${head}${insertion}${tail}`);
 }
 
 function escapeRe(s: string): string {
@@ -458,6 +471,46 @@ export function insertArticleMeta(source: string, slug: string, entryText: strin
   const marker = "\n];\n\nexport function getArticleBySlug";
   if (!source.includes(marker)) return null; // can't safely locate the array close
   return source.replace(marker, `\n${entryText}\n];\n\nexport function getArticleBySlug`);
+}
+
+/**
+ * Scoped edit of content/build-with-reeturaj-calendar.ts: retire the calendar
+ * entry whose `topic:` slugifies to `slug` by replacing its `{ ... },` block with
+ * a NOTE comment (matching the file's existing retirement convention). This is
+ * the automation for the step that used to be done by hand every time an article
+ * shipped — without it, the calendar keeps a topic whose slug now equals a
+ * published slug, scripts/test-growth.ts "no calendar topic slug-collides with a
+ * published slug" trips on the next push, and pickNextCalendarTopic skips it every
+ * morning anyway (so the entry is dead weight).
+ *
+ * Idempotent: once retired (block replaced by a `// NOTE:` comment), the entry no
+ * longer matches the `{ ... },` block regex, so a re-publish returns null (no-op).
+ * Returns the edited text, or null when no calendar topic slugifies to `slug`
+ * (e.g. a free-plan article not on the calendar — nothing to retire). Pure +
+ * hermetically testable.
+ */
+export function retireCalendarTopic(source: string, slug: string, articleTitle: string | null): string | null {
+  // Match each calendar entry block: a 2-space-indented `{ ... },` object. The
+  // file interleaves `// NOTE:` comments between entries — those are not `{`
+  // blocks so they don't match. Non-greedy `[\s\S]*?` stops at this entry's close.
+  const blockRe = /\n {2}\{\s*\n[\s\S]*?\n {2}\},/g;
+  let found = false;
+  const next = source.replace(blockRe, (block) => {
+    const topicMatch = block.match(/topic:\s*['"]([^'"]+)['"]/);
+    if (!topicMatch) return block;
+    if (slugifyTitle(topicMatch[1]) !== slug) return block;
+    found = true;
+    const titleSuffix = articleTitle ? ` ("${articleTitle}")` : "";
+    return [
+      `\n  // NOTE: "${topicMatch[1]}" was auto-retired by publishArticle because it`,
+      `  // shipped as the article of slug ${slug}${titleSuffix}. Now that the slug is`,
+      `  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts`,
+      `  // would trip, and pickNextCalendarTopic skips it every morning anyway — so`,
+      `  // it is removed. (Replenish this slot with a distinct, non-colliding topic`,
+      `  // to keep the calendar ≥17 live entries.)`,
+    ].join("\n");
+  });
+  return found ? next : null;
 }
 
 /**
@@ -539,6 +592,30 @@ async function publishArticle(
     .insert({ level: "info", action: "publish-article", scope: draftUrl ?? meta.slug, detail: `md=${mdPath} mdSha=${mdRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId} by=${userId}` })
     .then(() => undefined, () => undefined);
 
+  // 2b) Auto-retire the matching calendar topic. The article just landed in
+  //     articles.meta.ts, so any calendar entry whose topic slugifies to meta.slug
+  //     is now a collision that trips scripts/test-growth.ts on the next push (and
+  //     pickNextCalendarTopic skips it every morning anyway). This used to be a
+  //     manual whack-a-mole edit after every publish; automating it keeps CI green
+  //     without founder effort. Best-effort, non-fatal: the article is already
+  //     live, so a calendar-edit failure is surfaced in `calendarRetire` (never
+  //     rolls back, never fails the publish) — the founder can re-run publish to
+  //     retire it, or retire by hand. Idempotent (retireCalendarTopic no-ops once
+  //     the entry is already a NOTE). Skipped silently for free-plan articles not
+  //     on the calendar (no matching topic → nothing to retire).
+  let calendarRetire: { ok: boolean; commitSha?: string; skipped?: boolean; error?: string } | null = null;
+  const calRes = await upsertText(
+    "content/build-with-reeturaj-calendar.ts",
+    (current) => retireCalendarTopic(current, meta.slug, meta.title),
+    `calendar: retire ${meta.slug} (shipped as article) (Growth Agent, human-gated)`,
+  );
+  if (!calRes.ok && !calRes.skipped) {
+    await logInfo("publish-article-calendar-retire-fail", meta.slug, calRes.error || "edit failed").catch(() => undefined);
+    calendarRetire = { ok: false, error: calRes.error };
+  } else {
+    calendarRetire = { ok: true, commitSha: calRes.commitSha, skipped: calRes.skipped };
+  }
+
   // Phase 2: best-effort KB writes — (a) record this article as a KB 'article'
   // row so future drafts retrieve it as prior work (cross-source dedupe), and
   // (b) link any related discovered topics/sources to this slug. Never throws.
@@ -617,6 +694,12 @@ async function publishArticle(
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
     cover, coverDrafted, pendingCoverId,
+    // Outcome of the auto calendar-retire (step 2b). ok:true + skipped:true = no
+    // calendar topic matched this slug (free-plan article) → nothing retired.
+    // ok:true + skipped:false = a topic was retired + committed. ok:false = the
+    // calendar edit failed (article still live); re-run publish or retire by hand
+    // or the next CI push trips the slug-collision guard.
+    calendarRetire,
     // Present only when one or more broken mermaid fences were stripped before commit
     // (so the UI can tell the founder a diagram was dropped — re-draft it if wanted).
     mermaidStripped: mermaidSanitize.stripped.length > 0 ? mermaidSanitize.stripped : undefined,

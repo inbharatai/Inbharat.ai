@@ -68,7 +68,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (isAdminErr(admin)) return res.status(admin.status).json(admin.body);
 
   if (req.method === "GET") {
-    return listSyndication(res, admin.requestId);
+    // ?historyOnly=1 → skip the eligible-drafts query. The Issues page only needs
+    // the syndication ledger (history) — the eligible payload (60 article drafts
+    // with full body_md) was fetched on every Issues load and discarded, costing a
+    // serial RTT + a heavy DB read for nothing. Callers that actually use the
+    // eligible list omit the flag and get the full response.
+    const historyOnly = req.query?.historyOnly === "1" || req.query?.historyOnly === "true";
+    return listSyndication(res, admin.requestId, historyOnly);
   }
   if (req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
@@ -348,43 +354,54 @@ interface EligibleRow {
  * and silently fail the copy). Never throws; degrades to empty arrays when
  * Supabase is absent (guarded by the caller).
  */
-async function listSyndication(res: VercelResponse, requestId: string): Promise<VercelResponse> {
+async function listSyndication(res: VercelResponse, requestId: string, historyOnly = false): Promise<VercelResponse> {
   if (!supabaseAdmin) {
     return res.status(503).json({ ok: false, code: "SERVER_ERROR", error: "Supabase not configured.", requestId });
   }
   let history: HistoryRow[] = [];
   let eligible: { id: string; kind: string; url: string | null; title: string | null; bodyMarkdown: string; status: string; slug: string | null }[] = [];
-  try {
-    const { data: hist, error: hErr } = await supabaseAdmin
+  if (historyOnly) {
+    // Issues path: only the ledger is needed. One query, no eligible payload.
+    try {
+      const { data: hist, error: hErr } = await supabaseAdmin
+        .from("growth_syndication")
+        .select("id,draft_id,slug,platform,status,canonical_url,platform_url,platform_post_id,error,created_at")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (!hErr && Array.isArray(hist)) history = hist as HistoryRow[];
+    } catch (e) {
+      await logInfo("syndicate-list-history-fail", "global", (e as Error).message).catch(() => undefined);
+    }
+    return res.status(200).json({ ok: true, requestId, history, eligible });
+  }
+  // Full path: run the two independent reads concurrently (was serial — two RTTs).
+  const [histRes, draftsRes] = await Promise.all([
+    supabaseAdmin
       .from("growth_syndication")
       .select("id,draft_id,slug,platform,status,canonical_url,platform_url,platform_post_id,error,created_at")
       .order("created_at", { ascending: false })
-      .limit(100);
-    if (!hErr && Array.isArray(hist)) history = hist as HistoryRow[];
-  } catch (e) {
-    await logInfo("syndicate-list-history-fail", "global", (e as Error).message).catch(() => undefined);
-  }
-  try {
-    const { data: drafts, error: dErr } = await supabaseAdmin
+      .limit(100)
+      .then((r) => r, (e) => { logInfo("syndicate-list-history-fail", "global", (e as Error).message).catch(() => undefined); return null; }),
+    supabaseAdmin
       .from("growth_drafts")
       .select("id,kind,url,title,body_md,status,schema_json")
       .eq("kind", "article")
       .in("status", ["approved", "published"])
       .order("created_at", { ascending: false })
-      .limit(60);
-    if (!dErr && Array.isArray(drafts)) {
-      eligible = (drafts as EligibleRow[]).map((d) => ({
-        id: d.id,
-        kind: d.kind,
-        url: d.url,
-        title: d.title,
-        bodyMarkdown: typeof d.body_md === "string" ? d.body_md : "",
-        status: d.status,
-        slug: typeof d.schema_json?.slug === "string" ? (d.schema_json.slug as string) : null,
-      }));
-    }
-  } catch (e) {
-    await logInfo("syndicate-list-eligible-fail", "global", (e as Error).message).catch(() => undefined);
+      .limit(60)
+      .then((r) => r, (e) => { logInfo("syndicate-list-eligible-fail", "global", (e as Error).message).catch(() => undefined); return null; }),
+  ]);
+  if (histRes && !histRes.error && Array.isArray(histRes.data)) history = histRes.data as HistoryRow[];
+  if (draftsRes && !draftsRes.error && Array.isArray(draftsRes.data)) {
+    eligible = (draftsRes.data as EligibleRow[]).map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      url: d.url,
+      title: d.title,
+      bodyMarkdown: typeof d.body_md === "string" ? d.body_md : "",
+      status: d.status,
+      slug: typeof d.schema_json?.slug === "string" ? (d.schema_json.slug as string) : null,
+    }));
   }
   return res.status(200).json({ ok: true, requestId, history, eligible });
 }

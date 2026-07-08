@@ -927,7 +927,7 @@ console.log("\nDiscovery (diffSitePages pure fixtures):");
 
 // ─── Phase E: article writer + publish helpers (pure, no DB/network) ───
 const { slugifyTitle, estimateReadMinutes } = await import("../lib/growth/articleWriter.js");
-const { formatArticleEntry, insertArticleMeta } = await import("../api/growth/publish.js");
+const { formatArticleEntry, insertArticleMeta, insertVisualField, retireCalendarTopic } = await import("../api/growth/publish.js");
 console.log("\nPhase E (article writer + publish helpers, pure):");
 {
   // slugifyTitle: lowercase, kebab, strip apostrophes, trim, fallback.
@@ -989,6 +989,63 @@ export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.s
   // Round-trip: formatArticleEntry output feeds insertArticleMeta cleanly.
   const rt = insertArticleMeta(SRC, "rag-guide", entry);
   check("insertArticleMeta accepts formatArticleEntry output", rt !== null && rt.includes("slug: 'rag-guide'"), rt ?? "");
+
+  // insertVisualField: inserts `visual:` after readMinutes, and is IDEMPOTENT — a
+  // second call on an entry that already has a visual field is a no-op (returns
+  // null). This is the guard against the duplicate `visual:` line that appeared
+  // when a cover was shipped twice for the same slug (article-bundle + explicit
+  // "Publish cover"). The old version checked the wrong region (before readMinutes)
+  // and never saw the visual it had just inserted after readMinutes.
+  const VIS_SRC = `export const ARTICLES: ArticleMeta[] = [
+  {
+    slug: 'harness-engineering',
+    title: 'Harness Engineering',
+    description: 'A guide',
+    category: 'AI Tools',
+    datePublished: '2026-07-01',
+    readMinutes: 6,
+    abstract: 'Short.',
+    faq: [],
+    hashtags: [],
+  },
+];
+
+export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.slug === slug); }
+`;
+  const vis1 = insertVisualField(VIS_SRC, "harness-engineering", "harness-engineering.png");
+  check("insertVisualField inserts visual after readMinutes", vis1 !== null && /readMinutes: 6,\n {4}visual: 'harness-engineering\.png',/.test(vis1), vis1 ?? "");
+  check("insertVisualField inserts exactly one visual line", vis1 !== null && (vis1.match(/visual: 'harness-engineering\.png',/g) || []).length === 1, vis1 ?? "");
+  // Idempotent: re-running on the edited text must NOT add a second visual line.
+  const vis2 = insertVisualField(vis1 ?? VIS_SRC, "harness-engineering", "harness-engineering.png");
+  check("insertVisualField idempotent → null on second run", vis2 === null);
+  // Unknown slug → null (don't touch the file).
+  check("insertVisualField unknown slug → null", insertVisualField(VIS_SRC, "no-such-slug", "x.png") === null);
+
+  // retireCalendarTopic: replaces the calendar entry whose topic slugifies to the
+  // published slug with a NOTE comment. Idempotent (a second run on the retired
+  // text is a no-op — the entry is now a comment, not a `{ ... },` block). Returns
+  // null when no calendar topic slugifies to the slug (free-plan article).
+  const CAL_SRC = `export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
+  // a stray comment
+  {
+    topic: "Evals for AI features — measuring what actually ships",
+    category: "Engineering",
+    angle: "What to measure.",
+  },
+  {
+    topic: "Vector databases — choosing one for an Indian team",
+    category: "AI Foundations",
+    angle: "pgvector vs dedicated.",
+  },
+];
+`;
+  const retired = retireCalendarTopic(CAL_SRC, "evals-for-ai-features-measuring-what-actually-ships", "Evals for AI features — measuring what actually ships");
+  check("retireCalendarTopic retires the matching entry", retired !== null && !/topic: "Evals for AI features/.test(retired) && /auto-retired by publishArticle/.test(retired), retired ?? "");
+  check("retireCalendarTopic preserves non-matching entries", retired !== null && /topic: "Vector databases/.test(retired), retired ?? "");
+  // Idempotent: re-running on the retired text → null (entry is now a comment).
+  check("retireCalendarTopic idempotent → null after retirement", retireCalendarTopic(retired ?? CAL_SRC, "evals-for-ai-features-measuring-what-actually-ships", null) === null);
+  // No matching topic (free-plan article) → null, text unchanged.
+  check("retireCalendarTopic no match → null", retireCalendarTopic(CAL_SRC, "some-free-plan-slug-not-on-calendar", "X") === null);
 }
 
 // ─── Agent↔Issues alignment: pipeline assembly + draft→thread reverse-lookup ──

@@ -52,10 +52,18 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // (slug model-routing-and-cost-control-across-gemini-tiers). Now that the slug is
   // in articles.meta.ts the slug-collision guard trips in scripts/test-growth.ts,
   // and pickNextCalendarTopic would skip it every morning anyway — so it is removed.
+  // NOTE: "Context engineering — managing what the model actually sees" was
+  // retired because it shipped as the article "Context Engineering: Beyond
+  // Prompts for Real-World AI in India" (slug context-engineering-managing--
+  // what-the-model-actually-sees). Now that the slug is in articles.meta.ts the
+  // slug-collision guard trips in scripts/test-growth.ts, and
+  // pickNextCalendarTopic skips it every morning anyway — so it is removed.
+  // Replenished 2026-07-08 with a distinct, non-colliding topic so the calendar
+  // keeps ≥17 live entries and the morning cadence never stalls into free-plan.
   {
-    topic: "Context engineering — managing what the model actually sees",
+    topic: "Multilingual LLM apps — beyond English-only prompts",
     category: "AI Foundations",
-    angle: "Beyond prompt engineering: selecting, ordering, and truncating context windows for real apps.",
+    angle: "Indic-language handling, script mixing, prompt + response translation, and when to fine-tune vs translate vs prompt in the user's language.",
   },
   {
     topic: "Vector databases — choosing one for an Indian team",

@@ -239,9 +239,18 @@ export async function crawlUrl(url: string): Promise<PageMeta> {
     const { AuthorizationError } = await import("./authorization.js");
     throw new AuthorizationError("domain not authorized for crawl", { allowed: false, reason: "not authorized", action: "crawl", scope: url });
   }
-  const allowed = await fetchRobotsAllowed(url);
-  const inSitemap = await fetchSitemapContains(url);
-  const { html, status, finalUrl } = await fetchPage(url);
+  // robots.txt, sitemap.xml, and the page itself are THREE independent fetches —
+  // the page fetch is the long pole (12s timeout vs 8s for the others) and the
+  // robots/sitemap results are advisory metadata, not a gate for the page fetch.
+  // Run them concurrently so crawlUrl takes ~max(robots, sitemap, page) instead of
+  // ~robots + sitemap + page. This speeds the "Audit URL" button (was up to ~28s
+  // serial worst case) and every page in auditDomain's 60-page crawl.
+  const [allowed, inSitemap, page] = await Promise.all([
+    fetchRobotsAllowed(url),
+    fetchSitemapContains(url),
+    fetchPage(url),
+  ]);
+  const { html, status, finalUrl } = page;
   // Re-authorize the redirect destination. If it landed on a different
   // registrable domain that isn't authorized, refuse to parse it — the fetch
   // already happened (HTML is in memory) but we never return it to the caller.

@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { istStartOfDayIso } from "../../lib/growth/spend.js";
 import { MORNING_THREAD_TITLE } from "./cron/morning.js";
 
 /**
@@ -91,8 +90,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .limit(1)
       .maybeSingle();
 
-    // Today's content drafts (IST day), newest first.
-    const since = istStartOfDayIso();
+    // Current content drafts, newest first. The window is the last 48h, NOT just
+    // the IST day: a daily-plan article is often drafted on day N, approved on day
+    // N, and published on day N+1 (the founder approves when they review, then
+    // clicks Publish the next morning). A strict "today only" filter excluded
+    // those drafts, so the strip showed empty chips (Article — → LinkedIn — →
+    // Cover —) even though the article had just shipped — and the "Review in
+    // Issues ↗" link (gated on article?.draftId) vanished with it. 48h covers the
+    // approve→publish boundary for a daily cadence while staying bounded (at most
+    // ~2 article drafts). assemblePipeline picks the newest kind='article', so a
+    // fresh same-day draft still wins over a prior-day published one.
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const draftsQ = supabaseAdmin
       .from("growth_drafts")
       .select("id,kind,url,title,schema_json,status,created_at")

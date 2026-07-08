@@ -121,13 +121,19 @@ async function listDrafts(res: VercelResponse, requestId: string): Promise<void>
     return void res.status(200).json({ ok: true, requestId, drafts: [] });
   }
   try {
-    // Pending drafts first, then the most recent decided ones (review history).
+    // Approved drafts first (status asc: 'approved' < 'pending' < 'published' <
+    // 'rejected'), newest within each status, then the rest as review history.
+    // The window is 100 (was 50): Auto Mode runs every 30 min and can create many
+    // drafts/day, so a 50-row cap could push an APPROVED-but-unpublished draft from
+    // a prior day off the list — and approval ≠ publish (a human still clicks
+    // Publish), so approved drafts must stay visible or the founder loses track of
+    // them. 100 covers a busy day without making the payload unwieldy.
     const { data, error } = await supabaseAdmin
       .from("growth_drafts")
       .select("id, kind, url, title, body_md, schema_json, status, created_at")
-      .order("status", { ascending: true }) // 'pending' < 'approved'/'rejected' alphabetically-ish
+      .order("status", { ascending: true })
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(100);
     if (error) {
       return void res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to load drafts", requestId });
     }

@@ -315,18 +315,34 @@ const Issues: React.FC = () => {
   // Cross-tab signal: the Agent tab posts {type:'drafts-updated'} when an agent
   // run finishes. Refresh the draft list + pipeline strip, then let the mount
   // delta decide whether to toast (only when pending actually increased).
+  const postChannelRef = useRef<BroadcastChannel | null>(null);
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel("growth-admin");
+    postChannelRef.current = ch;
     ch.onmessage = (ev) => {
       if (ev?.data?.type === "drafts-updated") {
         void loadDrafts();
         setStripKey((k) => k + 1);
       }
     };
-    return () => ch.close();
+    return () => { ch.close(); postChannelRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** Bump the pipeline strip's refreshKey (refetch today's pipeline in THIS tab)
+   *  AND ping other admin tabs (Cockpit/Agent) to do the same. Call after any
+   *  action that changes draft state — approve/reject, publish, promote, generate
+   *  cover — so the strip's status chips update live without a manual reload.
+   *  Previously only redesignCover bumped stripKey and no action posted cross-tab,
+   *  so approving/publishing on Issues left the strip stale (and other tabs blind). */
+  function notifyDraftsUpdated() {
+    setStripKey((k) => k + 1);
+    try {
+      const ch = postChannelRef.current ?? (typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("growth-admin") : null);
+      ch?.postMessage({ type: "drafts-updated" });
+    } catch { /* ignore — cross-tab refresh is best-effort */ }
+  }
 
   /** Open the LinkedIn share URL from a fresh user gesture (button click), so the
    *  popup is never blocked. Falls back to a same-tab navigation if blocked. */
@@ -378,7 +394,9 @@ const Issues: React.FC = () => {
   /** Load the syndication ledger (all cross-post history) so each Published
    *  articles row can show its own history inline. Never throws. */
   async function loadSyndHistory() {
-    const { data, error } = await fetchJson<{ history?: SyndHistoryRow[] }>("/api/growth/syndicate");
+    // historyOnly=1 → the server skips the 60-draft eligible payload this page
+    // never reads, saving a serial RTT + a heavy DB read on every Issues load.
+    const { data, error } = await fetchJson<{ history?: SyndHistoryRow[] }>("/api/growth/syndicate?historyOnly=1");
     if (!error && Array.isArray(data?.history)) setSyndHistory(data!.history!);
   }
 
@@ -560,7 +578,7 @@ const Issues: React.FC = () => {
           : `Drafted LinkedIn caption for ${page.url}.`,
     );
     setPromotingUrl(null);
-    if (!error) await loadDrafts();
+    if (!error) { await loadDrafts(); notifyDraftsUpdated(); }
   }
 
   /** On-demand cover generation for a published article — the founder's "load a
@@ -585,6 +603,7 @@ const Issues: React.FC = () => {
     }
     setDraftMsg(data.draftId ? "Cover generated — a fresh pending draft is in the review queue. Approve it, then Publish cover." : `No new draft: ${data.note || "nothing generated"}`);
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   /** Redesign the cover of any PUBLISHED article (the "Published articles" section).
@@ -609,7 +628,7 @@ const Issues: React.FC = () => {
     }
     setDraftMsg(data.draftId ? "Cover redesigned — a fresh pending draft is in the review queue. Approve it, then Publish cover." : `No new draft: ${data.note || "nothing generated"}`);
     await loadDrafts();
-    setStripKey((k) => k + 1);
+    notifyDraftsUpdated();
   }
 
   async function decideDraft(draftId: string, decision: "approved" | "rejected") {
@@ -618,7 +637,7 @@ const Issues: React.FC = () => {
       body: JSON.stringify({ draftId, decision }),
     });
     if (error) setDraftMsg(`Decision failed: ${error}`);
-    else await loadDrafts();
+    else { await loadDrafts(); notifyDraftsUpdated(); }
   }
 
   // Stage 2 filter bar: apply kind + status + title search over the raw drafts.
@@ -753,6 +772,7 @@ const Issues: React.FC = () => {
     setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg("Ready — the full post is written below and copied to your clipboard. Click “Open LinkedIn ↗”, paste into the composer (the link card is already there), review, and Post.");
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   async function regenerateCover(d: DraftRow) {
@@ -771,6 +791,7 @@ const Issues: React.FC = () => {
     }
     setDraftMsg(data.draftId ? "Cover regenerated — a fresh pending draft is in the review queue." : `No new draft: ${data.note || "nothing to regenerate"}`);
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   async function publishCover(d: DraftRow) {
@@ -810,6 +831,7 @@ const Issues: React.FC = () => {
     setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   async function publishArticle(d: DraftRow) {
@@ -858,6 +880,7 @@ const Issues: React.FC = () => {
     setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   async function publishVideoScript(d: DraftRow) {
@@ -882,6 +905,7 @@ const Issues: React.FC = () => {
     setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
     await loadDrafts();
+    notifyDraftsUpdated();
   }
 
   return (
