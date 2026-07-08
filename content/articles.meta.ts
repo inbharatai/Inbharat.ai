@@ -645,6 +645,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-07-07',
     readMinutes: 7,
+    visual: 'context-engineering-managing-what-the-model-actually-sees.png',
     abstract: 'Context engineering is the deliberate practice of designing and optimizing all information an AI model, especially LLMs, "sees" at inference time to achieve accurate and reliable outputs. It goes beyond simple prompt crafting by managing the full context window, crucial for building robust AI applications in India.',
     faq: [
       { q: 'What is the difference between prompt engineering and context engineering?', a: 'Prompt engineering focuses on crafting effective instructions for an LLM. Context engineering is a broader discipline that encompasses prompt engineering but also includes the strategic selection, ordering, and truncation of all other information (documents, conversation history, user data) provided to the model at inference time.' },
