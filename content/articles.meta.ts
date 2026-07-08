@@ -638,6 +638,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AIStrategy', 'CostOptimization', 'GeminiAPI', 'IndianAI', 'LLMOps'],
   },
+  {
+    slug: 'context-engineering-managing-what-the-model-actually-sees',
+    title: 'Context Engineering: Beyond Prompts for Real-World AI in India',
+    description: 'Learn context engineering for LLMs: selecting, ordering, and truncating context windows for practical AI apps in India. Go beyond prompt engineering.',
+    category: 'AI Foundations',
+    datePublished: '2026-07-07',
+    readMinutes: 7,
+    abstract: 'Context engineering is the deliberate practice of designing and optimizing all information an AI model, especially LLMs, "sees" at inference time to achieve accurate and reliable outputs. It goes beyond simple prompt crafting by managing the full context window, crucial for building robust AI applications in India.',
+    faq: [
+      { q: 'What is the difference between prompt engineering and context engineering?', a: 'Prompt engineering focuses on crafting effective instructions for an LLM. Context engineering is a broader discipline that encompasses prompt engineering but also includes the strategic selection, ordering, and truncation of all other information (documents, conversation history, user data) provided to the model at inference time.' },
+      { q: 'Why is context engineering particularly important for AI development in India?', a: 'In India, context engineering is crucial due to factors like multilingualism, data scarcity in specific domains, the need for cost-efficient solutions (minimizing token usage), and optimizing for network latency on diverse internet infrastructures. It helps ensure AI applications are accurate, affordable, and performant across various local conditions.' },
+      { q: 'What are some common techniques for context truncation?', a: 'Common techniques for context truncation include summarization of older information, using a sliding window to keep only the most recent or relevant parts of a long text, and prioritizing critical information to ensure it is always included even if other parts are cut.' },
+    ],
+    hashtags: ['ContextEngineering', 'LLMOps', 'AIEngineering', 'BharatAI', 'InBharat'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
