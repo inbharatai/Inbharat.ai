@@ -60,11 +60,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // pickNextCalendarTopic skips it every morning anyway — so it is removed.
   // Replenished 2026-07-08 with a distinct, non-colliding topic so the calendar
   // keeps ≥17 live entries and the morning cadence never stalls into free-plan.
-  {
-    topic: "Multilingual LLM apps — beyond English-only prompts",
-    category: "AI Foundations",
-    angle: "Indic-language handling, script mixing, prompt + response translation, and when to fine-tune vs translate vs prompt in the user's language.",
-  },
+  // NOTE: "Multilingual LLM apps — beyond English-only prompts" was auto-retired by publishArticle because it
+  // shipped as the article of slug multilingual-llm-apps-beyond-english-only-prompts ("Building Multilingual LLM Apps for Bharat: Beyond English-Only Prompts"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   {
     topic: "Vector databases — choosing one for an Indian team",
     category: "AI Foundations",
