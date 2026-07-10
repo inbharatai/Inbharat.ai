@@ -654,6 +654,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['ContextEngineering', 'LLMOps', 'AIEngineering', 'BharatAI', 'InBharat'],
   },
+  {
+    slug: 'multilingual-llm-apps-beyond-english-only-prompts',
+    title: 'Building Multilingual LLM Apps for Bharat: Beyond English-Only Prompts',
+    description: 'Learn how to build multilingual LLM applications for India\'s diverse linguistic landscape. Practical strategies for Indic languages, script mixing, and cost-eff',
+    category: 'AI Tools',
+    datePublished: '2026-07-09',
+    readMinutes: 8,
+    abstract: 'Building LLM applications for India means moving beyond English. We tackle the challenges of Indic languages, script mixing, and cost, outlining practical strategies for handling multilingual prompts and responses effectively, whether through translation, in-language prompting, or fine-tuning, to serve Bharat\'s diverse user base.',
+    faq: [
+      { q: 'Is it always necessary to detect the user\'s language before prompting a multilingual LLM?', a: 'While many multilingual LLMs can automatically infer the language, explicit language detection can improve reliability. It allows you to tailor system prompts (e.g., "Respond in Hindi") or even route to different models if you have specialized ones, ensuring a more consistent user experience.' },
+      { q: 'How do I handle languages with very little digital data for fine-tuning?', a: 'This is a significant challenge. For low-resource languages, start with a robust multilingual LLM (Strategy 2). If fine-tuning is absolutely necessary, consider techniques like zero-shot or few-shot learning, cross-lingual transfer (training on a high-resource language and adapting), or leveraging synthetic data generation, though the quality of synthetic data needs careful validation.' },
+      { q: 'What are the main cost drivers when building multilingual LLM apps for India?', a: 'The primary cost drivers are LLM inference tokens (for both prompts and responses), translation API calls (if using Strategy 1), and compute resources for fine-tuning or running larger models. Data acquisition and annotation for specific languages can also be a significant hidden cost.' },
+    ],
+    hashtags: ['MultilingualAI', 'IndicLanguages', 'LLMApps', 'AIforBharat', 'InBharatAI'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
