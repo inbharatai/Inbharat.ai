@@ -661,6 +661,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-09',
     readMinutes: 8,
+    visual: 'multilingual-llm-apps-beyond-english-only-prompts.png',
     abstract: 'Building LLM applications for India means moving beyond English. We tackle the challenges of Indic languages, script mixing, and cost, outlining practical strategies for handling multilingual prompts and responses effectively, whether through translation, in-language prompting, or fine-tuning, to serve Bharat\'s diverse user base.',
     faq: [
       { q: 'Is it always necessary to detect the user\'s language before prompting a multilingual LLM?', a: 'While many multilingual LLMs can automatically infer the language, explicit language detection can improve reliability. It allows you to tailor system prompts (e.g., "Respond in Hindi") or even route to different models if you have specialized ones, ensuring a more consistent user experience.' },

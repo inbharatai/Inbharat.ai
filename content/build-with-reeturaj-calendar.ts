@@ -66,6 +66,16 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // would trip, and pickNextCalendarTopic skips it every morning anyway — so
   // it is removed. (Replenish this slot with a distinct, non-colliding topic
   // to keep the calendar ≥17 live entries.)
+  // Replenished 2026-07-13 for the retired "Multilingual LLM apps" slot above:
+  // a distinct, non-colliding topic so the calendar stays ≥17 live entries and
+  // the morning cadence never stalls into free-plan. On-brand — InBharat is
+  // voice-first by design, and no published article or calendar entry covers
+  // voice UX yet.
+  {
+    topic: "Voice-first AI — designing for ears before screens",
+    category: "AI Tools",
+    angle: "Why voice beats chat on low-end phones and patchy 4G; wake words, hands-free flows, and graceful fallback to text when STT is uncertain.",
+  },
   {
     topic: "Vector databases — choosing one for an Indian team",
     category: "AI Foundations",
