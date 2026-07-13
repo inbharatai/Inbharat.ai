@@ -260,6 +260,17 @@ async function shipCoverToGitHub(
     // won't reference it until the meta edit lands. Surface it (re-run is safe; PNG is idempotent).
     return { ok: false, code: "SERVER_ERROR", error: `cover PNG committed (sha ${pngRes.commitSha?.slice(0, 7) ?? "?"}) but articles.meta.ts edit failed: ${metaRes.error}. Re-run publish to wire the visual.`, pngCommitSha: pngRes.commitSha };
   }
+  if (metaRes.skipped && metaRes.raw && !articleMetaEntryExists(metaRes.raw, slug)) {
+    // The visual edit was a no-op because the article's meta entry isn't in the
+    // repo yet — the cover was published BEFORE the article. The PNG is committed
+    // but nothing references it, so the cover won't render until the article lands.
+    // This is the silent-failure race that left the multilingual article coverless:
+    // shipCoverToGitHub used to return ok:true with an unwired visual. Surface it
+    // honestly (re-run is safe — PNG commit is idempotent; publishing the article
+    // also has a backstop that wires this visual, so either order recovers).
+    await logInfo("publish-cover-meta-missing", metaPath, `slug ${slug} not in articles.meta.ts yet — cover PNG committed but visual not wired`).catch(() => undefined);
+    return { ok: false, code: "CONFLICT", error: `cover PNG committed (sha ${pngRes.commitSha?.slice(0, 7) ?? "?"}) but the article meta for "${slug}" is not in articles.meta.ts yet — publish the article first (its backstop will wire this cover's visual), or re-run cover publish once the article is live. The cover won't render until the visual is wired.`, pngCommitSha: pngRes.commitSha };
+  }
 
   // 3) Mark the draft published + audit.
   const { error: upErr } = await supabaseAdmin!.from("growth_drafts").update({ status: "published" }).eq("id", draftId);
@@ -342,6 +353,37 @@ async function shipCompanionCover(slug: string): Promise<{ draftId: string; resu
 }
 
 /**
+ * Best-effort lookup: has a cover PNG for this slug already been SHIPPED to the repo
+ * (a kind='cover' draft in status='published' with filename `<slug>.png`)? This is
+ * the cover-published-BEFORE-the-article race: the cover's `set visual` step no-op'd
+ * because the article meta wasn't in the repo yet, so the PNG is committed but no
+ * `visual:` field references it. publishArticle's backstop calls this to wire that
+ * dangling visual once the article meta lands — making the article+cover push order
+ * independent (the cover never silently fails to deploy when pushed together).
+ * Returns the cover filename to wire, or null.
+ */
+async function findShippedCoverForSlug(slug: string): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,schema_json")
+      .eq("kind", "cover")
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error || !Array.isArray(data)) return null;
+    const want = `${slug}.png`;
+    const row = (data as Array<{ id: string; schema_json: CoverSchema | null }>)
+      .find((r) => typeof r.schema_json?.filename === "string" && r.schema_json.filename === want);
+    const fn = row?.schema_json?.filename;
+    return typeof fn === "string" ? fn : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Best-effort lookup: does a PENDING (not yet approved) companion cover draft exist
  * for this slug? Used to surface "a cover is waiting for your approval" in the
  * article-publish response so the founder knows to approve + Publish cover —
@@ -401,6 +443,24 @@ export function insertVisualField(source: string, slug: string, filename: string
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Pure probe: does an article entry with `slug: '<slug>'` exist in the meta file
+ * source? Used by shipCoverToGitHub to tell the two null-return cases of
+ * insertVisualField apart:
+ *   - slug NOT present → the article hasn't been published yet (the cover was
+ *     shipped before the article meta landed). This is the silent-failure race:
+ *     the cover PNG is in the repo but nothing references it. Must surface an
+ *     error so the founder knows to publish the article (whose backstop will then
+ *     wire the visual) or re-run the cover once the article is live.
+ *   - slug IS present but insertVisualField returned null → a `visual:` field is
+ *     already set on the entry (idempotent no-op). Benign — the cover is wired.
+ *
+ * Pure + hermetically testable (mirrors insertVisualField's slug-line match).
+ */
+export function articleMetaEntryExists(source: string, slug: string): boolean {
+  return new RegExp(`slug:\\s*['"]${escapeRe(slug)}['"]`).test(source);
 }
 
 // ─── Phase E: article + video-script publish ─────────────────────────────────
@@ -689,11 +749,45 @@ async function publishArticle(
     }
   }
 
+  // 6) Cover-wire BACKSTOP — makes the article + cover push order-independent.
+  //    The companion step (4) only ships an APPROVED cover, so it MISSES a cover
+  //    that was already PUBLISHED before this article (the cover's own `set visual`
+  //    step no-op'd because this article's meta wasn't in the repo yet — the silent
+  //    race that left the multilingual article coverless: PNG committed, never
+  //    referenced). The article meta was just inserted in step 2, so insertVisualField
+  //    will now find the slug and wire the visual onto it. Idempotent (no-op if the
+  //    companion step already set it) and best-effort — never fails the article
+  //    publish (the article is already live); surfaced in `coverBackstop`.
+  let coverBackstop: { ok: boolean; wired?: boolean; commitSha?: string; skipped?: boolean; error?: string } | null = null;
+  if (!companion) {
+    const shippedFilename = await findShippedCoverForSlug(meta.slug);
+    if (shippedFilename) {
+      const br = await upsertText(
+        metaPath,
+        (current) => insertVisualField(current, meta.slug, shippedFilename),
+        `cover: set visual for ${meta.slug} (Growth Agent, human-gated)`,
+      );
+      if (!br.ok && !br.skipped) {
+        await logInfo("publish-article-cover-backstop-fail", meta.slug, br.error || "edit failed").catch(() => undefined);
+        coverBackstop = { ok: false, error: br.error };
+      } else {
+        coverBackstop = { ok: true, wired: !br.skipped, commitSha: br.commitSha, skipped: br.skipped };
+      }
+    }
+  }
+
   const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${meta.slug}`;
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
     cover, coverDrafted, pendingCoverId,
+    // Outcome of the cover-wire backstop (step 6). null = no already-shipped cover
+    // found for this slug (companion step handled it, or the article is coverless).
+    // ok:true + wired:true = a cover published before the article got its visual
+    // wired now (the race recovered). ok:true + skipped:true = visual was already
+    // set (idempotent). ok:false = the meta edit failed (article still live); re-run
+    // publish or the cover stays unreferenced until the founder re-publishes it.
+    coverBackstop,
     // Outcome of the auto calendar-retire (step 2b). ok:true + skipped:true = no
     // calendar topic matched this slug (free-plan article) → nothing retired.
     // ok:true + skipped:false = a topic was retired + committed. ok:false = the

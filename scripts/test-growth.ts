@@ -927,7 +927,7 @@ console.log("\nDiscovery (diffSitePages pure fixtures):");
 
 // ─── Phase E: article writer + publish helpers (pure, no DB/network) ───
 const { slugifyTitle, estimateReadMinutes } = await import("../lib/growth/articleWriter.js");
-const { formatArticleEntry, insertArticleMeta, insertVisualField, retireCalendarTopic } = await import("../api/growth/publish.js");
+const { formatArticleEntry, insertArticleMeta, insertVisualField, retireCalendarTopic, articleMetaEntryExists } = await import("../api/growth/publish.js");
 console.log("\nPhase E (article writer + publish helpers, pure):");
 {
   // slugifyTitle: lowercase, kebab, strip apostrophes, trim, fallback.
@@ -1020,6 +1020,16 @@ export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.s
   check("insertVisualField idempotent → null on second run", vis2 === null);
   // Unknown slug → null (don't touch the file).
   check("insertVisualField unknown slug → null", insertVisualField(VIS_SRC, "no-such-slug", "x.png") === null);
+
+  // articleMetaEntryExists: the probe shipCoverToGitHub uses to tell the two
+  // null-return cases of insertVisualField apart. The cover-published-before-
+  // article race (multilingual article coverless bug) used to silently no-op;
+  // this probe lets the publisher surface "article meta not in repo yet".
+  check("articleMetaEntryExists true for a present slug", articleMetaEntryExists(VIS_SRC, "harness-engineering") === true);
+  check("articleMetaEntryExists false for an absent slug", articleMetaEntryExists(VIS_SRC, "no-such-slug") === false);
+  check("articleMetaEntryExists false on empty source", articleMetaEntryExists("", "harness-engineering") === false);
+  // After insertVisualField wired the visual, the entry still exists (probe stable).
+  check("articleMetaEntryExists still true after visual wired", articleMetaEntryExists(vis1 ?? VIS_SRC, "harness-engineering") === true);
 
   // retireCalendarTopic: replaces the calendar entry whose topic slugifies to the
   // published slug with a NOTE comment. Idempotent (a second run on the retired

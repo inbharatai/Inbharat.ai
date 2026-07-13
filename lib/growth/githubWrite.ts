@@ -146,6 +146,10 @@ export async function commitBinary(path: string, base64: string, message: string
  */
 export interface UpsertTextResult extends GithubWriteResult {
   skipped?: boolean;
+  /** The file content as fetched from the repo before the edit. Present on the ok
+   *  paths (skipped + committed) so callers can probe WHY an edit skipped without a
+   *  second GET — e.g. to tell "slug not found in meta yet" from "already set". */
+  raw?: string;
 }
 
 export async function upsertText(
@@ -173,8 +177,8 @@ export async function upsertText(
       ? Buffer.from(meta.content, "base64").toString("utf-8")
       : "";
     const next = edit(raw);
-    if (next === null) return { ok: true, skipped: true, path };
-    if (next === raw) return { ok: true, skipped: true, path };
+    if (next === null) return { ok: true, skipped: true, path, raw };
+    if (next === raw) return { ok: true, skipped: true, path, raw };
     const res = await fetch(`https://api.github.com/repos/${COVER_REPO}/contents/${encodeURIComponent(path)}`, {
       method: "PUT",
       headers: authHeaders("application/vnd.github+json"),
@@ -190,7 +194,7 @@ export async function upsertText(
     }
     const data = (await res.json()) as { commit?: { sha?: string } };
     void logInfo("github-write-text", COVER_REPO, `committed ${path} (${message})`).catch(() => undefined);
-    return { ok: true, commitSha: data.commit?.sha, path };
+    return { ok: true, commitSha: data.commit?.sha, path, raw };
   } catch (e) {
     return { ok: false, error: `upsertText ${path} failed: ${(e as Error).message}`, path };
   }
