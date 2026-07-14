@@ -670,6 +670,17 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['MultilingualAI', 'IndicLanguages', 'LLMApps', 'AIforBharat', 'InBharatAI'],
   },
+  {
+    slug: 'building-unoone-an-offline-ai-agent-for-bharats-realities',
+    title: 'Building UnoOne: An Offline AI Agent for Bharat\'s Realities',
+    description: 'I\'m building UnoOne, an offline-first Android AI agent with \'Blind Vision\' for India. It uses local AI, offline voice, and secure phone control, designed for pr',
+    category: 'AI Tools',
+    datePublished: '2026-07-14',
+    readMinutes: 6,
+    abstract: 'I\'m building UnoOne, an offline-first Android AI agent for Bharat. It combines local AI planning with Google Gemma 4 E2B, offline voice, and \'Blind Vision\' for visually impaired users. Designed for India\'s unique network and language realities, UnoOne prioritizes on-device privacy and secure smartphone control, moving AI beyond cloud dependence.',
+    faq: [],
+    hashtags: [],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
