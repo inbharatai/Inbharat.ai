@@ -677,6 +677,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-14',
     readMinutes: 6,
+    visual: 'building-unoone-an-offline-ai-agent-for-bharats-realities.png',
     abstract: 'I\'m building UnoOne, an offline-first Android AI agent for Bharat. It combines local AI planning with Google Gemma 4 E2B, offline voice, and \'Blind Vision\' for visually impaired users. Designed for India\'s unique network and language realities, UnoOne prioritizes on-device privacy and secure smartphone control, moving AI beyond cloud dependence.',
     faq: [],
     hashtags: [],
