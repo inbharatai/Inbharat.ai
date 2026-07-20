@@ -71,11 +71,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // the morning cadence never stalls into free-plan. On-brand — InBharat is
   // voice-first by design, and no published article or calendar entry covers
   // voice UX yet.
-  {
-    topic: "Voice-first AI — designing for ears before screens",
-    category: "AI Tools",
-    angle: "Why voice beats chat on low-end phones and patchy 4G; wake words, hands-free flows, and graceful fallback to text when STT is uncertain.",
-  },
+  // NOTE: "Voice-first AI — designing for ears before screens" was auto-retired by publishArticle because it
+  // shipped as the article of slug voice-first-ai-designing-for-ears-before-screens ("Voice-First AI: Why We Design for Ears Before Screens in Bharat"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   {
     topic: "Vector databases — choosing one for an Indian team",
     category: "AI Foundations",
