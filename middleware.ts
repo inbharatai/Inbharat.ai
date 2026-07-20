@@ -1,17 +1,21 @@
 /**
  * Vercel Edge Middleware.
  *
- * 1. Static-asset guard: the matcher runs ONLY for SPA routes. All static
- *    assets are excluded so middleware never runs for /favicon.ico, /robots.txt,
- *    /sitemap.xml, /assets/*, or any path ending in a static extension.
- *    Behavior is identical on Production and Preview.
- * 2. Unknown-article 404: for /learn-ai-with-reeturaj/:slug, if the slug is not
+ * 1. Unknown-article 404: for /learn-ai-with-reeturaj/:slug, if the slug is not
  *    a published article, return a TRUE HTTP 404 instead of letting the
  *    catch-all rewrite (vercel.json:/(.*)→/index.html) serve the SPA with 200
  *    (a soft-404 Googlebot would index as a blank 200 page). The known-slug set
  *    is imported from the article manifest at build time (no runtime DB/FS
  *    read at the edge). Known slugs, "/", and "/app" pass through unchanged so
  *    Vercel serves their prebuilt static shells.
+ *
+ *    IMPORTANT: the matcher `/learn-ai-with-reeturaj/:slug` ALSO matches static
+ *    assets served under that prefix — the article cover images live at
+ *    /learn-ai-with-reeturaj/<slug>.png (see ARTICLE_ASSET_DIR in
+ *    content/articles.meta.ts). `:slug` captures `rag.png`, which is NOT in the
+ *    article set, so the 404 branch must NOT fire for any slug that looks like a
+ *    file (has a dot). Article slugs are kebab-case with no dots, so a dot is a
+ *    reliable asset signal — pass those through to Vercel's static handler.
  */
 import { ARTICLES } from "./content/articles.meta.js";
 
@@ -54,7 +58,10 @@ export default async function middleware(request: Request): Promise<Response> {
   // multi-segment paths, and the hub (no slug) is never matched.
   if (pathname.startsWith(ARTICLE_PREFIX)) {
     const slug = pathname.slice(ARTICLE_PREFIX.length).split("/")[0];
-    if (slug && !KNOWN_ARTICLE_SLUGS.has(slug)) {
+    // Static asset under the article prefix (e.g. <slug>.png cover image)?
+    // Pass through — the 404 branch must never fire for assets (it would blank
+    // every article cover image). Article slugs have no dot, so a dot = asset.
+    if (slug && !slug.includes(".") && !KNOWN_ARTICLE_SLUGS.has(slug)) {
       return new Response(NOT_FOUND_HTML, {
         status: 404,
         headers: {
@@ -66,7 +73,8 @@ export default async function middleware(request: Request): Promise<Response> {
     }
   }
 
-  // Known slug, "/", "/app" → pass through. fetch(request) re-enters Vercel
-  // routing, which serves the prebuilt static shell before the SPA rewrite.
+  // Known slug, static asset, "/", "/app" → pass through. fetch(request)
+  // re-enters Vercel routing, which serves the prebuilt static shell / asset
+  // before the SPA rewrite.
   return fetch(request);
 }
