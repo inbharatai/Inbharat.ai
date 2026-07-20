@@ -1608,6 +1608,46 @@ console.log("\nSitemap hygiene (canonical www only — no query/lang/search/redi
   check("sitemap includes article canonical URLs", articleLocs.length > 0, `got ${articleLocs.length}`);
 }
 
+console.log("\nSitemap lastmod (truthful per-route modification date):");
+{
+  const { ROUTES } = await import("../seo.config.ts");
+  const { ARTICLES } = await import("../content/articles.meta.ts");
+  const { computeRouteLastmod, ROUTE_LASTMOD_SOURCE } = await import("../lib/growth/sitemap-lastmod.ts");
+  const today = "2026-07-20";
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  // Article route → manifest datePublished (not the build date).
+  const sampleArticleRoute = (ROUTES as Array<{ path: string; articleSlug?: string }>).find((r) => r.articleSlug);
+  const sampleArticleMeta = sampleArticleRoute ? ARTICLES.find((a) => a.slug === sampleArticleRoute.articleSlug) : undefined;
+  check(
+    "article route lastmod = datePublished (not build date)",
+    !!sampleArticleMeta && computeRouteLastmod(sampleArticleRoute!, sampleArticleMeta.datePublished, () => null, today) === sampleArticleMeta.datePublished,
+    `route=${sampleArticleRoute?.path} date=${sampleArticleMeta?.datePublished}`,
+  );
+  // Non-article route with git dates → the MAX git date across its sources.
+  const homeRoute = (ROUTES as Array<{ path: string }>).find((r) => r.path === "/")!;
+  const homeMax = computeRouteLastmod(homeRoute, null, (f) => (f === "pages/Landing.tsx" ? "2026-06-01" : f === "seo.config.ts" ? "2026-07-15" : null), today);
+  check("non-article route lastmod = max git date of sources", homeMax === "2026-07-15", `got ${homeMax}`);
+  // No git dates → caller fallback (today), preserving old behavior.
+  const noGit = computeRouteLastmod(homeRoute, null, () => null, today);
+  check("non-article route with no git → fallback today", noGit === today, `got ${noGit}`);
+  // Malformed git dates are ignored (only YYYY-MM-DD accepted).
+  const malformed = computeRouteLastmod(homeRoute, null, () => "not-a-date", today);
+  check("malformed git date ignored → fallback", malformed === today, `got ${malformed}`);
+  // Coverage: every indexable non-article route must have a lastmod source so
+  // no route silently falls back to the build date. Catches a new route added
+  // to ROUTES without a ROUTE_LASTMOD_SOURCE entry.
+  const indexableNonArticle = (ROUTES as Array<{ path: string; noIndex?: boolean; excludeFromSitemap?: boolean; articleSlug?: string }>)
+    .filter((r) => !r.noIndex && !r.excludeFromSitemap && !r.articleSlug);
+  const missingSources = indexableNonArticle.filter((r) => !ROUTE_LASTMOD_SOURCE[r.path]);
+  check("every indexable non-article route has a lastmod source", missingSources.length === 0, `missing: ${missingSources.map((r) => r.path).join(",")}`);
+  // ROUTE_LASTMOD_SOURCE has no stale entries for routes removed from ROUTES.
+  const routePaths = new Set((ROUTES as Array<{ path: string }>).map((r) => r.path));
+  const staleSources = Object.keys(ROUTE_LASTMOD_SOURCE).filter((p) => !routePaths.has(p));
+  check("ROUTE_LASTMOD_SOURCE has no stale route entries", staleSources.length === 0, `stale: ${staleSources.join(",")}`);
+  // Sanity: datePublished on every article is a valid YYYY-MM-DD (it feeds lastmod + schema).
+  check("every article datePublished is YYYY-MM-DD", ARTICLES.every((a) => dateRe.test(a.datePublished)), ARTICLES.filter((a) => !dateRe.test(a.datePublished)).map((a) => a.slug).join(","));
+}
+
 console.log("\nKnowledge base (FTS + token-match, cross-source dedupe):");
 {
   // 1) formatKnowledgeBlock — empty input → "" (prompt unchanged when KB empty).

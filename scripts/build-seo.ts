@@ -29,6 +29,8 @@ import { toHtml } from 'hast-util-to-html';
 import { ROUTES, SITE, GLOBAL_SCHEMA, SUPPORTED_LANGS } from '../seo.config';
 import type { SeoRoute } from '../seo.config';
 import { ARTICLES, articlePath, articleVisualPath } from '../content/articles.meta';
+import { computeRouteLastmod } from '../lib/growth/sitemap-lastmod';
+import { execSync } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -47,6 +49,26 @@ function escapeAttr(s: string): string {
 
 function escapeText(s: string): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Last git commit date (`YYYY-MM-DD`) touching `file`, or null if git is
+ * unavailable / the file is untracked. Injected into `computeRouteLastmod` so
+ * the sitemap <lastmod> reflects real content-modification dates instead of
+ * the build date. Stderr is suppressed so a missing git binary or untracked
+ * file degrades gracefully to the caller's fallback.
+ */
+function gitLastmod(file: string): string | null {
+  try {
+    const out = execSync(`git log -1 --format=%cI -- ${file}`, {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    return out ? out.slice(0, 10) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -407,7 +429,15 @@ function buildSitemap(
     .filter((r) => !r.noIndex && !r.excludeFromSitemap)
     .map((r) => {
       const loc = site.url + (r.path === '/' ? '/' : r.path);
-      const lastmod = r.articleSlug ? articleLastmod.get(r.articleSlug) ?? today : today;
+      // Truthful lastmod: articles → manifest datePublished; non-article routes →
+      // last git commit touching the route's backing source files (see
+      // lib/growth/sitemap-lastmod.ts ROUTE_LASTMOD_SOURCE); fallback today.
+      const lastmod = computeRouteLastmod(
+        r,
+        r.articleSlug ? articleLastmod.get(r.articleSlug) ?? null : null,
+        gitLastmod,
+        today,
+      );
       const alts = r.multilingual
         ? supportedLangs
             .map((lang) => {
