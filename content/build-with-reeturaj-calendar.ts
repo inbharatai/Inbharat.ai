@@ -77,6 +77,18 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // would trip, and pickNextCalendarTopic skips it every morning anyway — so
   // it is removed. (Replenish this slot with a distinct, non-colliding topic
   // to keep the calendar ≥17 live entries.)
+  // Replenished 2026-07-20 for the retired "Voice-first AI" slot above: a
+  // distinct, non-colliding topic so the calendar stays ≥17 live entries and
+  // the morning cadence never stalls into free-plan. Foundational and on-brand
+  // — no published article or calendar entry covers embeddings directly yet
+  // (the RAG article uses them but never explains them), and the angle steers
+  // the writer past the common over-engineering trap of reaching for vectors
+  // before keyword/FTS search is exhausted.
+  {
+    topic: "Embeddings — what they actually do and when you don't need them",
+    category: "AI Foundations",
+    angle: "Turning text into vectors in plain terms; cosine similarity; and why pgvector/FTS often beats a dedicated vector store for an Indian team's first AI feature.",
+  },
   {
     topic: "Vector databases — choosing one for an Indian team",
     category: "AI Foundations",
