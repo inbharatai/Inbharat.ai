@@ -16,6 +16,7 @@
     "lint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "test:growth": "tsx scripts/test-growth.ts",
     "test:e2e": "playwright test",
+    "audit:seo": "tsx scripts/audit-seo.ts",
     "arcade": "cd agent-arcade && node scripts/dev-arcade-auto.mjs \"%CD%\"",
     "arcade:gateway": "cd agent-arcade && npm run dev:gateway",
     "arcade:web": "cd agent-arcade && npm run dev:web",

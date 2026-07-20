@@ -597,6 +597,7 @@ export const ROUTES: SeoRoute[] = [
         'InBharat AI is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
         'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The studio favours open-source, self-hostable components so teams keep control of their data.',
         'InBharat AI is an independent studio founded by Reeturaj Goswami, on a mission to make practical AI affordable and accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of tools designed around how Bharat actually works.',
+        'Every InBharat tool is built India-first: designed for low-bandwidth networks, low-end Android phones, and the languages people actually speak — then open-sourced or self-hosted so teams keep full control of their data, their costs, and their models.',
         `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or custom AI tooling for Indian businesses.`,
       ],
     },

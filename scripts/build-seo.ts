@@ -238,7 +238,12 @@ async function renderArticleBody(slug: string): Promise<string> {
   }
   const mdast = markdownProcessor.parse(stripLeadingBlockquote(md));
   const hast = await markdownProcessor.run(mdast);
-  const rendered = toHtml(hast);
+  let rendered = toHtml(hast);
+  // The article's canonical H1 is the seoBody <h1> (the article title). A
+  // markdown body that starts with `# Title` would render a SECOND <h1> —
+  // demote every <h1> in the body to <h2> so each article page has exactly
+  // one H1 (correct heading hierarchy + avoids the multiple-H1 SEO flag).
+  rendered = rendered.replace(/<h1/g, '<h2').replace(/<\/h1>/g, '</h2>');
   // Indent each line by 4 spaces so it nests cleanly inside the <section>.
   return rendered
     .split('\n')
@@ -248,8 +253,12 @@ async function renderArticleBody(slug: string): Promise<string> {
 
 function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
   if (!route.seoBody) return '';
+  // The hub route's visible H1 comes from buildHubCardGrid (injected into #root
+  // as real, non-aria-hidden HTML). Emitting a seoBody <h1> too would give the
+  // page two H1s — skip it for the hub; the crawlable summary paragraphs remain.
+  const skipH1 = route.path === '/learn-ai-with-reeturaj';
   const parts = [
-    `    <h1>${escapeText(route.seoBody.h1)}</h1>`,
+    ...(skipH1 ? [] : [`    <h1>${escapeText(route.seoBody.h1)}</h1>`]),
     ...route.seoBody.paragraphs.map((p) => `    <p>${escapeText(p)}</p>`),
   ];
   if (bodyHtml) parts.push(bodyHtml);
@@ -368,6 +377,12 @@ async function rewriteShell(
     /<meta\s+name=["']twitter:[^"']+["'][^>]*>\s*/gi,
     /<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi,
     /<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi,
+    // The crawlable seoBody <section aria-hidden> injected in step 4 below. Without
+    // this, build-seo is NOT idempotent: re-running it on an already-built dist
+    // (e.g. `npm run build:seo` without a fresh `vite build` first) would inject a
+    // SECOND seoBody before #root, duplicating the H1. The clip-style prefix
+    // targets exactly the injected block (no other <section> uses this style).
+    /<section\s+aria-hidden="true"\s+style="position:absolute;width:1px;[\s\S]*?<\/section>\s*/gi,
   ];
   for (const pat of stripPatterns) html = html.replace(pat, '');
 

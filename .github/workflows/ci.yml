@@ -37,6 +37,10 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder
+      # Hermetic SEO gates over the built dist/ (no network). Catches regressions
+      # in canonical/H1/schema/sitemap/internal-link health before they ship.
+      - run: npm run audit:seo
+      - run: npx tsx scripts/verify-shell-crawl.ts
 
   test-growth:
     name: Growth unit tests

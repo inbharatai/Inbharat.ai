@@ -21,7 +21,9 @@ export function parsePage(html: string, url: string): PageMeta {
   const title = ($("title").first().text() || "").trim();
   const metaDescription = $('meta[name="description"]').attr("content")?.trim() || undefined;
   const metaRobots = $('meta[name="robots"]').attr("content")?.trim() || undefined;
+  const canonicalCount = $('link[rel="canonical"]').length;
   const canonical = $('link[rel="canonical"]').attr("href")?.trim() || undefined;
+  const h1Count = $("h1").length;
   const h1 = ($("h1").first().text() || "").trim() || undefined;
   const h2Count = $("h2").length;
   const h3Count = $("h3").length;
@@ -102,7 +104,9 @@ export function parsePage(html: string, url: string): PageMeta {
     metaDescription,
     metaRobots,
     canonical,
+    canonicalCount,
     h1,
+    h1Count,
     h2Count,
     h3Count,
     internalLinks,
@@ -124,20 +128,35 @@ export function parsePage(html: string, url: string): PageMeta {
   };
 }
 
-/** Network: fetch a URL and return { html, status, finalUrl }. Follows redirects;
- *  finalUrl is the resolved destination so callers can guard against SSRF via an
- *  authorized-host open redirect. Throws on abort/timeout. */
-export async function fetchPage(url: string, timeoutMs = 12000): Promise<{ html: string; status: number; finalUrl: string }> {
+/** Network: fetch a URL and return { html, status, finalUrl, redirectChain }.
+ *  Follows redirects manually so each hop is recorded (redirect-chain depth is
+ *  an SEO signal: > 1 hop to reach a page is a minor inefficiency Google may
+ *  flag). finalUrl is the resolved destination so callers can guard against
+ *  SSRF via an authorized-host open redirect. Throws on abort/timeout or a
+ *  redirect loop (> 5 hops). */
+export async function fetchPage(
+  url: string,
+  timeoutMs = 12000
+): Promise<{ html: string; status: number; finalUrl: string; redirectChain: { url: string; status: number }[] }> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
+  const chain: { url: string; status: number }[] = [];
+  const headers = { "user-agent": "InBharatGrowthAgent/1.0 (+https://inbharat.ai)" };
+  let currentUrl = url;
   try {
-    const res = await fetch(url, {
-      headers: { "user-agent": "InBharatGrowthAgent/1.0 (+https://inbharat.ai)" },
-      redirect: "follow",
-      signal: controller.signal,
-    });
+    let res = await fetch(currentUrl, { headers, redirect: "manual", signal: controller.signal });
+    let hops = 0;
+    while ([301, 302, 303, 307, 308].includes(res.status) && hops < 5) {
+      const loc = res.headers.get("location");
+      chain.push({ url: currentUrl, status: res.status });
+      if (!loc) break; // redirect with no Location — stop and report this response
+      currentUrl = new URL(loc, currentUrl).toString(); // resolve relative redirects
+      hops++;
+      res = await fetch(currentUrl, { headers, redirect: "manual", signal: controller.signal });
+    }
     const html = await res.text();
-    return { html, status: res.status, finalUrl: res.url || url };
+    chain.push({ url: currentUrl, status: res.status });
+    return { html, status: res.status, finalUrl: currentUrl, redirectChain: chain };
   } finally {
     clearTimeout(t);
   }
@@ -250,7 +269,7 @@ export async function crawlUrl(url: string): Promise<PageMeta> {
     fetchSitemapContains(url),
     fetchPage(url),
   ]);
-  const { html, status, finalUrl } = page;
+  const { html, status, finalUrl, redirectChain } = page;
   // Re-authorize the redirect destination. If it landed on a different
   // registrable domain that isn't authorized, refuse to parse it — the fetch
   // already happened (HTML is in memory) but we never return it to the caller.
@@ -262,6 +281,7 @@ export async function crawlUrl(url: string): Promise<PageMeta> {
   meta.httpStatus = status;
   meta.robotsAllowed = allowed;
   meta.inSitemap = inSitemap;
+  meta.redirectChain = redirectChain;
   return meta;
 }
 

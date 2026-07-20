@@ -63,6 +63,6 @@ A3: The `Sleep Learning Loop` operates entirely on the local device. It reviews 
 
 ## Bottom Line
 
-Building true AGI for India means starting local, embracing constraints, and focusing on practical, on-device intelligence. UnoOne LEAF is our commitment to this vision, creating an evolving, self-improving AI fabric that understands and serves the unique needs of Bharat. Explore more about our practical AI solutions at [InBharat.ai](https://inbharat.ai) or dive into how we're building [AI for Indian Languages](https://inbharat.ai/articles/ai-for-indian-languages) and [optimizing AI for low-resource environments](https://inbharat.ai/articles/optimizing-ai-low-resource).
+Building true AGI for India means starting local, embracing constraints, and focusing on practical, on-device intelligence. UnoOne LEAF is our commitment to this vision, creating an evolving, self-improving AI fabric that understands and serves the unique needs of Bharat. Explore more about our practical AI solutions at [InBharat.ai](https://inbharat.ai) or dive into how we're building AI for Indian Languages and optimizing AI for low-resource environments.
 
 #InBharatAI #LocalAGI #MadeInIndia #AIForBharat

@@ -140,7 +140,11 @@ export interface PageMeta {
   metaDescription?: string;
   metaRobots?: string;
   canonical?: string;
+  /** Number of <link rel="canonical"> tags (a page must have exactly one). */
+  canonicalCount?: number;
   h1?: string;
+  /** Number of <h1> tags (a page should have exactly one). */
+  h1Count?: number;
   h2Count?: number;
   h3Count?: number;
   internalLinks?: number;
@@ -154,6 +158,9 @@ export interface PageMeta {
   robotsAllowed?: boolean;
   httpStatus?: number;
   pageDepth?: number;
+  /** Per-hop redirect chain to reach this page ({ url, status }[]). Length > 1
+   *  means the page was reached via a multi-hop chain (a soft SEO signal). */
+  redirectChain?: { url: string; status: number }[];
   hasCta?: boolean;
   faqPresent?: boolean;
   comparisonPresent?: boolean;

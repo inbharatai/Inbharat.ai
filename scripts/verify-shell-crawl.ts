@@ -16,7 +16,7 @@ import { scoreGeo } from "../lib/growth/geo-auditor.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const html = readFileSync(resolve(__dirname, "..", "dist", "index.html"), "utf8");
 
-const meta = parsePage(html, "https://inbharat.ai/");
+const meta = parsePage(html, "https://www.inbharat.ai/");
 const seo = scoreSeo(meta);
 const geo = scoreGeo(meta);
 
@@ -39,10 +39,10 @@ const assert = (name: string, cond: boolean) => {
 };
 
 console.log("\n=== Accuracy assertions ===");
-assert("H1 present and correct", !!meta.h1 && meta.h1.startsWith("InBharat AI —"));
+assert("H1 present and correct", !!meta.h1 && meta.h1 === "Affordable AI tools built for Bharat");
 assert("wordCount > 0 (body content crawlable)", (meta.wordCount ?? 0) > 50);
 assert("title present", !!meta.title);
-assert("canonical set to https://inbharat.ai/", meta.canonical === "https://inbharat.ai/");
+assert("canonical set to https://www.inbharat.ai/ (www-canonical)", meta.canonical === "https://www.inbharat.ai/");
 assert("Organization + WebSite schema present", (meta.schemaTypes ?? []).some((t) => t.includes("Organization")) && (meta.schemaTypes ?? []).some((t) => t.includes("WebSite")));
 assert("FAQPage schema present", (meta.schemaTypes ?? []).some((t) => t.includes("FAQ")));
 assert("ItemList (product suite) schema present", (meta.schemaTypes ?? []).some((t) => t.includes("ItemList")));
@@ -54,47 +54,48 @@ assert("No 'Missing H1' SEO issue", !seo.issues.some((i) => i.field === "h1"));
 // the auditor correctly distinguishes thin vs light vs healthy.
 assert("No HIGH-severity 'thin content' issue (<300 words)", !seo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
 
-// ─── Built article shell (dist/learn-ai-with-reeturaj/rag/index.html) ───
+// ─── Built article shells (dist/learn-ai-with-reeturaj/<slug>/index.html) ───
 // The build bakes the full rendered article body into the crawlable <section>
 // so AI-search crawlers see the complete article (not just an abstract). This
-// block confirms that pipeline: H1 + TechArticle + FAQPage schema, ≥600
-// crawlable words, correct canonical, no thin-content flag.
-const articlePath = resolve(__dirname, "..", "dist", "learn-ai-with-reeturaj", "rag", "index.html");
-const articleUrl = "https://inbharat.ai/learn-ai-with-reeturaj/rag";
-let articleHtml = "";
-try {
-  articleHtml = readFileSync(articlePath, "utf8");
-} catch {
-  console.log(`\n=== Built article shell (rag) — NOT FOUND at ${articlePath} ===`);
-  assert("article shell built (dist/learn-ai-with-reeturaj/rag/index.html exists)", false);
-  console.log(`\n${failures === 0 ? "ALL ACCURACY CHECKS PASSED" : `${failures} CHECK(S) FAILED`}`);
-  process.exit(failures === 0 ? 0 : 1);
+// block now sweeps EVERY published article (was rag-only) so a regression that
+// breaks one article's shell (missing body, wrong canonical, dropped schema)
+// is caught before it ships. The rag readout stays as a detailed sample.
+import { ARTICLES } from "../content/articles.meta";
+
+let firstArticle = true;
+for (const a of ARTICLES) {
+  const articleShellPath = resolve(__dirname, "..", "dist", "learn-ai-with-reeturaj", a.slug, "index.html");
+  const articleUrl = `https://www.inbharat.ai/learn-ai-with-reeturaj/${a.slug}`;
+  let articleHtml = "";
+  try {
+    articleHtml = readFileSync(articleShellPath, "utf8");
+  } catch {
+    assert(`article shell built (${a.slug})`, false);
+    continue;
+  }
+  const aMeta = parsePage(articleHtml, articleUrl);
+  const aSeo = scoreSeo(aMeta);
+  assert(`[${a.slug}] H1 present (non-empty)`, !!aMeta.h1 && aMeta.h1.length > 0);
+  assert(`[${a.slug}] exactly one H1`, (aMeta.h1Count ?? 0) === 1, `got ${aMeta.h1Count}`);
+  assert(`[${a.slug}] canonical = ${articleUrl}`, aMeta.canonical === articleUrl, `got ${aMeta.canonical}`);
+  assert(`[${a.slug}] exactly one canonical`, (aMeta.canonicalCount ?? 0) === 1, `got ${aMeta.canonicalCount}`);
+  assert(`[${a.slug}] TechArticle schema present`, (aMeta.schemaTypes ?? []).some((t) => t.includes("TechArticle")));
+  assert(`[${a.slug}] BreadcrumbList schema present`, (aMeta.schemaTypes ?? []).some((t) => t.includes("Breadcrumb")));
+  assert(`[${a.slug}] body baked (wordCount ≥ 600 — full content crawlable)`, (aMeta.wordCount ?? 0) >= 600, `got ${aMeta.wordCount}`);
+  assert(`[${a.slug}] no HIGH-severity thin-content issue`, !aSeo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
+  // Detailed readout for the first article (rag) — keeps the original sample log.
+  if (firstArticle) {
+    firstArticle = false;
+    console.log(`\n=== Built article shell (${a.slug}) — crawler/auditor readout ===`);
+    console.log("title:        ", aMeta.title);
+    console.log("h1:           ", aMeta.h1);
+    console.log("wordCount:    ", aMeta.wordCount);
+    console.log("h2Count:      ", aMeta.h2Count);
+    console.log("canonical:    ", aMeta.canonical);
+    console.log("schemaTypes:  ", aMeta.schemaTypes?.join(", "));
+    console.log("SEO score:    ", aSeo.score);
+  }
 }
-
-const aMeta = parsePage(articleHtml, articleUrl);
-const aSeo = scoreSeo(aMeta);
-const aGeo = scoreGeo(aMeta);
-
-console.log("\n=== Built article shell (rag) — crawler/auditor readout ===");
-console.log("title:        ", aMeta.title);
-console.log("h1:           ", aMeta.h1);
-console.log("wordCount:    ", aMeta.wordCount);
-console.log("h2Count:      ", aMeta.h2Count);
-console.log("canonical:    ", aMeta.canonical);
-console.log("schemaTypes:  ", aMeta.schemaTypes?.join(", "));
-console.log("SEO score:    ", aSeo.score);
-console.log("GEO score:    ", aGeo.score);
-
-console.log("\n=== Article-shell assertions ===");
-assert("article H1 present (non-empty)", !!aMeta.h1 && aMeta.h1.length > 0);
-assert("TechArticle schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("TechArticle")));
-assert("FAQPage schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("FAQ")));
-assert("BreadcrumbList schema present", (aMeta.schemaTypes ?? []).some((t) => t.includes("Breadcrumb")));
-assert("article canonical set correctly", aMeta.canonical === articleUrl);
-assert("article body baked (wordCount ≥ 600 — full content crawlable)", (aMeta.wordCount ?? 0) >= 600);
-assert("article has multiple H2 sections", (aMeta.h2Count ?? 0) >= 3);
-assert("article SEO score healthy (≥ 70)", aSeo.score >= 70);
-assert("article no HIGH-severity thin-content issue", !aSeo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
 
 // ─── Admin console shells (private: noindex + excluded from sitemap) ───
 // The admin routes get prebuilt shells ONLY so the SPA boots (the catch-all

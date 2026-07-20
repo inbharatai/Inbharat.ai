@@ -30,6 +30,8 @@ export function scoreSeo(page: PageMeta): SeoScore {
   // H1
   if (!page.h1) {
     issues.push(issue("high", "h1", "Missing H1", "Add a single descriptive H1 per page."));
+  } else if ((page.h1Count ?? 1) > 1) {
+    issues.push(issue("high", "h1", `Multiple H1 tags (${page.h1Count})`, "Use exactly one <h1> per page; demote the rest to <h2>."));
   }
   if ((page.h2Count ?? 0) === 0) {
     issues.push(issue("normal", "headings", "No H2 subheadings", "Add H2 sections to structure content for users and crawlers."));
@@ -38,6 +40,8 @@ export function scoreSeo(page: PageMeta): SeoScore {
   // Canonical
   if (!page.canonical) {
     issues.push(issue("high", "canonical", "Missing canonical link", "Add <link rel=\"canonical\"> to prevent duplicate-content ambiguity."));
+  } else if ((page.canonicalCount ?? 1) > 1) {
+    issues.push(issue("high", "canonical", `Multiple canonical tags (${page.canonicalCount})`, "Keep exactly one <link rel=\"canonical\"> per page; conflicting canonicals leave the URL choice to Google."));
   }
 
   // Word count / thin content
@@ -80,6 +84,13 @@ export function scoreSeo(page: PageMeta): SeoScore {
   // HTTP status
   if (page.httpStatus && (page.httpStatus >= 400)) {
     issues.push(issue("critical", "httpStatus", `HTTP ${page.httpStatus}`, "Fix the server response; broken pages can't rank."));
+  }
+
+  // Redirect chain depth — more than one hop to reach the page is a minor
+  // inefficiency Google may flag. Page-level (not the canonical host redirect,
+  // which is expected for non-www/apex variants).
+  if ((page.redirectChain?.length ?? 0) > 1) {
+    issues.push(issue("normal", "redirect", `Reached via ${page.redirectChain!.length} redirect hops`, "Collapse the redirect chain to a single hop where possible; each hop wastes crawl budget and link equity."));
   }
 
   // CTA

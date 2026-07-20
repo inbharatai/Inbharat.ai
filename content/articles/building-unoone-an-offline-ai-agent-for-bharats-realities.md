@@ -17,7 +17,7 @@ UnoOne addresses these gaps by integrating:
 *   **Private Local Memory:** Notes, preferences, and task outcomes stored securely on the device.
 *   **Secure Browser Assistance:** Gated help for web tasks, prioritizing user safety.
 
-Our design principle is clear: the AI suggests, but UnoOne's safety system decides what actions are permitted. This ensures user control and data privacy, a critical concern for many Indian users. We've seen how important data privacy is, especially with tools like our [JAK Shield for scam detection](https://www.inbharat.ai/jak-shield-scam-detection), where trust is paramount.
+Our design principle is clear: the AI suggests, but UnoOne's safety system decides what actions are permitted. This ensures user control and data privacy, a critical concern for many Indian users. We've seen how important data privacy is, especially with tools like our JAK Shield for scam detection, where trust is paramount.
 
 ## Powered by Google Gemma 4 E2B, On-Device
 
@@ -46,7 +46,7 @@ Imagine pointing your phone at a sign, a medicine label, or a document. UnoOne p
 *   Providing spoken descriptions and haptic confirmations.
 *   Supporting phone navigation by reading visible screen text.
 
-Crucially, the camera, OCR, and object-detection functions operate independently of the main Gemma model. Essential visual assistance should not fail just because the larger language model is busy or unavailable. This modularity is key to reliability, similar to how we design our [Sahayaak Seva tools for field assistance](https://www.inbharat.ai/sahayaak-seva-healthcare-field-assistance), where uptime is critical.
+Crucially, the camera, OCR, and object-detection functions operate independently of the main Gemma model. Essential visual assistance should not fail just because the larger language model is busy or unavailable. This modularity is key to reliability, similar to how we design our Sahayaak Seva tools for field assistance, where uptime is critical.
 
 ## Offline Voice and Indian Languages
 
@@ -64,7 +64,7 @@ UnoOne is designed to use approved Android intents and accessibility actions to 
 
 Because accessibility permissions are powerful, UnoOne never allows unrestricted device control. Every action passes through our approved tool registry and safety layer. The user is always aware of what UnoOne is attempting and can confirm or deny actions.
 
-Similarly, our browser assistant is safety-gated. It supports approved HTTPS domains and requires native authorization. Sensitive actions like payments, password entry, OTPs, CAPTCHA completion, and uploads always require manual user confirmation. UnoOne assists, but sensitive authority always remains with the user. This approach mirrors the security-first mindset we apply to our [TestsPrep platform for exam security](https://www.inbharat.ai/tests-prep-exam-security), ensuring integrity and trust.
+Similarly, our browser assistant is safety-gated. It supports approved HTTPS domains and requires native authorization. Sensitive actions like payments, password entry, OTPs, CAPTCHA completion, and uploads always require manual user confirmation. UnoOne assists, but sensitive authority always remains with the user. This approach mirrors the security-first mindset we apply to our TestsPrep platform for exam security, ensuring integrity and trust.
 
 ## Private Local Memory: You Are Not The Product
 
