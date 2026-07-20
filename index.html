@@ -75,7 +75,10 @@
       }
     }
     </script>
-    <!-- ── JSON-LD: WebSite with SearchAction ── -->
+    <!-- ── JSON-LD: WebSite (SearchAction removed — Google retired the
+         sitelinks search box Nov 2024; the /app?q={search_term_string}
+         template offered no search benefit and only created GSC
+         "Alternative page with proper canonical" noise) ── -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -83,12 +86,7 @@
       "name": "InBharat AI",
       "url": "https://www.inbharat.ai",
       "description": "AI consulting and tool-building company for Bharat",
-      "inLanguage": ["en","hi","bn","te","mr","ta","gu","kn","ml","or","as"],
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://www.inbharat.ai/app?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
+      "inLanguage": ["en","hi","bn","te","mr","ta","gu","kn","ml","or","as"]
     }
     </script>
 
