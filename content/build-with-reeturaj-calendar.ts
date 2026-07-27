@@ -106,11 +106,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     category: "AI Foundations",
     angle: "What to record per turn (tool calls, reasons, spend, failures) so a shipped agent is debuggable and auditable.",
   },
-  {
-    topic: "MCP servers in plain English",
-    category: "AI Tools",
-    angle: "What the Model Context Protocol is, why it matters, and a minimal server you can run.",
-  },
+  // NOTE: "MCP servers in plain English" was auto-retired by publishArticle because it
+  // shipped as the article of slug mcp-servers-in-plain-english ("Model Context Protocol (MCP) Servers: Why Your AI Needs a Standard 'Language'"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   {
     topic: "Prompt chaining vs a single mega-prompt",
     category: "AI Tools",
