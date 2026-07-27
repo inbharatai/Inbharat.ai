@@ -705,6 +705,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-07-26',
     readMinutes: 7,
+    visual: 'mcp-servers-in-plain-english.png',
     abstract: 'The Model Context Protocol (MCP) provides a standard \'language\' for AI models to interact with data and other software, crucial for building robust, interoperable AI systems in India. It simplifies integration, reduces development time, and is essential for scaling AI applications, especially in diverse, data-rich environments.',
     faq: [
       { q: 'What is the primary benefit of using the Model Context Protocol (MCP)?', a: 'The primary benefit of MCP is reducing integration complexity. It provides a standard \'language\' for AI models to interact with various data sources and software, meaning less custom code for each integration and faster development cycles.' },
