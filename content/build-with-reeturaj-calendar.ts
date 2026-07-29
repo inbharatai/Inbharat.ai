@@ -124,11 +124,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     category: "Security",
     angle: "Adversarial prompts, leak probing, jailbreak attempts on your own demo; cheap tests you run before every deploy, not after a public incident.",
   },
-  {
-    topic: "Prompt chaining vs a single mega-prompt",
-    category: "AI Tools",
-    angle: "When to decompose; reliability and cost tradeoffs with real examples.",
-  },
+  // NOTE: "Prompt chaining vs a single mega-prompt" was auto-retired by publishArticle because it
+  // shipped as the article of slug prompt-chaining-vs-a-single-mega-prompt ("Prompt Chaining vs. Mega-Prompts: When to Decompose for Robust AI in India"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   {
     topic: "Function-calling patterns that don't break",
     category: "AI Tools",
