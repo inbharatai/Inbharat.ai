@@ -40,7 +40,10 @@ const GateResults: React.FC<{ run: GateRun | null; loading?: boolean; error?: st
         <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${overallChip}`}>{STATUS_LABEL[run.overall]}</span>
         <span className="text-[11px] text-[#9fb2c6]">{run.summary}</span>
       </div>
-      <p className="mt-1 text-[10px] text-[#5f7c98]">Advisory only — approval stays a human click. No gate calls a model (cost $0).</p>
+      <p className="mt-1 text-[10px] text-[#5f7c98]">
+        8 surface checks — advisory only, approval stays a human click. No gate calls a model (cost $0). Fact-check &amp; claim-risk are regex flaggers;
+        source/fact gates skip-with-note on re-run (grounding isn&apos;t persisted); SEO/GEO is a static markdown pre-check (the full crawl audit runs post-publish). Deep review is the critique model.
+      </p>
       <ul className="mt-3 space-y-2">
         {run.gates.map((g) => (
           <li key={g.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5">

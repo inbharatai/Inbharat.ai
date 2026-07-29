@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import type { KnowledgeItem, KnowledgeType, KnowledgeStatus } from "../../../lib/growth/knowledge";
 
@@ -63,12 +64,20 @@ const selectCls = "rounded-lg border border-white/10 bg-[#0a0f18] px-2.5 py-2 te
 
 const KnowledgePage: React.FC = () => {
   const { fetchJson } = useAdminApi();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [type, setType] = useState<KnowledgeType | "all">("all");
+  // Seed the filters from the URL on first mount so deep links work — e.g. the
+  // Performance page's "Open in Knowledge ↗" passes ?q=<title>&type=performance.
+  // We read once (lazy initializers) rather than re-running on every param change,
+  // so the founder's in-page filter edits aren't clobbered by a back/forward nav.
+  const [query, setQuery] = useState<string>(() => searchParams.get("q") ?? "");
+  const [type, setType] = useState<KnowledgeType | "all">(() => {
+    const t = searchParams.get("type");
+    return (t as KnowledgeType | null) ?? "all";
+  });
   const [status, setStatus] = useState<KnowledgeStatus | "all">("all");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -119,6 +128,22 @@ const KnowledgePage: React.FC = () => {
     void load();
   }
 
+  // Command chips — one-click shortcuts that fire the same read/audit endpoints
+  // the Today Command + Command Bar use, so the founder can refresh the signals
+  // feeding this KB without leaving the page. Nothing here auto-publishes.
+  const [cmdBusy, setCmdBusy] = useState(false);
+  async function runCmd(label: string, path: string, body?: Record<string, unknown>) {
+    setCmdBusy(true);
+    setMsg(`${label}…`);
+    const { data, error } = await fetchJson<{ ok: boolean; error?: string }>(path, {
+      method: "POST", body: JSON.stringify(body ?? {}),
+    });
+    setCmdBusy(false);
+    if (error || !data?.ok) { setMsg(`${label} failed: ${error || data?.error || "unknown"}`); return; }
+    setMsg(`${label} done ✓`);
+    void load();
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Knowledge Base</h1>
@@ -128,6 +153,20 @@ const KnowledgePage: React.FC = () => {
         angles. Cross-source dedupe by content hash + token match. The agent saves rows here automatically
         (web search results, critiques, publishes, outcomes); you can also save rows by hand.
       </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button onClick={() => runCmd("Sync analytics", "/api/growth/performance", { days: 28 })} disabled={cmdBusy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-semibold text-[#c0cfe0] disabled:opacity-40 hover:border-white/20 hover:text-white">
+          Sync analytics
+        </button>
+        <button onClick={() => runCmd("Run daily audit", "/api/growth/cron/daily")} disabled={cmdBusy}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[12px] font-semibold text-[#c0cfe0] disabled:opacity-40 hover:border-white/20 hover:text-white">
+          Run daily audit
+        </button>
+        <Link to="/admin/growth/intelligence" className="inline-flex items-center gap-1.5 rounded-lg border border-[#f59f4f]/30 bg-[#f59f4f]/10 px-3 py-1.5 text-[12px] font-semibold text-[#f59f4f] hover:border-[#f59f4f]/50">
+          Open Intelligence ↗
+        </Link>
+      </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <input

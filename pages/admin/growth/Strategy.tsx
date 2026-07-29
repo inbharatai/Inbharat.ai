@@ -80,7 +80,6 @@ const StrategyPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [drafting, setDrafting] = useState(false);
-  const [togglingAuto, setTogglingAuto] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -147,19 +146,6 @@ const StrategyPage: React.FC = () => {
     }
   }
 
-  async function toggleAuto() {
-    if (!auto) return;
-    const next = !auto.enabled;
-    setTogglingAuto(true);
-    const { data, error } = await fetchJson<{ ok: boolean; mode?: AutoMode; error?: string }>("/api/growth/auto", {
-      method: "POST",
-      body: JSON.stringify({ enabled: next }),
-    });
-    setTogglingAuto(false);
-    if (error || !data?.ok) { setError(error || data?.error || "auto toggle failed"); return; }
-    if (data.mode) setAuto(data.mode);
-    setMsg(next ? "Auto Mode ON — the cron loop will draft pending work hands-free." : "Auto Mode OFF — the cron loop is paused.");
-  }
 
   if (loading) return <p className="text-[13px] text-[#7a9ab8]">Loading strategy…</p>;
 
@@ -249,7 +235,10 @@ const StrategyPage: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Section 3: Auto Mode hands-free execution panel ───────────────── */}
+      {/* ── Section 3: Auto Mode — read-only status (controls live on Agent) ──
+          One switch, one surface: the ON/OFF toggle + auto-approve + cadence +
+          run-now controls live ONLY on the Agent tab. This panel is a read-only
+          status mirror so strategy review doesn't duplicate the control surface. */}
       <section className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -260,15 +249,13 @@ const StrategyPage: React.FC = () => {
               strategy above without you babysitting it.
             </p>
           </div>
-          <button
-            onClick={toggleAuto}
-            disabled={!auto || togglingAuto}
-            className={`shrink-0 rounded-lg px-4 py-2 text-[12.5px] font-semibold disabled:opacity-40 ${
-              auto?.enabled ? "bg-emerald-500/90 text-[#06120c] hover:bg-emerald-400" : "bg-[#f59f4f] text-[#0a0c10] hover:bg-[#f59f4f]/90"
+          <span
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-[12px] font-bold uppercase tracking-wide ${
+              auto?.enabled ? "bg-emerald-500/20 text-emerald-300" : "bg-white/[0.06] text-[#9fb2c6]"
             }`}
           >
-            {togglingAuto ? "…" : auto?.enabled ? "Auto Mode is ON (click to pause)" : "Turn Auto Mode ON"}
-          </button>
+            {auto?.enabled ? "ON" : "OFF"}
+          </span>
         </div>
         {auto ? (
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -291,7 +278,7 @@ const StrategyPage: React.FC = () => {
           <p className="mt-2 text-[11px] text-[#9fb2c6]">Last run summary: {auto.lastRunSummary}</p>
         )}
         <p className="mt-2 text-[11px] text-[#5f7c98]">
-          Full controls (auto-approve, cadence, max tasks, run-now) live on the{" "}
+          Turn it on/off, set auto-approve, cadence, max tasks, or run now on the{" "}
           <Link to="/admin/growth/agent" className="text-[#f59f4f] hover:underline">Agent tab ↗</Link>.
         </p>
       </section>

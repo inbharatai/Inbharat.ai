@@ -5,6 +5,7 @@ import { useAdminApi } from "../../../lib/growth/adminApi";
 // we never value-import from it client-side. `import type` is erased at compile →
 // the service-role module is never pulled into the client bundle.
 import type { PublishedMemoryItem } from "../../../lib/growth/publishedMemory";
+import { memoryChips } from "../../../lib/growth/cockpit/memoryChips";
 
 /** Client-side mirror of syndicationSummary (lib/growth/publishedMemory.ts) — kept
  *  here to avoid a value import of the server-only module. Stays in sync with the
@@ -31,7 +32,7 @@ function syndicationSummary(item: PublishedMemoryItem): { deposited: boolean; pl
  */
 interface MemResp { ok: boolean; configured?: boolean; items: PublishedMemoryItem[]; error?: string }
 
-const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem) => void; selectedSlug?: string | null }> = ({ onSelectItem, selectedSlug }) => {
+const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem) => void; selectedSlug?: string | null; refreshKey?: number }> = ({ onSelectItem, selectedSlug, refreshKey }) => {
   const { fetchJson } = useAdminApi();
   const [items, setItems] = useState<PublishedMemoryItem[]>([]);
   const [configured, setConfigured] = useState<boolean>(true);
@@ -47,7 +48,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
     setLoading(false);
   }, [fetchJson]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   return (
     <div>
@@ -77,6 +78,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
             <tbody>
               {items.map((it) => {
                 const sym = syndicationSummary(it);
+                const chips = memoryChips({ category: it.category, keywords: it.keywords, sourceMetaSha: it.sourceMetaSha, measuredAt: it.measuredAt });
                 return (
                   <tr
                     key={it.slug}
@@ -86,7 +88,13 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
                     <td className="max-w-[260px] px-3 py-2">
                       <p className="truncate font-semibold text-[#dde6f2]">{it.title}</p>
                       <p className="truncate text-[10px] text-[#5f7c98]">{it.slug}</p>
-                      {sym.deposited && <span className="mt-0.5 inline-block rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-bold uppercase text-sky-300">cross-posted · {sym.platforms.length}</span>}
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                        {sym.deposited && <span className="rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-bold uppercase text-sky-300">cross-posted · {sym.platforms.length}</span>}
+                        {chips.cluster && <span className="rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-300">{chips.cluster}</span>}
+                        {chips.keywords.map((k) => <span key={k} className="rounded bg-white/[0.05] px-1 py-0.5 text-[9px] text-[#9fb2c6]">{k}</span>)}
+                        {chips.hashTail && <span className="rounded bg-white/[0.04] px-1 py-0.5 font-mono text-[9px] text-[#5f7c98]" title="source content hash">#{chips.hashTail}</span>}
+                        {chips.measured && <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[9px] text-emerald-300">{chips.measured}</span>}
+                      </div>
                     </td>
                     <td className="px-3 py-2"><PlatCell url={it.canonicalUrl} status="live" label="live" /></td>
                     <td className="px-3 py-2"><PlatCell url={it.devto.url} status={it.devto.status} /></td>

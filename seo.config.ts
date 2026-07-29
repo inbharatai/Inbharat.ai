@@ -21,6 +21,7 @@ import {
   articleVisualPath,
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
+import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
 
 export const SITE = {
   // Canonical host is www (apex https://inbharat.ai 308-redirects to www live).
@@ -521,42 +522,14 @@ const ARTICLE_ROUTES: SeoRoute[] = ARTICLES.map((meta) => ({
  * serve the SPA for shell-less routes — the root cause of the /admin/growth
  * 404). They are noindex + excluded from the sitemap; RequireAdmin gates the
  * content client-side and /api/growth/whoami is the real server authority.
+ *
+ * The path list is derived from the single source of truth in
+ * lib/growth/adminRoutes.ts (ADMIN_GROWTH_PATHS), which also drives the
+ * react-router children in index.tsx and the nav rail in AdminGrowthLayout.
+ * Adding a child route means adding one entry there — not hand-maintaining this
+ * list. Drift fails scripts/test-growth.ts.
  */
-const ADMIN_GROWTH_PATHS = [
-  '/admin/growth',
-  // Added 2026-07-06: the Jervis Cockpit is now the index route at /admin/growth
-  // (replacing Overview as index). Overview moved to /admin/growth/overview — its
-  // own shell so the SPA boots there (same reason as every other child route: the
-  // catch-all rewrite does not serve the SPA for shell-less admin routes).
-  '/admin/growth/overview',
-  '/admin/growth/usage',
-  '/admin/growth/sites',
-  '/admin/growth/repos',
-  '/admin/growth/rules',
-  '/admin/growth/inbox',
-  '/admin/growth/learning',
-  '/admin/growth/issues',
-  '/admin/growth/performance',
-  '/admin/growth/settings',
-  // Added 2026-06-28: the conversational CMO Agent + Strategy pages exist in the
-  // router (pages/admin/growth/Agent.tsx, Strategy.tsx) but were missing from this
-  // list, so build-seo emitted no shell for them -> the live site 404'd at
-  // /admin/growth/agent (Vercel's platform 404, not the SPA's). Same root cause the
-  // comment above documents: the catch-all rewrite does not serve the SPA for
-  // shell-less admin routes. Every admin/growth child route must be listed here.
-  '/admin/growth/strategy',
-  '/admin/growth/agent',
-  // Added 2026-07-05: the Knowledge base page (inbox-as-knowledge-base). Same
-  // reason as above — every admin/growth child route must be listed here or the
-  // live site 404s (the catch-all rewrite does not serve the SPA for shell-less
-  // admin routes).
-  '/admin/growth/knowledge',
-  // Removed 2026-07-04: the standalone Syndication page was retired — the
-  // syndicate action + per-article cross-post history now live inline on the
-  // Issues page (each Published article row has a Syndicate panel). The
-  // /admin/growth/syndication route + its shell are gone, so it must NOT be
-  // listed here (a listed-but-routeless path would 404 the other way).
-];
+const ADMIN_GROWTH_PATHS = ADMIN_GROWTH_PATHS_FROM_ROUTER;
 const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
   path,
   title: 'InBharat Growth Agent — Admin',

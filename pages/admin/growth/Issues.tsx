@@ -8,6 +8,9 @@ import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../../../lib/growth/art
 import { SITE } from "../../../seo.config";
 import { MEDIUM_IMPORT_URL } from "../../../lib/growth/syndication/medium";
 import type { SyndicationPlatform, SyndicationStatus } from "../../../lib/growth/syndication/types";
+import PublishConsole from "../../../components/growth/cockpit/PublishConsole";
+import SoftGateDialog from "../../../components/growth/cockpit/SoftGateDialog";
+import { majorGateFailures, type MajorGateFailure } from "../../../lib/growth/cockpit/gatePolicy";
 
 interface Issue {
   severity: "critical" | "high" | "normal" | "low";
@@ -408,6 +411,14 @@ const Issues: React.FC = () => {
    *  manual platforms (Medium always; DEV/Hashnode without keys) return the body
    *  + canonical, which we copy to the clipboard and open the platform editor. */
   async function syndicate(slug: string, title: string, platform: SyndicationPlatform) {
+    // Hashnode's API has NO draft mode — publishPost goes live immediately, so the
+    // founder's button click IS the publish (unlike DEV.to, which creates a draft).
+    // Gate it behind an explicit confirm so "live on the internet" is never a
+    // surprise. The local Playwright path (syndicateLocal) is already human-gated
+    // (the founder clicks Publish on Hashnode themselves), so it needs no guard.
+    if (platform === "hashnode") {
+      if (!confirm(`Hashnode publishes LIVE — it has no draft mode.\n\n${title}\n\nThis post goes public on Hashnode the moment you click OK. Continue?`)) return;
+    }
     const busyKey = `${slug}:${platform}`;
     setSyndBusy(busyKey);
     clearSynd(slug);
@@ -545,6 +556,11 @@ const Issues: React.FC = () => {
     return () => clearTimeout(t);
   }, [focusDraftId, drafts]);
 
+  // The focused draft (from ?draft=<id>) — resolved so the Publish Console
+  // stepper can visualize its stop-point. Falls back to null when the id doesn't
+  // match a loaded draft (e.g. it was published + left the drafts table).
+  const focusedDraft = focusDraftId ? drafts.find((d) => d.id === focusDraftId) ?? null : null;
+
   async function auditUrl(e: React.FormEvent) {
     e.preventDefault();
     if (!url.trim()) return;
@@ -631,13 +647,53 @@ const Issues: React.FC = () => {
     notifyDraftsUpdated();
   }
 
-  async function decideDraft(draftId: string, decision: "approved" | "rejected") {
+  // Soft-gate override state for the review queue. When an Approve is attempted on
+  // a draft whose accuracy gates have major failures, we surface the SoftGateDialog
+  // (shared with the InspectorDrawer) instead of approving immediately. The founder
+  // can always override with a typed reason — never hard-blocked. The reason flows
+  // to the growth_approvals audit note via the approvals endpoint.
+  const [overrideDraft, setOverrideDraft] = useState<{ id: string; failures: MajorGateFailure[] } | null>(null);
+  const [approveBusy, setApproveBusy] = useState(false);
+
+  async function postApprove(draftId: string, decision: "approved" | "rejected", overrideReason?: string, gateFailures?: MajorGateFailure[]) {
+    const payload: Record<string, unknown> = { draftId, decision };
+    if (overrideReason) { payload.overrideReason = overrideReason; payload.gateFailures = gateFailures ?? []; }
+    setApproveBusy(true);
     const { error } = await fetchJson("/api/growth/approvals", {
       method: "POST",
-      body: JSON.stringify({ draftId, decision }),
+      body: JSON.stringify(payload),
     });
+    setApproveBusy(false);
     if (error) setDraftMsg(`Decision failed: ${error}`);
     else { await loadDrafts(); notifyDraftsUpdated(); }
+  }
+
+  async function decideDraft(draftId: string, decision: "approved" | "rejected") {
+    if (decision === "approved") {
+      // Soft-gate: re-run the 8 advisory gates on the draft; if any MAJOR gate
+      // fails, surface the override dialog. If the gates call itself fails, gates
+      // are advisory → fall through to a direct approve (never block on a gate
+      // service blip).
+      const { data, error } = await fetchJson<{ ok: boolean; gates?: { id: string; name: string; status: string; findings: { message: string }[] }[]; error?: string }>(
+        "/api/growth/gates",
+        { method: "POST", body: JSON.stringify({ draftId }) },
+      );
+      if (!error && data?.ok && Array.isArray(data.gates)) {
+        const failures = majorGateFailures(data.gates as never);
+        if (failures.length > 0) {
+          setOverrideDraft({ id: draftId, failures });
+          return;
+        }
+      }
+    }
+    await postApprove(draftId, decision);
+  }
+
+  function confirmOverrideDraft(reason: string) {
+    if (!overrideDraft) return;
+    const { id, failures } = overrideDraft;
+    setOverrideDraft(null);
+    void postApprove(id, "approved", reason, failures);
   }
 
   // Stage 2 filter bar: apply kind + status + title search over the raw drafts.
@@ -973,6 +1029,22 @@ const Issues: React.FC = () => {
           );
         })}
       </div>
+
+      {tab === "queue" && focusedDraft && (
+        <div className="mt-3">
+          <PublishConsole
+            title={focusedDraft.title ?? focusedDraft.kind}
+            input={{
+              kind: focusedDraft.kind,
+              status: focusedDraft.status,
+              hasPublishedUrl: !!focusedDraft.url,
+              syndicationCount: focusedDraft.schema_json?.slug
+                ? syndHistory.filter((h) => h.slug === focusedDraft.schema_json!.slug).length
+                : 0,
+            }}
+          />
+        </div>
+      )}
 
       {tab === "queue" && kindFilter === "cover" && (
         <div className="mt-3 rounded-lg border border-[#f59f4f]/20 bg-[#f59f4f]/[0.05] px-3 py-2 text-[12px] text-[#f6bf84]">
@@ -1592,6 +1664,14 @@ const Issues: React.FC = () => {
           </div>
         </section>
       )}
+
+      <SoftGateDialog
+        open={overrideDraft !== null}
+        failures={overrideDraft?.failures ?? []}
+        busy={approveBusy}
+        onConfirm={confirmOverrideDraft}
+        onCancel={() => setOverrideDraft(null)}
+      />
     </div>
   );
 };
@@ -1665,6 +1745,11 @@ const SyndicatePanel: React.FC<{
                   >
                     {busy === busyKey ? "…" : p.label}
                   </button>
+                  {p.key === "hashnode" && (
+                    <span className="rounded bg-rose-500/15 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-rose-300" title="Hashnode has no draft mode — clicking publishes live. You'll get a confirm dialog.">
+                      live
+                    </span>
+                  )}
                   {/* LOCAL Playwright submit — the "same process as LinkedIn" path.
                       Copies the body/canonical + opens the editor + surfaces the local
                       script command. No API keys; the founder runs the script on their

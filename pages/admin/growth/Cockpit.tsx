@@ -5,6 +5,7 @@ import ActionLog from "../../../components/growth/cockpit/ActionLog";
 import PipelineBoard from "../../../components/growth/cockpit/PipelineBoard";
 import PublishedMemoryTable from "../../../components/growth/cockpit/PublishedMemoryTable";
 import InspectorDrawer, { type InspectorSelection } from "../../../components/growth/cockpit/InspectorDrawer";
+import TodayCommand from "../../../components/growth/cockpit/TodayCommand";
 import type { PipelineCard } from "../../../lib/growth/cockpit/pipelineBoard";
 import type { PublishedMemoryItem } from "../../../lib/growth/publishedMemory";
 
@@ -41,6 +42,11 @@ const DEEP_LINKS: Record<"inbox" | "drafts" | "review" | "analytics", { to: stri
 const Cockpit: React.FC = () => {
   const [tab, setTab] = useState<Tab>("today");
   const [selection, setSelection] = useState<InspectorSelection>(null);
+  // Bumped from the inspector drawer on Approve/Reject so the pipeline board +
+  // published-memory table re-fetch and reflect the new status without a manual
+  // Refresh click (was a visual no-op before — the drawer approved but the board
+  // stayed stale).
+  const [refreshTick, setRefreshTick] = useState(0);
 
   function selectCard(card: PipelineCard) { setSelection({ type: "card", card }); }
   function selectItem(item: PublishedMemoryItem) { setSelection({ type: "memory", item }); }
@@ -79,6 +85,7 @@ const Cockpit: React.FC = () => {
       <div className="mt-5">
         {tab === "today" && (
           <div className="space-y-5">
+            <TodayCommand />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {(Object.keys(DEEP_LINKS) as (keyof typeof DEEP_LINKS)[]).map((k) => {
                 const dl = DEEP_LINKS[k];
@@ -105,15 +112,15 @@ const Cockpit: React.FC = () => {
           </div>
         )}
 
-        {tab === "pipeline" && <PipelineBoard onSelectCard={selectCard} selectedId={selection?.type === "card" ? selection.card.id : null} />}
-        {tab === "memory" && <PublishedMemoryTable onSelectItem={selectItem} selectedSlug={selection?.type === "memory" ? selection.item.slug : null} />}
+        {tab === "pipeline" && <PipelineBoard onSelectCard={selectCard} selectedId={selection?.type === "card" ? selection.card.id : null} refreshKey={refreshTick} />}
+        {tab === "memory" && <PublishedMemoryTable onSelectItem={selectItem} selectedSlug={selection?.type === "memory" ? selection.item.slug : null} refreshKey={refreshTick} />}
 
         {tab !== "today" && tab !== "pipeline" && tab !== "memory" && (
           <DeepLinkTab tab={tab} />
         )}
       </div>
 
-      <InspectorDrawer selection={selection} onClose={() => setSelection(null)} onApprove={() => { /* state refresh handled by re-clicking Refresh on each panel */ }} />
+      <InspectorDrawer selection={selection} onClose={() => setSelection(null)} onApprove={() => setRefreshTick((t) => t + 1)} />
     </div>
   );
 };

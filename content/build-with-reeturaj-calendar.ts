@@ -112,6 +112,18 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // would trip, and pickNextCalendarTopic skips it every morning anyway — so
   // it is removed. (Replenish this slot with a distinct, non-colliding topic
   // to keep the calendar ≥17 live entries.)
+  // Replenished 2026-07-29 for the retired "MCP servers in plain English" slot
+  // above: a distinct, non-colliding topic so the calendar stays ≥17 live entries
+  // and the morning cadence never stalls into free-plan. On-brand — InBharat
+  // ships JAK Shield, so a founder-voice piece on attacking your own AI feature
+  // before users do is timely, and no published article or calendar entry covers
+  // red-teaming yet. Slug verified unique vs all calendar + published slugs and
+  // not a prefix/superset of any published slug.
+  {
+    topic: "Red-teaming your AI feature before it ships",
+    category: "Security",
+    angle: "Adversarial prompts, leak probing, jailbreak attempts on your own demo; cheap tests you run before every deploy, not after a public incident.",
+  },
   {
     topic: "Prompt chaining vs a single mega-prompt",
     category: "AI Tools",

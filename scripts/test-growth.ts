@@ -2095,6 +2095,457 @@ console.log("\nPipeline Board (stage chips + read-only aggregator):");
   check("pipelineBoard: never throws on filters with no DB", (await getPipelineBoard({ status: "pending", platform: "linkedin", cap: 10 })).stages.length === 9);
 }
 
+console.log("\nAdmin routes (single source of truth — router = nav = SEO shells):");
+{
+  const { ADMIN_GROWTH_CHILDREN, ADMIN_GROWTH_PATHS, isAdminGrowthPath } = await import("../lib/growth/adminRoutes.js");
+  const { ROUTES } = await import("../seo.config.js");
+
+  check("adminRoutes: non-empty child list", ADMIN_GROWTH_CHILDREN.length >= 13);
+  check("adminRoutes: unique segments", new Set(ADMIN_GROWTH_CHILDREN.map((c) => c.segment)).size === ADMIN_GROWTH_CHILDREN.length);
+  check("adminRoutes: every child has a non-null label", ADMIN_GROWTH_CHILDREN.every((c) => typeof c.label === "string" && c.label.length > 0));
+  check("adminRoutes: index route is segment '' (Cockpit)", ADMIN_GROWTH_CHILDREN[0]?.segment === "" && ADMIN_GROWTH_CHILDREN[0]?.label === "Cockpit");
+  check("adminRoutes: index path is /admin/growth", ADMIN_GROWTH_PATHS[0] === "/admin/growth");
+  check("adminRoutes: every path is /admin/growth or a child of it", ADMIN_GROWTH_PATHS.every((p) => p === "/admin/growth" || p.startsWith("/admin/growth/")));
+  check("adminRoutes: canonical children present", ["overview", "usage", "sites", "repos", "rules", "strategy", "inbox", "intelligence", "knowledge", "agent", "learning", "issues", "performance", "settings"].every((seg) => ADMIN_GROWTH_CHILDREN.some((c) => c.segment === seg)));
+  check("adminRoutes: retired syndication route is NOT present", !ADMIN_GROWTH_CHILDREN.some((c) => c.segment === "syndication"));
+  check("adminRoutes: isAdminGrowthPath true for index + child", isAdminGrowthPath("/admin/growth") && isAdminGrowthPath("/admin/growth/issues"));
+  check("adminRoutes: isAdminGrowthPath false for non-admin", !isAdminGrowthPath("/learn-ai-with-reeturaj/foo") && !isAdminGrowthPath("/admin"));
+
+  // The SEO shells must cover exactly the shared list — this is the drift check
+  // that used to be manual (a new router child without an ADMIN_GROWTH_PATHS
+  // entry would 404 in production). Every admin path must be a noIndex +
+  // excludeFromSitemap route, and no extra/dangling admin routes should exist.
+  const seoAdmin = ROUTES.filter((r) => r.path === "/admin/growth" || r.path.startsWith("/admin/growth/"));
+  const seoAdminPaths = new Set(seoAdmin.map((r) => r.path));
+  check("adminRoutes: SEO shells cover every shared path", ADMIN_GROWTH_PATHS.every((p) => seoAdminPaths.has(p)));
+  check("adminRoutes: no dangling SEO admin shells beyond the shared list", [...seoAdminPaths].every((p) => ADMIN_GROWTH_PATHS.includes(p)));
+  check("adminRoutes: every admin SEO route is noindex + excluded from sitemap", seoAdmin.every((r) => r.noIndex === true && r.excludeFromSitemap === true));
+}
+
+console.log("\nToday Command (prioritized actions + alerts, pure derivation):");
+{
+  const { computeActions, computeAlerts } = await import("../lib/growth/cockpit/todayCommand.js");
+
+  // Empty → no actions, no alerts.
+  check("today: empty signals → no actions", computeActions(null, null).length === 0);
+  check("today: empty signals → no alerts", computeAlerts(null).length === 0);
+
+  // Pending drafts → high-priority review action.
+  let actions = computeActions({ counts: { draftsByStatus: { pending: 3 }, openTasks: 0, approvalsThisMonth: 0, pages: 0 } }, null);
+  check("today: pending drafts → review action high priority", actions.some((a) => a.id === "review-drafts" && a.priority === "high" && /3 pending drafts/.test(a.label)));
+
+  // Approved article → publish action; pending article → review action.
+  const pipApproved = { article: { draftId: "a", slug: "s", title: "t", status: "approved", url: null } };
+  const pipPending = { article: { draftId: "a", slug: "s", title: "t", status: "pending", url: null } };
+  check("today: approved article → publish action", computeActions(null, pipApproved).some((a) => a.id === "today-article-publish" && a.priority === "high"));
+  check("today: pending article → review action", computeActions(null, pipPending).some((a) => a.id === "today-article-review" && a.priority === "high"));
+
+  // Stuck runs → high-priority action + error alert.
+  const ins = { stuckRuns: [{ id: "r1", domain: "inbharat.ai", started_at: new Date(Date.now() - 7200000).toISOString() }], counts: { draftsByStatus: {}, openTasks: 0, approvalsThisMonth: 0, pages: 0 } };
+  actions = computeActions(ins, null);
+  check("today: stuck run → re-run audit action high", actions.some((a) => a.id === "stuck-runs" && a.priority === "high"));
+  const alerts = computeAlerts(ins);
+  check("today: stuck run → error alert", alerts.some((al) => al.severity === "error" && /Stuck crawl run on inbharat.ai/.test(al.label)));
+
+  // Spend over cap → medium action.
+  const overCap = { spend: { capUsd: 20, projectedUsd: 30, spentUsd: 10 }, counts: { draftsByStatus: {}, openTasks: 0, approvalsThisMonth: 0, pages: 0 } };
+  check("today: projected > cap → spend action", computeActions(overCap, null).some((a) => a.id === "spend-over-cap"));
+  const underCap = { spend: { capUsd: 20, projectedUsd: 10, spentUsd: 5 }, counts: { draftsByStatus: {}, openTasks: 0, approvalsThisMonth: 0, pages: 0 } };
+  check("today: projected <= cap → no spend action", !computeActions(underCap, null).some((a) => a.id === "spend-over-cap"));
+
+  // Integration gaps → analytics-config action + analytics-partial warn alert.
+  const integ = { integrations: { gemini: true, growthOpenai: false, supabase: true, cronSecret: false, ga4: false, gsc: true }, counts: { draftsByStatus: {}, openTasks: 0, approvalsThisMonth: 0, pages: 0 } };
+  check("today: ga4 false → analytics-config action", computeActions(integ, null).some((a) => a.id === "analytics-config"));
+  check("today: partial analytics → warn alert", computeAlerts(integ).some((al) => al.id === "analytics-partial" && al.severity === "warn"));
+  check("today: supabase configured → no no-supabase alert", !computeAlerts(integ).some((al) => al.id === "no-supabase"));
+
+  // Priority ranking: high before medium before low.
+  const mixed = computeActions({
+    counts: { draftsByStatus: { pending: 1 }, openTasks: 5, approvalsThisMonth: 0, pages: 0 },
+    stuckRuns: [{ id: "r", domain: "d", started_at: new Date().toISOString() }],
+    spend: { capUsd: 10, projectedUsd: 50 },
+    integrations: { gemini: true, growthOpenai: true, supabase: true, cronSecret: true, ga4: false, gsc: false },
+  }, null);
+  const ranks = mixed.map((a) => a.priority);
+  check("today: actions sorted high→medium→low", ranks.every((p, i) => i === 0 || (p === "high" ? true : p === "medium" ? ranks[i - 1] !== "low" : true)) || ranks.join() === ranks.slice().sort((a, b) => (a === "high" ? 0 : a === "medium" ? 1 : 2) - (b === "high" ? 0 : b === "medium" ? 1 : 2)).join());
+
+  // recentActivity error → error alert.
+  const withErr = { recentActivity: [{ type: "error", detail: "sync failed: GA4 403", createdAt: new Date().toISOString() }], counts: { draftsByStatus: {}, openTasks: 0, approvalsThisMonth: 0, pages: 0 } };
+  check("today: error activity → error alert", computeAlerts(withErr).some((al) => al.severity === "error" && /sync failed/.test(al.label)));
+}
+
+console.log("\nAnalytics War Room (opportunities + audience, single-snapshot derivation):");
+{
+  const { deriveOpportunities, pageSlug, topAudience, signalLabel } = await import("../lib/growth/cockpit/analyticsWarRoom.js");
+
+  check("warroom: null snapshot → no opportunities", deriveOpportunities(null).length === 0);
+  check("warroom: empty gsc → no opportunities", deriveOpportunities({ gsc: { topPages: [] } }).length === 0);
+
+  const mkPage = (overrides: Partial<{ keys: string[]; clicks: number; impressions: number; ctr: number; position: number }>) => ({
+    keys: ["/learn-ai-with-reeturaj/test-slug"],
+    clicks: 0, impressions: 0, ctr: 0, position: 20, ...overrides,
+  });
+
+  // low_ctr: ≥200 impressions, <2% CTR, not page-1.
+  const lowCtr = mkPage({ impressions: 300, clicks: 2, ctr: 0.0066, position: 18 });
+  let rows = deriveOpportunities({ gsc: { topPages: [lowCtr] } });
+  check("warroom: low_ctr detected", rows.length === 1 && rows[0].signal === "low_ctr");
+  check("warroom: low_ctr priority medium", rows[0].priority === "medium");
+  check("warroom: low_ctr carries action text", /title/i.test(rows[0].action));
+
+  // high_impr_low_click: ≥500 impressions, ≤1 click.
+  const hiImpr = mkPage({ keys: ["/learn-ai-with-reeturaj/big-no-clicks"], impressions: 900, clicks: 1, ctr: 0.0011, position: 25 });
+  rows = deriveOpportunities({ gsc: { topPages: [hiImpr] } });
+  check("warroom: high_impr_low_click detected", rows.length === 1 && rows[0].signal === "high_impr_low_click");
+  check("warroom: high_impr_low_click priority high", rows[0].priority === "high");
+
+  // page1_low_ctr: position ≤10, <1% CTR, ≥100 impressions (should win over the
+  // other signals when the same page would match multiple).
+  const page1 = mkPage({ keys: ["/learn-ai-with-reeturaj/page-one"], impressions: 600, clicks: 2, ctr: 0.0033, position: 7 });
+  rows = deriveOpportunities({ gsc: { topPages: [page1] } });
+  check("warroom: page1_low_ctr detected (beats other signals)", rows.length === 1 && rows[0].signal === "page1_low_ctr");
+  check("warroom: page1_low_ctr priority high", rows[0].priority === "high");
+
+  // Page that meets none of the thresholds → excluded.
+  const healthy = mkPage({ impressions: 50, clicks: 5, ctr: 0.1, position: 12 });
+  check("warroom: healthy page excluded", deriveOpportunities({ gsc: { topPages: [healthy] } }).length === 0);
+
+  // Ranking: high before medium when multiple distinct pages match.
+  const mixed = deriveOpportunities({ gsc: { topPages: [lowCtr, page1, healthy] } });
+  check("warroom: high ranked before medium", mixed.length === 2 && mixed[0].priority === "high" && mixed[1].priority === "medium");
+
+  // No duplicate rows for the same (signal, page).
+  const dup = deriveOpportunities({ gsc: { topPages: [lowCtr, lowCtr] } });
+  check("warroom: duplicate page not double-counted", dup.length === 1);
+
+  // pageSlug normalization.
+  check("warroom: pageSlug extracts learn slug", pageSlug("/learn-ai-with-reeturaj/foo-bar/") === "foo-bar");
+  check("warroom: pageSlug falls back to raw url", pageSlug("/some/other/path") === "/some/other/path");
+
+  // signalLabel sanity.
+  check("warroom: signalLabel low_ctr", signalLabel("low_ctr") === "Low CTR");
+  check("warroom: signalLabel page1_low_ctr", signalLabel("page1_low_ctr") === "Page-1, low CTR");
+
+  // topAudience: sorts by sessions desc, truncates, normalizes empty key.
+  const aud = topAudience([
+    { key: "India", sessions: 5 },
+    { key: "", sessions: 3 },
+    { key: "United States", sessions: 20 },
+    { key: "Germany", sessions: 1 },
+  ], 3);
+  check("warroom: topAudience sorts desc", aud[0].key === "United States" && aud[0].sessions === 20);
+  check("warroom: topAudience truncates to limit", aud.length === 3);
+  // empty key → "(unset)"
+  const unset = topAudience([{ key: "", sessions: 1 }], 5);
+  check("warroom: topAudience normalizes empty key", unset[0].key === "(unset)");
+  check("warroom: topAudience null → []", topAudience(null).length === 0);
+}
+
+console.log("\nIntelligence Inbox (feed tagging + filter + sort + counts, pure derivation):");
+{
+  const { feedOf, isSignal, filterIntelligence, sortIntelligence, feedCounts, feedHint, FEED_LABEL } = await import("../lib/growth/cockpit/intelligenceFeed.js");
+  type K = import("../lib/growth/knowledge.js").KnowledgeItem;
+  const mk = (overrides: Partial<K>): K => ({
+    id: "id-" + Math.random().toString(36).slice(2),
+    type: "topic", title: "t", summary: null, body: null, sourceUrl: null, sourceType: null,
+    relatedProduct: null, topicCluster: null, keywords: [], intentScore: null, freshnessScore: null,
+    authorityScore: null, riskLevel: "low", status: "discovered", linkedArticleId: null, linkedPostId: null,
+    contentHash: null, useCount: 0, lastUsedAt: null, createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z",
+    ...overrides,
+  });
+
+  // feedOf classification.
+  check("intel: analytics sourceType → analytics feed", feedOf(mk({ sourceType: "analytics" })) === "analytics");
+  check("intel: search_console sourceType → analytics feed", feedOf(mk({ sourceType: "search_console" })) === "analytics");
+  check("intel: type topic → discovery", feedOf(mk({ type: "topic" })) === "discovery");
+  check("intel: type competitor_gap → discovery", feedOf(mk({ type: "competitor_gap" })) === "discovery");
+  check("intel: type source → source feed", feedOf(mk({ type: "source" })) === "source");
+  check("intel: type decision → decision feed", feedOf(mk({ type: "decision" })) === "decision");
+  check("intel: type article → not a signal (null)", feedOf(mk({ type: "article" })) === null);
+  check("intel: type post → not a signal", !isSignal(mk({ type: "post" })));
+  check("intel: type draft → not a signal", !isSignal(mk({ type: "draft" })));
+  check("intel: topic is a signal", isSignal(mk({ type: "topic" })));
+
+  // filterIntelligence: feed filter.
+  const items: K[] = [
+    mk({ id: "a1", type: "topic", title: "Rising query: ai for kirana", createdAt: "2026-07-20T00:00:00Z", intentScore: 80 }),
+    mk({ id: "a2", sourceType: "analytics", title: "Low CTR on /foo", createdAt: "2026-07-25T00:00:00Z", intentScore: 50 }),
+    mk({ id: "a3", type: "article", title: "Published article", createdAt: "2026-07-26T00:00:00Z" }),
+    mk({ id: "a4", type: "source", title: "Founder note on pricing", createdAt: "2026-07-10T00:00:00Z", status: "approved" }),
+  ];
+  check("intel: filter excludes non-signals (article)", !filterIntelligence(items, {}).some((i) => i.id === "a3"));
+  check("intel: filter all → 3 signals", filterIntelligence(items, {}).length === 3);
+  check("intel: filter feed=analytics → only a2", filterIntelligence(items, { feed: "analytics" }).map((i) => i.id).join() === "a2");
+  check("intel: filter feed=discovery → only a1", filterIntelligence(items, { feed: "discovery" }).map((i) => i.id).join() === "a1");
+  check("intel: filter status=approved → only a4", filterIntelligence(items, { status: "approved" }).map((i) => i.id).join() === "a4");
+  check("intel: filter query matches title", filterIntelligence(items, { query: "kirana" }).map((i) => i.id).join() === "a1");
+  check("intel: filter query case-insensitive", filterIntelligence(items, { query: "LOW CTR" }).length === 1);
+
+  // sortIntelligence: recent vs priority.
+  const recent = sortIntelligence(filterIntelligence(items, {}), "recent");
+  check("intel: sort recent → newest first", recent[0].id === "a2" && recent[1].id === "a1" && recent[2].id === "a4");
+  const priority = sortIntelligence(filterIntelligence(items, {}), "priority");
+  check("intel: sort priority → highest intentScore first", priority[0].id === "a1" && priority[0].intentScore === 80);
+
+  // feedCounts.
+  const counts = feedCounts(items);
+  check("intel: feedCounts analytics=1", counts.find((c) => c.feed === "analytics")?.count === 1);
+  check("intel: feedCounts discovery=1", counts.find((c) => c.feed === "discovery")?.count === 1);
+  check("intel: feedCounts source=1", counts.find((c) => c.feed === "source")?.count === 1);
+  check("intel: feedCounts decision=0", counts.find((c) => c.feed === "decision")?.count === 0);
+  check("intel: feedCounts excludes article", !counts.some((c) => c.feed === ("article" as never)));
+
+  // Labels + hints are non-empty strings.
+  check("intel: FEED_LABEL analytics", FEED_LABEL.analytics.length > 0);
+  check("intel: feedHint decision non-empty", feedHint("decision").length > 0);
+
+  // Empty filters on empty list.
+  check("intel: empty list → empty feed", filterIntelligence([], {}).length === 0);
+}
+
+console.log("\nPipeline card chips (priority + risk derivation, pure):");
+{
+  const { priorityChip, riskChip } = await import("../lib/growth/cockpit/cardChips.js");
+
+  // priorityChip thresholds.
+  check("cardChip: null score → null", priorityChip(null) === null);
+  check("cardChip: undefined score → null", priorityChip(undefined) === null);
+  check("cardChip: NaN → null", priorityChip(NaN) === null);
+  const p1 = priorityChip(85);
+  check("cardChip: 85 → high band P1", p1?.band === "high" && /P1/.test(p1.label));
+  const p2 = priorityChip(50);
+  check("cardChip: 50 → medium band P2", p2?.band === "medium" && /P2/.test(p2.label));
+  const p3 = priorityChip(10);
+  check("cardChip: 10 → low band P3", p3?.band === "low" && /P3/.test(p3.label));
+  // boundary: 70 → high, 40 → medium
+  check("cardChip: 70 boundary → high", priorityChip(70)?.band === "high");
+  check("cardChip: 40 boundary → medium", priorityChip(40)?.band === "medium");
+  check("cardChip: 39 → low", priorityChip(39)?.band === "low");
+  // cls is a non-empty tailwind string
+  check("cardChip: cls non-empty", (priorityChip(80)?.cls ?? "").length > 0);
+
+  // riskChip.
+  check("cardChip: null risk → null", riskChip(null) === null);
+  check("cardChip: empty risk → null", riskChip("") === null);
+  check("cardChip: unknown risk → null", riskChip("urgent") === null);
+  const rh = riskChip("high");
+  check("cardChip: high risk → label", rh?.label === "risk·high" && rh.cls.includes("rose"));
+  const rm = riskChip("Medium");
+  check("cardChip: risk case-insensitive", rm?.label === "risk·medium");
+  check("cardChip: low risk → emerald", riskChip("low")?.cls.includes("emerald"));
+}
+
+console.log("\nCommand Bar (static index + filter/rank, pure derivation):");
+{
+  const { buildCommandIndex, buildNavCommands, filterCommands, scoreCommand } = await import("../lib/growth/cockpit/commandBar.js");
+  const { ADMIN_GROWTH_CHILDREN } = await import("../lib/growth/adminRoutes.js");
+
+  // buildNavCommands derives from the single source of truth.
+  const nav = buildNavCommands();
+  check("cmd: nav count matches children", nav.length === ADMIN_GROWTH_CHILDREN.length);
+  check("cmd: index route → /admin/growth", nav[0].to === "/admin/growth" && nav[0].id === "nav:index");
+  check("cmd: child route → /admin/growth/<seg>", nav.some((c) => c.to === "/admin/growth/issues"));
+  check("cmd: every nav command is group navigate", nav.every((c) => c.group === "navigate" && c.to));
+
+  // buildCommandIndex = nav + actions.
+  const index = buildCommandIndex();
+  const actionCount = index.filter((c) => c.group === "action").length;
+  check("cmd: index has nav + actions", index.length === nav.length + actionCount && actionCount >= 3);
+  check("cmd: sync-analytics action present", index.some((c) => c.action === "sync-analytics"));
+  check("cmd: run-audit action present", index.some((c) => c.action === "run-audit"));
+
+  // scoreCommand ranking — prefix is on the full label ("Go to …"), so a query
+  // matching the label's start scores 3; a mid-label match scores 2; a
+  // keyword-only match scores 1.
+  check("cmd: prefix score 3", scoreCommand({ id: "x", label: "Go to Performance", iconKey: "nav", group: "navigate" }, "go to perf") === 3);
+  check("cmd: substring score 2", scoreCommand({ id: "x", label: "Go to Performance", iconKey: "nav", group: "navigate" }, "perf") === 2);
+  check("cmd: keyword score 1", scoreCommand({ id: "x", label: "Go to Settings", iconKey: "nav", group: "navigate", keywords: ["performance"] }, "perf") === 1);
+  check("cmd: no match score 0", scoreCommand({ id: "x", label: "Go to Inbox", iconKey: "nav", group: "navigate" }, "perf") === 0);
+  check("cmd: empty query score 0", scoreCommand({ id: "x", label: "Go to Performance", iconKey: "nav", group: "navigate" }, "") === 0);
+
+  // filterCommands: empty query → canonical order; non-empty → only matches ranked.
+  const empty = filterCommands(index, "");
+  check("cmd: empty query → full index", empty.length === index.length);
+  const perf = filterCommands(index, "performance");
+  check("cmd: 'performance' → matches include Performance nav", perf.some((c) => c.to === "/admin/growth/performance"));
+  check("cmd: 'performance' → sync-analytics matched via keyword", perf.some((c) => c.action === "sync-analytics"));
+  check("cmd: 'performance' → all matches contain perf in label or keyword", perf.every((c) => /performance|perf/.test((c.label + " " + (c.keywords ?? []).join(" ")).toLowerCase())));
+  // prefix ranks above substring.
+  const ranked = filterCommands(index, "go to p");
+  const labels = ranked.map((c) => c.label);
+  const perfIdx = labels.findIndex((l) => /performance/i.test(l));
+  const pubIdx = labels.findIndex((l) => /published/i.test(l));
+  check("cmd: prefix 'Go to P…' ranks Performance high", perfIdx >= 0 && (pubIdx === -1 || perfIdx < pubIdx));
+
+  // Nonsense query → no results.
+  check("cmd: nonsense → empty", filterCommands(index, "zzzzzz").length === 0);
+
+  // No command navigates to a non-admin path (sanity — all nav `to` are admin).
+  check("cmd: every nav to is admin path", buildNavCommands().every((c) => c.to?.startsWith("/admin/growth")));
+}
+
+console.log("\nPublish Console (stop-point stepper, pure derivation):");
+{
+  const { deriveStopPoint, hasNoPublishTarget } = await import("../lib/growth/cockpit/publishConsole.js");
+
+  // No-publish-target kinds.
+  check("pub: inbox-outline → noPublishTarget", deriveStopPoint({ kind: "inbox-outline", status: "pending" }).noPublishTarget === true);
+  check("pub: media-candidate → noPublishTarget", deriveStopPoint({ kind: "media-candidate", status: "pending" }).noPublishTarget === true);
+  check("pub: hasNoPublishTarget helper", hasNoPublishTarget("inbox-outline") && !hasNoPublishTarget("article"));
+
+  // Article: pending, no critique → stopped at drafted, next = critique.
+  let sp = deriveStopPoint({ kind: "article", status: "pending", hasCritique: false });
+  check("pub: article pending → stop drafted", sp.stopStage === "drafted");
+  check("pub: article pending → next critique/redraft", /critique/i.test(sp.nextAction ?? ""));
+  check("pub: article has 5 stages", sp.stages.length === 5);
+
+  // Article: pending WITH critique → reviewed is reached, stop at reviewed.
+  sp = deriveStopPoint({ kind: "article", status: "pending", hasCritique: true });
+  check("pub: article pending+critique → stop reviewed", sp.stopStage === "reviewed");
+  check("pub: article pending+critique → next approve", /approve/i.test(sp.nextAction ?? ""));
+  check("pub: reviewed stage marked reached", sp.stages.find((s) => s.id === "reviewed")?.reached === true);
+
+  // Article: approved → stop at approved, next publish.
+  sp = deriveStopPoint({ kind: "article", status: "approved" });
+  check("pub: article approved → stop approved", sp.stopStage === "approved");
+  check("pub: article approved → next publish", /publish/i.test(sp.nextAction ?? ""));
+
+  // Article: published + syndicated → stop at syndicated, no next (end).
+  sp = deriveStopPoint({ kind: "article", status: "published", hasPublishedUrl: true, syndicationCount: 3 });
+  check("pub: article published+syndicated → stop syndicated", sp.stopStage === "syndicated");
+  check("pub: at end → nextAction null", sp.nextAction === null);
+  check("pub: all stages reached at end", sp.stages.every((s) => s.reached));
+
+  // Article: published but NOT syndicated → stop at published, next syndicate.
+  sp = deriveStopPoint({ kind: "article", status: "published", hasPublishedUrl: true, syndicationCount: 0 });
+  check("pub: article published no-synd → stop published", sp.stopStage === "published");
+  check("pub: article published no-synd → next syndicate", /syndicate/i.test(sp.nextAction ?? ""));
+
+  // video-script uses the article 5-stage flow.
+  check("pub: video-script → 5 stages", deriveStopPoint({ kind: "video-script", status: "pending" }).stages.length === 5);
+
+  // LinkedIn: 3-stage flow (drafted → approved → published), no reviewed.
+  sp = deriveStopPoint({ kind: "linkedin", status: "pending" });
+  check("pub: linkedin → 3 stages (no reviewed)", sp.stages.length === 3 && !sp.stages.some((s) => s.id === "reviewed"));
+  check("pub: linkedin pending → stop drafted", sp.stopStage === "drafted");
+  sp = deriveStopPoint({ kind: "linkedin", status: "published", hasPublishedUrl: true });
+  check("pub: linkedin published → stop published", sp.stopStage === "published");
+  check("pub: linkedin published → nextAction null (end)", sp.nextAction === null);
+
+  // Cover: 3-stage flow.
+  check("pub: cover → 3 stages", deriveStopPoint({ kind: "cover", status: "approved" }).stages.length === 3);
+
+  // stoppedHere is set on exactly one stage.
+  sp = deriveStopPoint({ kind: "article", status: "approved" });
+  check("pub: exactly one stoppedHere", sp.stages.filter((s) => s.stoppedHere).length === 1);
+}
+
+console.log("\nPublished Memory chips (cluster + keywords + hash + measured, pure derivation):");
+{
+  const { memoryChips, hashTail, keywordPreview, measuredLabel } = await import("../lib/growth/cockpit/memoryChips.js");
+
+  // hashTail.
+  check("mem: null sha → null", hashTail(null) === null);
+  check("mem: empty sha → null", hashTail("") === null);
+  check("mem: sha-256 prefix stripped", hashTail("sha-abcdef1234567890") === "abcdef12");
+  check("mem: bare hash → first 8", hashTail("abcdef1234567890") === "abcdef12");
+  check("mem: short hash kept (min 4)", hashTail("abc", 8) === "abc");
+
+  // keywordPreview.
+  check("mem: null keywords → []", keywordPreview(null).length === 0);
+  check("mem: dedupes case-insensitive", keywordPreview(["AI", "ai", "Ai"]).join() === "AI");
+  check("mem: trims + drops empty", keywordPreview(["  bharat  ", "", "  "]).join() === "bharat");
+  check("mem: caps to n", keywordPreview(["a", "b", "c", "d"], 3).length === 3);
+  check("mem: preserves order", keywordPreview(["z", "a", "m"], 3).join() === "z,a,m");
+
+  // measuredLabel.
+  check("mem: null measuredAt → null", measuredLabel(null) === null);
+  check("mem: measured label mentions LinkedIn", /LinkedIn/.test(measuredLabel("2026-07-01") ?? ""));
+
+  // memoryChips composite.
+  const chips = memoryChips({ category: "  AI ops  ", keywords: ["x", "x", "y"], sourceMetaSha: "sha-deadbeef", measuredAt: "2026-07-01" });
+  check("mem: cluster trimmed", chips.cluster === "AI ops");
+  check("mem: keywords deduped", chips.keywords.join() === "x,y");
+  check("mem: hashTail stripped", chips.hashTail === "deadbeef");
+  check("mem: measured present", chips.measured !== null);
+
+  const empty = memoryChips({});
+  check("mem: empty input → all null/[]", empty.cluster === null && empty.keywords.length === 0 && empty.hashTail === null && empty.measured === null);
+}
+
+console.log("\nGate policy (major failures + override reason + audit note, pure):");
+{
+  const { majorGateFailures, requireOverride, validateOverrideReason, overrideNote, MAJOR_GATE_IDS } = await import("../lib/growth/cockpit/gatePolicy.js");
+
+  // MAJOR_GATE_IDS contract — exactly the four integrity gates.
+  check("gate: MAJOR_GATE_IDS has 4", MAJOR_GATE_IDS.length === 4);
+  check("gate: MAJOR set is the integrity four", MAJOR_GATE_IDS.join() === "duplicate,source_quality,fact_check,claim_risk");
+
+  const mkGate = (id: string, name: string, status: "pass" | "warn" | "fail", message: string) => ({
+    id, name, status, findings: [{ severity: "major" as const, message }],
+  });
+
+  // majorGateFailures — only 'fail' on a MAJOR gate counts.
+  check("gate: null gates → []", majorGateFailures(null).length === 0);
+  check("gate: undefined gates → []", majorGateFailures(undefined).length === 0);
+  check("gate: empty array → []", majorGateFailures([]).length === 0);
+  check("gate: pass on major gate → not a failure", majorGateFailures([mkGate("duplicate", "Duplicate", "pass", "ok")]).length === 0);
+  check("gate: warn on major gate → not a failure", majorGateFailures([mkGate("fact_check", "Fact check", "warn", "maybe")]).length === 0);
+  check("gate: fail on minor gate (brand_voice) → not a failure", majorGateFailures([mkGate("brand_voice", "Brand voice", "fail", "bad")]).length === 0);
+  check("gate: fail on minor gate (seo_geo) → not a failure", majorGateFailures([mkGate("seo_geo", "SEO/GEO", "fail", "bad")]).length === 0);
+  check("gate: fail on minor gate (product_naming) → not a failure", majorGateFailures([mkGate("product_naming", "Product naming", "fail", "bad")]).length === 0);
+  check("gate: fail on minor gate (platform_format) → not a failure", majorGateFailures([mkGate("platform_format", "Platform format", "fail", "bad")]).length === 0);
+
+  // fail on a MAJOR gate → one failure with summary = first finding message.
+  const one = majorGateFailures([mkGate("duplicate", "Duplicate content", "fail", "88% match to source X")]);
+  check("gate: fail on duplicate → 1 failure", one.length === 1);
+  check("gate: failure carries id", one[0].id === "duplicate");
+  check("gate: failure carries name", one[0].name === "Duplicate content");
+  check("gate: failure summary = first finding msg", one[0].summary === "88% match to source X");
+
+  // multiple major fails all surface; minor fails are skipped.
+  const mixed = majorGateFailures([
+    mkGate("duplicate", "Duplicate content", "fail", "88% match"),
+    mkGate("brand_voice", "Brand voice", "fail", "off-brand"),
+    mkGate("claim_risk", "Claim risk", "fail", "unverified stat"),
+    mkGate("product_naming", "Product naming", "pass", "ok"),
+  ]);
+  check("gate: mixed → 2 major failures", mixed.length === 2);
+  check("gate: mixed ids are major only", mixed.map((f) => f.id).join() === "duplicate,claim_risk");
+
+  // summary falls back to "${name} failed" when findings absent.
+  const noFindings = majorGateFailures([{ id: "fact_check", name: "Fact check", status: "fail", findings: [] }]);
+  check("gate: no findings → fallback summary", noFindings[0].summary === "Fact check failed");
+
+  // requireOverride mirrors failure presence.
+  check("gate: requireOverride [] → false", requireOverride([]) === false);
+  check("gate: requireOverride with failures → true", requireOverride(one) === true);
+
+  // validateOverrideReason — ≥8 chars, trimmed.
+  check("gate: null reason → not ok", validateOverrideReason(null).ok === false);
+  check("gate: empty reason → not ok", validateOverrideReason("").ok === false);
+  check("gate: whitespace-only → not ok", validateOverrideReason("        ").ok === false);
+  check("gate: 7-char reason → not ok", validateOverrideReason("short!!").ok === false);
+  check("gate: 8-char reason → ok", validateOverrideReason("approved!").ok === true);
+  check("gate: trimmed 8-char (surrounding spaces) → ok", validateOverrideReason("   approved!   ").ok === true);
+  check("gate: long reason → ok", validateOverrideReason("I personally verified the claim against the primary source.").ok === true);
+  check("gate: not-ok carries error text", typeof validateOverrideReason("").error === "string" && (validateOverrideReason("").error ?? "").length > 0);
+
+  // overrideNote — composes reason + failures, capped at 1000.
+  const note = overrideNote("I verified it.", [
+    { id: "duplicate", name: "Duplicate content", summary: "88% match" },
+    { id: "claim_risk", name: "Claim risk", summary: "unverified stat" },
+  ]);
+  check("gate: note starts with override prefix", note.startsWith("Override approve — reason: I verified it."));
+  check("gate: note lists major failures", note.includes("major gate failures: Duplicate content: 88% match | Claim risk: unverified stat"));
+  check("gate: note no failures → just reason", overrideNote("ok reason", []) === "Override approve — reason: ok reason");
+  check("gate: note trims reason", overrideNote("  ok reason  ", []) === "Override approve — reason: ok reason");
+
+  // 1000-char cap — a huge reason + many failures is sliced, never exceeds 1000.
+  const huge = overrideNote("x".repeat(2000), Array.from({ length: 8 }, (_, i) => ({ id: `g${i}`, name: `Gate ${i}`, summary: "y".repeat(200) })));
+  check("gate: note capped to 1000", huge.length <= 1000);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail > 0) {
   console.error("GROWTH TESTS FAILED");

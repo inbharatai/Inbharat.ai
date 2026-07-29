@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { X, ExternalLink } from "lucide-react";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import GateResults from "./GateResults";
+import SoftGateDialog from "./SoftGateDialog";
+import { majorGateFailures, type MajorGateFailure } from "../../../lib/growth/cockpit/gatePolicy";
 import type { GateRun } from "../../../lib/growth/gates";
 import type { PipelineCard } from "../../../lib/growth/cockpit/pipelineBoard";
 import type { PublishedMemoryItem } from "../../../lib/growth/publishedMemory";
@@ -37,6 +39,9 @@ const InspectorDrawer: React.FC<{ selection: InspectorSelection; onClose: () => 
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
   const [decisionMsg, setDecisionMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Soft-gate override dialog: when set, an Approve was attempted on a draft with
+  // major gate failures; the founder must type a reason (never hard-blocked).
+  const [overrideFailures, setOverrideFailures] = useState<MajorGateFailure[] | null>(null);
 
   // Reset state whenever the selection changes.
   useEffect(() => {
@@ -45,6 +50,7 @@ const InspectorDrawer: React.FC<{ selection: InspectorSelection; onClose: () => 
     setGatesLoading(false);
     setDecision(null);
     setDecisionMsg(null);
+    setOverrideFailures(null);
   }, [selection]);
 
   const draftId = (() => {
@@ -68,13 +74,25 @@ const InspectorDrawer: React.FC<{ selection: InspectorSelection; onClose: () => 
     setRun({ gates: data.gates, overall: data.overall, summary: data.summary, costUsd: data.costUsd });
   }
 
-  async function decide(d: "approved" | "rejected") {
+  // The actual POST to /api/growth/approvals. overrideReason + gateFailures are
+  // sent only when the soft-gate override was used; they're folded into the audit
+  // note server-side. Never blocks — approval proceeds regardless.
+  async function postDecision(
+    d: "approved" | "rejected",
+    overrideReason?: string,
+    gateFailures?: MajorGateFailure[],
+  ) {
     if (!draftId) return;
     setBusy(true);
     setDecisionMsg(null);
+    const payload: Record<string, unknown> = { draftId, decision: d };
+    if (overrideReason) {
+      payload.overrideReason = overrideReason;
+      payload.gateFailures = gateFailures ?? [];
+    }
     const { data, error } = await fetchJson<{ ok: boolean; decision?: string; error?: string }>(
       "/api/growth/approvals",
-      { method: "POST", body: JSON.stringify({ draftId, decision: d }) },
+      { method: "POST", body: JSON.stringify(payload) },
     );
     setBusy(false);
     if (error || !data?.ok) {
@@ -85,6 +103,27 @@ const InspectorDrawer: React.FC<{ selection: InspectorSelection; onClose: () => 
     setDecision(d);
     setDecisionMsg(`Marked ${d}. Nothing auto-publishes — post manually.`);
     onApprove?.();
+  }
+
+  function decide(d: "approved" | "rejected") {
+    if (!draftId) return;
+    if (d === "approved") {
+      // Soft-gate: if gates were run and major failures exist, surface the override
+      // dialog instead of approving immediately. No gates run / no major failures →
+      // approve directly (unchanged behavior). Never hard-blocked.
+      const failures = majorGateFailures(run?.gates);
+      if (failures.length > 0) {
+        setOverrideFailures(failures);
+        return;
+      }
+    }
+    void postDecision(d);
+  }
+
+  function confirmOverride(reason: string) {
+    const failures = overrideFailures ?? [];
+    setOverrideFailures(null);
+    void postDecision("approved", reason, failures);
   }
 
   const open = selection !== null;
@@ -116,6 +155,14 @@ const InspectorDrawer: React.FC<{ selection: InspectorSelection; onClose: () => 
           {selection?.type === "memory" && <MemoryInspector item={selection.item} />}
         </div>
       </aside>
+
+      <SoftGateDialog
+        open={overrideFailures !== null}
+        failures={overrideFailures ?? []}
+        busy={busy}
+        onConfirm={confirmOverride}
+        onCancel={() => setOverrideFailures(null)}
+      />
     </>
   );
 };

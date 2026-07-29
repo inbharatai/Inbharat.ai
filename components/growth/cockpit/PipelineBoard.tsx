@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useAdminApi } from "../../../lib/growth/adminApi";
 import { stageChip, PIPELINE_STAGE_ORDER, type PipelineStageId } from "../../../lib/growth/cockpit/stageChip";
+import { priorityChip, riskChip } from "../../../lib/growth/cockpit/cardChips";
 import type { PipelineCard, PipelineStage } from "../../../lib/growth/cockpit/pipelineBoard";
 
 /**
@@ -23,7 +24,7 @@ interface BoardResp {
 const STATUS_FILTERS = ["", "pending", "approved", "published", "rejected"] as const;
 const PLATFORM_FILTERS = ["", "devto", "hashnode", "medium", "linkedin", "inbharat"] as const;
 
-const PipelineBoard: React.FC<{ onSelectCard: (card: PipelineCard) => void; selectedId?: string | null }> = ({ onSelectCard, selectedId }) => {
+const PipelineBoard: React.FC<{ onSelectCard: (card: PipelineCard) => void; selectedId?: string | null; refreshKey?: number }> = ({ onSelectCard, selectedId, refreshKey }) => {
   const { fetchJson } = useAdminApi();
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [configured, setConfigured] = useState<boolean>(true);
@@ -44,7 +45,7 @@ const PipelineBoard: React.FC<{ onSelectCard: (card: PipelineCard) => void; sele
     setLoading(false);
   }, [fetchJson, status, platform]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, refreshKey]);
 
   return (
     <div>
@@ -99,6 +100,8 @@ const StageColumn: React.FC<{ stage: PipelineStageId; data?: PipelineStage; onSe
               <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[9px] text-[#7a9ab8]">
                 {c.platform && <span className="rounded bg-white/[0.06] px-1 py-0.5 uppercase">{c.platform}</span>}
                 {c.status && <span className="rounded bg-white/[0.06] px-1 py-0.5 uppercase">{c.status}</span>}
+                {(() => { const p = priorityChip(c.priority); return p ? <span className={`rounded px-1 py-0.5 font-semibold ${p.cls}`}>{p.label}</span> : null; })()}
+                {(() => { const r = riskChip(c.risk); return r ? <span className={`rounded px-1 py-0.5 font-semibold ${r.cls}`}>{r.label}</span> : null; })()}
                 {c.product && <span className="truncate">· {c.product}</span>}
               </div>
             </button>

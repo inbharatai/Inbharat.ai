@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAdminApi } from "../../../lib/growth/adminApi";
+import {
+  deriveOpportunities,
+  signalLabel,
+  topAudience,
+  type OpportunityRow,
+} from "../../../lib/growth/cockpit/analyticsWarRoom";
 
 /**
  * /admin/growth/performance — Growth Analytics Inbox.
@@ -62,20 +69,27 @@ interface SyncResp {
   error?: string;
 }
 
-type Tab = "summary" | "top_pages" | "top_queries" | "low_ctr" | "recommendations";
+type Tab = "summary" | "audience" | "top_pages" | "top_queries" | "opportunities" | "recommendations";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "summary", label: "Summary" },
+  { id: "audience", label: "Audience" },
   { id: "top_pages", label: "Top pages" },
   { id: "top_queries", label: "Top queries" },
-  { id: "low_ctr", label: "Low-CTR opportunities" },
+  { id: "opportunities", label: "Opportunities" },
   { id: "recommendations", label: "Recommendations" },
 ];
+
+const RANGE_OPTIONS = [7, 14, 28, 60, 90] as const;
 
 const Performance: React.FC = () => {
   const { fetchJson } = useAdminApi();
   const [data, setData] = useState<PerfResp | null>(null);
   const [tab, setTab] = useState<Tab>("summary");
+  // Date-range window for both the read (GET ?days=) and the sync (POST {days}).
+  // 28d is the default the backend also uses; the selector lets the founder widen
+  // to 60/90d for trend context or narrow to 7/14d for a "what just happened" view.
+  const [days, setDays] = useState<number>(28);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,11 +98,11 @@ const Performance: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const { data: body, error } = await fetchJson<PerfResp>("/api/growth/performance");
+    const { data: body, error } = await fetchJson<PerfResp>(`/api/growth/performance?days=${days}`);
     if (error) setError(error);
     else setData(body);
     setLoading(false);
-  }, [fetchJson]);
+  }, [fetchJson, days]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -97,7 +111,7 @@ const Performance: React.FC = () => {
     setSyncMsg(null);
     const { data: body, error } = await fetchJson<SyncResp>("/api/growth/performance", {
       method: "POST",
-      body: JSON.stringify({ days: 28 }),
+      body: JSON.stringify({ days }),
     });
     setSyncing(false);
     if (error) { setSyncMsg(`Sync failed: ${error}`); return; }
@@ -105,7 +119,7 @@ const Performance: React.FC = () => {
     if (!s?.configured) { setSyncMsg("Analytics isn't configured — add the Google service-account credentials in Vercel env, then retry."); return; }
     setSyncMsg(s.error ? `Synced ${s.synced} of ${s.insights} insights (partial: ${s.error})` : `Synced ${s.synced} of ${s.insights} insights to the knowledge base. ${s.summary}`);
     void load(); // refresh the insights + lastSyncAt
-  }, [fetchJson, load]);
+  }, [fetchJson, load, days]);
 
   if (loading && !data) return <p className="text-[13px] text-[#7a9ab8]">Loading…</p>;
   if (error && !data) return (
@@ -130,7 +144,14 @@ const Performance: React.FC = () => {
             <p className="mt-1 text-[11px] text-[#7a9ab8]">Last sync: {new Date(data.lastSyncAt).toLocaleString()}</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex items-center gap-1.5 text-[11px] text-[#9fb2c6]">
+            Range
+            <select value={days} onChange={(e) => setDays(Number(e.target.value))}
+              className="rounded-md border border-white/15 bg-[#0a0f18] px-2 py-1.5 text-[11px] font-semibold text-white focus:border-[#f59f4f]/50 focus:outline-none">
+              {RANGE_OPTIONS.map((d) => <option key={d} value={d}>Last {d}d</option>)}
+            </select>
+          </label>
           <button onClick={() => sync()} disabled={syncing}
             className="rounded-md border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-3 py-1.5 text-[11px] font-semibold text-[#f59f4f] hover:border-[#f59f4f]/60 disabled:opacity-40">
             {syncing ? "Syncing…" : "Sync Analytics"}
@@ -203,9 +224,10 @@ GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY----
 
           <div className="mt-4">
             {tab === "summary" && <SummaryTab snap={snap} />}
+            {tab === "audience" && <AudienceTab snap={snap} />}
             {tab === "top_pages" && <TopPagesTab snap={snap} />}
             {tab === "top_queries" && <TopQueriesTab snap={snap} />}
-            {tab === "low_ctr" && <LowCtrTab snap={snap} />}
+            {tab === "opportunities" && <OpportunitiesTab snap={snap} />}
             {tab === "recommendations" && <RecommendationsTab insights={data?.insights ?? []} />}
           </div>
         </>
@@ -308,18 +330,61 @@ const TopQueriesTab: React.FC<{ snap: Snapshot }> = ({ snap }) => {
   return <Table headers={["Query", "Clicks", "Impressions", "CTR", "Position"]} rows={rows} />;
 };
 
-const LowCtrTab: React.FC<{ snap: Snapshot }> = ({ snap }) => {
-  const rows: React.ReactNode[][] = (snap.gsc?.topPages ?? [])
-    .filter((r) => r.impressions >= 200 && r.ctr < 0.02)
-    .map((r) => [
-      <span key="page" className="text-[#c8d6e8]">{slugTail(r.keys[0] ?? "")}</span>,
-      String(r.impressions), pct(r.ctr), fmt(r.position),
-      <span key="action" className="text-[#f59f4f]">Improve title + meta description</span>,
-    ]);
+const AudienceTab: React.FC<{ snap: Snapshot }> = ({ snap }) => {
+  const countries = topAudience(snap.ga4?.byCountry ?? []);
+  const devices = topAudience(snap.ga4?.byDevice ?? []);
+  const sources = topAudience(snap.ga4?.bySource ?? []);
+  if (countries.length === 0 && devices.length === 0 && sources.length === 0) {
+    return <p className="text-[12px] text-[#7a9ab8]">No audience breakdown for this window (GA4 dimension reports returned no rows).</p>;
+  }
+  const toRows = (rs: { key: string; sessions: number }[]): React.ReactNode[][] =>
+    rs.map((r) => [<span key="k" className="text-[#c8d6e8]">{r.key}</span>, String(r.sessions)]);
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">Top countries</h3>
+        <Table headers={["Country", "Sessions"]} rows={toRows(countries)} />
+      </div>
+      <div>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">Devices</h3>
+        <Table headers={["Device", "Sessions"]} rows={toRows(devices)} />
+      </div>
+      <div>
+        <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">Traffic sources</h3>
+        <Table headers={["Source", "Sessions"]} rows={toRows(sources)} />
+      </div>
+    </div>
+  );
+};
+
+const OPP_CHIP: Record<string, string> = {
+  high: "bg-rose-500/15 text-rose-300",
+  medium: "bg-amber-500/15 text-amber-300",
+  low: "bg-sky-500/15 text-sky-300",
+};
+
+const OpportunitiesTab: React.FC<{ snap: Snapshot }> = ({ snap }) => {
+  const rows: OpportunityRow[] = deriveOpportunities(snap);
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+        <p className="text-[13px] text-[#9fb2c6]">No opportunity signals in this window — no pages meet the low-CTR / high-impression-zero-click / page-1-low-CTR thresholds.</p>
+        <p className="mt-2 text-[11px] text-[#7a9ab8]">Note: a single window can&apos;t show rising/falling trends (that needs a historical comparison we don&apos;t persist). These are point-in-time levers only.</p>
+      </div>
+    );
+  }
+  const tableRows: React.ReactNode[][] = rows.map((r) => [
+    <span key="sig" className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${OPP_CHIP[r.priority]}`}>{signalLabel(r.signal)}</span>,
+    <span key="page" className="text-[#c8d6e8]">{r.page}</span>,
+    String(r.impressions),
+    pct(r.ctr),
+    r.position == null ? "—" : fmt(r.position),
+    <span key="action" className="text-[#f59f4f]">{r.action}</span>,
+  ]);
   return (
     <div>
-      <p className="mb-3 text-[12px] text-[#9fb2c6]">Pages with ≥200 impressions but &lt;2% CTR — improving the title/meta is usually the highest-leverage fix.</p>
-      <Table headers={["Page", "Impressions", "CTR", "Position", "Action"]} rows={rows} />
+      <p className="mb-3 text-[12px] text-[#9fb2c6]">Pages where the snapshot itself flags a lever — ranked high → low. A single window can&apos;t show rising/falling (no historical comparison persisted); these are point-in-time signals.</p>
+      <Table headers={["Signal", "Page", "Impressions", "CTR", "Position", "Action"]} rows={tableRows} />
     </div>
   );
 };
@@ -350,6 +415,12 @@ const RecommendationsTab: React.FC<{ insights: InsightItem[] }> = ({ insights })
             {i.relatedProduct && <span>product: {i.relatedProduct}</span>}
             {i.keywords.length > 0 && <span>query: <code className="text-[#c8d6e8]">{i.keywords[0]}</code></span>}
             {i.sourceUrl && <a href={i.sourceUrl} target="_blank" rel="noreferrer" className="text-[#7a9ab8] underline hover:text-[#c8d6e8]">page ↗</a>}
+            <Link
+              to={`/admin/growth/knowledge?q=${encodeURIComponent(i.title.slice(0, 60))}&type=${i.type === "keyword" ? "keyword" : "performance"}`}
+              className="ml-auto text-[#f59f4f] hover:underline"
+            >
+              Open in Knowledge ↗
+            </Link>
           </div>
         </div>
       ))}

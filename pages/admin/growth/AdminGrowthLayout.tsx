@@ -1,30 +1,42 @@
 import React, { useEffect } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
-import { Activity, Globe, GitBranch, AlertTriangle, BarChart3, Settings as SettingsIcon, ShieldAlert, Wallet, Brain, Inbox as InboxIcon, GraduationCap, Target, Bot, Database } from "lucide-react";
+import { Activity, Globe, GitBranch, AlertTriangle, BarChart3, Settings as SettingsIcon, ShieldAlert, Wallet, Brain, Inbox as InboxIcon, GraduationCap, Target, Bot, Database, Radar } from "lucide-react";
 import { RequireAdmin } from "../../../lib/growth/adminGuard";
+import { ADMIN_GROWTH_CHILDREN } from "../../../lib/growth/adminRoutes";
+import CommandBar from "../../../components/growth/cockpit/CommandBar";
 
 /**
  * Outlet-based layout for /admin/growth. Gated client-side by <RequireAdmin>
  * (real enforcement is server-side in api/lib/requireAdmin.ts). Forces
  * noindex so the admin surface is never indexed. Intentionally minimal —
  * mirrors the brand shell without landing animations.
+ *
+ * The nav entries derive from the single source of truth
+ * (ADMIN_GROWTH_CHILDREN) so the rail can never drift from the router or the
+ * SEO noindex shells. Icons are attached here by segment.
  */
-const NAV: { to: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { to: "", label: "Cockpit", icon: Activity },
-  { to: "overview", label: "Overview", icon: Activity },
-  { to: "usage", label: "Usage", icon: Wallet },
-  { to: "sites", label: "Sites", icon: Globe },
-  { to: "repos", label: "Repos", icon: GitBranch },
-  { to: "rules", label: "Rules", icon: Brain },
-  { to: "strategy", label: "Strategy", icon: Target },
-  { to: "inbox", label: "Inbox", icon: InboxIcon },
-  { to: "knowledge", label: "Knowledge", icon: Database },
-  { to: "agent", label: "Agent", icon: Bot },
-  { to: "learning", label: "Learning", icon: GraduationCap },
-  { to: "issues", label: "Issues", icon: AlertTriangle },
-  { to: "performance", label: "Performance", icon: BarChart3 },
-  { to: "settings", label: "Settings", icon: SettingsIcon },
-];
+const ICON_BY_SEGMENT: Record<string, React.ComponentType<{ size?: number }>> = {
+  "": Activity,
+  overview: Activity,
+  usage: Wallet,
+  sites: Globe,
+  repos: GitBranch,
+  rules: Brain,
+  strategy: Target,
+  inbox: InboxIcon,
+  intelligence: Radar,
+  knowledge: Database,
+  agent: Bot,
+  learning: GraduationCap,
+  issues: AlertTriangle,
+  performance: BarChart3,
+  settings: SettingsIcon,
+};
+const NAV: { to: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = ADMIN_GROWTH_CHILDREN.map((c) => ({
+  to: c.segment,
+  label: c.label,
+  icon: ICON_BY_SEGMENT[c.segment] ?? Activity,
+}));
 
 function navClass(isActive: boolean): string {
   return [
@@ -67,12 +79,27 @@ const AdminGrowthLayout: React.FC = () => {
                 <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">Audit-only · Human-approved</p>
               </div>
             </div>
-            <Link
-              to="/"
-              className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
-            >
-              Back to site
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  // Toggle the command bar by dispatching a Ctrl+K keydown the
+                  // CommandBar listener reacts to. Keeps the open/close state owned
+                  // by the CommandBar itself (single source of truth for the modal).
+                  window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
+                title="Open command bar (Cmd+K / Ctrl+K)"
+              >
+                <span>Command</span>
+                <kbd className="rounded border border-white/10 px-1 py-0.5 text-[9px] text-[#7a9ab8]">⌘K</kbd>
+              </button>
+              <Link
+                to="/"
+                className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
+              >
+                Back to site
+              </Link>
+            </div>
           </header>
 
           <div className="flex flex-1 flex-col gap-6 sm:flex-row">
@@ -90,6 +117,7 @@ const AdminGrowthLayout: React.FC = () => {
             </main>
           </div>
         </div>
+        <CommandBar />
       </div>
     </RequireAdmin>
   );

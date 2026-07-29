@@ -31,10 +31,52 @@ const GrowthPerformance = lazy(() => import('./pages/admin/growth/Performance.ts
 const GrowthSettings = lazy(() => import('./pages/admin/growth/Settings.tsx'));
 const GrowthRules = lazy(() => import('./pages/admin/growth/Rules.tsx'));
 const GrowthInbox = lazy(() => import('./pages/admin/growth/Inbox.tsx'));
+const GrowthIntelligence = lazy(() => import('./pages/admin/growth/Intelligence.tsx'));
 const GrowthKnowledge = lazy(() => import('./pages/admin/growth/Knowledge.tsx'));
 const GrowthLearning = lazy(() => import('./pages/admin/growth/Learning.tsx'));
 const GrowthStrategy = lazy(() => import('./pages/admin/growth/Strategy.tsx'));
 const GrowthAgent = lazy(() => import('./pages/admin/growth/Agent.tsx'));
+
+// Single source of truth for the admin child routes (lib/growth/adminRoutes.ts).
+// The router, the nav rail, and the SEO noindex shells all derive from this one
+// list — adding a child means adding one entry there, not syncing three files.
+import { ADMIN_GROWTH_CHILDREN } from './lib/growth/adminRoutes';
+const ADMIN_GROWTH_COMPONENTS: Record<string, React.ComponentType> = {
+  '': GrowthCockpit,
+  overview: GrowthOverview,
+  usage: GrowthUsage,
+  sites: GrowthSites,
+  repos: GrowthRepos,
+  issues: GrowthIssues,
+  performance: GrowthPerformance,
+  settings: GrowthSettings,
+  rules: GrowthRules,
+  inbox: GrowthInbox,
+  intelligence: GrowthIntelligence,
+  knowledge: GrowthKnowledge,
+  learning: GrowthLearning,
+  strategy: GrowthStrategy,
+  agent: GrowthAgent,
+};
+// DEV guard: if a child segment is added to ADMIN_GROWTH_CHILDREN without a
+// matching component here, surface it loudly instead of rendering a blank route.
+if (import.meta.env?.DEV) {
+  for (const c of ADMIN_GROWTH_CHILDREN) {
+    if (!ADMIN_GROWTH_COMPONENTS[c.segment]) {
+      // eslint-disable-next-line no-console
+      console.error(`[admin routes] missing component for segment "${c.segment}" — add it to ADMIN_GROWTH_COMPONENTS in index.tsx`);
+    }
+  }
+}
+
+/** Resolves a shared admin child segment to its lazy component. JSX can't take a
+ *  subscript expression as a tag directly, so this wrapper does the lookup. Falls
+ *  back to NotFound if a segment is added to the shared list without a component
+ *  (the DEV guard above also logs it). */
+const AdminChild: React.FC<{ segment: string }> = ({ segment }) => {
+  const Comp = ADMIN_GROWTH_COMPONENTS[segment] ?? NotFound;
+  return <Comp />;
+};
 
 const StaticLoader: React.FC = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#030508] text-[#9aafc6]" aria-live="polite">
@@ -74,20 +116,13 @@ root.render(
             <Route path="/learn-ai-with-reeturaj" element={<LearnAIWithReeturaj />} />
             <Route path="/learn-ai-with-reeturaj/:slug" element={<ArticlePage />} />
             <Route path="/admin/growth" element={<AdminGrowthLayout />}>
-              <Route index element={<GrowthCockpit />} />
-              <Route path="overview" element={<GrowthOverview />} />
-              <Route path="usage" element={<GrowthUsage />} />
-              <Route path="sites" element={<GrowthSites />} />
-              <Route path="repos" element={<GrowthRepos />} />
-              <Route path="issues" element={<GrowthIssues />} />
-              <Route path="performance" element={<GrowthPerformance />} />
-              <Route path="settings" element={<GrowthSettings />} />
-              <Route path="rules" element={<GrowthRules />} />
-              <Route path="inbox" element={<GrowthInbox />} />
-              <Route path="knowledge" element={<GrowthKnowledge />} />
-              <Route path="learning" element={<GrowthLearning />} />
-              <Route path="strategy" element={<GrowthStrategy />} />
-              <Route path="agent" element={<GrowthAgent />} />
+              {ADMIN_GROWTH_CHILDREN.map((c) =>
+                c.segment === '' ? (
+                  <Route key="__index__" index element={<AdminChild segment="" />} />
+                ) : (
+                  <Route key={c.segment} path={c.segment} element={<AdminChild segment={c.segment} />} />
+                ),
+              )}
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

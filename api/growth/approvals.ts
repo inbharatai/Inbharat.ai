@@ -3,11 +3,17 @@ import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { searchKnowledge, recordDecision } from "../../lib/growth/knowledge.js";
+import { overrideNote, type MajorGateFailure } from "../../lib/growth/cockpit/gatePolicy.js";
 
 const postSchema = z.object({
   draftId: z.string().uuid(),
   decision: z.enum(["approved", "rejected"]),
   note: z.string().max(1000).optional(),
+  /** Soft-gate override: a typed reason the founder approved despite major gate
+   *  failures. Folded into the audit `note` (never blocks — approval proceeds). */
+  overrideReason: z.string().max(1000).optional(),
+  /** The major gate failures that triggered the override prompt (for the audit). */
+  gateFailures: z.array(z.object({ id: z.string(), name: z.string(), summary: z.string() })).max(8).optional(),
 });
 
 interface DraftRow {
@@ -50,10 +56,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       draftId: typeof raw?.draftId === "string" ? raw.draftId.trim() : "",
       decision: typeof raw?.decision === "string" ? raw.decision : "",
       note: typeof raw?.note === "string" ? raw.note.trim() : undefined,
+      overrideReason: typeof raw?.overrideReason === "string" ? raw.overrideReason.trim() : undefined,
+      gateFailures: Array.isArray(raw?.gateFailures) ? raw.gateFailures : undefined,
     });
   } catch {
     return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid request", requestId: admin.requestId });
   }
+
+  // Compose the audit note. If the founder overrode major gate failures, record
+  // the reason + failures (soft-gate audit). Otherwise use any plain note. Never
+  // blocks — approval proceeds regardless of the note content.
+  const auditNote = parsed.overrideReason
+    ? overrideNote(parsed.overrideReason, (parsed.gateFailures ?? []) as MajorGateFailure[])
+    : (parsed.note || null);
 
   if (!supabaseAdmin) {
     return res.status(503).json({ ok: false, code: "SERVER_ERROR", error: "Database not configured", requestId: admin.requestId });
@@ -69,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       draft_id: parsed.draftId,
       reviewer: admin.userId,
       decision: parsed.decision,
-      note: parsed.note || null,
+      note: auditNote,
     });
     if (insErr) {
       return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "Failed to record approval", requestId: admin.requestId });

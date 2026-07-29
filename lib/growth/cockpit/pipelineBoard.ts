@@ -41,6 +41,10 @@ export interface PipelineCard {
   platform?: string | null;
   product?: string | null;
   status?: string | null;
+  /** intent_score 0..100 (knowledge rows only); drives the P1/P2/P3 chip. */
+  priority?: number | null;
+  /** risk_level low|medium|high (knowledge rows only); drives the risk chip. */
+  risk?: string | null;
   createdAt?: string | null;
 }
 
@@ -199,14 +203,14 @@ const PIPELINE_STAGE_IDS: PipelineStageId[] = ["idea", "research", "brief", "dra
 const NOT_CONFIGURED_NOTE = "Database not configured — stage count is 0.";
 
 // ─── Row shapes ─────────────────────────────────────────────────────────────
-interface KnowledgeRow { id: string; title: string; type: string; status: string; related_product: string | null; intent_score: number | null; linked_article_id: string | null; created_at: string | null }
+interface KnowledgeRow { id: string; title: string; type: string; status: string; related_product: string | null; intent_score: number | null; risk_level: string | null; linked_article_id: string | null; created_at: string | null }
 interface DraftRow { id: string; kind: string; status: string; url: string | null; title: string | null; schema_json: { slug?: string; product?: string } | null; created_at: string | null }
 interface SyndicationRow { id: string; slug: string | null; draft_id: string | null; platform: string; status: string; platform_url: string | null; created_at: string | null }
 interface PublishedRow { slug: string; title: string; canonical_url: string; publish_date: string | null }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 function knowledgeCard(k: KnowledgeRow): PipelineCard {
-  return { id: k.id, title: k.title, product: k.related_product, status: k.status, url: k.linked_article_id ? `/admin/growth/knowledge#${k.id}` : null, createdAt: k.created_at };
+  return { id: k.id, title: k.title, product: k.related_product, status: k.status, priority: k.intent_score, risk: k.risk_level, url: k.linked_article_id ? `/admin/growth/knowledge#${k.id}` : null, createdAt: k.created_at };
 }
 function draftCard(d: DraftRow): PipelineCard {
   const sj = d.schema_json ?? {};
@@ -218,7 +222,7 @@ async function fetchKnowledge(): Promise<KnowledgeRow[]> {
   try {
     const { data, error } = await supabaseAdmin!
       .from("growth_knowledge")
-      .select("id,title,type,status,related_product,intent_score,linked_article_id,created_at")
+      .select("id,title,type,status,related_product,intent_score,risk_level,linked_article_id,created_at")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error || !Array.isArray(data)) return [];
