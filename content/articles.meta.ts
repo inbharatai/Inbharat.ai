@@ -714,6 +714,22 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AIFoundations', 'ModelContextProtocol', 'IndianAI', 'AIEngineering', 'InBharat'],
   },
+  {
+    slug: 'prompt-chaining-vs-a-single-mega-prompt',
+    title: 'Prompt Chaining vs. Mega-Prompts: When to Decompose for Robust AI in India',
+    description: 'Understand prompt chaining vs. mega-prompts for AI in India. Learn cost, reliability, and latency trade-offs with practical, Bharat-specific examples.',
+    category: 'AI Tools',
+    datePublished: '2026-07-29',
+    readMinutes: 7,
+    abstract: 'Prompt chaining, where an LLM\'s output feeds the next prompt, often yields more reliable and cost-effective results for complex tasks than a single, monolithic \'mega-prompt\'. This modular approach improves error handling and reduces token usage, a critical consideration for Indian AI products operating on tighter budgets and diverse network conditions.',
+    faq: [
+      { q: 'Does prompt chaining increase latency due to multiple API calls?', a: 'While chaining involves multiple calls, the individual prompts are often shorter and faster. The overall perceived latency can sometimes be lower than a single, very long mega-prompt, especially if intermediate steps can be parallelized or handled by faster, specialized models. The trade-off is often worth it for the improved reliability and cost efficiency.' },
+      { q: 'Can I use different LLMs for different steps in a chain?', a: 'Absolutely. This is one of the major benefits. You can use a cheaper, smaller model for simple tasks (e.g., extraction) and a more powerful, expensive model only for critical, complex steps (e.g., creative generation or nuanced reasoning). This optimizes both cost and performance.' },
+      { q: 'How does prompt chaining relate to \'prompt engineering\'?', a: 'Prompt chaining is a specific technique within the broader field of Prompt Engineering Is a Real Skill — and Indian Developers Who Master It Will Win. Effective prompt engineering involves not just crafting good individual prompts, but also designing how those prompts interact in a sequence to achieve a larger goal. Chaining is a core pattern that advanced prompt engineers utilize.' },
+      { q: 'Is there a framework or library to help with prompt chaining?', a: 'Yes, frameworks like LangChain, LlamaIndex, and AutoGen are designed to facilitate prompt chaining, agentic workflows, and tool integration. They provide structures to define sequences, manage intermediate states, and connect LLMs with external APIs and databases.' },
+    ],
+    hashtags: ['PromptChaining', 'AIEngineering', 'LLMOps', 'InBharatAI', 'PromptEngineering'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
