@@ -721,6 +721,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-07-29',
     readMinutes: 7,
+    visual: 'prompt-chaining-vs-a-single-mega-prompt.png',
     abstract: 'Prompt chaining, where an LLM\'s output feeds the next prompt, often yields more reliable and cost-effective results for complex tasks than a single, monolithic \'mega-prompt\'. This modular approach improves error handling and reduces token usage, a critical consideration for Indian AI products operating on tighter budgets and diverse network conditions.',
     faq: [
       { q: 'Does prompt chaining increase latency due to multiple API calls?', a: 'While chaining involves multiple calls, the individual prompts are often shorter and faster. The overall perceived latency can sometimes be lower than a single, very long mega-prompt, especially if intermediate steps can be parallelized or handled by faster, specialized models. The trade-off is often worth it for the improved reliability and cost efficiency.' },
