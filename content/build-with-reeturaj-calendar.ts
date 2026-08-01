@@ -135,11 +135,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     category: "AI Tools",
     angle: "Schema discipline, malformed-call recovery, and bounded loops — lessons from the Growth Agent.",
   },
-  {
-    topic: "Local-first AI — running models on your own laptop",
-    category: "AI Tools",
-    angle: "Whisper + MMS for Indic voice; Ollama for text; what 'offline' buys you in India.",
-  },
+  // NOTE: "Local-first AI — running models on your own laptop" was auto-retired by publishArticle because it
+  // shipped as the article of slug local-first-ai-running-models-on-your-own-laptop ("Local-First AI: Why Running Models on Your Own Laptop Matters for India"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   {
     topic: "Observability for LLM apps — tracing, tokens, latency",
     category: "Engineering",
