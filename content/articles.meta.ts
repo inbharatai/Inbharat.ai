@@ -738,6 +738,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Tools',
     datePublished: '2026-08-01',
     readMinutes: 8,
+    visual: 'local-first-ai-running-models-on-your-own-laptop.png',
     abstract: 'Local-first AI means running models directly on your device, not the cloud. For India, this translates to better data privacy, significantly reduced inference costs, and reliable offline functionality, crucial for regions with inconsistent internet access. It\'s about building AI that works for Bharat.',
     faq: [
       { q: 'Is local-first AI only for low-resource devices?', a: 'Not necessarily. While it\'s excellent for devices with limited connectivity or processing power, even high-end devices benefit from enhanced privacy, lower latency, and cost savings by keeping data local. The choice depends on your specific application\'s needs and user base.' },
