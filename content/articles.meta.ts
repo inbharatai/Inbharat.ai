@@ -755,6 +755,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'AI Foundations',
     datePublished: '2026-07-22',
     readMinutes: 8,
+    visual: 'embeddings-what-they-actually-do-and-when-you-dont-need-them.png',
     abstract: 'Embeddings transform text, images, and other data into numerical vectors, allowing AI to understand relationships. While powerful for semantic search and RAG, for many initial AI features in India, simpler solutions like PostgreSQL\'s `pgvector` or Full-Text Search often offer better cost-effectiveness and faster deployment than dedicated vector databases.',
     faq: [
       { q: 'What is the primary purpose of embeddings?', a: 'Embeddings convert various data types (text, images, audio) into dense numerical vectors. This allows AI models to understand the semantic meaning and relationships between different pieces of data, enabling tasks like semantic search and recommendations.' },
