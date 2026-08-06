@@ -748,6 +748,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['LocalFirstAI', 'EdgeAI', 'AIForBharat', 'OfflineAI', 'InBharatAI'],
   },
+  {
+    slug: 'embeddings-what-they-actually-do-and-when-you-dont-need-them',
+    title: 'Embeddings: What They Actually Do and When You Don\'t Need Them',
+    description: 'Understand embeddings in plain terms: converting data to vectors for AI. Learn about cosine similarity and when pgvector/FTS is a better choice for Indian teams',
+    category: 'AI Foundations',
+    datePublished: '2026-07-22',
+    readMinutes: 8,
+    abstract: 'Embeddings transform text, images, and other data into numerical vectors, allowing AI to understand relationships. While powerful for semantic search and RAG, for many initial AI features in India, simpler solutions like PostgreSQL\'s `pgvector` or Full-Text Search often offer better cost-effectiveness and faster deployment than dedicated vector databases.',
+    faq: [
+      { q: 'What is the primary purpose of embeddings?', a: 'Embeddings convert various data types (text, images, audio) into dense numerical vectors. This allows AI models to understand the semantic meaning and relationships between different pieces of data, enabling tasks like semantic search and recommendations.' },
+      { q: 'When should I consider using `pgvector` instead of a dedicated vector database?', a: '`pgvector` is ideal for Indian teams looking to integrate AI features without adding new infrastructure. It\'s cost-effective, simplifies data management by keeping embeddings in your existing PostgreSQL database, and is suitable for moderate datasets (up to a few million vectors). Consider it for your first AI feature to iterate quickly.' },
+      { q: 'Can I use Full-Text Search (FTS) instead of embeddings for some AI features?', a: 'Yes, for many use cases, especially where users are searching for specific keywords or phrases, PostgreSQL\'s built-in Full-Text Search is highly effective and simpler to implement. It\'s a pragmatic choice when semantic understanding isn\'t strictly necessary, saving on complexity and resources.' },
+    ],
+    hashtags: ['AI', 'Embeddings', 'pgvector', 'SemanticSearch', 'IndianTech'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
