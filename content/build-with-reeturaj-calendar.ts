@@ -119,11 +119,12 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // before users do is timely, and no published article or calendar entry covers
   // red-teaming yet. Slug verified unique vs all calendar + published slugs and
   // not a prefix/superset of any published slug.
-  {
-    topic: "Red-teaming your AI feature before it ships",
-    category: "Security",
-    angle: "Adversarial prompts, leak probing, jailbreak attempts on your own demo; cheap tests you run before every deploy, not after a public incident.",
-  },
+  // NOTE: "Red-teaming your AI feature before it ships" was auto-retired by publishArticle because it
+  // shipped as the article of slug red-teaming-your-ai-feature-before-it-ships ("Red-Teaming Your AI Feature: Cheap Tests Before You Ship"). Now that the slug is
+  // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
+  // would trip, and pickNextCalendarTopic skips it every morning anyway — so
+  // it is removed. (Replenish this slot with a distinct, non-colliding topic
+  // to keep the calendar ≥17 live entries.)
   // NOTE: "Prompt chaining vs a single mega-prompt" was auto-retired by publishArticle because it
   // shipped as the article of slug prompt-chaining-vs-a-single-mega-prompt ("Prompt Chaining vs. Mega-Prompts: When to Decompose for Robust AI in India"). Now that the slug is
   // in articles.meta.ts the slug-collision guard in scripts/test-growth.ts
