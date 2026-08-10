@@ -14,11 +14,29 @@
 -- channel is introduced by a parallel agent.
 --
 -- Replaces: supabase/migrations/20260706100000_growth_published_memory.sql
--- Idempotent: CREATE OR REPLACE VIEW is safe to re-run.
+-- Idempotent: DROP ... IF EXISTS + CREATE is safe to re-run.
 -- Apply: SQL Editor → paste → Run.
 -- ═══════════════════════════════════════════════════════════════════
 
-CREATE OR REPLACE VIEW growth_published_memory AS
+-- ── WHY DROP + CREATE (not CREATE OR REPLACE) ──────────────────────
+-- CREATE OR REPLACE VIEW cannot remove or reorder existing columns; it
+-- only appends. The live view still carries devto_*/hashnode_*/medium_*
+-- from 20260706100000, so REPLACE fails with "cannot drop columns from
+-- view" — this is exactly what broke the Supabase preview run. Dropping
+-- first is the only way to retire those columns.
+--
+-- security_invoker = on: Postgres views default to SECURITY DEFINER,
+-- which Supabase's advisor flags CRITICAL on this view. The underlying
+-- growth_* tables are RLS deny-all / service-role only, and every reader
+-- of this view already goes through the service role, so running with the
+-- caller's rights is both correct and closes the advisor finding.
+-- No CASCADE: if something unexpectedly depends on this view we want a
+-- loud error, not a silent drop.
+
+DROP VIEW IF EXISTS growth_published_memory;
+
+CREATE VIEW growth_published_memory
+WITH (security_invoker = on) AS
 SELECT
   pa.slug,
   pa.title,

@@ -23,6 +23,11 @@ export interface CalendarTopic {
 }
 
 export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
+  // NOTE: "Embeddings — what they actually do and when you don't need them" was
+  // retired because it shipped as the article of the same title (slug
+  // embeddings-what-they-actually-do-and-when-you-dont-need-them). Leaving it
+  // here tripped the slug-collision guard in scripts/test-growth.ts and the
+  // morning picker would skip it every day anyway — so it is removed.
   // NOTE: "Fine-tuning vs RAG — when to use each" was retired from here because
   // the article already shipped as "Fine-Tuning vs. RAG: When to Use Each for
   // Your Indian AI Product" (slug fine-tuning-vs-rag-when-to-use-each-for-your-
@@ -84,11 +89,6 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
   // (the RAG article uses them but never explains them), and the angle steers
   // the writer past the common over-engineering trap of reaching for vectors
   // before keyword/FTS search is exhausted.
-  {
-    topic: "Embeddings — what they actually do and when you don't need them",
-    category: "AI Foundations",
-    angle: "Turning text into vectors in plain terms; cosine similarity; and why pgvector/FTS often beats a dedicated vector store for an Indian team's first AI feature.",
-  },
   {
     topic: "Vector databases — choosing one for an Indian team",
     category: "AI Foundations",
@@ -196,5 +196,30 @@ export const BUILD_WITH_REETURAJ_CALENDAR: CalendarTopic[] = [
     topic: "Structured outputs — making LLM JSON reliable",
     category: "Engineering",
     angle: "responseMimeType=application/json, schema/key-drift tolerance, one-shot retry on stubs, truncation vs missing-fields — what actually works in production.",
+  },
+  {
+    topic: "Rate limiting and quota design for an AI API",
+    category: "Engineering",
+    angle: "Per-user vs per-key limits, burst handling, and what to return when a user hits the ceiling.",
+  },
+  {
+    topic: "Handling personal data in AI pipelines under India's DPDP Act",
+    category: "Security",
+    angle: "What counts as personal data in prompts and logs, retention, and practical redaction before a model call.",
+  },
+  {
+    topic: "Testing AI features in CI without burning tokens",
+    category: "DevOps",
+    angle: "Golden fixtures, recorded responses, and which checks genuinely need a live model call.",
+  },
+  {
+    topic: "Batch inference — cutting cost on bulk AI jobs",
+    category: "Engineering",
+    angle: "Queueing, chunk sizing, and when an overnight batch beats real-time inference on price.",
+  },
+  {
+    topic: "Speech-to-text for Indian accents and code-mixed speech",
+    category: "AI Foundations",
+    angle: "Why English-trained models slip on Hinglish, and how to evaluate a vendor on your own audio.",
   },
 ];
