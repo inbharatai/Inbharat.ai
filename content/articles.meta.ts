@@ -764,6 +764,21 @@ export const ARTICLES: ArticleMeta[] = [
     ],
     hashtags: ['AI', 'Embeddings', 'pgvector', 'SemanticSearch', 'IndianTech'],
   },
+  {
+    slug: 'red-teaming-your-ai-feature-before-it-ships',
+    title: 'Red-Teaming Your AI Feature: Cheap Tests Before You Ship',
+    description: 'Learn how InBharat AI uses practical, low-cost red-teaming to stress-test AI features for vulnerabilities and data leaks before public release. Build safer AI.',
+    category: 'Security',
+    datePublished: '2026-07-30',
+    readMinutes: 7,
+    abstract: 'Before shipping any AI feature, especially in India\'s diverse and sensitive markets, we run cheap, practical red-teaming tests. This isn\'t about expensive security audits, but about adversarial prompts, data leak probes, and jailbreak attempts on our own demo to catch issues before they become public incidents.',
+    faq: [
+      { q: 'What is red-teaming in the context of AI?', a: 'Red-teaming for AI involves intentionally trying to make an AI model misbehave, leak data, or generate harmful content by using adversarial prompts and other techniques. It\'s about proactively finding vulnerabilities before they are exploited by real attackers.' },
+      { q: 'Do I need a large budget to red-team my AI?', a: 'No. While large enterprises might hire dedicated red-teaming firms, SMBs and smaller product teams can adopt a \'red-teaming-lite\' approach. This involves defining \'no-go\' zones, creating a library of adversarial prompts, and using simple scripts for automated testing, often integrated into existing CI/CD pipelines.' },
+      { q: 'What types of vulnerabilities should I look for when red-teaming my AI?', a: 'Focus on adversarial prompting (tricking the AI into unintended actions), data leak probing (getting the AI to reveal sensitive internal or training data), and jailbreak attempts (bypassing safety filters to generate harmful content). Also consider unique challenges for India, like multilingual prompts and regional nuances.' },
+    ],
+    hashtags: ['AIsecurity', 'RedTeaming', 'InBharatAI', 'AISafety', 'DevSecOps'],
+  },
 ];
 
 export function getArticleBySlug(slug: string): ArticleMeta | undefined {
