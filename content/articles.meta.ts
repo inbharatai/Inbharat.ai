@@ -771,6 +771,7 @@ export const ARTICLES: ArticleMeta[] = [
     category: 'Security',
     datePublished: '2026-07-30',
     readMinutes: 7,
+    visual: 'red-teaming-your-ai-feature-before-it-ships.png',
     abstract: 'Before shipping any AI feature, especially in India\'s diverse and sensitive markets, we run cheap, practical red-teaming tests. This isn\'t about expensive security audits, but about adversarial prompts, data leak probes, and jailbreak attempts on our own demo to catch issues before they become public incidents.',
     faq: [
       { q: 'What is red-teaming in the context of AI?', a: 'Red-teaming for AI involves intentionally trying to make an AI model misbehave, leak data, or generate harmful content by using adversarial prompts and other techniques. It\'s about proactively finding vulnerabilities before they are exploited by real attackers.' },
