@@ -20,13 +20,12 @@
  *    Never invent one. `undefined` renders as a plain badge with no link.
  *  - Nothing here implies partnership, endorsement or sponsorship. Programme
  *    participation is described as participation.
- *  - OpenAI Partner Network: acceptance is confirmed, but onboarding is not
- *    finished and the portal lists "badging opportunities" as something that
- *    unlocks AFTER onboarding. So this entry states acceptance in words and
- *    deliberately carries no `logo` — do not add an OpenAI mark until OpenAI
- *    has actually granted badging, and keep the wording to what the approval
- *    email supports ("application review is complete", "welcome to the OpenAI
- *    Partner Network") rather than a bare "OpenAI Partner" claim.
+ *  - OpenAI Partner Network: accepted after application review and partner
+ *    onboarding completed (2026), so "member of the OpenAI Partner Network" is
+ *    supported. It still carries no `logo`: OpenAI grants badging through the
+ *    partner portal, so only an asset OpenAI actually issues may be used, and
+ *    it must follow their brand terms. Do not upgrade this to a bare "OpenAI
+ *    Partner" badge or imply endorsement of InBharat's products.
  *
  * ARTWORK
  * `logo` is intentionally optional and currently unset for every entry: the
@@ -105,7 +104,7 @@ export const CREDENTIALS: Credential[] = [
     holder: 'org',
     period: '2026',
     description:
-      'Accepted into the OpenAI Partner Network in 2026 following application review, with organisation onboarding underway.',
+      'Member of the OpenAI Partner Network, with partner onboarding completed in 2026.',
     short: 'OpenAI Partner Network',
     featured: true,
   },
