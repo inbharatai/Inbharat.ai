@@ -34,10 +34,10 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0f18]">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" width={20} height={20} />
+              <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5 w-5 object-contain" width={20} height={20} />
             </div>
             <div>
-              <p className="text-[13px] font-semibold tracking-[0.2em] text-white">INBHARAT</p>
+              <p className="text-[14px] font-bold tracking-tight text-white">InBharat.ai</p>
               <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">AI Ecosystem</p>
             </div>
           </Link>
@@ -88,8 +88,8 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 sm:px-6 lg:px-10">
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
             <div className="flex items-center gap-2.5">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" width={20} height={20} />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">InBharat.ai</p>
+              <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5 w-5 object-contain" width={20} height={20} />
+              <p className="text-[12px] font-semibold tracking-tight text-[#9aafc6]">InBharat.ai</p>
             </div>
             <p className="text-[11px] text-[#7a9ab8]">{t('landFooterTagline') || 'Built in Bharat for India and the world.'}</p>
             <div className="flex items-center gap-3 text-[#96b0c8]">
