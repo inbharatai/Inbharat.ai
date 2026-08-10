@@ -620,13 +620,13 @@ const Issues: React.FC = () => {
     }
     setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption, post: fullPost });
     setJustPublished((m) => ({ ...m, [d.id]: d }));
-    setDraftMsg(“Ready — the full post is written below and copied to your clipboard. Click “Open LinkedIn ↗”, paste into the composer (the link card is already there), review, and Post.”);
+    setDraftMsg('Ready — the full post is written below and copied to your clipboard. Click "Open LinkedIn ↗", paste into the composer (the link card is already there), review, and Post.');
     await loadDrafts();
     notifyDraftsUpdated();
   }
 
   async function fetchIgQuota() {
-    const { data } = await fetchJson<{ ok: boolean; configured: boolean; limit?: { config?: number; used?: number; remaining?: number } }>(“/api/growth/social?action=quota”);
+    const { data } = await fetchJson<{ ok: boolean; configured: boolean; limit?: { config?: number; used?: number; remaining?: number } }>("/api/growth/social?action=quota");
     if (data) {
       setIgQuota({
         configured: data.configured,
@@ -645,35 +645,35 @@ const Issues: React.FC = () => {
     // Fetch quota first (best-effort, non-blocking).
     void fetchIgQuota();
     const { data, error } = await fetchJson<{ ok: boolean; code?: string; result?: { permalink: string | null; platformPostId: string | null; error: string | null }; error?: string }>(
-      “/api/growth/social?action=publish”,
-      { method: “POST”, body: JSON.stringify({ draftId: d.id }) },
+      "/api/growth/social?action=publish",
+      { method: "POST", body: JSON.stringify({ draftId: d.id }) },
     );
     setPublishingId(null);
     if (!data) {
-      setPublishError({ draftId: d.id, reason: error || “unknown error” });
-      setDraftMsg(`Instagram publish failed: ${error || “unknown error”}`);
+      setPublishError({ draftId: d.id, reason: error || "unknown error" });
+      setDraftMsg(`Instagram publish failed: ${error || "unknown error"}`);
       return;
     }
-    if (data.code === “NOT_CONFIGURED”) {
-      setIgPublishResult({ draftId: d.id, permalink: null, code: “NOT_CONFIGURED” });
-      setDraftMsg(“Instagram is not configured — set IG_USER_ID and META_ACCESS_TOKEN in Vercel env.”);
+    if (data.code === "NOT_CONFIGURED") {
+      setIgPublishResult({ draftId: d.id, permalink: null, code: "NOT_CONFIGURED" });
+      setDraftMsg("Instagram is not configured — set IG_USER_ID and META_ACCESS_TOKEN in Vercel env.");
       return;
     }
-    if (data.code === “PUBLISH_FAILED” || (!data.ok && data.result)) {
-      const reason = strError(data.result?.error) || strError(data.error) || data.code || “publish failed”;
+    if (data.code === "PUBLISH_FAILED" || (!data.ok && data.result)) {
+      const reason = strError(data.result?.error) || strError(data.error) || data.code || "publish failed";
       setPublishError({ draftId: d.id, reason });
-      setIgPublishResult({ draftId: d.id, permalink: null, code: “PUBLISH_FAILED” });
+      setIgPublishResult({ draftId: d.id, permalink: null, code: "PUBLISH_FAILED" });
       setDraftMsg(`Instagram publish failed: ${reason}`);
       return;
     }
     if (data.ok && data.result) {
       setIgPublishResult({ draftId: d.id, permalink: data.result.permalink });
       setJustPublished((m) => ({ ...m, [d.id]: d }));
-      setDraftMsg(data.result.permalink ? `Published to Instagram — permalink ready.` : “Published to Instagram.”);
+      setDraftMsg(data.result.permalink ? `Published to Instagram — permalink ready.` : "Published to Instagram.");
       await loadDrafts();
       notifyDraftsUpdated();
     } else {
-      const reason = strError(error) || strError(data.error) || data.code || “unknown”;
+      const reason = strError(error) || strError(data.error) || data.code || "unknown";
       setPublishError({ draftId: d.id, reason });
       setDraftMsg(`Instagram publish failed: ${reason}`);
     }
@@ -1216,8 +1216,8 @@ const Issues: React.FC = () => {
                     /* Already published — the result banner above has the Open
                        LinkedIn button (linkedin) or the commit-SHA confirmation
                        (article/cover/video-script). No publish button to retry. */
-                    <p className=”text-[11px] font-semibold text-emerald-300”>
-                      ✓ Published — {d.kind === “linkedin” ? “click “Open LinkedIn ↗” above to post.” : d.kind === “instagram” ? “see the permalink above; dismiss to clear this card.” : “see the confirmation above; dismiss it to clear this card.”}
+                    <p className="text-[11px] font-semibold text-emerald-300">
+                      ✓ Published — {d.kind === 'linkedin' ? 'click "Open LinkedIn ↗" above to post.' : d.kind === 'instagram' ? 'see the permalink above; dismiss to clear this card.' : 'see the confirmation above; dismiss it to clear this card.'}
                     </p>
                   ) : d.kind === "cover" ? (
                     <>
