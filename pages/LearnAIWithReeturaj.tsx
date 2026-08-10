@@ -29,6 +29,7 @@ import {
   articleVisualPath,
   type ArticleCategory,
 } from '../content/articles.meta';
+import { CredentialsShowcase } from '../components/Credentials';
 
 type Card = {
   title: string;
@@ -63,45 +64,6 @@ const cardReveal = {
     transition: { duration: 0.6, ease, delay: i * 0.06 },
   }),
 };
-
-const realBuilds: Card[] = [
-  {
-    title: 'Sahayaak Seva',
-    description:
-      'AI healthcare and field-assistance workflows designed to make frontline response faster and more practical.',
-    tag: 'Healthcare + Field Ops',
-  },
-  {
-    title: 'KathaKitaab',
-    description:
-      'AI storytelling and interactive learning experiences that blend narrative, visuals, and cultural context.',
-    tag: 'Storytelling + Learning',
-  },
-  {
-    title: 'JAK Swarm',
-    description:
-      'Agentic AI automation and orchestration patterns for multi-step, multi-agent execution.',
-    tag: 'Agentic Automation',
-  },
-  {
-    title: 'UniAssist.ai',
-    description:
-      'AI guidance for students and study-abroad journeys, with practical decision support.',
-    tag: 'Education + Guidance',
-  },
-  {
-    title: 'Testsprep.in',
-    description:
-      'AI-powered test preparation flows with structured learning outcomes and measurable progress.',
-    tag: 'Test Prep + Performance',
-  },
-  {
-    title: 'SocialNinja',
-    description:
-      'AI social media automation systems for content planning, repurposing, and execution consistency.',
-    tag: 'Content Automation',
-  },
-];
 
 const programs: Card[] = [
   {
@@ -138,20 +100,20 @@ const programs: Card[] = [
 
 const credibilitySignals: Signal[] = [
   {
-    value: '12+',
-    label: 'Products built in ecosystem',
+    value: 'DPIIT',
+    label: 'Recognised startup by Govt. of India — AI & ML sector',
     icon: Rocket,
     color: '#f59f4f',
   },
   {
-    value: '2022+',
-    label: 'Years of focused AI execution',
+    value: 'Stanford',
+    label: 'Seed Spark 2026 — GSB programme for emerging-economy founders',
     icon: Brain,
     color: '#6f8dff',
   },
   {
-    value: 'Real-World',
-    label: 'Deployment-first learning approach',
+    value: 'Google',
+    label: 'Cloud Gen AI Academy, APAC Cohort 3 — applied GenAI in production',
     icon: Target,
     color: '#10b981',
   },
@@ -633,16 +595,28 @@ const LearnAIWithReeturaj: React.FC = () => {
 
         <div className="landing-seam" aria-hidden="true" />
 
-        <RevealSection className="py-16 sm:py-20">
+        {/*
+          Plain <section> (NOT RevealSection/Motion) by design: credentials cards
+          contain their own whileInView animations (inside CredentialsShowcase →
+          CredentialCard). Wrapping the whole section in a parent RevealSection
+          risks the same WebKit whileInView bug that left the ArticleExplorer
+          invisible on iPhone Safari — the parent would start at opacity:0 and
+          the IntersectionObserver might never fire on a tall mobile page.
+          A plain section has no hidden initial state, so all content is visible
+          even before any IntersectionObserver triggers.
+        */}
+        <section className="py-16 sm:py-20">
           <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-10">
             <SectionHeader
-              eyebrow="Learn From Real InBharat Builds"
-              title="Case studies from products built in real environments"
-              description="Every build becomes a learning module: what was attempted, what failed, what changed, and what finally shipped."
+              eyebrow="Credentials & Recognitions"
+              title="Externally verified proof, not self-reported claims"
+              description="Government recognition from DPIIT, programme selections with Stanford Seed, Google Cloud and Sarvam, and certifications from Anthropic and Microsoft — each entry names the issuing body exactly as it names itself, and links to public verification where one exists."
             />
-            <CardGrid items={realBuilds} icon={Rocket} accentColor="#f59f4f" />
+            <div className="mt-10">
+              <CredentialsShowcase grouped />
+            </div>
           </div>
-        </RevealSection>
+        </section>
 
         <div className="landing-seam" aria-hidden="true" />
 

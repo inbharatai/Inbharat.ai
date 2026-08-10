@@ -27,11 +27,11 @@ import {
   Shield,
   Sparkles,
   Target,
-  Trophy,
   Twitter,
   Users,
   X,
 } from 'lucide-react';
+import { CredentialRail, CredentialTrustList } from '../components/Credentials';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
 
@@ -1324,18 +1324,10 @@ const Landing: React.FC = () => {
               </span>
             </motion.div>
 
-            {/* Hyperagent Founding 500 award badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.25, ease }}
-              className="mt-4"
-            >
-              <span className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-gradient-to-r from-amber-400/10 to-amber-500/5 px-4 py-1.5 text-[11px] font-bold tracking-wide text-amber-300 backdrop-blur-sm">
-                <Trophy size={14} className="text-amber-400" />
-                {t('landHeroAward')}
-              </span>
-            </motion.div>
+            {/* Credential rail — featured recognitions & programmes */}
+            <CredentialRail
+              className="mt-4 justify-center [&>li:nth-child(n+4)]:hidden sm:[&>li:nth-child(n+4)]:inline-flex"
+            />
 
             {/* Headline */}
             <h1 className="hero-headline mt-8 max-w-5xl text-white sm:mt-10">
@@ -2122,18 +2114,7 @@ const Landing: React.FC = () => {
             {/* Trust */}
             <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-[#0a1020]/80 to-[#060810]/80 p-7 sm:p-9">
               <p className="eyebrow-line text-[#96b0c8]">{t('landTrustLabel')}</p>
-              <div className="mt-6 space-y-4">
-                {[
-                  { title: t('landTrust1Title'), desc: t('landTrust1Desc') },
-                  { title: t('landTrust2Title'), desc: t('landTrust2Desc') },
-                  { title: t('landTrust3Title'), desc: t('landTrust3Desc') },
-                ].map((item) => (
-                  <div key={item.title} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-4">
-                    <p className="text-sm font-semibold text-white">{item.title}</p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
+              <CredentialTrustList className="mt-6" />
             </div>
           </div>
         </div>

@@ -21,6 +21,7 @@ import {
   articleVisualPath,
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
+import { awardStrings, credentialSchemaNodes } from './content/credentials.js';
 import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
 
 export const SITE = {
@@ -155,6 +156,42 @@ const baseOrganization = {
       'Assamese',
     ],
   },
+  // Government recognition and company-held programme selections, sourced from
+  // content/credentials.ts so the structured data can never drift from what the
+  // pages actually render. `legalName` matters here: the DPIIT recognition is
+  // held by Uni Guru Technologies LLP, and attributing it to the brand alone
+  // would misstate a Government of India recognition.
+  legalName: 'Uni Guru Technologies LLP',
+  hasCredential: credentialSchemaNodes('org'),
+  award: awardStrings('org'),
+  founder: {
+    '@type': 'Person',
+    name: 'Reeturaj Goswami',
+    url: `${SITE.url}/learn-ai-with-reeturaj`,
+  },
+};
+
+/**
+ * Reeturaj as a schema.org Person, carrying the personally-held credentials
+ * (Stanford Seed Spark, Google Cloud Gen AI Academy, the Anthropic and
+ * Microsoft certificates, the Google Developer Program badges).
+ *
+ * Shipped on every shell rather than only the founder page: a standalone Person
+ * node plus `founder` on the Organization gives search and answer engines one
+ * unambiguous entity to attach the credentials to, which is the entire point of
+ * publishing them.
+ */
+const baseFounder = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: 'Reeturaj Goswami',
+  jobTitle: 'Founder & Builder',
+  worksFor: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  url: `${SITE.url}/learn-ai-with-reeturaj`,
+  image: `${SITE.url}/reeturaj-founder.jpg`,
+  sameAs: [SITE.social.linkedin].filter(Boolean),
+  hasCredential: credentialSchemaNodes('person'),
+  award: awardStrings('person'),
 };
 
 const baseWebsite = {
@@ -173,7 +210,11 @@ const baseWebsite = {
 };
 
 /** Always shipped on every shell. */
-export const GLOBAL_SCHEMA: Array<Record<string, unknown>> = [baseOrganization, baseWebsite];
+export const GLOBAL_SCHEMA: Array<Record<string, unknown>> = [
+  baseOrganization,
+  baseFounder,
+  baseWebsite,
+];
 
 const breadcrumb = (label: string, path: string) => ({
   '@context': 'https://schema.org',

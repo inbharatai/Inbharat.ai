@@ -251,8 +251,64 @@ async function renderArticleBody(slug: string): Promise<string> {
     .join('\n');
 }
 
+/**
+ * Crawlable internal-link nav, emitted into every shell.
+ *
+ * WHY THIS EXISTS (the "Discovered – currently not indexed" fix)
+ * Search Console showed 23 URLs stuck in "Discovered – currently not indexed",
+ * every one with `Last crawled: N/A` — Google knew the URLs existed but had
+ * never fetched them. The cause was not thin content or a broken shell: the
+ * shells are fine (/learn-ai-with-reeturaj serves ~9.7k chars of real text).
+ * The cause was that `https://www.inbharat.ai/` served **zero** `<a href>`
+ * links. The nav and footer are client-rendered React, so the homepage — the
+ * highest-authority page on the domain — was a crawl dead-end. Every other URL
+ * was reachable only from sitemap.xml, and sitemap-only URLs with no internal
+ * links are exactly what Google deprioritises indefinitely.
+ *
+ * So: bake the site's own link graph into every prerendered shell. The homepage
+ * additionally links the most recent articles so article discovery is seeded
+ * from the strongest page rather than depending on the hub being crawled first.
+ *
+ * Not cloaking: the React app renders the same navigation to the same URLs.
+ * This is the identical rationale as the sr-only seoBody block below.
+ */
+const HOMEPAGE_ARTICLE_LINKS = 12;
+
+function buildInternalLinkNav(route: SeoRoute): string {
+  const targets = (ROUTES as SeoRoute[]).filter(
+    (r) => r.path !== route.path && !r.noIndex && !r.excludeFromSitemap && !r.articleSlug,
+  );
+
+  const links = targets.map(
+    (r) => `      <li><a href="${escapeAttr(r.path)}">${escapeText(r.title)}</a></li>`,
+  );
+
+  // Seed article discovery straight from the homepage, newest first.
+  if (route.path === '/') {
+    const recent = [...ARTICLES]
+      .sort((a, b) =>
+        a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0,
+      )
+      .slice(0, HOMEPAGE_ARTICLE_LINKS);
+    for (const a of recent) {
+      links.push(
+        `      <li><a href="${escapeAttr(articlePath(a.slug))}">${escapeText(a.title)}</a></li>`,
+      );
+    }
+  }
+
+  if (links.length === 0) return '';
+  return `    <nav aria-label="Site">\n      <ul>\n${links.join('\n')}\n      </ul>\n    </nav>`;
+}
+
 function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
-  if (!route.seoBody) return '';
+  const nav = buildInternalLinkNav(route);
+  // A route with no seoBody still needs the link graph, otherwise it stays a
+  // crawl dead-end — which is the whole bug this function now guards against.
+  if (!route.seoBody) {
+    if (!nav) return '';
+    return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${nav}\n  </section>\n`;
+  }
   // The hub route's visible H1 comes from buildHubCardGrid (injected into #root
   // as real, non-aria-hidden HTML). Emitting a seoBody <h1> too would give the
   // page two H1s — skip it for the hub; the crawlable summary paragraphs remain.
@@ -262,6 +318,7 @@ function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
     ...route.seoBody.paragraphs.map((p) => `    <p>${escapeText(p)}</p>`),
   ];
   if (bodyHtml) parts.push(bodyHtml);
+  if (nav) parts.push(nav);
   const joined = parts.join('\n');
   // Visually-hidden (sr-only) inline style so no CSS dependency; aria-hidden so
   // screen-reader users don't hear a duplicate of the React app. The full
