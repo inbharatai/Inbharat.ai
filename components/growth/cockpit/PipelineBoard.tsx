@@ -22,7 +22,7 @@ interface BoardResp {
 }
 
 const STATUS_FILTERS = ["", "pending", "approved", "published", "rejected"] as const;
-const PLATFORM_FILTERS = ["", "devto", "hashnode", "medium", "linkedin", "inbharat"] as const;
+const PLATFORM_FILTERS = ["", "linkedin", "instagram", "inbharat"] as const;
 
 const PipelineBoard: React.FC<{ onSelectCard: (card: PipelineCard) => void; selectedId?: string | null; refreshKey?: number }> = ({ onSelectCard, selectedId, refreshKey }) => {
   const { fetchJson } = useAdminApi();

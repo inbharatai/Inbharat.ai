@@ -301,3 +301,44 @@ CREATE UNIQUE INDEX IF NOT EXISTS growth_leads_email_kind_site_uniq
 ALTER TABLE public.growth_leads ENABLE ROW LEVEL SECURITY;
 -- Service role bypasses RLS server-side; no public policy needed (the API owns all
 -- writes). Admin reads go through requireAdmin -> supabaseAdmin (service role).
+
+-- ────────────────────────────────────────────────────────────────────
+-- FILE: 20260810000001_drop_syndication_platforms.sql
+-- ────────────────────────────────────────────────────────────────────
+-- Rebuild growth_published_memory view WITHOUT DEV.to, Hashnode, and
+-- Medium columns. LinkedIn tracking is retained. Instagram columns will
+-- be added separately (20260810000002, parallel agent). Idempotent.
+-- ────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE VIEW growth_published_memory AS
+SELECT
+  pa.slug,
+  pa.title,
+  pa.canonical_url,
+  pa.publish_date,
+  pa.category,
+  pa.keywords,
+  pa.source_meta_sha,
+  pa.synced_at,
+  'published'::text                       AS inbharat_status,
+  li.status                               AS linkedin_status,
+  li.created_at                           AS linkedin_at,
+  NULL::text                              AS linkedin_url,
+  lo.measured_at                          AS measured_at
+FROM published_articles pa
+LEFT JOIN LATERAL (
+  SELECT d.status, d.created_at
+  FROM growth_drafts d
+  WHERE d.kind = 'linkedin'
+    AND d.status = 'published'
+    AND rtrim(regexp_replace(d.url, '^.*/learn-ai-with-reeturaj/', ''), '/') = pa.slug
+  ORDER BY d.created_at DESC LIMIT 1
+) li   ON TRUE
+LEFT JOIN LATERAL (
+  SELECT o.measured_at
+  FROM growth_outcomes o
+  JOIN growth_drafts d ON d.id::text = o.draft_id::text
+  WHERE o.kind = 'linkedin'
+    AND d.kind = 'linkedin'
+    AND rtrim(regexp_replace(d.url, '^.*/learn-ai-with-reeturaj/', ''), '/') = pa.slug
+  ORDER BY o.measured_at DESC NULLS LAST LIMIT 1
+) lo   ON TRUE;

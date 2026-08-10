@@ -10,6 +10,8 @@ interface InboxItem {
   sha256: string | null;
   folder: string | null;
   fed_to_agent: boolean | null;
+  post_order: number | null;
+  alt_text: string | null;
   linked_draft_id: string | null;
   error: string | null;
   created_at: string;
@@ -36,6 +38,366 @@ function classifyKind(filename: string): string {
   if (["mp4", "mov", "webm"].includes(ext)) return "video";
   return "other";
 }
+
+// ─── Social composer types ────────────────────────────────────────────────────
+
+type SocialChannel = "instagram" | "linkedin";
+type SocialKind = "image" | "carousel" | "video";
+
+interface ValidationIssue {
+  level: "ok" | "error" | "unverified";
+  code: string;
+  message: string;
+}
+interface ValidationResult {
+  ok: boolean;
+  unverified: boolean;
+  issues: ValidationIssue[];
+}
+interface ComposeResult {
+  ok: boolean;
+  draftId: string;
+  channel: SocialChannel;
+  kind: SocialKind;
+  caption: string | null;
+  firstComment?: string | null;
+  note?: string | null;
+  validation: ValidationResult;
+  itemCount: number;
+}
+interface PreviewMediaItem {
+  inboxItemId: string;
+  originalName: string | null;
+  alt: string;
+  kind: string | null;
+  signedUrl: string | null;
+}
+interface PreviewResult {
+  ok: boolean;
+  draftId: string;
+  status: string;
+  channel: SocialChannel;
+  kind: SocialKind;
+  caption: string;
+  firstComment?: string | null;
+  media: PreviewMediaItem[];
+}
+interface DryRunStep {
+  method: string;
+  endpoint: string;
+  payload?: Record<string, unknown> | null;
+  note: string;
+}
+interface DryRunResult {
+  ok: boolean;
+  dryRun: { channel: SocialChannel; configured: boolean; steps: DryRunStep[]; notes: string[] };
+}
+
+// ─── Social Composer Panel ────────────────────────────────────────────────────
+
+const SocialComposerPanel: React.FC<{ folder: string; items: InboxItem[]; onAnnotated: () => void }> = ({ folder, items, onAnnotated }) => {
+  const { fetchJson } = useAdminApi();
+
+  // Composer form state.
+  const [channel, setChannel] = useState<SocialChannel>("instagram");
+  const [kind, setKind] = useState<SocialKind>("image");
+  const [articleSlug, setArticleSlug] = useState("");
+  const [composing, setComposing] = useState(false);
+  const [composeResult, setComposeResult] = useState<ComposeResult | null>(null);
+  const [composeError, setComposeError] = useState<string | null>(null);
+
+  // Post-compose actions.
+  const [previewing, setPreviewing] = useState(false);
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const [dryRunning, setDryRunning] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<DryRunResult | null>(null);
+
+  // Per-item alt text (local state; saved on blur).
+  const [altTexts, setAltTexts] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {};
+    for (const it of items) m[it.id] = it.alt_text ?? "";
+    return m;
+  });
+
+  // Per-item order — sorted by post_order (null last, then created_at).
+  const [orderedIds, setOrderedIds] = useState<string[]>(() =>
+    [...items]
+      .sort((a, b) => {
+        const ao = a.post_order ?? Infinity;
+        const bo = b.post_order ?? Infinity;
+        if (ao !== bo) return ao - bo;
+        return a.created_at.localeCompare(b.created_at);
+      })
+      .map((i) => i.id),
+  );
+  const [reordering, setReordering] = useState(false);
+
+  // Annotate an item's alt text on blur.
+  async function saveAltText(itemId: string, text: string) {
+    await fetchJson("/api/growth/inbox?action=annotate", {
+      method: "POST",
+      body: JSON.stringify({ itemId, altText: text }),
+    });
+    onAnnotated();
+  }
+
+  // Move item up/down in orderedIds, then POST reorder to persist.
+  async function moveItem(idx: number, dir: -1 | 1) {
+    const next = idx + dir;
+    if (next < 0 || next >= orderedIds.length) return;
+    const newOrder = [...orderedIds];
+    [newOrder[idx], newOrder[next]] = [newOrder[next], newOrder[idx]];
+    setOrderedIds(newOrder);
+    setReordering(true);
+    await fetchJson("/api/growth/inbox?action=reorder", {
+      method: "POST",
+      body: JSON.stringify({ order: newOrder.map((id, i) => ({ itemId: id, postOrder: i })) }),
+    });
+    setReordering(false);
+  }
+
+  // Compose the social draft.
+  async function compose() {
+    setComposing(true);
+    setComposeResult(null);
+    setComposeError(null);
+    setPreviewResult(null);
+    setDryRunResult(null);
+    const { data, error } = await fetchJson<ComposeResult & { ok: boolean; error?: string; code?: string }>("/api/growth/social?action=compose", {
+      method: "POST",
+      body: JSON.stringify({ folder, channel, kind, articleSlug: articleSlug.trim() || undefined }),
+    });
+    setComposing(false);
+    if (error || !data?.ok) {
+      setComposeError(error || data?.error || data?.code || "compose failed");
+      return;
+    }
+    setComposeResult(data as unknown as ComposeResult);
+  }
+
+  // Preview the draft (fresh signed URLs + caption).
+  async function preview() {
+    if (!composeResult?.draftId) return;
+    setPreviewing(true);
+    setPreviewResult(null);
+    const { data, error } = await fetchJson<PreviewResult>("/api/growth/social?action=preview", {
+      method: "POST",
+      body: JSON.stringify({ draftId: composeResult.draftId }),
+    });
+    setPreviewing(false);
+    if (error || !data?.ok) { setComposeError(error || "preview failed"); return; }
+    setPreviewResult(data);
+  }
+
+  // Dry-run the draft (step plan, no API call).
+  async function dryRun() {
+    if (!composeResult?.draftId) return;
+    setDryRunning(true);
+    setDryRunResult(null);
+    const { data, error } = await fetchJson<DryRunResult>("/api/growth/social?action=dryrun", {
+      method: "POST",
+      body: JSON.stringify({ draftId: composeResult.draftId }),
+    });
+    setDryRunning(false);
+    if (error || !data?.ok) { setComposeError(error || "dry-run failed"); return; }
+    setDryRunResult(data);
+  }
+
+  // Only show media items (image/video) for composing; skip text drops.
+  const mediaItems = orderedIds
+    .map((id) => items.find((it) => it.id === id))
+    .filter((it): it is InboxItem => !!it && (it.kind === "image" || it.kind === "video"));
+
+  return (
+    <div className="mt-3 rounded-xl border border-[#f59f4f]/20 bg-[#f59f4f]/[0.02] p-3">
+      <p className="text-[12px] font-semibold text-[#f59f4f]">Compose social post</p>
+
+      {/* Channel + kind + article slug */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as SocialChannel)}
+          className="rounded-md border border-white/10 bg-[#0a0f18] px-2 py-1 text-[11px] text-[#c0cfe0] outline-none"
+        >
+          <option value="instagram">Instagram</option>
+          <option value="linkedin">LinkedIn</option>
+        </select>
+        <select
+          value={kind}
+          onChange={(e) => setKind(e.target.value as SocialKind)}
+          className="rounded-md border border-white/10 bg-[#0a0f18] px-2 py-1 text-[11px] text-[#c0cfe0] outline-none"
+        >
+          <option value="image">Image</option>
+          <option value="carousel">Carousel</option>
+          <option value="video">Video</option>
+        </select>
+        <input
+          value={articleSlug}
+          onChange={(e) => setArticleSlug(e.target.value)}
+          placeholder="Article slug (optional)"
+          className="min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
+        />
+        <button
+          onClick={compose}
+          disabled={composing || mediaItems.length === 0}
+          className="rounded-md bg-[#f59f4f] px-3 py-1 text-[11px] font-semibold text-[#0a0c10] hover:bg-[#f59f4f]/90 disabled:opacity-40"
+        >
+          {composing ? "Composing…" : "Compose"}
+        </button>
+      </div>
+      {mediaItems.length === 0 && (
+        <p className="mt-1 text-[11px] text-[#7a9ab8]">No image/video items in this folder — upload assets first.</p>
+      )}
+
+      {/* Per-item alt text + order controls */}
+      {mediaItems.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          <p className="text-[10px] text-[#7a9ab8]">Media order &amp; alt text (saved on blur):</p>
+          {mediaItems.map((it, idx) => (
+            <div key={it.id} className="flex items-center gap-2 rounded-md border border-white/[0.06] bg-white/[0.02] p-1.5">
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <button
+                  onClick={() => moveItem(idx, -1)}
+                  disabled={idx === 0 || reordering}
+                  className="rounded px-1 py-0.5 text-[10px] text-[#7a9ab8] hover:bg-white/10 disabled:opacity-30"
+                  title="Move up"
+                >↑</button>
+                <button
+                  onClick={() => moveItem(idx, 1)}
+                  disabled={idx === mediaItems.length - 1 || reordering}
+                  className="rounded px-1 py-0.5 text-[10px] text-[#7a9ab8] hover:bg-white/10 disabled:opacity-30"
+                  title="Move down"
+                >↓</button>
+              </div>
+              <span className="shrink-0 text-[10px] text-[#5f7c98]">#{idx + 1}</span>
+              <p className="min-w-0 flex-1 truncate text-[11px] text-[#c8d6e8]">{it.original_name || it.id}</p>
+              <input
+                value={altTexts[it.id] ?? ""}
+                onChange={(e) => setAltTexts((m) => ({ ...m, [it.id]: e.target.value }))}
+                onBlur={() => saveAltText(it.id, altTexts[it.id] ?? "")}
+                placeholder="Alt text…"
+                className="w-44 shrink-0 rounded-md border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Compose error */}
+      {composeError && <p className="mt-2 text-[11px] text-rose-300">{composeError}</p>}
+
+      {/* Compose result */}
+      {composeResult && (
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+          <p className="text-[11px] font-semibold text-emerald-300">
+            Draft created — ID {composeResult.draftId} · {composeResult.itemCount} item(s)
+          </p>
+          {composeResult.caption && (
+            <p className="mt-1 whitespace-pre-wrap text-[11px] text-[#c8d6e8]">{composeResult.caption}</p>
+          )}
+          {composeResult.firstComment && (
+            <p className="mt-1 text-[10px] text-[#7a9ab8]">First comment: {composeResult.firstComment}</p>
+          )}
+          {composeResult.note && (
+            <p className="mt-1 text-[10px] text-[#7a9ab8]">{composeResult.note}</p>
+          )}
+
+          {/* Validation issues */}
+          {composeResult.validation.issues.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {composeResult.validation.issues.map((iss, i) => (
+                <p
+                  key={i}
+                  className={`text-[10px] ${iss.level === "error" ? "text-rose-300" : iss.level === "unverified" ? "text-amber-300" : "text-emerald-300"}`}
+                >
+                  <span className="font-bold uppercase">[{iss.level}]</span> {iss.code}: {iss.message}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Hard-error blocker note */}
+          {!composeResult.validation.ok && (
+            <p className="mt-1 text-[11px] font-semibold text-rose-300">Validation errors block publishing — fix the media and recompose.</p>
+          )}
+          {composeResult.validation.unverified && composeResult.validation.ok && (
+            <p className="mt-1 text-[11px] text-amber-300">Some constraints could not be verified server-side (marked amber above). Review before publishing.</p>
+          )}
+
+          {/* Publishing note */}
+          <p className="mt-2 rounded-md border border-[#f59f4f]/20 bg-[#f59f4f]/[0.05] px-2 py-1 text-[10px] text-[#f6bf84]">
+            Publishing happens from the Issues tab after approval — this draft is now in the pending queue.
+          </p>
+
+          {/* Preview + Dry-run actions */}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              onClick={preview}
+              disabled={previewing}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-[#c0cfe0] hover:bg-white/[0.06] disabled:opacity-40"
+            >
+              {previewing ? "Loading…" : "Preview"}
+            </button>
+            <button
+              onClick={dryRun}
+              disabled={dryRunning}
+              className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-[#c0cfe0] hover:bg-white/[0.06] disabled:opacity-40"
+            >
+              {dryRunning ? "Loading…" : "Dry run"}
+            </button>
+          </div>
+
+          {/* Preview result */}
+          {previewResult && (
+            <div className="mt-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+              <p className="text-[10px] font-semibold text-[#7a9ab8]">Preview · {previewResult.channel} {previewResult.kind}</p>
+              <p className="mt-1 whitespace-pre-wrap text-[11px] text-[#c8d6e8]">{previewResult.caption}</p>
+              {previewResult.media.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {previewResult.media.map((m, i) => (
+                    <div key={m.inboxItemId} className="flex flex-col items-center gap-0.5">
+                      {m.signedUrl ? (
+                        <a href={m.signedUrl} target="_blank" rel="noopener noreferrer">
+                          <img src={m.signedUrl} alt={m.alt || m.originalName || `media ${i + 1}`} className="h-16 w-16 rounded object-cover" />
+                        </a>
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded bg-white/[0.05] text-[9px] text-[#5f7c98]">{m.kind || "media"}</div>
+                      )}
+                      <span className="max-w-[64px] truncate text-[9px] text-[#5f7c98]">#{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dry-run result */}
+          {dryRunResult && (
+            <div className="mt-2 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+              <p className="text-[10px] font-semibold text-[#7a9ab8]">
+                Dry run · {dryRunResult.dryRun.channel} · {dryRunResult.dryRun.configured ? "API configured" : "not configured"}
+              </p>
+              {dryRunResult.dryRun.notes.map((n, i) => (
+                <p key={i} className="mt-0.5 text-[10px] text-amber-300">{n}</p>
+              ))}
+              {dryRunResult.dryRun.steps.map((step, i) => (
+                <div key={i} className="mt-1.5 rounded border border-white/[0.05] bg-white/[0.02] p-1.5">
+                  <p className="text-[10px] font-semibold text-[#c0cfe0]">{step.method} {step.endpoint.slice(0, 80)}{step.endpoint.length > 80 ? "…" : ""}</p>
+                  <p className="text-[10px] text-[#7a9ab8]">{step.note}</p>
+                  {step.payload && (
+                    <p className="mt-0.5 truncate font-mono text-[9px] text-[#5f7c98]">{JSON.stringify(step.payload).slice(0, 120)}…</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Inbox component ─────────────────────────────────────────────────────
 
 const Inbox: React.FC = () => {
   const { fetchJson } = useAdminApi();
@@ -267,6 +629,13 @@ const Inbox: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {/* Social composer panel — shown per folder, always visible */}
+            <SocialComposerPanel
+              folder={folder}
+              items={groupItems}
+              onAnnotated={load}
+            />
           </div>
         ))}
         {!loading && items.length === 0 && <p className="text-[13px] text-[#7a9ab8]">No items yet.</p>}

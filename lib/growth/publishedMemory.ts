@@ -1,11 +1,12 @@
 /**
  * InBharat Growth — Published Memory (the cockpit's "what's published where" layer).
  *
- * One row per published article joining the three disjoint sources by slug
+ * One row per published article joining the two disjoint sources by slug
  * (see supabase/migrations/20260706100000_growth_published_memory.sql):
  *   • published_articles  — website originals
- *   • growth_syndication  — DEV.to / Hashnode / Medium cross-posts (latest per platform)
  *   • growth_drafts kind='linkedin' status='published' — LinkedIn posts (NO URL persisted)
+ *
+ * Note: DEV.to, Hashnode, and Medium syndication channels have been removed.
  *
  * HONEST: LinkedIn platform URL is never stored (share-template → manual post),
  * so linkedin_url is always null and the UI shows "posted manually". measured_at
@@ -29,10 +30,8 @@ export interface PublishedMemoryItem {
   sourceMetaSha: string | null;
   syncedAt: string | null;
   inbharatStatus: string;
-  devto: { url: string | null; status: string | null; at: string | null };
-  hashnode: { url: string | null; status: string | null; at: string | null };
-  medium: { url: string | null; status: string | null; at: string | null };
   linkedin: { url: string | null; status: string | null; at: string | null };
+  instagram: { url: string | null; status: string | null; at: string | null };
   measuredAt: string | null;
 }
 
@@ -46,24 +45,18 @@ interface PublishedMemoryRow {
   source_meta_sha: string | null;
   synced_at: string | null;
   inbharat_status: string;
-  devto_url: string | null;
-  devto_status: string | null;
-  devto_at: string | null;
-  hashnode_url: string | null;
-  hashnode_status: string | null;
-  hashnode_at: string | null;
-  medium_url: string | null;
-  medium_status: string | null;
-  medium_at: string | null;
   linkedin_status: string | null;
   linkedin_at: string | null;
   linkedin_url: string | null;
+  instagram_url: string | null;
+  instagram_status: string | null;
+  instagram_at: string | null;
   measured_at: string | null;
 }
 
 export interface PublishedMemoryFilters {
   /** Filter to articles whose syndication status on this platform matches `status`. */
-  platform?: "devto" | "hashnode" | "medium" | "linkedin";
+  platform?: "linkedin" | "instagram";
   /** Status value for the platform filter (e.g. "published", "not_configured", null = any). */
   status?: string | null;
   /** Inclusive lower bound on publish_date (ISO YYYY-MM-DD). */
@@ -84,10 +77,8 @@ function toRow(r: PublishedMemoryRow): PublishedMemoryItem {
     sourceMetaSha: r.source_meta_sha,
     syncedAt: r.synced_at,
     inbharatStatus: r.inbharat_status,
-    devto: { url: r.devto_url, status: r.devto_status, at: r.devto_at },
-    hashnode: { url: r.hashnode_url, status: r.hashnode_status, at: r.hashnode_at },
-    medium: { url: r.medium_url, status: r.medium_status, at: r.medium_at },
     linkedin: { url: r.linkedin_url, status: r.linkedin_status, at: r.linkedin_at },
+    instagram: { url: r.instagram_url ?? null, status: r.instagram_status ?? null, at: r.instagram_at ?? null },
     measuredAt: r.measured_at,
   };
 }
@@ -95,12 +86,12 @@ function toRow(r: PublishedMemoryRow): PublishedMemoryItem {
 /**
  * Platform status derived for sorting/quick-glance ("deposited" if any cross-post
  * row exists, else null). Computed in TS from the joined row — not a DB column.
+ * DEV.to, Hashnode, and Medium have been removed; only LinkedIn is tracked.
  */
 export function syndicationSummary(item: PublishedMemoryItem): { deposited: boolean; platforms: string[] } {
   const platforms: string[] = [];
-  if (item.devto.status) platforms.push("devto");
-  if (item.hashnode.status) platforms.push("hashnode");
-  if (item.medium.status) platforms.push("medium");
+  if (item.linkedin.status) platforms.push("linkedin");
+  if (item.instagram.status) platforms.push("instagram");
   return { deposited: platforms.length > 0, platforms };
 }
 
@@ -131,10 +122,7 @@ export async function listPublishedMemory(filters: PublishedMemoryFilters = {}):
     if (filters.platform && filters.status !== undefined) {
       const want = filters.status ?? null;
       items = items.filter((it) => {
-        const cell = filters.platform === "devto" ? it.devto.status
-          : filters.platform === "hashnode" ? it.hashnode.status
-          : filters.platform === "medium" ? it.medium.status
-          : it.linkedin.status;
+        const cell = filters.platform === "instagram" ? it.instagram.status : it.linkedin.status;
         return (cell ?? null) === want;
       });
     }

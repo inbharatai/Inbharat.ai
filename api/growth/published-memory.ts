@@ -15,10 +15,12 @@ import { listPublishedMemory } from "../../lib/growth/publishedMemory.js";
  * LinkedIn outcomes only (growth_outcomes.kind CHECK = linkedin|inbox-outline);
  * article SEO lives in growth_pages via the audit runner, surfaced separately.
  *
- * Query: ?platform=devto|hashnode|medium|linkedin  &status=published|not_configured|...
+ * Query: ?platform=linkedin  &status=published|not_configured|...
  *        &since=YYYY-MM-DD  &until=YYYY-MM-DD  &limit=1..500
+ *
+ * Note: DEV.to, Hashnode, and Medium platforms have been removed.
  */
-const PLATFORMS = new Set(["devto", "hashnode", "medium", "linkedin"]);
+const PLATFORMS = new Set(["linkedin", "instagram"]);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);
@@ -37,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(Math.round(limitRaw), 500)) : undefined;
 
   const items = await listPublishedMemory({
-    platform: platform && PLATFORMS.has(platform) ? (platform as "devto" | "hashnode" | "medium" | "linkedin") : undefined,
+    platform: platform && PLATFORMS.has(platform) ? (platform as "linkedin" | "instagram") : undefined,
     status,
     since,
     until,

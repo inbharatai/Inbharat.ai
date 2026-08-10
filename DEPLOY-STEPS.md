@@ -122,15 +122,10 @@ Only if you run the Growth Agent surface (`/admin/growth`). All are server-only 
 
 | Name | Value | Notes |
 |------|--------|--------|
-| `GROWTH_OPENAI_API_KEY` | OpenAI key for the growth agent | Separate from chat; the chat model selection is never touched. |
-| `GEMINI_API_KEY` | Gemini key for the growth model router | Separate from chat. |
+| `GEMINI_API_KEY` | Gemini key for the growth model router | Gemini-only; no separate OpenAI growth key needed. |
 | `GITHUB_TOKEN` | GitHub PAT | For audit PR creation; read-only is fine. |
 | `CRON_SECRET` | A shared secret | Authenticates the scheduled daily cron + external schedulers. |
-| `DEVTO_API_KEY` | Forem API key (dev.to/settings/extensions) | Stage 3 — cross-post articles to DEV.to as drafts. |
-| `HASHNODE_TOKEN` | Hashnode PAT (hashnode.com/settings/developer) | Stage 3 — cross-post to Hashnode (no Bearer prefix). |
-| `HASHNODE_PUBLICATION_ID` | Your publication's ObjectId | Stage 3 — required by Hashnode's `publishPost` mutation. |
-
-Medium has no API (deprecated) → Stage 3 surfaces it as a manual import helper (canonical URL + the `medium.com/p/import` page), so there is no `MEDIUM_*` key.
+Note: DEV.to, Hashnode, and Medium syndication channels have been removed. No DEVTO_API_KEY, HASHNODE_TOKEN, HASHNODE_PUBLICATION_ID, or GROWTH_OPENAI_API_KEY keys are needed. LinkedIn publishing uses /api/growth/publish (no separate key).
 
 **D2c. Supabase migrations — run once**
 

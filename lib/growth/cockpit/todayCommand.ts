@@ -17,7 +17,7 @@ export interface InsightsShape {
   spend?: { capUsd?: number; spentUsd?: number; projectedUsd?: number; remainingUsd?: number };
   recentActivity?: { type: string; detail: string; createdAt: string }[];
   stuckRuns?: { id: string; domain: string; started_at: string }[];
-  integrations?: { gemini: boolean; growthOpenai: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean };
+  integrations?: { gemini: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean; instagram: boolean; linkedinApi: boolean };
 }
 export interface PipelineShape {
   thread?: { id: string; title: string; updatedAt: string } | null;

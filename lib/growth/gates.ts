@@ -208,11 +208,7 @@ function gateSeoGeo(input: GateInput): GateResult {
 // ─── Gate 7: platform format ────────────────────────────────────────────────
 function gatePlatformFormat(input: GateInput): GateResult {
   const platform: PlatformKind = input.platform ?? (input.kind === "linkedin" ? "linkedin" : "inbharat");
-  // Medium canonical presence is decided by whether the draft body itself
-  // carries a canonical link — a markdown article re-published to Medium should
-  // include one. For non-medium platforms this opt is unused.
-  const canonicalPresent = /canonical|originally published/i.test(input.bodyMd ?? "");
-  const { findings } = checkPlatformFormat(input.bodyMd, platform, { canonicalPresent });
+  const { findings } = checkPlatformFormat(input.bodyMd, platform);
   return { id: "platform_format", name: GATE_NAMES.platform_format, status: statusFromFindings(findings), findings };
 }
 

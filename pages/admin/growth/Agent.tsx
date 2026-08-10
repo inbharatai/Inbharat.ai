@@ -351,7 +351,7 @@ const Agent: React.FC = () => {
       case "no db":
         return "Morning plan ran but drafted nothing — Supabase isn't configured in Vercel env. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY so the agent can persist drafts.";
       case "model not configured":
-        return "Morning plan ran but drafted nothing — no growth model key in Vercel env. Set GEMINI_API_KEY (or GROWTH_OPENAI_API_KEY) so the agent can draft.";
+        return "Morning plan ran but drafted nothing — no growth model key in Vercel env. Set GEMINI_API_KEY so the agent can draft.";
       case "budget exhausted":
         return "Morning plan ran but drafted nothing — the monthly growth budget is exhausted. Raise the cap in Settings.";
       default:

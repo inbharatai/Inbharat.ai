@@ -31,7 +31,7 @@ interface InsightsResp {
   };
   spend?: { spentUsd: number; capUsd: number; projectedUsd: number; remainingUsd: number; source: string };
   recentActivity?: { type: string; detail: string; createdAt: string }[];
-  integrations?: { gemini: boolean; growthOpenai: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean };
+  integrations?: { gemini: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean; instagram: boolean; linkedinApi: boolean };
   error?: string;
 }
 interface CronResult {
@@ -188,11 +188,12 @@ const Overview: React.FC = () => {
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">Integration health</h2>
         <div className="mt-3 flex flex-wrap gap-4">
           <Dot label="Gemini" ok={integrations?.gemini} />
-          <Dot label="OpenAI (growth)" ok={integrations?.growthOpenai} />
           <Dot label="Supabase" ok={integrations?.supabase} />
           <Dot label="Cron secret" ok={integrations?.cronSecret} />
           <Dot label="GA4" ok={integrations?.ga4} />
           <Dot label="GSC" ok={integrations?.gsc} />
+          <Dot label="Instagram" ok={integrations?.instagram} />
+          <Dot label="LinkedIn API" ok={integrations?.linkedinApi} />
         </div>
         <p className="mt-3 text-[11px] text-[#5f7c98]">
           Booleans only — secret values never leave the server. Wire missing integrations in Vercel env (see Settings).

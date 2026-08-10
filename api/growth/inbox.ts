@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { INBOX_BUCKET, MAX_BYTES, isAllowedExt, inboxPath, sanitizeFolder, markFolderFedToAgent, unmarkFolderFedToAgent } from "../../lib/growth/inbox.js";
+import { INBOX_BUCKET, MAX_BYTES, isAllowedExt, inboxPath, sanitizeFolder, markFolderFedToAgent, unmarkFolderFedToAgent, setPostOrder, setAltText } from "../../lib/growth/inbox.js";
 
 /**
  * /api/growth/inbox — content drop-folder. Admin-only.
@@ -33,6 +33,13 @@ const ConfirmBody = z.object({
 });
 const FeedBody = z.object({ folder: z.string().min(1).max(160) });
 const DeleteBody = z.object({ itemId: z.string().min(1) });
+// Social publishing (migration 20260810000002): order a folder's media for a
+// carousel/post, and annotate an item with alt text. Additive — pre-existing
+// actions are untouched.
+const ReorderBody = z.object({
+  order: z.array(z.object({ itemId: z.string().min(1), postOrder: z.number().int().min(0).max(10000) })).min(1).max(50),
+});
+const AnnotateBody = z.object({ itemId: z.string().min(1), altText: z.string().max(1000) });
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);
@@ -132,12 +139,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, requestId, folder, count });
   }
 
+  if (req.method === "POST" && req.query?.action === "reorder") {
+    const parsed = ReorderBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body (need order:[{itemId,postOrder}]).", requestId });
+    // The post_order column arrives in migration 20260810000002. Probe once so a
+    // pre-migration DB gets a clear message instead of a silent count 0.
+    const probe = await supabaseAdmin.from("growth_inbox_items").select("post_order").limit(1);
+    if (probe.error && /post_order|column|schema/i.test(probe.error.message)) {
+      return res.status(503).json({ ok: false, code: "MIGRATION_PENDING", error: "Media ordering isn't live yet — apply migration 20260810000002 (supabase db push).", requestId });
+    }
+    const count = await setPostOrder(parsed.data.order);
+    return res.status(200).json({ ok: true, requestId, count });
+  }
+
+  if (req.method === "POST" && req.query?.action === "annotate") {
+    const parsed = AnnotateBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body (need itemId, altText).", requestId });
+    const probe = await supabaseAdmin.from("growth_inbox_items").select("alt_text").limit(1);
+    if (probe.error && /alt_text|column|schema/i.test(probe.error.message)) {
+      return res.status(503).json({ ok: false, code: "MIGRATION_PENDING", error: "Alt text isn't live yet — apply migration 20260810000002 (supabase db push).", requestId });
+    }
+    const ok = await setAltText(parsed.data.itemId, parsed.data.altText);
+    if (!ok) return res.status(404).json({ ok: false, code: "NOT_FOUND", error: "item not found", requestId });
+    return res.status(200).json({ ok: true, requestId });
+  }
+
   if (req.method === "GET") {
     // Try the full column set (Phase B: folder, fed_to_agent). If the live DB
     // hasn't had migration 20260627000001 applied yet, PostgREST rejects the
     // unknown columns — fall back to the legacy column set so the UI degrades
     // (folder="" / fed_to_agent=null) instead of hard-erroring "DB read failed".
-    const FULL_COLS = "id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,linked_draft_id,error,created_at,ingested_at";
+    // post_order + alt_text (migration 20260810000002) ride in the full set; the
+    // legacy fallback (folder/fed_to_agent absent) also lacks them, so map nulls.
+    const FULL_COLS = "id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,post_order,alt_text,linked_draft_id,error,created_at,ingested_at";
+    // Phase B set: folder/fed_to_agent live (20260627000001) but post_order/alt_text
+    // not yet (20260810000002) — so a middle tier keeps folders working when only
+    // the social migration is pending. Legacy: neither applied.
+    const PHASE_B_COLS = "id,storage_path,kind,original_name,status,sha256,folder,fed_to_agent,linked_draft_id,error,created_at,ingested_at";
     const LEGACY_COLS = "id,storage_path,kind,original_name,status,sha256,linked_draft_id,error,created_at,ingested_at";
     let rows: Record<string, unknown>[] | null = null;
     const full = await supabaseAdmin
@@ -146,14 +184,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .order("created_at", { ascending: false })
       .limit(100);
     if (full.error) {
-      const legacy = await supabaseAdmin
+      const phaseB = await supabaseAdmin
         .from("growth_inbox_items")
-        .select(LEGACY_COLS)
+        .select(PHASE_B_COLS)
         .order("created_at", { ascending: false })
         .limit(100);
-      if (legacy.error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `DB read failed: ${legacy.error.message}`, requestId });
-      rows = (legacy.data ?? []) as Record<string, unknown>[];
-      rows = rows.map((r) => ({ ...r, folder: "", fed_to_agent: null }));
+      if (!phaseB.error) {
+        rows = (phaseB.data ?? []).map((r) => ({ ...(r as Record<string, unknown>), post_order: null, alt_text: null }));
+      } else {
+        const legacy = await supabaseAdmin
+          .from("growth_inbox_items")
+          .select(LEGACY_COLS)
+          .order("created_at", { ascending: false })
+          .limit(100);
+        if (legacy.error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: `DB read failed: ${legacy.error.message}`, requestId });
+        rows = (legacy.data ?? []) as Record<string, unknown>[];
+        rows = rows.map((r) => ({ ...r, folder: "", fed_to_agent: null, post_order: null, alt_text: null }));
+      }
     } else {
       rows = (full.data ?? []) as Record<string, unknown>[];
     }

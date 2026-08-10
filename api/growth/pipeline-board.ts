@@ -11,7 +11,7 @@ import { PIPELINE_STAGE_ORDER } from "../../lib/growth/cockpit/stageChip.js";
  * to 50 compact cards + overflow flag. Filters (status + platform only) are
  * applied best-effort to the stages where they're meaningful.
  *
- * Query: ?status=pending|approved|published|rejected  &platform=devto|hashnode|medium|linkedin|inbharat  &cap=1..200
+ * Query: ?status=pending|approved|published|rejected  &platform=linkedin|instagram|inbharat  &cap=1..200
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = getRequestId(req);

@@ -482,3 +482,51 @@ export async function unmarkFolderFedToAgent(folder: string): Promise<number> {
     return 0;
   }
 }
+
+// ─── Social publishing: media ordering + alt text (migration 20260810000002) ──
+
+/**
+ * Set `post_order` for a list of inbox items (the carousel/post order the social
+ * layer reads via orderedCarousel). `order` maps itemId → integer position; only
+ * ids that exist are updated. Returns the count updated. Additive — existing
+ * inbox callers never touch post_order (it stays null). Never throws.
+ *
+ * Requires the post_order column (migration 20260810000002); when absent, every
+ * update errors and 0 is returned (the api route probes + surfaces a clear
+ * MIGRATION_PENDING before calling this).
+ */
+export async function setPostOrder(order: { itemId: string; postOrder: number }[]): Promise<number> {
+  if (!supabaseAdmin || order.length === 0) return 0;
+  let updated = 0;
+  for (const { itemId, postOrder } of order) {
+    if (!itemId || !Number.isFinite(postOrder)) continue;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("growth_inbox_items")
+        .update({ post_order: Math.trunc(postOrder) })
+        .eq("id", itemId)
+        .select("id");
+      if (!error && Array.isArray(data) && data.length > 0) updated += data.length;
+    } catch {
+      // skip this id; continue the batch
+    }
+  }
+  return updated;
+}
+
+/** Set `alt_text` on a single inbox item (accessibility + platform altText).
+ *  Returns true when a row was updated. Never throws. Requires the alt_text
+ *  column (migration 20260810000002). */
+export async function setAltText(itemId: string, altText: string): Promise<boolean> {
+  if (!supabaseAdmin || !itemId) return false;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_inbox_items")
+      .update({ alt_text: altText })
+      .eq("id", itemId)
+      .select("id");
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}

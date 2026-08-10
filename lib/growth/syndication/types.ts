@@ -1,35 +1,30 @@
 /**
  * InBharat Growth Agent — Stage 3 syndication: shared types.
  *
- * Syndication = republishing an APPROVED article draft to external platforms
- * (DEV.to, Hashnode) with the InBharat canonical URL set, so search engines
- * attribute the original to www.inbharat.ai and the cross-post ranks as a
- * copy, not duplicate content. Medium has no public write API anymore
- * (deprecated) → surfaced as a manual import helper (canonical URL the founder
- * pastes into Medium's importer), never a fabricated POST.
+ * Syndication channels DEV.to, Hashnode, and Medium have been removed.
+ * The syndication infrastructure (ledger, route, articleBody) is retained
+ * because LinkedIn cross-posting and the growth_syndication ledger are still
+ * active. SyndicationPlatform is intentionally kept as a narrow type for
+ * any future platform additions (e.g. instagram).
  *
- * Human-gated: the founder explicitly picks platforms per article in the
- * /admin/growth/syndication page and confirms before each run. There is no
- * cron auto-syndication — syndication is a deliberate, per-article action.
+ * Human-gated: the founder explicitly picks platforms per article. There is
+ * no cron auto-syndication — syndication is a deliberate, per-article action.
  *
- * Server-only. Never touches the chat backend. No model calls (so no budget
- * impact + no redaction-before-model rule applies); the article body IS
- * secret-scanned before each POST so a leaked secret in a draft is never
- * shipped to a third-party platform.
+ * Server-only. Never touches the chat backend.
  */
 
-/** The platforms Stage 3 can syndicate to. */
-export type SyndicationPlatform = "devto" | "hashnode" | "medium";
+/**
+ * The platforms Stage 3 can syndicate to.
+ * DEV.to, Hashnode, and Medium have been removed. This type is kept
+ * for the ledger row shape and future platform additions.
+ */
+export type SyndicationPlatform = string;
 
-/** The lifecycle status of one syndication attempt, persisted to growth_syndication.
- *  `playwright_draft` is the local Playwright path: the "Submit (local) ↗" click
- *  recorded a ledger row + copied the body/canonical, the founder runs
- *  scripts/syndicate-populate.ts on their machine to pre-fill the editor, then
- *  clicks Publish themselves. The deployed app never spawns a browser. */
+/** The lifecycle status of one syndication attempt, persisted to growth_syndication. */
 export type SyndicationStatus =
-  | "published" // live on the platform (Hashnode publishPost)
-  | "draft" // created as a platform draft for founder review (DEV.to published:false)
-  | "manual" // no API — founder pastes canonical into the platform's importer (Medium)
+  | "published" // live on the platform
+  | "draft" // created as a platform draft for founder review
+  | "manual" // no API — founder pastes canonical into the platform's importer
   | "playwright_draft" // local Playwright editor pre-fill (founder runs the script + clicks Publish)
   | "failed" // the platform API returned an error
   | "not_configured"; // the platform's env var (API key / publication id) is absent
@@ -39,7 +34,7 @@ export interface SyndicationResult {
   platform: SyndicationPlatform;
   /** True when the platform accepted the post (published, draft, or manual helper built). */
   ok: boolean;
-  /** The platform post URL on success (null for Medium manual + failures). */
+  /** The platform post URL on success (null for failures). */
   url: string | null;
   /** The platform's internal post id on success (null when not provided / manual). */
   postId: string | null;
@@ -62,8 +57,8 @@ export interface SyndicationContext {
   bodyMarkdown: string;
   /** Hashtags from the article manifest / draft schema_json (drives platform tags). */
   hashtags: string[] | null;
-  /** Optional cover image URL (used as DEV.to main_image when available). */
+  /** Optional cover image URL. */
   coverImageUrl?: string | null;
-  /** Optional short description (DEV.to description field). */
+  /** Optional short description. */
   description?: string | null;
 }

@@ -11,8 +11,8 @@ import { test, expect, type Page, type Route } from "@playwright/test";
  *     here we also confirm AdminGrowthLayout forces noindex at runtime.
  *   - the server-verified gate shows "Sign in required" on 401 and renders the
  *     dashboard on 200.
- *   - the Usage page renders the spend/cap header, the provider split (Gemini /
- *     OpenAI), and the where-used table.
+ *   - the Usage page renders the spend/cap header, the provider (Gemini-only),
+ *     and the where-used table.
  *   - the budget editor PATCHes the cap and the UI reflects the new value.
  *   - the Overview "Run daily audit now" button triggers the cron and shows the
  *     per-domain result.
@@ -35,14 +35,12 @@ const USAGE_BODY = {
   requestId: "t",
   configured: true,
   windowDays: 30,
-  totals: { calls: 42, promptTokens: 1000, completionTokens: 500, totalTokens: 1500, costUsd: 0.12, providers: 2, models: 2 },
+  totals: { calls: 42, promptTokens: 1000, completionTokens: 500, totalTokens: 1500, costUsd: 0.12, providers: 1, models: 1 },
   byProvider: [
-    { key: "gemini", calls: 30, tokens: 1000, costUsd: 0.08, pctSpend: 66.7 },
-    { key: "openai", calls: 12, tokens: 500, costUsd: 0.04, pctSpend: 33.3 },
+    { key: "gemini", calls: 42, tokens: 1500, costUsd: 0.12, pctSpend: 100 },
   ],
   byModel: [
-    { key: "gemini-flash-latest", calls: 30, tokens: 1000, costUsd: 0.08, provider: "gemini", pctSpend: 66.7 },
-    { key: "gpt-4.1-mini", calls: 12, tokens: 500, costUsd: 0.04, provider: "openai", pctSpend: 33.3 },
+    { key: "gemini-2.5-flash", calls: 42, tokens: 1500, costUsd: 0.12, provider: "gemini", pctSpend: 100 },
   ],
   byTask: [{ key: "draft", calls: 42, tokens: 1500, costUsd: 0.12, pctSpend: 100 }],
   byArticle: [{ key: "https://inbharat.ai/learn-ai-with-reeturaj/rag", calls: 42, tokens: 1500, costUsd: 0.12, pctSpend: 100 }],
@@ -63,7 +61,7 @@ const INSIGHTS_BODY = {
   counts: { pages: 25, openTasks: 3, draftsByStatus: { pending: 2, approved: 1 }, approvalsThisMonth: 1 },
   spend: { spentUsd: 0.12, capUsd: 20, projectedUsd: 0.4, remainingUsd: 19.88, source: "db" },
   recentActivity: [{ type: "cron", detail: "inbharat.ai: completed (25 pages)", createdAt: "2026-06-25T06:18:00.000Z" }],
-  integrations: { gemini: true, growthOpenai: false, supabase: true, cronSecret: false, ga4: false, gsc: false },
+  integrations: { gemini: true, supabase: true, cronSecret: false, ga4: false, gsc: false },
 };
 
 const CRON_RESULT = {
@@ -114,9 +112,8 @@ test("authorized admin sees Usage dashboard (cap, provider split, where used)", 
   await page.goto("/admin/growth/usage", { waitUntil: "load" });
   // The cap renders as "$20.00" (the budget GET). This also implies loading cleared.
   await expect(page.locator("body")).toContainText(/\$20\.00/, { timeout: 15000 });
-  // Provider split cards (static labels, always present once loaded).
+  // Provider card (Gemini-only — Growth Engine is Gemini-only since 2026-08-10).
   await expect(page.locator("body")).toContainText(/Gemini/);
-  await expect(page.locator("body")).toContainText(/OpenAI/);
   // Where-used section surfaces the article.
   await expect(page.locator("body")).toContainText(/Where used/i);
   await expect(page.locator("body")).toContainText(/rag/i);

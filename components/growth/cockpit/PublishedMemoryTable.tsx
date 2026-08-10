@@ -9,12 +9,11 @@ import { memoryChips } from "../../../lib/growth/cockpit/memoryChips";
 
 /** Client-side mirror of syndicationSummary (lib/growth/publishedMemory.ts) — kept
  *  here to avoid a value import of the server-only module. Stays in sync with the
- *  server helper. */
+ *  server helper. DEV.to, Hashnode, and Medium have been removed. */
 function syndicationSummary(item: PublishedMemoryItem): { deposited: boolean; platforms: string[] } {
   const platforms: string[] = [];
-  if (item.devto.status) platforms.push("devto");
-  if (item.hashnode.status) platforms.push("hashnode");
-  if (item.medium.status) platforms.push("medium");
+  if (item.linkedin.status) platforms.push("linkedin");
+  if (item.instagram.status) platforms.push("instagram");
   return { deposited: platforms.length > 0, platforms };
 }
 
@@ -68,10 +67,8 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
               <tr className="bg-white/[0.03] text-left text-[10px] uppercase tracking-wide text-[#7a9ab8]">
                 <th className="px-3 py-2 font-semibold">Article</th>
                 <th className="px-3 py-2 font-semibold">InBharat</th>
-                <th className="px-3 py-2 font-semibold">DEV.to</th>
-                <th className="px-3 py-2 font-semibold">Hashnode</th>
-                <th className="px-3 py-2 font-semibold">Medium</th>
                 <th className="px-3 py-2 font-semibold">LinkedIn</th>
+                <th className="px-3 py-2 font-semibold">Instagram</th>
                 <th className="px-3 py-2 font-semibold">Published</th>
               </tr>
             </thead>
@@ -97,10 +94,8 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
                       </div>
                     </td>
                     <td className="px-3 py-2"><PlatCell url={it.canonicalUrl} status="live" label="live" /></td>
-                    <td className="px-3 py-2"><PlatCell url={it.devto.url} status={it.devto.status} /></td>
-                    <td className="px-3 py-2"><PlatCell url={it.hashnode.url} status={it.hashnode.status} /></td>
-                    <td className="px-3 py-2"><PlatCell url={it.medium.url} status={it.medium.status} /></td>
                     <td className="px-3 py-2"><PlatCell url={null} status={it.linkedin.status} manualLabel="posted manually" /></td>
+                    <td className="px-3 py-2"><PlatCell url={it.instagram.url ?? null} status={it.instagram.status} /></td>
                     <td className="px-3 py-2 text-[10px] text-[#7a9ab8]">{it.publishDate ? new Date(it.publishDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
                   </tr>
                 );
@@ -111,7 +106,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
       )}
       {items.length > 0 && (
         <p className="mt-2 text-[10px] text-[#5f7c98]">
-          {items.length} article{items.length === 1 ? "" : "s"}. LinkedIn shows &quot;posted manually&quot; honestly — the share-template flow never persists the post URL.
+          {items.length} article{items.length === 1 ? "" : "s"}. LinkedIn shows &quot;posted manually&quot; — the share-template flow never persists the post URL. Instagram shows the permalink when available.
           {items.some((i) => i.measuredAt) ? " measured_at = LinkedIn outcomes only." : ""}
         </p>
       )}

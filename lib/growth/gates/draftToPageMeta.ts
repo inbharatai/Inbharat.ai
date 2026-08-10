@@ -16,7 +16,7 @@
  *     the live crawl counts rendered text, which is close but not identical.
  */
 import type { PageMeta } from "../types.js";
-import { canonicalForSlug } from "../syndication/tags.js";
+import { canonicalForSlug } from "../syndication/index.js";
 
 /** Strip ``` fenced blocks (code + mermaid) so code isn't counted as prose words. */
 function stripFences(md: string): string {

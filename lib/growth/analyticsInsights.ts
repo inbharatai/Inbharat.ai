@@ -214,8 +214,8 @@ function risingPages(current: GscRow[], previous: GscRow[]): Insight[] {
       metrics: { clicks: r.clicks, impressions: r.impressions, prevClicks, delta },
       summary: `Page "${page}" is rising: ${r.clicks} clicks vs ${prevClicks} last period (+${delta}).`,
       recommendedAction: slug
-        ? `Update + syndicate the "${slug}" article while it's climbing — refresh examples, add an internal link, cross-post to Medium/DEV/Hashnode.`
-        : "Update + syndicate this page while it's climbing — refresh examples and add internal links.",
+        ? `Update the "${slug}" article while it's climbing — refresh examples, add an internal link, and promote on LinkedIn.`
+        : "Update this page while it's climbing — refresh examples and add internal links.",
       priority: clamp(Math.round(50 + Math.min(delta * 2, 40))),
     });
   }

@@ -3,7 +3,7 @@
  *
  * This is the Growth Agent authoring a full SEO article (not just a LinkedIn
  * caption) using its OWN model-router: pickModel('draft') (gemini-flash) for the
- * body, pickModel('review') (openai gpt-4.1-mini) for an accuracy/voice critique
+ * body, pickModel('review') (gemini-2.5-flash) for an accuracy/voice critique
  * pass. Redaction runs LAST before every model call (project rule); withinBudget
  * gates both calls; logUsage records spend. Founder-voice + banned-term rules are
  * injected via loadGlobalRules when the DB is present.
@@ -113,12 +113,11 @@ async function main() {
   }
   console.log(`[generate] draft ok — "${article.title}" (${article.bodyMarkdown.split(/\s+/).length} words, $${draftCost.toFixed(6)})`);
 
-  // ─── Accuracy / critique pass (the agent's review model — Gemini since the
-  // 2026-06-27 Gemini-only overhaul; pickModel("review") → gemini-2.5-flash). The
-  // old code called callOpenAI(reviewChoice.model, …), sending a Gemini model
-  // name to OpenAI's API — the pass silently failed every time (OpenAI rejects the
-  // model name, or GROWTH_OPENAI_API_KEY was never set since the default provider
-  // is gemini). Use the script's own callGemini helper so the critique actually runs.
+  // ─── Accuracy / critique pass (pickModel("review") → gemini-2.5-flash).
+  // FIX (2026-08-10): the old code called callOpenAI(reviewChoice.model, …) which
+  // sent a Gemini model name to OpenAI's API — the pass silently failed every time
+  // (OpenAI rejected the model name). The Growth Engine is now Gemini-only; this
+  // pass uses the script's own callGemini helper so the critique actually runs.
   let verdict: AccuracyVerdict | null = null;
   const reviewChoice = pickModel("review");
   if (isModelConfigured(reviewChoice) && (await withinBudget())) {
