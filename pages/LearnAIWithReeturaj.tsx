@@ -401,10 +401,10 @@ const LearnAIWithReeturaj: React.FC = () => {
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0f18] transition-all duration-300 group-hover:border-[#f59f4f]/40 group-hover:shadow-[0_0_22px_rgba(245,159,79,0.2)]">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" width={20} height={20} />
+              <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5 w-5 object-contain" width={20} height={20} />
             </div>
             <div>
-              <p className="text-[13px] font-semibold tracking-[0.2em] text-white">INBHARAT</p>
+              <p className="text-[14px] font-bold tracking-tight text-white">InBharat.ai</p>
               <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">Founder Learning Hub</p>
             </div>
           </Link>

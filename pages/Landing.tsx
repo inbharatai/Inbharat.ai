@@ -809,7 +809,7 @@ const EcosystemOrbital: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion })
       <div className="absolute left-1/2 top-1/2 z-20 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#080d16] shadow-[0_0_60px_rgba(245,159,79,0.18),0_0_120px_rgba(99,102,241,0.08)] sm:h-20 sm:w-20">
         <motion.img
           src="/inbharat-logo.svg"
-          alt="InBharat logo"
+          alt="InBharat.ai logo"
           className="h-8 w-8 object-contain sm:h-10 sm:w-10"
           animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
@@ -1112,10 +1112,10 @@ const Landing: React.FC = () => {
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
             <div className="logo-badge flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0f18] shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition-all duration-400 group-hover:border-[#f59f4f]/40 group-hover:shadow-[0_12px_36px_rgba(245,159,79,0.15)]">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5.5 w-5.5 object-contain" width={22} height={22} />
+              <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5.5 w-5.5 object-contain" width={22} height={22} />
             </div>
             <div>
-              <p className="text-[13px] font-semibold tracking-[0.2em] text-white">INBHARAT</p>
+              <p className="text-[14px] font-bold tracking-tight text-white">InBharat.ai</p>
               <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">{t('landBrandSub')}</p>
             </div>
           </Link>
@@ -2279,8 +2279,8 @@ const Landing: React.FC = () => {
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 sm:px-6 lg:px-10">
           <div className="flex flex-col items-center justify-between gap-5 sm:flex-row">
             <div className="flex items-center gap-2.5">
-              <img src="/inbharat-logo.svg" alt="InBharat logo" className="h-5 w-5 object-contain" width={20} height={20} />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9aafc6]">InBharat.ai</p>
+              <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5 w-5 object-contain" width={20} height={20} />
+              <p className="text-[12px] font-semibold tracking-tight text-[#9aafc6]">InBharat.ai</p>
             </div>
             <p className="text-[11px] text-[#7a9ab8] sm:text-center">{t('landFooterTagline')}</p>
             <div className="flex items-center gap-2 text-[#96b0c8]">
