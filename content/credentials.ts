@@ -7,7 +7,7 @@
  * "Hyperagent Founding 500" pill in the Landing hero. Every new recognition
  * meant hand-editing JSX in two places and hoping the JSON-LD stayed in sync.
  * Everything credential-shaped now reads from here: the landing hero rail, the
- * landing trust card, the Building-with-Reeturaj showcase, and the
+ * landing trust card, and the
  * `hasCredential` / `award` structured data on both pages.
  *
  * ACCURACY RULES (do not relax these)
@@ -248,21 +248,6 @@ export const CATEGORY_LABEL: Record<CredentialCategory, string> = {
   certification: 'Certifications',
   badge: 'Developer Badges',
 };
-
-/** Display order for grouped rendering — most load-bearing proof first. */
-export const CATEGORY_ORDER: CredentialCategory[] = [
-  'recognition',
-  'program',
-  'certification',
-  'badge',
-];
-
-export function credentialsByCategory(): { category: CredentialCategory; items: Credential[] }[] {
-  return CATEGORY_ORDER.map((category) => ({
-    category,
-    items: CREDENTIALS.filter((c) => c.category === category),
-  })).filter((group) => group.items.length > 0);
-}
 
 /**
  * schema.org `EducationalOccupationalCredential` nodes for the `hasCredential`

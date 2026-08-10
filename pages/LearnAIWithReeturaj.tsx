@@ -29,7 +29,6 @@ import {
   articleVisualPath,
   type ArticleCategory,
 } from '../content/articles.meta';
-import { CredentialsShowcase } from '../components/Credentials';
 
 type Card = {
   title: string;
@@ -593,30 +592,6 @@ const LearnAIWithReeturaj: React.FC = () => {
           </div>
         </RevealSection>
 
-        <div className="landing-seam" aria-hidden="true" />
-
-        {/*
-          Plain <section> (NOT RevealSection/Motion) by design: credentials cards
-          contain their own whileInView animations (inside CredentialsShowcase →
-          CredentialCard). Wrapping the whole section in a parent RevealSection
-          risks the same WebKit whileInView bug that left the ArticleExplorer
-          invisible on iPhone Safari — the parent would start at opacity:0 and
-          the IntersectionObserver might never fire on a tall mobile page.
-          A plain section has no hidden initial state, so all content is visible
-          even before any IntersectionObserver triggers.
-        */}
-        <section className="py-16 sm:py-20">
-          <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-10">
-            <SectionHeader
-              eyebrow="Credentials & Recognitions"
-              title="Externally verified proof, not self-reported claims"
-              description="Government recognition from DPIIT, programme selections with Stanford Seed, Google Cloud and Sarvam, and certifications from Anthropic and Microsoft — each entry names the issuing body exactly as it names itself, and links to public verification where one exists."
-            />
-            <div className="mt-10">
-              <CredentialsShowcase grouped />
-            </div>
-          </div>
-        </section>
 
         <div className="landing-seam" aria-hidden="true" />
 
