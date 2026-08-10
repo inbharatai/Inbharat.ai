@@ -23,7 +23,7 @@
  * best-effort to the stages where they're meaningful and ignored elsewhere:
  *   • status (draft status: pending|approved|published|rejected) → draft/review/
  *     ready/published stages.
- *   • platform (devto|hashnode|medium|linkedin|inbharat) → deposited + published.
+ *   • platform (linkedin|inbharat) → deposited + published.
  *
  * Per stage: count + up to 50 compact cards + overflow flag. Server-only.
  * supabaseAdmin bypasses RLS. NEVER throws — degrades to empty stages on DB
@@ -59,7 +59,7 @@ export interface PipelineStage {
 
 export interface PipelineBoardFilters {
   status?: string | null;   // draft status
-  platform?: string | null; // devto|hashnode|medium|linkedin|inbharat
+  platform?: string | null; // linkedin|instagram|inbharat (devto|hashnode|medium removed)
   cap?: number;             // per-stage card cap (default 50)
 }
 
@@ -99,13 +99,14 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
 
   // Parallel fetches — each is best-effort; a failure in one doesn't abort the
   // others (Promise.allSettled). Tables are deny-all; service_role bypasses.
-  const [knowledge, drafts, critiqueIds, syndication, publishedArticles, linkedinPublished, outcomes] = await Promise.all([
+  const [knowledge, drafts, critiqueIds, syndication, publishedArticles, linkedinPublished, instagramPublished, outcomes] = await Promise.all([
     fetchKnowledge(),
     fetchDrafts(status),
     fetchCritiqueDraftIds(),
     fetchSyndication(platform),
     fetchPublishedArticles(),
-    fetchLinkedinPublished(),
+    fetchSocialPublished("linkedin"),
+    fetchSocialPublished("instagram"),
     fetchOutcomes(),
   ]);
 
@@ -167,7 +168,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
     stages.push({ stage: "deposited", count: c.count, items: c.items, overflow: c.overflow, note });
   }
 
-  // 8. published — published_articles (website) + linkedin published drafts
+  // 8. published — published_articles (website) + linkedin + instagram published drafts
   {
     const webItems: PipelineCard[] = publishedArticles.map((a) => ({
       id: a.slug, title: a.title, slug: a.slug, url: a.canonical_url, platform: "inbharat", status: "published", createdAt: a.publish_date,
@@ -175,7 +176,10 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
     const liItems: PipelineCard[] = linkedinPublished.map((d) => ({
       id: d.id, title: d.title, url: d.url, platform: "linkedin", status: "published", createdAt: d.created_at,
     }));
-    let items = [...webItems, ...liItems];
+    const igItems: PipelineCard[] = instagramPublished.map((d) => ({
+      id: d.id, title: d.title, url: d.url, platform: "instagram", status: "published", createdAt: d.created_at,
+    }));
+    let items = [...webItems, ...liItems, ...igItems];
     if (platform) items = items.filter((it) => it.platform === platform);
     const c = capItems(items, cardCap);
     stages.push({ stage: "published", count: c.count, items: c.items, overflow: c.overflow });
@@ -214,7 +218,8 @@ function knowledgeCard(k: KnowledgeRow): PipelineCard {
 }
 function draftCard(d: DraftRow): PipelineCard {
   const sj = d.schema_json ?? {};
-  return { id: d.id, title: d.title ?? d.kind, slug: typeof sj.slug === "string" ? sj.slug : null, url: d.url, platform: d.kind === "linkedin" ? "linkedin" : "inbharat", product: typeof sj.product === "string" ? sj.product : null, status: d.status, createdAt: d.created_at };
+  const platform = d.kind === "linkedin" ? "linkedin" : d.kind === "instagram" ? "instagram" : "inbharat";
+  return { id: d.id, title: d.title ?? d.kind, slug: typeof sj.slug === "string" ? sj.slug : null, url: d.url, platform, product: typeof sj.product === "string" ? sj.product : null, status: d.status, createdAt: d.created_at };
 }
 
 // ─── Fetchers (each best-effort, never throws) ──────────────────────────────
@@ -294,12 +299,12 @@ async function fetchPublishedArticles(): Promise<PublishedRow[]> {
   }
 }
 
-async function fetchLinkedinPublished(): Promise<Array<{ id: string; title: string | null; url: string | null; created_at: string | null }>> {
+async function fetchSocialPublished(channel: "linkedin" | "instagram"): Promise<Array<{ id: string; title: string | null; url: string | null; created_at: string | null }>> {
   try {
     const { data, error } = await supabaseAdmin!
       .from("growth_drafts")
       .select("id,title,url,created_at")
-      .eq("kind", "linkedin")
+      .eq("kind", channel)
       .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(100);

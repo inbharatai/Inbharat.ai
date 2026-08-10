@@ -224,6 +224,8 @@ export interface ModelUsageRecord {
   status: string;
   /** Which article/URL this call served (for the "where used" dashboard). Null for system/audit calls. */
   contextUrl?: string;
-  /** Which provider served this call (openai|gemini). Derivable from model but stored for clean grouping. */
-  provider?: "openai" | "gemini";
+  /** Which provider served this call. Always "gemini" for new rows; the DB may
+   *  contain legacy "openai" strings from before 2026-08-10 — those are tolerated
+   *  by the API but no longer emitted. */
+  provider?: "gemini" | "openai";
 }

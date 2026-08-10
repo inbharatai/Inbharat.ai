@@ -174,10 +174,10 @@ const TodayCommand: React.FC = () => {
             {/* Integration health dots — booleans only, never secrets. */}
             {insights?.integrations && (
               <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[0.06] pt-3 text-[10px]">
-                {(["gemini", "growthOpenai", "supabase", "ga4", "gsc", "cronSecret"] as const).map((k) => (
+                {(["gemini", "supabase", "ga4", "gsc", "cronSecret", "instagram", "linkedinApi"] as const).map((k) => (
                   <span key={k} className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 ${insights.integrations![k] ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${insights.integrations![k] ? "bg-emerald-400" : "bg-rose-400"}`} />
-                    {k === "growthOpenai" ? "openai" : k === "cronSecret" ? "cron-secret" : k}
+                    {k === "cronSecret" ? "cron-secret" : k}
                   </span>
                 ))}
               </div>

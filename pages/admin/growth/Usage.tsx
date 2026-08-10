@@ -69,13 +69,13 @@ interface BudgetResp extends MonthBlock {
 }
 
 const PROVIDER_LABEL: Record<string, string> = {
-  openai: "OpenAI",
   gemini: "Gemini",
+  "openai (legacy)": "OpenAI (legacy)",
   unknown: "Unknown",
 };
 const PROVIDER_COLOR: Record<string, string> = {
-  openai: "#10a37f",
   gemini: "#4285f4",
+  "openai (legacy)": "#94a3b8",
   unknown: "#94a3b8",
 };
 
@@ -274,25 +274,13 @@ const Usage: React.FC = () => {
           <Stat label="Tokens" value={fmtNum(totals?.totalTokens ?? 0)} />
           <Stat label="Models" value={String(totals?.models ?? 0)} />
         </Card>
-        {(["gemini", "openai"] as const).map((p) => {
-          const b = byProvider.find((x) => x.key === p);
-          return (
-            <Card key={p} title={PROVIDER_LABEL[p]} accent={PROVIDER_COLOR[p]}>
-              <Stat label="Spend" value={fmtUsd(b?.costUsd ?? 0)} />
-              <Stat label="Share" value={`${b?.pctSpend?.toFixed(1) ?? "0"}%`} />
-              <Stat label="Tokens" value={fmtNum(b?.tokens ?? 0)} />
-            </Card>
-          );
-        })}
-        {byProvider
-          .filter((x) => x.key !== "gemini" && x.key !== "openai")
-          .map((b) => (
-            <Card key={b.key} title={PROVIDER_LABEL[b.key] ?? b.key} accent={PROVIDER_COLOR[b.key] ?? PROVIDER_COLOR.unknown}>
-              <Stat label="Spend" value={fmtUsd(b.costUsd ?? 0)} />
-              <Stat label="Share" value={`${b.pctSpend?.toFixed(1) ?? "0"}%`} />
-              <Stat label="Tokens" value={fmtNum(b.tokens ?? 0)} />
-            </Card>
-          ))}
+        {byProvider.map((b) => (
+          <Card key={b.key} title={PROVIDER_LABEL[b.key] ?? b.key} accent={PROVIDER_COLOR[b.key] ?? PROVIDER_COLOR.unknown}>
+            <Stat label="Spend" value={fmtUsd(b.costUsd ?? 0)} />
+            <Stat label="Share" value={`${b.pctSpend?.toFixed(1) ?? "0"}%`} />
+            <Stat label="Tokens" value={fmtNum(b.tokens ?? 0)} />
+          </Card>
+        ))}
       </div>
 
       {/* Per-model table */}

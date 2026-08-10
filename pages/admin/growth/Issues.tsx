@@ -6,8 +6,6 @@ import MarkdownText from "../../../components/growth/MarkdownText";
 import { ARTICLES, articlePath, getArticleBySlug } from "../../../content/articles.meta";
 import { slugFromArticleUrl, ARTICLE_PATH_PREFIX } from "../../../lib/growth/articleSlug";
 import { SITE } from "../../../seo.config";
-import { MEDIUM_IMPORT_URL } from "../../../lib/growth/syndication/medium";
-import type { SyndicationPlatform, SyndicationStatus } from "../../../lib/growth/syndication/types";
 import PublishConsole from "../../../components/growth/cockpit/PublishConsole";
 import SoftGateDialog from "../../../components/growth/cockpit/SoftGateDialog";
 import { majorGateFailures, type MajorGateFailure } from "../../../lib/growth/cockpit/gatePolicy";
@@ -91,6 +89,8 @@ function kindBadge(kind: string): { label: string; cls: string } {
   switch (kind) {
     case 'linkedin':
       return { label: 'linkedin', cls: 'bg-sky-500/15 text-sky-300' };
+    case 'instagram':
+      return { label: 'instagram', cls: 'bg-pink-500/15 text-pink-300' };
     case 'cover':
       return { label: 'cover', cls: 'bg-[#f59f4f]/20 text-[#f6bf84]' };
     case 'article':
@@ -136,6 +136,18 @@ const DraftAbout: React.FC<{ d: DraftRow }> = ({ d }) => {
       </div>
     );
   }
+  if (d.kind === "instagram") {
+    const sj = d.schema_json as (Record<string, unknown> | null);
+    const socialKind = (sj?.social as Record<string, unknown> | undefined)?.kind as string | undefined;
+    const articleSlug = sj?.articleSlug as string | undefined;
+    return (
+      <div className="mt-2 text-[11px] leading-relaxed text-[#7a9ab8]">
+        Instagram {socialKind ?? "post"} — composed from inbox folder.
+        {articleSlug && <span className="ml-1">Linked article: <span className="text-[#c8d6e8]">{articleSlug}</span></span>}
+        {" "}Approve then publish from this queue.
+      </div>
+    );
+  }
   if (d.kind === "linkedin") {
     const articleUrl = d.schema_json?.articleUrl || d.url || null;
     const slug = slugFromArticleUrl(articleUrl);
@@ -163,63 +175,6 @@ const DraftAbout: React.FC<{ d: DraftRow }> = ({ d }) => {
   return null;
 };
 
-/** One row of the growth_syndication ledger — the cross-post history for an
- *  article. Loaded once at the Issues page level (GET /api/growth/syndicate)
- *  and filtered by slug inside each SyndicatePanel. */
-interface SyndHistoryRow {
-  id: string;
-  slug: string;
-  platform: string;
-  status: string;
-  canonical_url: string;
-  platform_url: string | null;
-  platform_post_id: string | null;
-  error: string | null;
-  created_at: string;
-}
-
-/** Human label + editor URL for each syndication platform. The editor URL is
- *  opened in a new tab on the manual path (no API key, or Medium always) so the
- *  founder pastes the body / canonical into the platform's own composer. */
-const SYND_PLATFORMS: { key: SyndicationPlatform; label: string; openUrl: string }[] = [
-  { key: "devto", label: "DEV.to", openUrl: "https://dev.to/new" },
-  { key: "hashnode", label: "Hashnode", openUrl: "https://hashnode.com/new" },
-  { key: "medium", label: "Medium", openUrl: MEDIUM_IMPORT_URL },
-];
-
-/** LOCAL Playwright submit config per platform — the "same process as LinkedIn"
- *  path the founder asked for: the "Submit (local) ↗" click copies the body (or
- *  canonical for Medium import) to the clipboard + opens the editor URL, then the
- *  founder runs scripts/syndicate-populate.ts on their own machine (persistent
- *  logged-in profile) to pre-fill the editor + clicks Publish themselves. No API
- *  keys/tokens. `mode` is the --mode flag passed to the script (Medium only). */
-const SYND_LOCAL: Record<SyndicationPlatform, { editorUrl: string; clipboard: "body" | "canonical"; mode: "story" | "import" }> = {
-  devto: { editorUrl: "https://dev.to/new", clipboard: "body", mode: "import" },
-  hashnode: { editorUrl: "https://hashnode.com/new", clipboard: "body", mode: "import" },
-  medium: { editorUrl: "https://medium.com/new-story", clipboard: "body", mode: "story" },
-};
-
-/** Status → tailwind chip color (mirrors PipelineStrip's statusChip palette). */
-const SYND_STATUS_CHIP: Record<string, string> = {
-  published: "bg-emerald-500/15 text-emerald-300",
-  draft: "bg-sky-500/15 text-sky-300",
-  manual: "bg-sky-500/15 text-sky-300",
-  playwright_draft: "bg-amber-500/15 text-amber-300",
-  failed: "bg-rose-500/15 text-rose-300",
-  not_configured: "bg-slate-500/15 text-slate-300",
-};
-// Honest display labels for syndication ledger statuses. The stored status
-// `playwright_draft` reads as "a draft exists on the platform" — false: only a
-// clipboard copy happened; the founder still has to run the local script + click
-// Publish. Render it as "LOCAL PENDING" so the founder isn't misled.
-const SYND_STATUS_LABEL: Record<string, string> = {
-  published: "published",
-  draft: "draft",
-  manual: "manual",
-  playwright_draft: "local pending",
-  failed: "failed",
-  not_configured: "not configured",
-};
 
 const Issues: React.FC = () => {
   const { fetchJson } = useAdminApi();
@@ -235,19 +190,8 @@ const Issues: React.FC = () => {
   const [coverGenUrl, setCoverGenUrl] = useState<string | null>(null);
   const [redesigningSlug, setRedesigningSlug] = useState<string | null>(null);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
-  // Per-slug syndicate feedback — pins the "body copied / open editor / failed"
-  // message + the clipboard-fallback textarea to the PUBLISHED article row whose
-  // SyndicatePanel the founder clicked, instead of the page-top draftMsg banner
-  // (which sits far above the row and reads as "nothing happened"). Mirrors the
-  // publishOk/publishError per-draft pattern. Cleared at the start of each action.
-  // `syndEditorUrl[slug]` is set ONLY when window.open() was blocked on the manual
-  // path — we then render an <a target=_blank> "Open editor ↗" link as a fresh
-  // click gesture instead of the old window.location.href fallback that navigated
-  // the admin tab away and lost the founder's scroll/state.
-  const [syndMsg, setSyndMsg] = useState<Record<string, string>>({});
-  const [syndBody, setSyndBody] = useState<Record<string, { label: string; text: string }>>({});
-  const [syndEditorUrl, setSyndEditorUrl] = useState<Record<string, string>>({});
   const [publishingId, setPublishingId] = useState<string | null>(null);
+
   const [publishMode, setPublishMode] = useState<"personal" | "company">("personal");
   const [companyId, setCompanyId] = useState("");
   // Per-draft publish outcome so the founder completes the LinkedIn post from a
@@ -256,6 +200,9 @@ const Issues: React.FC = () => {
   // action; only one draft's result/error shows at a time.
   const [publishResult, setPublishResult] = useState<{ draftId: string; shareUrl: string; caption: string; post: string } | null>(null);
   const [publishError, setPublishError] = useState<{ draftId: string; reason: string } | null>(null);
+  // Instagram social-publish result (separate from the LinkedIn share-URL flow).
+  const [igPublishResult, setIgPublishResult] = useState<{ draftId: string; permalink: string | null; code?: string } | null>(null);
+  const [igQuota, setIgQuota] = useState<{ configured: boolean; used?: number; remaining?: number } | null>(null);
   // Inline SUCCESS notice for article/cover/video-script publish, pinned to the
   // draft card so the founder sees feedback right next to the button they clicked.
   // LinkedIn has its own share-URL UI (publishResult) below; these kinds just need
@@ -264,10 +211,6 @@ const Issues: React.FC = () => {
   // draftMsg at the TOP of the page, far from the button, so it was invisible.
   const [publishOk, setPublishOk] = useState<{ draftId: string; message: string } | null>(null);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
-  // Stage 3 syndication ledger (all articles, newest-first). Loaded once on mount
-  // and refreshed after each syndicate action; each SyndicatePanel filters by slug.
-  const [syndHistory, setSyndHistory] = useState<SyndHistoryRow[]>([]);
-  const [syndBusy, setSyndBusy] = useState<string | null>(null); // `${slug}:${platform}` in flight
   // Drafts that just published successfully. The backend flips status →
   // 'published', so loadDrafts() drops them out of approvedDrafts and the card
   // hosting the publishOk/publishResult banner (and the "Open LinkedIn ↗"
@@ -298,12 +241,10 @@ const Issues: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   // 3-tab workspace: Queue (drafts to action) · Audited pages (SEO/GEO) ·
-  // Published (cover redesign + syndication). Persisted so refresh keeps context.
+  // Published (cover redesign). Persisted so refresh keeps context.
   const [tab, setTab] = useState<"queue" | "pages" | "published">(
     () => (typeof localStorage !== "undefined" && (localStorage.getItem("growth:issuesTab") as "queue" | "pages" | "published") || "queue"),
   );
-  // Platform filter for the Published tab (All / Medium / DEV.to / Hashnode).
-  const [platformFilter, setPlatformFilter] = useState<string>("all");
   // Search inside the Audited-pages + Published tabs (separate from the Queue search).
   const [pagesSearch, setPagesSearch] = useState<string>("");
   const [publishedSearch, setPublishedSearch] = useState<string>("");
@@ -394,151 +335,10 @@ const Issues: React.FC = () => {
     if (!error && data?.map) setThreadByDraft(data.map);
   }
 
-  /** Load the syndication ledger (all cross-post history) so each Published
-   *  articles row can show its own history inline. Never throws. */
-  async function loadSyndHistory() {
-    // historyOnly=1 → the server skips the 60-draft eligible payload this page
-    // never reads, saving a serial RTT + a heavy DB read on every Issues load.
-    const { data, error } = await fetchJson<{ history?: SyndHistoryRow[] }>("/api/growth/syndicate?historyOnly=1");
-    if (!error && Array.isArray(data?.history)) setSyndHistory(data!.history!);
-  }
-
-  /** Syndicate one published article to one platform. The server sources the
-   *  body from the live published .md (content/articles/<slug>.md) via the GitHub
-   *  contents API, so the cross-post matches the canonical article on
-   *  www.inbharat.ai — that is what makes Google attribute the original to
-   *  inbharat.ai. API platforms (DEV.to/Hashnode with keys) publish directly;
-   *  manual platforms (Medium always; DEV/Hashnode without keys) return the body
-   *  + canonical, which we copy to the clipboard and open the platform editor. */
-  async function syndicate(slug: string, title: string, platform: SyndicationPlatform) {
-    // Hashnode's API has NO draft mode — publishPost goes live immediately, so the
-    // founder's button click IS the publish (unlike DEV.to, which creates a draft).
-    // Gate it behind an explicit confirm so "live on the internet" is never a
-    // surprise. The local Playwright path (syndicateLocal) is already human-gated
-    // (the founder clicks Publish on Hashnode themselves), so it needs no guard.
-    if (platform === "hashnode") {
-      if (!confirm(`Hashnode publishes LIVE — it has no draft mode.\n\n${title}\n\nThis post goes public on Hashnode the moment you click OK. Continue?`)) return;
-    }
-    const busyKey = `${slug}:${platform}`;
-    setSyndBusy(busyKey);
-    clearSynd(slug);
-    const { data, error } = await fetchJson<{
-      ok: boolean;
-      slug?: string;
-      title?: string;
-      results?: { platform: SyndicationPlatform; ok: boolean; status: SyndicationStatus; url: string | null; error: string | null; canonicalUrl: string }[];
-      bodyMarkdown?: string;
-      canonicalUrl?: string;
-      bodySource?: "published" | "draft";
-      error?: string;
-      code?: string;
-    }>("/api/growth/syndicate", {
-      method: "POST",
-      body: JSON.stringify({ slug, platforms: [platform] }),
-    });
-    setSyndBusy(null);
-    if (error || !data?.ok || !data.results?.length) {
-      setSyndMsg((s) => ({ ...s, [slug]: `Syndicate ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}` }));
-      // even on failure, refresh history (a failed row is recorded)
-      void loadSyndHistory();
-      return;
-    }
-    const r = data.results[0];
-    const canonical = data.canonicalUrl ?? r.canonicalUrl;
-    // Manual path: Medium always, or DEV.to/Hashnode when their API keys are
-    // absent (status === "not_configured"). Copy the body (or canonical for
-    // Medium) to the clipboard + open the platform editor for the founder to
-    // paste. NOTE: clipboard.writeText runs after a network await and can lose
-    // transient activation on a cold serverless start — when it fails we render
-    // the text in a read-only textarea (pinned to this row) so the founder can
-    // always Ctrl+C instead of dead-ending on "copy below" with nothing to copy.
-    // If window.open is blocked too, we surface an <a target=_blank> "Open editor
-    // ↗" link as a fresh gesture rather than window.location.href (which used to
-    // navigate the admin tab away, losing the founder's scroll + state).
-    const isManual = platform === "medium" || r.status === "not_configured" || r.status === "manual";
-    if (isManual) {
-      const clipboardText = platform === "medium" ? canonical : (data.bodyMarkdown ?? "");
-      let clipboardOk = false;
-      try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
-      const open = SYND_PLATFORMS.find((p) => p.key === platform)?.openUrl ?? "";
-      const w = window.open(open, "_blank", "noopener,noreferrer");
-      if (!w) setSyndEditorUrl((s) => ({ ...s, [slug]: open }));
-      const what = platform === "medium" ? "canonical URL" : "article body";
-      if (!clipboardOk) setSyndBody((s) => ({ ...s, [slug]: { label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText } }));
-      setSyndMsg((s) => ({
-        ...s, [slug]:
-          `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} manual: ${what} ${clipboardOk ? "copied to clipboard —" : "copy from the box below, then"} paste into the editor${w ? " that just opened" : ""}. (body source: ${data.bodySource ?? "?"})`,
-      }));
-    } else if (r.status === "published" || r.status === "draft") {
-      setSyndMsg((s) => ({ ...s, [slug]: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label}: ${r.status === "published" ? "published ✓" : "draft created ✓"}${r.url ? ` — ${r.url}` : ""}` }));
-    } else if (r.status === "failed") {
-      setSyndMsg((s) => ({ ...s, [slug]: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} failed: ${r.error ?? "unknown"}` }));
-    }
-    void loadSyndHistory();
-  }
-
-  /** LOCAL Playwright submit — the "same process as LinkedIn" path the founder
-   *  asked for. The server (mode:"playwright") resolves the body + canonical and
-   *  records a `playwright_draft` ledger row WITHOUT calling any platform API.
-   *  We then copy the body (or canonical for Medium import) to the clipboard +
-   *  open the platform editor + surface the exact local command to run. The
-   *  founder runs scripts/syndicate-populate.ts on their own machine (persistent
-   *  logged-in browser profile) to pre-fill the editor, then clicks Publish
-   *  themselves. No API keys/tokens. Nothing auto-publishes. */
-  async function syndicateLocal(slug: string, title: string, platform: SyndicationPlatform) {
-    const busyKey = `${slug}:${platform}:local`;
-    setSyndBusy(busyKey);
-    clearSynd(slug);
-    const { data, error } = await fetchJson<{
-      ok: boolean;
-      slug?: string;
-      bodyMarkdown?: string;
-      canonicalUrl?: string;
-      bodySource?: "published" | "draft";
-      error?: string;
-      code?: string;
-    }>("/api/growth/syndicate", {
-      method: "POST",
-      body: JSON.stringify({ slug, platforms: [platform], mode: "playwright" }),
-    });
-    setSyndBusy(null);
-    if (error || !data?.ok) {
-      setSyndMsg((s) => ({ ...s, [slug]: `Local submit ${platform} failed: ${strError(error) || strError(data?.error) || data?.code || "unknown"}` }));
-      void loadSyndHistory();
-      return;
-    }
-    const local = SYND_LOCAL[platform];
-    const clipboardText = local.clipboard === "canonical" ? (data.canonicalUrl ?? "") : (data.bodyMarkdown ?? "");
-    let clipboardOk = false;
-    try { await navigator.clipboard.writeText(clipboardText); clipboardOk = true; } catch { clipboardOk = false; }
-    // Do NOT window.open the platform editor here — the local script opens the
-    // editor in its own persistent logged-in Playwright profile; opening a
-    // second logged-out tab here just gives the founder a dead tab to close.
-    const cmd = platform === "medium"
-      ? `npx tsx scripts/syndicate-populate.ts --platform medium --slug ${slug} --mode ${local.mode}`
-      : `npx tsx scripts/syndicate-populate.ts --platform ${platform} --slug ${slug}`;
-    const what = local.clipboard === "canonical" ? "canonical URL" : "article body";
-    if (!clipboardOk) setSyndBody((s) => ({ ...s, [slug]: { label: `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local) — ${what} (clipboard copy failed; select + Ctrl+C)`, text: clipboardText } }));
-    setSyndMsg((s) => ({
-      ...s, [slug]:
-        `${SYND_PLATFORMS.find((p) => p.key === platform)?.label} (local Playwright): ${what} ${clipboardOk ? "copied to clipboard." : "copy from the box below."} Run locally to pre-fill + publish:  ${cmd}  (body source: ${data.bodySource ?? "?"})`,
-    }));
-    void loadSyndHistory();
-  }
-
-  /** Clear the per-slug syndicate feedback (msg + clipboard-fallback body + blocked
-   *  popup editor link) at the start of a fresh syndicate action so a stale prior
-   *  result for this row doesn't linger. */
-  function clearSynd(slug: string) {
-    setSyndMsg((s) => { const n = { ...s }; delete n[slug]; return n; });
-    setSyndBody((s) => { const n = { ...s }; delete n[slug]; return n; });
-    setSyndEditorUrl((s) => { const n = { ...s }; delete n[slug]; return n; });
-  }
 
   useEffect(() => {
     load();
     loadDrafts();
-    void loadSyndHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -742,17 +542,11 @@ const Issues: React.FC = () => {
     return `${p.url} ${p.title ?? ""}`.toLowerCase().includes(q);
   });
 
-  // Published tab: filter articles by syndication platform + title search. When
-  // platformFilter is set, only articles with a syndHistory row for that platform
-  // show — so the founder can see "what's been cross-posted to Medium" at a glance.
+  // Published tab: filter articles by title search.
   const visibleArticles = ARTICLES.filter((a) => {
     if (publishedSearch.trim()) {
       const q = publishedSearch.trim().toLowerCase();
       if (!`${a.title} ${a.slug} ${a.category ?? ""}`.toLowerCase().includes(q)) return false;
-    }
-    if (platformFilter !== "all") {
-      const has = syndHistory.some((h) => h.slug === a.slug && h.platform === platformFilter);
-      if (!has) return false;
     }
     return true;
   });
@@ -826,9 +620,63 @@ const Issues: React.FC = () => {
     }
     setPublishResult({ draftId: d.id, shareUrl: data.shareUrl, caption, post: fullPost });
     setJustPublished((m) => ({ ...m, [d.id]: d }));
-    setDraftMsg("Ready — the full post is written below and copied to your clipboard. Click “Open LinkedIn ↗”, paste into the composer (the link card is already there), review, and Post.");
+    setDraftMsg(“Ready — the full post is written below and copied to your clipboard. Click “Open LinkedIn ↗”, paste into the composer (the link card is already there), review, and Post.”);
     await loadDrafts();
     notifyDraftsUpdated();
+  }
+
+  async function fetchIgQuota() {
+    const { data } = await fetchJson<{ ok: boolean; configured: boolean; limit?: { config?: number; used?: number; remaining?: number } }>(“/api/growth/social?action=quota”);
+    if (data) {
+      setIgQuota({
+        configured: data.configured,
+        used: data.limit?.used,
+        remaining: data.limit?.remaining,
+      });
+    }
+  }
+
+  async function publishInstagram(d: DraftRow) {
+    if (!confirm(`Publish this Instagram draft?\n\n${d.title || d.id}\n\nIt will call the Instagram Graph API. This action is idempotent — retrying a failed publish is safe.`)) return;
+    setPublishingId(d.id);
+    setDraftMsg(null);
+    setPublishError(null);
+    setIgPublishResult(null);
+    // Fetch quota first (best-effort, non-blocking).
+    void fetchIgQuota();
+    const { data, error } = await fetchJson<{ ok: boolean; code?: string; result?: { permalink: string | null; platformPostId: string | null; error: string | null }; error?: string }>(
+      “/api/growth/social?action=publish”,
+      { method: “POST”, body: JSON.stringify({ draftId: d.id }) },
+    );
+    setPublishingId(null);
+    if (!data) {
+      setPublishError({ draftId: d.id, reason: error || “unknown error” });
+      setDraftMsg(`Instagram publish failed: ${error || “unknown error”}`);
+      return;
+    }
+    if (data.code === “NOT_CONFIGURED”) {
+      setIgPublishResult({ draftId: d.id, permalink: null, code: “NOT_CONFIGURED” });
+      setDraftMsg(“Instagram is not configured — set IG_USER_ID and META_ACCESS_TOKEN in Vercel env.”);
+      return;
+    }
+    if (data.code === “PUBLISH_FAILED” || (!data.ok && data.result)) {
+      const reason = strError(data.result?.error) || strError(data.error) || data.code || “publish failed”;
+      setPublishError({ draftId: d.id, reason });
+      setIgPublishResult({ draftId: d.id, permalink: null, code: “PUBLISH_FAILED” });
+      setDraftMsg(`Instagram publish failed: ${reason}`);
+      return;
+    }
+    if (data.ok && data.result) {
+      setIgPublishResult({ draftId: d.id, permalink: data.result.permalink });
+      setJustPublished((m) => ({ ...m, [d.id]: d }));
+      setDraftMsg(data.result.permalink ? `Published to Instagram — permalink ready.` : “Published to Instagram.”);
+      await loadDrafts();
+      notifyDraftsUpdated();
+    } else {
+      const reason = strError(error) || strError(data.error) || data.code || “unknown”;
+      setPublishError({ draftId: d.id, reason });
+      setDraftMsg(`Instagram publish failed: ${reason}`);
+    }
   }
 
   async function regenerateCover(d: DraftRow) {
@@ -1038,9 +886,7 @@ const Issues: React.FC = () => {
               kind: focusedDraft.kind,
               status: focusedDraft.status,
               hasPublishedUrl: !!focusedDraft.url,
-              syndicationCount: focusedDraft.schema_json?.slug
-                ? syndHistory.filter((h) => h.slug === focusedDraft.schema_json!.slug).length
-                : 0,
+              syndicationCount: 0,
             }}
           />
         </div>
@@ -1370,8 +1216,8 @@ const Issues: React.FC = () => {
                     /* Already published — the result banner above has the Open
                        LinkedIn button (linkedin) or the commit-SHA confirmation
                        (article/cover/video-script). No publish button to retry. */
-                    <p className="text-[11px] font-semibold text-emerald-300">
-                      ✓ Published — {d.kind === "linkedin" ? "click “Open LinkedIn ↗” above to post." : "see the confirmation above; dismiss it to clear this card."}
+                    <p className=”text-[11px] font-semibold text-emerald-300”>
+                      ✓ Published — {d.kind === “linkedin” ? “click “Open LinkedIn ↗” above to post.” : d.kind === “instagram” ? “see the permalink above; dismiss to clear this card.” : “see the confirmation above; dismiss it to clear this card.”}
                     </p>
                   ) : d.kind === "cover" ? (
                     <>
@@ -1414,6 +1260,65 @@ const Issues: React.FC = () => {
                     >
                       {publishingId === d.id ? "Preparing…" : "Publish to LinkedIn"}
                     </button>
+                  ) : d.kind === "instagram" ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => publishInstagram(d)}
+                          disabled={publishingId === d.id}
+                          className="rounded-md bg-[#e1306c] px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#e1306c]/90 disabled:opacity-40"
+                        >
+                          {publishingId === d.id ? "Publishing…" : "Publish to Instagram"}
+                        </button>
+                        {igQuota && (
+                          <span className="text-[10px] text-[#7a9ab8]">
+                            Quota: {igQuota.configured ? `${igQuota.used ?? "?"} used · ${igQuota.remaining ?? "?"} remaining` : "not configured"}
+                          </span>
+                        )}
+                        {!igQuota && (
+                          <button
+                            onClick={fetchIgQuota}
+                            className="text-[10px] text-[#7a9ab8] hover:text-[#c8d6e8] underline"
+                          >
+                            Check quota
+                          </button>
+                        )}
+                      </div>
+                      {igPublishResult?.draftId === d.id && igPublishResult.code === "NOT_CONFIGURED" && (
+                        <div className="rounded-md border border-amber-500/30 bg-amber-500/[0.07] px-2.5 py-1.5">
+                          <p className="text-[11px] text-amber-200">
+                            Instagram not configured — add <code className="text-amber-300">IG_USER_ID</code> and{" "}
+                            <code className="text-amber-300">META_ACCESS_TOKEN</code> in Vercel env, then redeploy.
+                          </p>
+                        </div>
+                      )}
+                      {igPublishResult?.draftId === d.id && igPublishResult.code === "PUBLISH_FAILED" && (
+                        <div className="rounded-md border border-red-500/30 bg-red-500/[0.06] px-2.5 py-1.5">
+                          <p className="text-[11px] text-red-300">
+                            Publish failed — see the error above. Retrying is safe (idempotent carousel).
+                          </p>
+                          <button
+                            onClick={() => publishInstagram(d)}
+                            disabled={publishingId === d.id}
+                            className="mt-1.5 rounded-md border border-red-400/30 px-2.5 py-1 text-[10px] text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+                      {igPublishResult?.draftId === d.id && !igPublishResult.code && igPublishResult.permalink && (
+                        <div className="rounded-md border border-emerald-500/20 bg-emerald-500/[0.05] px-2.5 py-1.5">
+                          <p className="text-[11px] text-emerald-300">Published —{" "}
+                            <a href={igPublishResult.permalink} target="_blank" rel="noopener noreferrer" className="underline hover:text-emerald-200">
+                              view on Instagram ↗
+                            </a>
+                          </p>
+                        </div>
+                      )}
+                      {igPublishResult?.draftId === d.id && !igPublishResult.code && !igPublishResult.permalink && (
+                        <p className="text-[11px] text-emerald-300">Published to Instagram.</p>
+                      )}
+                    </div>
                   ) : (
                     /* inbox-outline / media-candidate drafts have no share URL and no
                        publish target — show an honest note instead of a button that
@@ -1562,8 +1467,7 @@ const Issues: React.FC = () => {
 
       {/* Published articles — the canonical "redesign any cover" surface. Every
           published article gets a Redesign cover button (the audited-pages list
-          only shows pages that have been crawled). One redesign updates the site
-          hero + the LinkedIn og:image together (LinkedIn uses the article cover). */}
+          only shows pages that have been crawled). */}
       {tab === "published" && (
         <section className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
           <h2 className="text-[15px] font-bold text-white">Published articles ({ARTICLES.length})</h2>
@@ -1572,39 +1476,18 @@ const Issues: React.FC = () => {
             approve it, then Publish cover to ship it live. The site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
           </p>
 
-          {/* Platform filter + search — the syndication view the founder asked for.
-              All / Medium / DEV.to / Hashnode isolates the list to articles that have
-              a syndication-history row for that platform. */}
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">
-            <span className="ml-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a9ab8]">Syndication</span>
-            <div className="flex flex-wrap gap-1">
-              {[
-                { k: "all", label: "All" },
-                { k: "medium", label: "Medium" },
-                { k: "devto", label: "DEV.to" },
-                { k: "hashnode", label: "Hashnode" },
-              ].map((opt) => (
-                <button
-                  key={opt.k}
-                  onClick={() => setPlatformFilter(opt.k)}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-semibold ${platformFilter === opt.k ? "bg-[#f59f4f] text-black" : "bg-white/[0.04] text-[#c8d6e8] hover:bg-white/[0.08]"}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
             <input
               value={publishedSearch}
               onChange={(e) => setPublishedSearch(e.target.value)}
               placeholder="Search title / slug…"
-              className="min-w-[140px] ml-auto mr-1 flex-1 rounded-md border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-white placeholder:text-[#5f798f] focus:border-[#f59f4f]/50 focus:outline-none"
+              className="min-w-[140px] flex-1 rounded-md border border-white/10 bg-[#0a0f18] px-2.5 py-1 text-[12px] text-white placeholder:text-[#5f798f] focus:border-[#f59f4f]/50 focus:outline-none"
             />
             <span className="mr-1 text-[11px] text-[#7a9ab8]">{visibleArticles.length} / {ARTICLES.length}</span>
           </div>
 
           <div className="mt-3 divide-y divide-white/[0.04]">
             {visibleArticles.map((a) => {
-              const platRows = syndHistory.filter((h) => h.slug === a.slug);
               return (
                 <div key={a.slug} className="py-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1613,19 +1496,6 @@ const Issues: React.FC = () => {
                       <p className="truncate text-[11px] text-[#7a9ab8]">{a.category} · /{articlePath(a.slug)} · {a.readMinutes} min</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {SYND_PLATFORMS.map((p) => {
-                        const last = platRows.find((r) => r.platform === p.key);
-                        if (!last) return null;
-                        return (
-                          <span
-                            key={p.key}
-                            title={`last ${p.label}: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}`}
-                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${SYND_STATUS_CHIP[last.status] || "bg-slate-500/15 text-slate-300"}`}
-                          >
-                            {p.label}:{SYND_STATUS_LABEL[last.status] ?? last.status}
-                          </span>
-                        );
-                      })}
                       <a
                         href={`${SITE.url}${articlePath(a.slug)}`}
                         target="_blank"
@@ -1644,17 +1514,6 @@ const Issues: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <SyndicatePanel
-                    slug={a.slug}
-                    title={a.title}
-                    history={syndHistory}
-                    busy={syndBusy}
-                    msg={syndMsg[a.slug]}
-                    body={syndBody[a.slug]}
-                    editorUrl={syndEditorUrl[a.slug]}
-                    onSyndicate={syndicate}
-                    onSyndicateLocal={syndicateLocal}
-                  />
                 </div>
               );
             })}
@@ -1672,146 +1531,6 @@ const Issues: React.FC = () => {
         onConfirm={confirmOverrideDraft}
         onCancel={() => setOverrideDraft(null)}
       />
-    </div>
-  );
-};
-
-/** Inline syndication control for one PUBLISHED article. Shows the 3 platform
- *  buttons + the cross-post history for this slug. The body comes from the live
- *  published .md (server-side), so the cross-post matches the canonical article
- *  — the whole point of canonical-based syndication. Human-gated: every click is
- *  a deliberate per-platform action; nothing auto-syndicates. */
-const SyndicatePanel: React.FC<{
-  slug: string;
-  title: string;
-  history: SyndHistoryRow[];
-  busy: string | null;
-  msg?: string;
-  body?: { label: string; text: string };
-  editorUrl?: string;
-  onSyndicate: (slug: string, title: string, platform: SyndicationPlatform) => void;
-  onSyndicateLocal: (slug: string, title: string, platform: SyndicationPlatform) => void;
-}> = ({ slug, title, history, busy, msg, body, editorUrl, onSyndicate, onSyndicateLocal }) => {
-  const [open, setOpen] = useState(false);
-  const rows = history.filter((h) => h.slug === slug).slice(0, 6);
-  // Show platform chips even when collapsed so Medium/DEV/Hashnode are discoverable
-  // (the founder asked "I don't see medium dev to and hashnode" — they were hidden
-  // behind this collapsible). The full buttons + history still require expanding.
-  return (
-    <div className="mt-2 rounded-md border border-white/10 bg-white/[0.02] p-2">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-[11px] font-semibold text-[#f6bf84] hover:text-[#f59f4f]"
-        title="Cross-post this article to DEV.to / Hashnode / Medium with the InBharat canonical URL set"
-      >
-        <span>{open ? "▾" : "▸"}</span> Syndicate {rows.length > 0 && <span className="text-[10px] text-[#7a9ab8]">· {rows.length} attempt{rows.length === 1 ? "" : "s"}</span>}
-      </button>
-      {!open && (
-        <div className="ml-1 mt-1.5 flex flex-wrap gap-1">
-          {SYND_PLATFORMS.map((p) => {
-            const last = rows.find((r) => r.platform === p.key);
-            const apiDone = last?.status === "published" || last?.status === "draft" || last?.status === "manual";
-            return (
-              <span
-                key={p.key}
-                className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${apiDone ? "bg-emerald-500/15 text-emerald-300" : "bg-white/[0.04] text-[#7a9ab8]"}`}
-                title={last ? `last: ${last.status}` : "not yet cross-posted"}
-              >
-                {p.label}
-              </span>
-            );
-          })}
-        </div>
-      )}
-      {open && (
-        <div className="mt-2">
-          <div className="flex flex-wrap gap-1.5">
-            {SYND_PLATFORMS.map((p) => {
-              const busyKey = `${slug}:${p.key}`;
-              const localBusyKey = `${slug}:${p.key}:local`;
-              const last = rows.find((r) => r.platform === p.key);
-              const apiDone = last?.status === "published" || last?.status === "draft" || last?.status === "manual";
-              return (
-                <div key={p.key} className="flex items-center gap-1">
-                  <button
-                    onClick={() => onSyndicate(slug, title, p.key)}
-                    disabled={!!busy}
-                    className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-40 ${
-                      apiDone
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                        : "border-white/15 bg-white/[0.03] text-[#c8d6e8] hover:border-white/30"
-                    }`}
-                    title={last ? `last: ${last.status}${last.platform_url ? ` — ${last.platform_url}` : ""}` : "Syndicate via platform API (human-gated)"}
-                  >
-                    {busy === busyKey ? "…" : p.label}
-                  </button>
-                  {p.key === "hashnode" && (
-                    <span className="rounded bg-rose-500/15 px-1 py-0.5 text-[8px] font-bold uppercase tracking-wide text-rose-300" title="Hashnode has no draft mode — clicking publishes live. You'll get a confirm dialog.">
-                      live
-                    </span>
-                  )}
-                  {/* LOCAL Playwright submit — the "same process as LinkedIn" path.
-                      Copies the body/canonical + opens the editor + surfaces the local
-                      script command. No API keys; the founder runs the script on their
-                      own machine and clicks Publish themselves. */}
-                  <button
-                    onClick={() => onSyndicateLocal(slug, title, p.key)}
-                    disabled={!!busy}
-                    className="rounded-md border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-1.5 py-1 text-[10px] font-semibold text-[#f6bf84] disabled:opacity-40 hover:bg-[#f59f4f]/20"
-                    title={`Submit (local Playwright) — opens ${p.label}'s editor + copies the body, then run scripts/syndicate-populate.ts on your machine to pre-fill + click Publish. No API keys.`}
-                  >
-                    {busy === localBusyKey ? "…" : "↗ local"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-1.5 text-[10px] leading-relaxed text-[#7a9ab8]">
-            <b className="text-[#f6bf84]">↗ local</b> = the LinkedIn-style path: opens the editor + copies the body, then run
-            the local Playwright script to pre-fill + you click Publish. The plain buttons publish directly when API keys
-            are set (otherwise they copy + open too). The body is the live article on www.inbharat.ai, with the canonical
-            set so Google attributes the original to InBharat.
-          </p>
-          {rows.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {rows.map((r) => (
-                <li key={r.id} className="flex items-center gap-2 text-[10px]">
-                  <span className={`rounded px-1.5 py-0.5 font-bold uppercase ${SYND_STATUS_CHIP[r.status] ?? "bg-slate-500/15 text-slate-300"}`}>{SYND_STATUS_LABEL[r.status] ?? r.status}</span>
-                  <span className="font-semibold text-[#c8d6e8]">{SYND_PLATFORMS.find((p) => p.key === r.platform)?.label ?? r.platform}</span>
-                  {r.platform_url && (
-                    <a href={r.platform_url} target="_blank" rel="noopener noreferrer" className="truncate text-[#7ab9e6] hover:underline">view ↗</a>
-                  )}
-                  <span className="ml-auto text-[#5f7c98]">{new Date(r.created_at).toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* Per-row feedback pinned to THIS article (replaces the old page-top
-              draftMsg/localBody banner that sat far above the clicked button). */}
-          {msg && <p className="mt-2 text-[11px] leading-relaxed text-[#9fb2c6]">{msg}</p>}
-          {editorUrl && (
-            <a
-              href={editorUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block rounded-md border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-2.5 py-1 text-[11px] font-semibold text-[#f6bf84] hover:bg-[#f59f4f]/20"
-            >
-              Open editor ↗
-            </a>
-          )}
-          {body && (
-            <div className="mt-2">
-              <p className="text-[10px] text-[#7a9ab8]">{body.label}</p>
-              <textarea
-                readOnly
-                onFocus={(e) => e.currentTarget.select()}
-                value={body.text}
-                className="mt-1 h-32 w-full resize-y rounded-lg border border-white/10 bg-[#0a0f18] px-2 py-1.5 font-mono text-[10px] text-[#c0cfe0] focus:border-[#f59f4f]/50 focus:outline-none"
-              />
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

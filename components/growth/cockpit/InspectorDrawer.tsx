@@ -234,10 +234,8 @@ const CardInspector: React.FC<{
 const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
   const cells: { label: string; url: string | null; status: string | null | undefined; manual?: boolean }[] = [
     { label: "InBharat", url: item.canonicalUrl, status: "live" },
-    { label: "DEV.to", url: item.devto.url, status: item.devto.status },
-    { label: "Hashnode", url: item.hashnode.url, status: item.hashnode.status },
-    { label: "Medium", url: item.medium.url, status: item.medium.status },
     { label: "LinkedIn", url: null, status: item.linkedin.status, manual: true },
+    { label: "Instagram", url: item.instagram.url ?? null, status: item.instagram.status },
   ];
   return (
     <div className="space-y-4">
@@ -272,7 +270,7 @@ const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
           ))}
         </ul>
         <p className="mt-2 text-[10px] text-[#5f7c98]">
-          LinkedIn shows &quot;posted manually&quot; honestly — the share-template flow never persists the post URL.
+          LinkedIn shows &quot;posted manually&quot; honestly — the share-template flow never persists the post URL. Instagram shows the permalink when available.
           {item.measuredAt ? ` measured_at ${new Date(item.measuredAt).toLocaleDateString()} (LinkedIn outcomes only).` : " No LinkedIn outcomes measured yet."}
         </p>
       </div>

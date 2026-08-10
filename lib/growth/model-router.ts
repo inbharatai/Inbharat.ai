@@ -2,11 +2,10 @@
  * InBharat Growth Agent — Module 15: Model Router.
  *
  * IMPORTANT: this is COMPLETELY SEPARATE from the chat backend's
- * api/lib/serverLLM.ts. The Growth Agent is Gemini-ONLY (2026-06-27) — it uses
- * GEMINI_API_KEY for every task, never the chat path, so the chat model
- * selection and budget are untouched. The openai branch in isModelConfigured /
- * DEFAULTS survives only as a GROWTH_<TASK>_PROVIDER=openai escape hatch; no
- * call site uses it by default.
+ * api/lib/serverLLM.ts. The Growth Agent is Gemini-ONLY — this is now
+ * structural, not conventional (2026-08-10). It uses GEMINI_API_KEY for every
+ * task, never the chat path. The openai provider branch has been removed; all
+ * GROWTH_<TASK>_PROVIDER and GROWTH_OPENAI_API_KEY escape hatches are gone.
  *
  * Phase 1 audits are deterministic and do NOT call this. It is wired for
  * Phase 5 (content drafting + critique + learning + covers) with a monthly
@@ -20,13 +19,13 @@ import type { ModelUsageRecord } from "./types.js";
  * direct API calls 2026-06-27) rather than the `-latest` aliases, which silently
  * resolve to whatever Google currently ships (they pointed at gemini-3.x the
  * day this was written) — a silent swap could change quality/cost/behavior with
- * no code change. Override any task with GROWTH_<TASK>_MODEL /
- * GROWTH_<TASK>_PROVIDER env vars (no redeploy needed for the founder).
+ * no code change. Override any task's model with GROWTH_<TASK>_MODEL env var
+ * (no redeploy needed for the founder). Provider is always "gemini".
  */
 export type GrowthTask = "audit" | "metadata" | "summary" | "draft" | "review" | "cover" | "strategy" | "chat" | "vision" | "article";
 
 export interface ModelChoice {
-  provider: "openai" | "gemini";
+  provider: "gemini";
   model: string;
   /** Approx USD per 1M tokens (input+output blended for cap math). */
   usdPer1k: number;
@@ -57,22 +56,13 @@ const DEFAULTS: Record<GrowthTask, ModelChoice> = {
 
 export function pickModel(task: GrowthTask): ModelChoice {
   const base = DEFAULTS[task];
-  const provider = (process.env[`GROWTH_${task.toUpperCase()}_PROVIDER`] as "openai" | "gemini" | undefined) || base.provider;
   const model = process.env[`GROWTH_${task.toUpperCase()}_MODEL`] || base.model;
-  return { ...base, provider, model };
+  return { ...base, model };
 }
 
-export function isModelConfigured(choice: ModelChoice): boolean {
-  // Growth Agent must use its OWN key path — never the chat backend's
-  // OPENAI_API_KEY (would conflate spend + violate isolation). Only
-  // GROWTH_OPENAI_API_KEY is accepted for growth tasks.
-  // NOTE: every growth call site (callGemini / callGeminiAgent / callGeminiVision
-  // / callGeminiImage) implements the GEMINI path only — there is NO OpenAI call
-  // path. So even if GROWTH_OPENAI_API_KEY is set, an openai choice has no
-  // executor and would throw "GEMINI_API_KEY not set" (misleading). We return
-  // false so growth tasks degrade honestly to "not configured" instead of
-  // crashing. To use OpenAI for growth, an OpenAI call path must be added first.
-  if (choice.provider === "openai") return false;
+export function isModelConfigured(_choice: ModelChoice): boolean {
+  // Growth Agent is Gemini-only. All call sites (callGemini / callGeminiAgent /
+  // callGeminiVision / callGeminiImage) require GEMINI_API_KEY.
   return !!process.env.GEMINI_API_KEY;
 }
 

@@ -6,8 +6,9 @@ import { round6, spendBlock } from "../../lib/growth/spend.js";
 /**
  * GET /api/growth/usage?days=30 — model spend + token usage, aggregated for the
  * admin dashboard ("which AI API is used where"). Admin-only. Returns:
- *   totals, byProvider (OpenAI vs Gemini), byModel, byTask, byArticle (where
- *   used), byDay (sparkline), recent (last 20 calls), month (spent/cap/projected).
+ *   totals, byProvider (Gemini; legacy openai rows tolerated), byModel, byTask,
+ *   byArticle (where used), byDay (sparkline), recent (last 20 calls),
+ *   month (spent/cap/projected).
  * `?days=` defaults to 30, clamped to [1, 90]. Never returns secret values.
  */
 const MAX_DAYS = 90;
@@ -42,11 +43,16 @@ function bump(map: Map<string, Bucket>, key: string, tokens: number, cost: numbe
   map.set(key, b);
 }
 
-/** Provider for a row: explicit provider column, else infer from the model name. */
-function providerOf(r: Row): "openai" | "gemini" | "unknown" {
-  if (r.provider === "openai" || r.provider === "gemini") return r.provider;
-  if (typeof r.model === "string" && /gpt|o1|o3|openai/i.test(r.model)) return "openai";
+/** Provider for a row. New rows are always "gemini"; legacy DB rows may contain
+ *  "openai" (emitted before 2026-08-10) — those are bucketed as "openai (legacy)"
+ *  in the byProvider breakdown so the UI can distinguish old data from new. */
+function providerOf(r: Row): "gemini" | "openai (legacy)" | "unknown" {
+  if (r.provider === "gemini") return "gemini";
+  // Tolerate legacy openai rows (stored before the Gemini-only migration).
+  if (r.provider === "openai") return "openai (legacy)";
   if (typeof r.model === "string" && /gemini/i.test(r.model)) return "gemini";
+  // Any remaining openai-model-named rows are also legacy.
+  if (typeof r.model === "string" && /gpt|o1|o3|openai/i.test(r.model)) return "openai (legacy)";
   return "unknown";
 }
 

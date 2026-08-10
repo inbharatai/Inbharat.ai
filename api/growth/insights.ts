@@ -118,7 +118,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 function integrationFlags() {
   return {
     gemini: !!process.env.GEMINI_API_KEY,
-    growthOpenai: !!process.env.GROWTH_OPENAI_API_KEY,
     supabase: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     cronSecret: !!process.env.CRON_SECRET,
     // Match the real read path in performance.ts: the shared GOOGLE_* pair backs
@@ -127,5 +126,7 @@ function integrationFlags() {
     // flows when the operator sets only GOOGLE_CLIENT_EMAIL/GOOGLE_PRIVATE_KEY.
     ga4: !!(process.env.GA4_PROPERTY_ID && googleClientEmail() && googlePrivateKey()),
     gsc: !!(process.env.GSC_SITE_URL && googleClientEmail() && googlePrivateKey()),
+    instagram: !!(process.env.IG_USER_ID && process.env.META_ACCESS_TOKEN),
+    linkedinApi: !!(process.env.LINKEDIN_ACCESS_TOKEN && process.env.LINKEDIN_AUTHOR_URN),
   };
 }

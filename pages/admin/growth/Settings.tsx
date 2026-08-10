@@ -13,7 +13,7 @@ import { useAdminApi } from "../../../lib/growth/adminApi";
  */
 interface InsightsResp {
   ok: boolean;
-  integrations?: { gemini: boolean; growthOpenai: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean };
+  integrations?: { gemini: boolean; supabase: boolean; cronSecret: boolean; ga4: boolean; gsc: boolean; instagram: boolean; linkedinApi: boolean };
   spend?: { spentUsd: number; capUsd: number; projectedUsd: number; remainingUsd: number; source: string };
   error?: string;
 }
@@ -111,14 +111,17 @@ const Settings: React.FC = () => {
 
         <Section title="Integrations (configured server-side)">
           <IntegrationRow label="Gemini (growth model router)" ok={integ?.gemini} />
-          <IntegrationRow label="OpenAI (growth)" ok={integ?.growthOpenai} />
           <IntegrationRow label="Supabase (service role)" ok={integ?.supabase} />
           <IntegrationRow label="Cron secret (external schedulers)" ok={integ?.cronSecret} />
           <IntegrationRow label="Google Analytics 4" ok={integ?.ga4} />
           <IntegrationRow label="Google Search Console" ok={integ?.gsc} />
+          <IntegrationRow label="Instagram (IG_USER_ID + META_ACCESS_TOKEN)" ok={integ?.instagram} />
+          <IntegrationRow label="LinkedIn API (LINKEDIN_ACCESS_TOKEN + LINKEDIN_AUTHOR_URN)" ok={integ?.linkedinApi} />
           <p className="mt-1 text-[11px] text-[#7a9ab8]">
             The Vercel scheduled cron authenticates via its <code className="text-[#f59f4f]">vercel-cron</code> signature,
             so the cron secret is optional (only for external schedulers). GA4/GSC need a service-account key in env.
+            The Growth Engine is Gemini-only — <code className="text-[#f59f4f]">GEMINI_API_KEY</code> is the only model key needed.
+            See <code className="text-[#f59f4f]">docs/social-publishing.md</code> for Instagram and LinkedIn API setup.
           </p>
         </Section>
 
@@ -129,7 +132,6 @@ const Settings: React.FC = () => {
             <code className="ml-1 text-[#f59f4f]">CRON_SECRET</code>,
             <code className="ml-1 text-[#f59f4f]">GROWTH_MONTHLY_BUDGET_USD</code>,
             <code className="ml-1 text-[#f59f4f]">GEMINI_API_KEY</code>,
-            <code className="ml-1 text-[#f59f4f]">GROWTH_OPENAI_API_KEY</code>,
             <code className="ml-1 text-[#f59f4f]">GROWTH_MODEL_*</code>,
             <code className="ml-1 text-[#f59f4f]">GITHUB_TOKEN</code>,
             <code className="ml-1 text-[#f59f4f]">GA4_*</code>,
