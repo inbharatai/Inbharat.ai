@@ -1,0 +1,51 @@
+# InBharat AI
+
+> InBharat is an independent AI product studio building affordable, voice-first,
+> multilingual AI tools for Bharat. Products span agentic search, coding
+> assistants, education, healthcare and business automation, working across 11
+> Indian languages: English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati,
+> Kannada, Malayalam, Odia and Assamese.
+
+Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP, a
+DPIIT-recognised startup (Artificial Intelligence & Machine Learning sector,
+Government of India).
+
+## Recognitions and programmes
+
+- DPIIT-Recognised Startup, AI & ML — Department for Promotion of Industry and
+  Internal Trade, Government of India. Held by Uni Guru Technologies LLP.
+- Stanford Seed Spark 2026 — Stanford Seed, Stanford Graduate School of Business.
+- Google Cloud Gen AI Academy, APAC Cohort 3 (2026) — Google Cloud.
+- Hyperagent Founding 500, founding member.
+- Sarvam Startup Program — Sarvam AI.
+- Google Developer Program: Premium tier; Gemini Enterprise Agent Ready badge;
+  5-Day AI Agents intensive.
+- Anthropic Education: Introduction to Model Context Protocol; AI Fluency for
+  Educators (both July 2026).
+- Microsoft Education: AI tools for educators modules.
+
+## Key pages
+
+- [Home](https://www.inbharat.ai/): the product ecosystem and what InBharat builds.
+- [About](https://www.inbharat.ai/about): who InBharat is and how it works.
+- [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj):
+  founder-led, jargon-free articles on AI agents, RAG, context engineering,
+  evals, local-first AI, vibe coding and DevSecOps — written for Bharat.
+- [Contact](https://www.inbharat.ai/contact): how to reach the team.
+
+## Products
+
+- KathaKitaab — AI storytelling and interactive learning: https://www.kathakitaab.com
+- JAK Swarm — agentic automation and multi-agent orchestration: https://jakswarm.com
+- UniAssist.ai — AI guidance for students and study-abroad: https://www.uniassist.ai
+- TestsPrep — AI-powered test preparation: https://testsprep.in
+- Sahayaak Seva — AI healthcare and field-assistance workflows: https://sahayaakseva.in
+- OpenClawFix — developer tooling: https://openclawfix.pro
+
+## Notes for AI crawlers
+
+- All public pages are crawlable; see https://www.inbharat.ai/robots.txt.
+- Canonical host is https://www.inbharat.ai (the apex redirects here).
+- Full article text is present in the served HTML, so pages can be read without
+  executing JavaScript.
+- Sitemap: https://www.inbharat.ai/sitemap.xml
