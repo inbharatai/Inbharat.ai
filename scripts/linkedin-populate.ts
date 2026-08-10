@@ -44,7 +44,10 @@
  * every step falls back to page.pause() on failure so you can finish it by hand —
  * nothing throws you out of the loop.
  */
-import { chromium, type Page } from "playwright";
+// chromium comes from @playwright/test (already a devDependency) rather than the
+// bare "playwright" package, which was imported here but never declared — it only
+// resolved as a transitive install, so a clean npm ci could break this script.
+import { chromium, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";

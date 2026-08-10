@@ -46,8 +46,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('@supabase')) return 'supabase';
             // i18n — translation engine
             if (id.includes('i18next') || id.includes('react-i18next')) return 'i18n';
-            // PowerPoint generation — rarely used, split out
-            if (id.includes('pptxgenjs')) return 'pptx';
             // OpenAI SDK (browser bundle)
             if (id.includes('openai')) return 'openai-client';
             // Zod validation
