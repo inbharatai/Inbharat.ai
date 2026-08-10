@@ -235,7 +235,7 @@ const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
   const cells: { label: string; url: string | null; status: string | null | undefined; manual?: boolean }[] = [
     { label: "InBharat", url: item.canonicalUrl, status: "live" },
     { label: "LinkedIn", url: null, status: item.linkedin.status, manual: true },
-    { label: "Instagram", url: item.instagram.url ?? null, status: item.instagram.status },
+    { label: "Instagram", url: item.instagram?.url ?? null, status: item.instagram?.status ?? null },
   ];
   return (
     <div className="space-y-4">

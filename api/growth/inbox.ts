@@ -148,7 +148,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (probe.error && /post_order|column|schema/i.test(probe.error.message)) {
       return res.status(503).json({ ok: false, code: "MIGRATION_PENDING", error: "Media ordering isn't live yet — apply migration 20260810000002 (supabase db push).", requestId });
     }
-    const count = await setPostOrder(parsed.data.order);
+    // zod's array-element inference widens these to optional here; normalise to the
+    // exact shape setPostOrder expects rather than casting the type away.
+    const order = parsed.data.order.map((o) => ({ itemId: String(o.itemId), postOrder: Number(o.postOrder) }));
+    const count = await setPostOrder(order);
     return res.status(200).json({ ok: true, requestId, count });
   }
 

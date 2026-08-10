@@ -55,7 +55,14 @@ CREATE INDEX IF NOT EXISTS idx_growth_inbox_items_post_order
 -- row with platform='linkedin' + a permalink; that is surfaced via the linkedin
 -- LATERAL's syndication fallback so an API-published post shows its real URL
 -- while a deep-link post still shows "posted manually" (NULL url).
-CREATE OR REPLACE VIEW growth_published_memory AS
+-- DROP + CREATE for the same reason as 20260810000001: this definition
+-- reorders columns (instagram_* inserted before measured_at), which
+-- CREATE OR REPLACE cannot do. security_invoker = on clears Supabase's
+-- CRITICAL "Security Definer View" advisor on this view.
+DROP VIEW IF EXISTS growth_published_memory;
+
+CREATE VIEW growth_published_memory
+WITH (security_invoker = on) AS
 SELECT
   pa.slug,
   pa.title,

@@ -13,7 +13,7 @@ import { memoryChips } from "../../../lib/growth/cockpit/memoryChips";
 function syndicationSummary(item: PublishedMemoryItem): { deposited: boolean; platforms: string[] } {
   const platforms: string[] = [];
   if (item.linkedin.status) platforms.push("linkedin");
-  if (item.instagram.status) platforms.push("instagram");
+  if (item.instagram?.status) platforms.push("instagram");
   return { deposited: platforms.length > 0, platforms };
 }
 
@@ -95,7 +95,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
                     </td>
                     <td className="px-3 py-2"><PlatCell url={it.canonicalUrl} status="live" label="live" /></td>
                     <td className="px-3 py-2"><PlatCell url={null} status={it.linkedin.status} manualLabel="posted manually" /></td>
-                    <td className="px-3 py-2"><PlatCell url={it.instagram.url ?? null} status={it.instagram.status} /></td>
+                    <td className="px-3 py-2"><PlatCell url={it.instagram?.url ?? null} status={it.instagram?.status ?? null} /></td>
                     <td className="px-3 py-2 text-[10px] text-[#7a9ab8]">{it.publishDate ? new Date(it.publishDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
                   </tr>
                 );

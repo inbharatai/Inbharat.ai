@@ -31,7 +31,8 @@ export interface PublishedMemoryItem {
   syncedAt: string | null;
   inbharatStatus: string;
   linkedin: { url: string | null; status: string | null; at: string | null };
-  instagram: { url: string | null; status: string | null; at: string | null };
+  /** Absent until migration 20260810000002 adds the instagram_* view columns. */
+  instagram?: { url: string | null; status: string | null; at: string | null };
   measuredAt: string | null;
 }
 
@@ -90,8 +91,12 @@ function toRow(r: PublishedMemoryRow): PublishedMemoryItem {
  */
 export function syndicationSummary(item: PublishedMemoryItem): { deposited: boolean; platforms: string[] } {
   const platforms: string[] = [];
-  if (item.linkedin.status) platforms.push("linkedin");
-  if (item.instagram.status) platforms.push("instagram");
+  // Optional-chained on purpose: the instagram_* view columns only exist after
+  // migration 20260810000002, and callers (tests, cached rows, a pre-migration
+  // DB) can legitimately hand us a row without them. A missing column must read
+  // as "no cross-post", never throw.
+  if (item.linkedin?.status) platforms.push("linkedin");
+  if (item.instagram?.status) platforms.push("instagram");
   return { deposited: platforms.length > 0, platforms };
 }
 
@@ -122,7 +127,7 @@ export async function listPublishedMemory(filters: PublishedMemoryFilters = {}):
     if (filters.platform && filters.status !== undefined) {
       const want = filters.status ?? null;
       items = items.filter((it) => {
-        const cell = filters.platform === "instagram" ? it.instagram.status : it.linkedin.status;
+        const cell = filters.platform === "instagram" ? it.instagram?.status : it.linkedin?.status;
         return (cell ?? null) === want;
       });
     }

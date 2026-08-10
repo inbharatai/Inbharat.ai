@@ -11,7 +11,21 @@
 --    Also, guest users have no chat_sessions row, so the FK always fails.
 -- ═══════════════════════════════════════════════════════════════════════════
 
--- Drop old FK constraint and change column type to text
+-- Drop old FK constraint and change column type to text.
+--
+-- FIX (2026-08-10): this block previously ran only the ALTER COLUMN. That does
+-- NOT drop the foreign key — Postgres tries to re-implement it against the new
+-- column type and fails:
+--   ERROR: foreign key constraint "workflow_state_session_id_fkey" cannot be
+--   implemented (SQLSTATE 42804) — key columns "session_id" and "id" are of
+--   incompatible types: text and uuid.
+-- Production was patched by hand so it never surfaced there, but every fresh
+-- replay of the migration history (Supabase branch previews) died right here,
+-- which is why no preview branch has ever built. Dropping the constraint first
+-- is idempotent: a no-op where it has already been removed.
+alter table public.workflow_state
+  drop constraint if exists workflow_state_session_id_fkey;
+
 alter table public.workflow_state
   alter column session_id type text using session_id::text;
 
