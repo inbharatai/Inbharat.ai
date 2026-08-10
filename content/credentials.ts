@@ -20,6 +20,13 @@
  *    Never invent one. `undefined` renders as a plain badge with no link.
  *  - Nothing here implies partnership, endorsement or sponsorship. Programme
  *    participation is described as participation.
+ *  - OpenAI Partner Network: acceptance is confirmed, but onboarding is not
+ *    finished and the portal lists "badging opportunities" as something that
+ *    unlocks AFTER onboarding. So this entry states acceptance in words and
+ *    deliberately carries no `logo` — do not add an OpenAI mark until OpenAI
+ *    has actually granted badging, and keep the wording to what the approval
+ *    email supports ("application review is complete", "welcome to the OpenAI
+ *    Partner Network") rather than a bare "OpenAI Partner" claim.
  *
  * ARTWORK
  * `logo` is intentionally optional and currently unset for every entry: the
@@ -88,6 +95,18 @@ export const CREDENTIALS: Credential[] = [
     description:
       'Selected for Stanford Seed Spark 2026, a Stanford Graduate School of Business programme supporting founders building businesses in emerging economies.',
     short: 'Stanford Seed Spark ’26',
+    featured: true,
+  },
+  {
+    id: 'openai-partner-network',
+    title: 'OpenAI Partner Network',
+    issuer: 'OpenAI',
+    category: 'program',
+    holder: 'org',
+    period: '2026',
+    description:
+      'Accepted into the OpenAI Partner Network in 2026 following application review, with organisation onboarding underway.',
+    short: 'OpenAI Partner Network',
     featured: true,
   },
   {
