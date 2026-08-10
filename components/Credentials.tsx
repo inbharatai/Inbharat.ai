@@ -264,5 +264,3 @@ export const CredentialsShowcase: React.FC<{
     </div>
   );
 };
-
-export default CredentialsShowcase;

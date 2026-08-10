@@ -125,7 +125,11 @@ Only if you run the Growth Agent surface (`/admin/growth`). All are server-only 
 | `GEMINI_API_KEY` | Gemini key for the growth model router | Gemini-only; no separate OpenAI growth key needed. |
 | `GITHUB_TOKEN` | GitHub PAT | For audit PR creation; read-only is fine. |
 | `CRON_SECRET` | A shared secret | Authenticates the scheduled daily cron + external schedulers. |
-Note: DEV.to, Hashnode, and Medium syndication channels have been removed. No DEVTO_API_KEY, HASHNODE_TOKEN, HASHNODE_PUBLICATION_ID, or GROWTH_OPENAI_API_KEY keys are needed. LinkedIn publishing uses /api/growth/publish (no separate key).
+Note: DEV.to, Hashnode, and Medium syndication channels have been removed. No DEVTO_API_KEY, HASHNODE_TOKEN, HASHNODE_PUBLICATION_ID, or GROWTH_OPENAI_API_KEY keys are needed.
+
+Social publishing (Instagram + LinkedIn) is optional and off until configured. Set `IG_USER_ID` + `META_ACCESS_TOKEN` and `LINKEDIN_ACCESS_TOKEN` + `LINKEDIN_AUTHOR_URN` in Vercel to enable API publishing; until then both channels report `not_configured` and LinkedIn falls back to the manual share deep-link via /api/growth/publish. Setup walkthrough: `docs/social-publishing.md`.
+
+Apply migrations 20260810000001 and 20260810000002 (or `supabase/APPLY_PENDING_MIGRATIONS.sql`) before using the social composer — the Inbox ordering/alt-text columns and the instagram_* view columns arrive there.
 
 **D2c. Supabase migrations — run once**
 
