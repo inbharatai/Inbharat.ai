@@ -916,7 +916,7 @@ const PRODUCT_DEFS = [
   // ── InBharat Core AI ──
   { name: 'InBharat AI', bucket: 'core', tagKey: 'landProdInbharatTag', descKey: 'landProdInbharatDesc', ctaKey: 'landProdInbharatCta', typeKey: 'landProdInbharatType', href: '/app', logo: '/inbharat-logo.svg', internal: true, color: '#f59f4f', tech: ['React 19', 'TypeScript', 'Vercel', 'OpenAI'] },
   // ── Agent Ops & Trust ──
-  { name: 'JAK Swarm', bucket: 'agentOps', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://jakswarm.com/', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
+  { name: 'JAK Swarm', bucket: 'agentOps', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://github.com/inbharatai/jak-swarm', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
   { name: 'JAK Shield', bucket: 'agentOps', tagKey: 'landProdJakshieldTag', descKey: 'landProdJakshieldDesc', ctaKey: 'landProdJakshieldCta', typeKey: 'landProdJakshieldType', href: 'https://github.com/inbharatai/jak-shield', logo: null, icon: Shield, internal: false, color: '#dc2626', tech: ['PII Detection', 'Sandboxed Exec', 'Audit Trail', 'Open Source'] },
   { name: 'Agent Arcade', bucket: 'agentOps', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   // ── Growth & Publishing ──
@@ -1612,31 +1612,13 @@ const Landing: React.FC = () => {
                   {/* CTAs */}
                   <div className="mt-8 flex flex-wrap gap-3">
                     <a
-                      href="https://jakswarm.com"
+                      href="https://github.com/inbharatai/jak-swarm"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full bg-[#ef4444] px-6 py-3 text-sm font-bold text-[#1a0606] shadow-[0_0_30px_rgba(239,68,68,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#f87171] hover:shadow-[0_0_40px_rgba(239,68,68,0.4)]"
                     >
-                      {t('landJakCta1')}
-                      <ExternalLink size={14} />
-                    </a>
-                    <a
-                      href="https://jakswarm.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
-                    >
-                      <Sparkles size={14} />
                       {t('landJakCta2')}
-                    </a>
-                    <a
-                      href="https://github.com/inbharatai/jak-swarm"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-[#9aafc6] transition-all hover:text-white"
-                    >
                       <Github size={14} />
-                      {t('landJakCta3')}
                     </a>
                   </div>
                 </div>
