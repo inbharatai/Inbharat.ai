@@ -88,6 +88,7 @@ export default async function middleware(request: Request) {
     statusText: response.statusText,
     headers: {
       "Content-Type": contentType,
+      "X-Silt-Test": "1",
     },
   });
 }
