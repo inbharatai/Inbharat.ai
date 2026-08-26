@@ -1,80 +1,36 @@
 /**
- * Vercel Edge Middleware.
+ * Vercel Edge Middleware — host-based rewrite for the SILT subdomain.
  *
- * 1. Unknown-article 404: for /learn-ai-with-reeturaj/:slug, if the slug is not
- *    a published article, return a TRUE HTTP 404 instead of letting the
- *    catch-all rewrite (vercel.json:/(.*)→/index.html) serve the SPA with 200
- *    (a soft-404 Googlebot would index as a blank 200 page). The known-slug set
- *    is imported from the article manifest at build time (no runtime DB/FS
- *    read at the edge). Known slugs, "/", and "/app" pass through unchanged so
- *    Vercel serves their prebuilt static shells.
+ * vercel.json rewrites run AFTER static-file matching, so the root `/` and
+ * root-level static files (sitemap.xml, robots.txt, favicon.svg, manifest.json)
+ * on `silt.inbharat.ai` were being served from the InBharat app instead of the
+ * SILT files copied to `public/silt/`. This middleware intercepts requests
+ * before static matching and rewrites them to `/silt/...` when the host is
+ * `silt.inbharat.ai`.
  *
- *    IMPORTANT: the matcher `/learn-ai-with-reeturaj/:slug` ALSO matches static
- *    assets served under that prefix — the article cover images live at
- *    /learn-ai-with-reeturaj/<slug>.png (see ARTICLE_ASSET_DIR in
- *    content/articles.meta.ts). `:slug` captures `rag.png`, which is NOT in the
- *    article set, so the 404 branch must NOT fire for any slug that looks like a
- *    file (has a dot). Article slugs are kebab-case with no dots, so a dot is a
- *    reliable asset signal — pass those through to Vercel's static handler.
+ * The matcher excludes `/api/*`, `/_next/*`, and `/favicon.ico` to leave the
+ * main InBharat app untouched on the primary domain.
  */
-import { ARTICLES } from "./content/articles.meta.js";
-
-const KNOWN_ARTICLE_SLUGS = new Set(ARTICLES.map((a) => a.slug));
-
-const ARTICLE_PREFIX = "/learn-ai-with-reeturaj/";
-
-const NOT_FOUND_HTML = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Not found — InBharat AI</title>
-<meta name="robots" content="noindex" />
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:3rem 1.5rem;text-align:center;line-height:1.6}
-  h1{font-size:1.6rem;margin:1.5rem 0 .5rem}
-  p{color:#9aafc6;margin:.5rem 0}
-  a{color:#58a6ff;text-decoration:none}
-  a:hover{text-decoration:underline}
-</style>
-</head>
-<body>
-  <h1>404 — Article not found</h1>
-  <p>The article you’re looking for doesn’t exist or may have moved.</p>
-  <p><a href="https://www.inbharat.ai/learn-ai-with-reeturaj">Browse all articles</a> &nbsp;·&nbsp; <a href="https://www.inbharat.ai/">InBharat home</a></p>
-</body>
-</html>`;
 
 export const config = {
-  // Only run for SPA routes. Static assets (favicon, robots, extensions) never match.
-  matcher: ["/", "/app", "/learn-ai-with-reeturaj/:slug"],
+  matcher: ["/((?!api|_next|favicon.ico).*)"],
 };
 
-export default async function middleware(request: Request): Promise<Response> {
-  const { pathname } = new URL(request.url);
-
-  // Unknown article slug → true 404 (not the soft-200 the catch-all rewrite
-  // would serve). Single-segment slug only; the matcher's :slug excludes
-  // multi-segment paths, and the hub (no slug) is never matched.
-  if (pathname.startsWith(ARTICLE_PREFIX)) {
-    const slug = pathname.slice(ARTICLE_PREFIX.length).split("/")[0];
-    // Static asset under the article prefix (e.g. <slug>.png cover image)?
-    // Pass through — the 404 branch must never fire for assets (it would blank
-    // every article cover image). Article slugs have no dot, so a dot = asset.
-    if (slug && !slug.includes(".") && !KNOWN_ARTICLE_SLUGS.has(slug)) {
-      return new Response(NOT_FOUND_HTML, {
-        status: 404,
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          // 404s must not be cached by the CDN/edge — a future article may claim this slug.
-          "cache-control": "no-store",
-        },
-      });
-    }
+export default function middleware(request: Request) {
+  const host = request.headers.get("host") || "";
+  if (host !== "silt.inbharat.ai") {
+    return fetch(request);
   }
 
-  // Known slug, static asset, "/", "/app" → pass through. fetch(request)
-  // re-enters Vercel routing, which serves the prebuilt static shell / asset
-  // before the SPA rewrite.
-  return fetch(request);
+  const url = new URL(request.url);
+  const path = url.pathname;
+
+  // Paths that look like static assets (have a filename extension) are
+  // rewritten to the matching file under /silt/. All other paths fall back to
+  // SILT's SPA shell so client-side routing works.
+  const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
+  const target = isAsset ? `/silt${path}` : "/silt/index.html";
+
+  const rewriteUrl = new URL(target, request.url);
+  return fetch(new Request(rewriteUrl, request));
 }
