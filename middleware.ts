@@ -22,11 +22,12 @@
 import { next } from "@vercel/edge";
 
 export const config = {
-  // `/:path*` alone does not match a trailing slash (e.g. `/studio/`), which
-  // let those requests fall through to Vercel's `trailingSlash: false`
-  // redirect. The second pattern catches the trailing-slash form so the
-  // middleware can route it to `/silt/studio/__root` directly.
-  matcher: ["/:path*", "/:path*/"],
+  // Match every path — including the trailing-slash form (`/studio/`), which
+  // `/:path*` alone misses (path-to-regexp treats the trailing slash as an
+  // empty segment). Without this, `/studio/` fell through to Vercel's
+  // `trailingSlash: false` 308 redirect before middleware could route it to
+  // `/silt/studio/__root`. The host check inside the handler gates the work.
+  matcher: ["/(.*)"],
 };
 
 const HTML_TYPE = "text/html; charset=utf-8";
