@@ -12,7 +12,7 @@
 import { rewrite, next } from "@vercel/edge";
 
 export const config = {
-  matcher: ["/((?!api|_next|favicon.ico).*)"],
+  matcher: ["/:path*"],
 };
 
 export default function middleware(request: Request) {
