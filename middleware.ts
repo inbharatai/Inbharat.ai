@@ -26,7 +26,7 @@ export const config = {
   matcher: ["/:path*"],
 };
 
-const HTML_TYPE = "text/html; charset=utf-8";
+const HTML_TYPE = "text/plain; charset=utf-8";
 
 function contentTypeForPath(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
