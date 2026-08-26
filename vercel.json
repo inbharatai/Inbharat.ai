@@ -52,26 +52,6 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/silt/(.*)",
-      "destination": "/silt/$1",
-      "has": [
-        {
-          "type": "host",
-          "value": "silt.inbharat.ai"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/silt/$1",
-      "has": [
-        {
-          "type": "host",
-          "value": "silt.inbharat.ai"
-        }
-      ]
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
