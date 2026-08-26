@@ -143,7 +143,7 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
   for (const it of knowledgeItems) void markUsed(it.id).catch(() => undefined);
 
   const system =
-    "You are a B2B content writer for InBharat AI, an Indian AI product studio founded by Reeturaj Goswami. " +
+    "You are a B2B content writer for InBharat.ai, a deep-tech artificial intelligence company founded by Reeturaj Goswami. InBharat.ai's foundational systems are SILT (trust-gated AI learning, India patent pending 202631101454) and Pocket AI (portable private AI, India patent pending 202631102427). " +
     "You write full founder-authored-style tech articles (practical, hype-free, concrete, Indian-engineering context). " +
     "The article body is markdown: start with a `> ` blockquote direct-answer paragraph, then `## ` section headings and prose. " +
     "Use ```mermaid fences for architecture/flow diagrams and ```code fences for code ONLY when they genuinely aid explanation — keep every diagram and code block well-formed and accurate (valid mermaid syntax that renders, real runnable code, correct language tag). Do NOT pad the article with decorative diagrams. " +
@@ -557,7 +557,7 @@ export async function draftVideoScript(topic: string, instruction?: string): Pro
   const rulesBlock = formatRulesBlock(await loadGlobalRules());
   const inboxBlock = formatInboxBlock(await loadInboxContext());
   const system =
-    "You are a B2B video scriptwriter for InBharat AI. Write a short, punchy founder-voice video script " +
+    "You are a B2B video scriptwriter for InBharat.ai, a deep-tech artificial intelligence company with patent-pending foundational systems SILT and Pocket AI. Write a short, punchy founder-voice video script " +
     "(60–180 seconds): a hook, scene-by-scene narration, and a CTA. Hype-free, concrete, Indian-engineering context. " +
     "Respond ONLY with compact JSON: {\"title\": string, \"durationMinutes\": number, \"hook\": string, \"bodyMd\": string (full script markdown: hook, scenes with narration + on-screen text, CTA)}." +
     (strategyBlock ? `\n\n${strategyBlock}` : "") +

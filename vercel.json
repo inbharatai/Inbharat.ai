@@ -33,6 +33,9 @@
     "api/growth/auto.ts": { "maxDuration": 120 },
     "api/growth/agent.ts": { "maxDuration": 120 }
   },
+  "redirects": [
+    { "source": "/silt", "destination": "https://silt.inbharat.ai/", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -7,13 +7,18 @@
  * shells that Vercel actually serves:
  *   - every indexable ROUTE has a built shell at dist/<path>/index.html
  *   - exactly one <link rel="canonical"> per page, self-referencing, absolute https://www
+ *   - no duplicate canonicals across indexable shells
  *   - exactly one <h1> per page, non-empty
  *   - robots meta correct (indexable routes not noindex; admin shells noindex,nofollow)
  *   - JSON-LD required fields present per @type; NO obsolete SearchAction
  *     (regression guard for the /app?q={search_term_string} removal)
  *   - every indexable canonical appears in dist/sitemap.xml; no sitemap loc
- *     points at a missing shell
+ *     points at a missing shell; sitemap locs must not contain query strings
+ *     and must not be under /api, /admin, or /silt
  *   - internal links resolve to a built shell (broken-link reporter)
+ *   - homepage and /about shells expose the SILT and Pocket AI patent numbers
+ *     and "Patent Pending" language
+ *   - homepage shell cross-links to https://silt.inbharat.ai and the SILT GitHub repo
  *
  * Exits non-zero on any failure so CI catches regressions. The live-crawl
  * audit (lib/growth/audit-runner.ts) is a separate, networked tool — this one
@@ -57,16 +62,41 @@ function expectedCanonical(routePath: string): string {
   return SITE.url + (routePath === "/" ? "/" : routePath);
 }
 
+/* ── Patent / cross-link constants ──────────────────────────────────── */
+const SILT_PATENT = "202631101454";
+const POCKETAI_PATENT = "202631102427";
+const SILT_LANDING = "https://silt.inbharat.ai";
+const SILT_REPO = "https://github.com/inbharatai/SILT";
+const POCKETAI_REPO = "https://github.com/inbharatai/PAI.V2";
+
 /* ── Load sitemap locs once ───────────────────────────────────────────── */
 const sitemapPath = join(DIST, "sitemap.xml");
 const sitemapLocs = new Set<string>();
 if (existsSync(sitemapPath)) {
   const xml = readFileSync(sitemapPath, "utf8");
-  for (const m of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) sitemapLocs.add(m[1].trim());
+  for (const m of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+    const loc = m[1].trim();
+    sitemapLocs.add(loc);
+  }
 }
 if (sitemapLocs.size === 0) {
   console.error("audit-seo: no sitemap locs found — run `npm run build` first.");
   process.exit(1);
+}
+
+// Sitemap hygiene: no query strings, no /api /admin /silt locs.
+for (const loc of sitemapLocs) {
+  if (loc.includes("?")) {
+    failures.push({ path: loc, check: "sitemap no query strings", detail: `sitemap loc contains query string` });
+  }
+  try {
+    const pathname = new URL(loc).pathname;
+    if (pathname.startsWith("/api") || pathname.startsWith("/admin") || pathname.startsWith("/silt")) {
+      failures.push({ path: loc, check: "sitemap forbidden path", detail: `sitemap loc under ${pathname.split("/")[1]}` });
+    }
+  } catch {
+    failures.push({ path: loc, check: "sitemap valid URL", detail: `sitemap loc is not a valid URL` });
+  }
 }
 
 /** Extract + validate JSON-LD blocks from a shell. Returns error list. */
@@ -115,6 +145,7 @@ function validateJsonLd(html: string): string[] {
 
 /* ── Audit every indexable route ──────────────────────────────────────── */
 const indexable = (ROUTES as SeoRoute[]).filter((r) => !r.noIndex && !r.excludeFromSitemap);
+const seenCanonicals = new Set<string>();
 
 // Map of every built shell path (for internal-link reachability + sitemap cross-check).
 const builtPaths = new Set<string>();
@@ -139,6 +170,11 @@ for (const r of indexable) {
   // exactly one canonical + self-referencing absolute www
   if (canN !== 1) failures.push({ path, check: "exactly one canonical", detail: `got ${canN}` });
   if (meta.canonical !== expCanonical) failures.push({ path, check: "canonical self-ref www", detail: `got ${meta.canonical ?? "(none)"} expected ${expCanonical}` });
+  if (meta.canonical && seenCanonicals.has(meta.canonical)) {
+    failures.push({ path, check: "canonical unique", detail: `duplicate canonical ${meta.canonical}` });
+  } else if (meta.canonical) {
+    seenCanonicals.add(meta.canonical);
+  }
   // exactly one h1, non-empty
   if (h1N !== 1) failures.push({ path, check: "exactly one H1", detail: `got ${h1N}` });
   if (!meta.h1) failures.push({ path, check: "H1 non-empty", detail: "h1 text empty" });
@@ -163,6 +199,36 @@ for (const r of indexable) {
     sitemap: inSitemap ? "yes" : "no",
     schema: ldErrs.length ? `${ldErrs.length} err` : "ok",
   });
+}
+
+/* ── Deep-tech / patent presence on public shells ─────────────────────── */
+const patentPaths = ["/", "/about"];
+for (const path of patentPaths) {
+  const shell = shellFilePath(path);
+  if (!existsSync(shell)) {
+    failures.push({ path, check: "patent shell exists", detail: `missing shell for ${path}` });
+    continue;
+  }
+  const html = readFileSync(shell, "utf8");
+  const text = load(html)("body").text();
+  const lowerText = text.toLowerCase();
+  for (const patent of [SILT_PATENT, POCKETAI_PATENT]) {
+    if (!text.includes(patent)) {
+      failures.push({ path, check: "patent number present", detail: `missing patent application ${patent}` });
+    }
+  }
+  if (!lowerText.includes("patent pending")) {
+    failures.push({ path, check: "patent-pending language", detail: `missing "Patent Pending" language` });
+  }
+  if (!html.includes(SILT_LANDING)) {
+    failures.push({ path, check: "SILT landing cross-link", detail: `missing link to ${SILT_LANDING}` });
+  }
+  if (!html.includes(SILT_REPO)) {
+    failures.push({ path, check: "SILT repo cross-link", detail: `missing link to ${SILT_REPO}` });
+  }
+  if (!html.includes(POCKETAI_REPO)) {
+    failures.push({ path, check: "Pocket AI repo cross-link", detail: `missing link to ${POCKETAI_REPO}` });
+  }
 }
 
 /* ── Sitemap cross-check: no loc without a built shell ─────────────────── */

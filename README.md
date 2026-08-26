@@ -18,8 +18,19 @@ learning hub — built for every Indian.
 
 ## Overview
 
-**InBharat AI** is an agentic AI search and chat experience tailored for Bharat,
-plus a public marketing site and a founder-authored learning hub. It combines:
+**InBharat.ai** is a deep-tech artificial intelligence company building foundational
+systems for trustworthy, private and local-first AI. The public site, the InBharat
+AI agentic-search console, and the founder-authored learning hub are the visible
+layer of that work. The company is organised in three layers:
+
+1. **Foundational deep tech** — SILT (trust-gated AI learning, patent pending India
+   `202631101454`) and Pocket AI (portable private AI, patent pending India
+   `202631102427`).
+2. **Applied AI infrastructure** — JAK Shield, JAK Swarm, UnoOne, and InBharat Audio.
+3. **Technology in application** — InBharat AI Console, UniAssist.ai, TestsPrep.in,
+   KathaKitaab, and Sahayaak.
+
+The public site combines:
 
 - **Multi-mode agents** — Research, Creative, Coder, Educator, Browser, Executive, Shopper, and standard Nexus
 - **Voice-first** — Speak in the search bar and listen to replies (TTS)

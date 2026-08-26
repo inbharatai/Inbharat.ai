@@ -26,8 +26,20 @@ export function useDocumentHead(overrides?: {
 
     document.title = title;
     setMeta('name', 'description', description);
-    setMeta('name', 'robots', 'index, follow, max-image-preview:large, max-snippet:-1');
-    setLink('canonical', fullUrl);
+    setMeta(
+      'name',
+      'robots',
+      seo.noIndex
+        ? 'noindex, nofollow'
+        : 'index, follow, max-image-preview:large, max-snippet:-1'
+    );
+    if (seo.noIndex) {
+      // noindex shells already carry no canonical link; keep it that way after
+      // client-side navigation so the route stays uncrawlable.
+      removeLink('canonical');
+    } else {
+      setLink('canonical', fullUrl);
+    }
 
     setMeta('property', 'og:type', 'website');
     setMeta('property', 'og:url', fullUrl);
@@ -73,4 +85,8 @@ function setLink(rel: string, href: string) {
     document.head.appendChild(el);
   }
   el.setAttribute('href', href);
+}
+
+function removeLink(rel: string) {
+  document.head.querySelectorAll<HTMLLinkElement>(`link[rel="${rel}"]`).forEach((el) => el.remove());
 }

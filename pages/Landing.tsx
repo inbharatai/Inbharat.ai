@@ -1,10 +1,11 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
 import HeroGitaQuote from '../components/HeroGitaQuote';
+import { DeepTechSpotlight } from '../components/DeepTechSpotlight';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
@@ -21,7 +22,6 @@ import {
   Menu,
   MessageCircle,
   Monitor,
-  Play,
   ShieldCheck,
   Share2,
   Shield,
@@ -346,9 +346,8 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
    ═══════════════════════════════════════════════════════ */
 
 const TICKER_NAMES = [
-  'InBharat AI', 'KathaKitaab', 'Agent Arcade', 'Phoring',
-  'Sahayaak AI', 'UniAssist', 'TestsPrep.in', 'UniBot',
-  'SocialFlow', 'OpenClawFix', 'Sahayaak Seva', 'UnoOne', 'SwasthyaScore AI',
+  'SILT', 'Pocket AI', 'JAK Shield', 'JAK Swarm', 'UnoOne',
+  'InBharat AI', 'Phoring', 'Sahayaak AI', 'UniAssist.ai', 'TestsPrep.in', 'KathaKitaab',
 ];
 
 const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
@@ -1022,12 +1021,11 @@ const Landing: React.FC = () => {
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
-      { href: '#ecosystem', label: t('landNavEcosystem') },
-      { href: '#why', label: t('landNavWhy') },
-      { href: '#kathakitaab', label: t('landNavKathakitaab') },
-      { href: '#jakswarm', label: t('landNavJak') },
+      { href: '#deep-tech', label: t('landNavDeepTech') },
+      { href: '#jakswarm', label: t('landNavSystems') },
       { href: '#products', label: t('landNavProducts') },
       { href: '#mission', label: t('landNavMission') },
+      { href: '#about', label: t('landNavAbout'), route: '/about' },
       // Contact routes to the dedicated /contact page (like the footer link),
       // NOT an in-page `#contact` scroll. `route` opts this item out of the
       // smooth-scroll handler (which only intercepts a[href^="#"]) and renders a
@@ -1481,7 +1479,7 @@ const Landing: React.FC = () => {
       <Reveal id="why" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavWhy')}</p>
+            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavAbout')}</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
               {t('landWhy1Title').split(' ').slice(0, 3).join(' ')}
             </h2>
@@ -1519,199 +1517,8 @@ const Landing: React.FC = () => {
       <div className="landing-seam" aria-hidden="true" />
 
 
-      {/* ═══════════════ KATHAKITAAB SPOTLIGHT ═══════════════ */}
-      <Reveal id="kathakitaab" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="relative overflow-hidden rounded-[28px] border border-[#f97316]/20 bg-gradient-to-br from-[#1a0d05] via-[#120a06] to-[#0a0703]">
-                        {/* Background battle scene image */}
-                        <div
-                          className="pointer-events-none absolute inset-0 opacity-15"
-                          style={{
-                            backgroundImage: 'url(/kathakitaab/scene_battle_lanka.png)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center right',
-                            filter: 'blur(2px)',
-                          }}
-                        />
-            {/* Ambient glows */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(249,115,22,0.18),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(236,72,153,0.12),transparent 50%)' }}
-            />
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.04]"
-              style={{ backgroundImage: 'linear-gradient(to right,rgba(249,115,22,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(249,115,22,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
-            />
-
-            <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
-              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
-                {/* Left */}
-                <div>
-                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#f97316]/30 bg-[#f97316]/10">
-                      <BookOpen size={20} className="text-[#fb923c]" />
-                    </div>
-                    <span className="rounded-full border border-[#f97316]/30 bg-[#f97316]/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#fb923c]">
-                      Living Story Engine
-                    </span>
-                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-1 text-[10px] font-bold text-emerald-400">
-                      Live Now
-                    </span>
-                  </div>
-
-                  <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    Where Stories
-                    <br />
-                    <span className="bg-gradient-to-r from-[#fb923c] via-[#fde68a] to-[#f9a8d4] bg-clip-text text-transparent">
-                      Come Alive
-                    </span>
-                  </h2>
-
-                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    Not a flipbook. An interactive story engine. Click characters, trigger hidden details. Watch figures breathe, move, and react. Experience Indian epics and fables as living books — or cinematic films. Three visual styles: photoreal Bollywood, storybook watercolour, or Pixar animation.
-                  </p>
-
-                  {/* Stats */}
-                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {([
-                      { val: 'Ramayana', label: 'Curated · 12 scenes' },
-                      { val: '3+', label: 'AI-Generated books' },
-                      { val: '2 Modes', label: 'Interactive + Movie' },
-                    ] as const).map((stat, i) => (
-                      <motion.div
-                        key={stat.label}
-                        custom={i}
-                        variants={itemReveal}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        className="rounded-xl border border-[#f97316]/15 bg-[#f97316]/[0.05] p-3.5 text-center"
-                      >
-                        <p className="text-lg font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Feature chips */}
-                  <div className="mt-6 flex flex-wrap gap-1.5">
-                    {[
-                      'Interactive click-to-explore',
-                      'Verb-aware AI animations',
-                      'Photoreal + Watercolour + Animation',
-                      'Emotional Sarvam narration',
-                      'Cinematic movie cuts',
-                      'AI-generated story branches',
-                    ].map((feat) => (
-                      <span
-                        key={feat}
-                        className="rounded-full border border-[#f97316]/20 bg-[#f97316]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#fb923c]"
-                      >
-                        {feat}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* CTAs */}
-                  <div className="mt-8 flex flex-wrap gap-3">
-                    <a
-                      href="https://www.kathakitaab.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#f97316] px-6 py-3 text-sm font-bold text-white shadow-[0_0_30px_rgba(249,115,22,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#fb923c] hover:shadow-[0_0_40px_rgba(249,115,22,0.4)]"
-                    >
-                      Enter Ramayana
-                      <ExternalLink size={14} />
-                    </a>
-                    <a
-                      href="https://www.kathakitaab.com/books/ramayana/movie"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-white transition-all hover:border-white/25 hover:bg-white/[0.08]"
-                    >
-                      Watch as Movie
-                      <Play size={14} />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Right: Visual showcase */}
-                <div className="space-y-5">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-[#1a0d05] to-[#0a0703]"
-                  >
-                    <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[#f97316]/60">Ramayana LiveBook</span>
-                      <div className="flex gap-2 text-[10px] font-semibold text-[#9aafc6]">
-                        <span className="text-[#fb923c]">Photoreal</span>
-                        <span className="text-[#f97316]/40">/</span>
-                        <span>Interactive</span>
-                      </div>
-                    </div>
-                    <div className="relative h-48 overflow-hidden bg-black/40">
-                      <picture>
-                        <source srcSet="/kathakitaab/scene_ayodhya_intro.webp" type="image/webp" />
-                        <img
-                          src="/kathakitaab/scene_ayodhya_intro.png"
-                          alt="Ramayana — opening scene of Ayodhya rendered for the KathaKitaab living storybook"
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                          width={1536}
-                          height={1024}
-                        />
-                      </picture>
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-40" />
-                    </div>
-                  </motion.div>
-
-                  {/* How it works */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.7, delay: 0.1, ease }}
-                    className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02]"
-                  >
-                    <div className="relative h-40 overflow-hidden bg-black/30">
-                      <picture>
-                        <source srcSet="/kathakitaab/scene_mithila_bow.webp" type="image/webp" />
-                        <img
-                          src="/kathakitaab/scene_mithila_bow.png"
-                          alt="Ramayana — Mithila bow scene rendered for the KathaKitaab living storybook"
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
-                          width={1536}
-                          height={1024}
-                        />
-                      </picture>
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a0d05] via-transparent to-transparent opacity-50" />
-                    </div>
-                    <div className="divide-y divide-white/[0.04]">
-                      {[
-                        { num: '1', label: 'Hand-painted scenes' },
-                        { num: '2', label: 'Click highlighted elements' },
-                        { num: '3', label: 'Pick a verb — world reacts' },
-                        { num: '4', label: 'Or watch as cinema' },
-                      ].map((step) => (
-                        <div key={step.num} className="flex items-center gap-3 px-4 py-3 text-[12px]">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f97316]/20 text-[#fb923c] text-[10px] font-bold">{step.num}</span>
-                          <span className="text-[#a8bfd4]">{step.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Reveal>
+      {/* ═══════════════ FOUNDATIONAL DEEP TECH SPOTLIGHT ═══════════════ */}
+      <DeepTechSpotlight />
 
       <div className="landing-seam" aria-hidden="true" />
 

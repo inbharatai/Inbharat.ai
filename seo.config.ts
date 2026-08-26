@@ -32,7 +32,7 @@ export const SITE = {
   name: 'InBharat AI',
   shortName: 'InBharat',
   description:
-    'InBharat builds affordable, easy-to-use AI tools for Bharat — agentic search, coding assistants, education platforms, and business automation in 11 Indian languages.',
+    'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Engineered in Bharat for the world.',
   themeColor: '#0d1117',
   ogImage: '/og-image.png',
   twitterCard: 'summary_large_image' as const,
@@ -125,6 +125,9 @@ const ORG_SAMEAS = [
   'https://openclawfix.pro',
   'https://sahayaakseva.in',
   'https://swasthyascore-ai.vercel.app',
+  'https://silt.inbharat.ai',
+  'https://github.com/inbharatai/SILT',
+  'https://github.com/inbharatai/PAI.V2',
 ];
 
 const baseOrganization = {
@@ -135,7 +138,7 @@ const baseOrganization = {
   url: SITE.url,
   logo: `${SITE.url}/inbharat-logo-1024.png`,
   description:
-    'AI consulting and tool-building company for Bharat. We build AI-powered websites, chatbots, automation systems, CRMs, and custom tools for Indian businesses.',
+    'Deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including trust-gated learning, portable private intelligence, agent security, and hardware-aware AI. Patent pending in India. Engineered in Bharat for the world.',
   areaServed: 'IN',
   sameAs: ORG_SAMEAS,
   contactPoint: {
@@ -234,7 +237,7 @@ const homepageFAQ = {
       name: 'What is InBharat AI?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'InBharat AI is an independent AI product studio building affordable, voice-first, multilingual AI tools for India — including agentic search, coding assistants, education platforms, and business automation.',
+        text: 'InBharat AI is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India (applications 202631101454 and 202631102427).',
       },
     },
     {
@@ -315,6 +318,43 @@ export const founderPerson = {
     url: SITE.url,
   },
   sameAs: ORG_SAMEAS,
+};
+
+/**
+ * InBharat foundational deep-tech layer — SILT and Pocket AI as first-class
+ * patent-pending technologies. Exposed as an ItemList so search and AI engines
+ * understand the company as an AI infrastructure builder, not a services shop.
+ */
+const deepTechSuite = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: 'InBharat AI foundational deep-tech',
+  itemListElement: [
+    {
+      '@type': 'ListItem',
+      position: 1,
+      item: {
+        '@type': 'ResearchProject',
+        name: 'SILT',
+        url: 'https://silt.inbharat.ai',
+        description:
+          'A trust-gated, sample-efficient AI learning layer that keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Patent pending in India (application 202631101454).',
+        identifier: '202631101454',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      item: {
+        '@type': 'ResearchProject',
+        name: 'Pocket AI',
+        url: 'https://github.com/inbharatai/PAI.V2',
+        description:
+          'A portable, host-adaptive private AI system with device-resident canonical state, so personal AI follows the user across machines while keeping the authoritative state on the owner\'s hardware. Patent pending in India (application 202631102427).',
+        identifier: '202631102427',
+      },
+    },
+  ],
 };
 
 /**
@@ -589,7 +629,7 @@ const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
-    title: 'InBharat AI — Affordable AI Tools Built for Bharat',
+    title: 'InBharat.ai — Deep-Tech AI Infrastructure Built in Bharat',
     description: SITE.description,
     priority: 1.0,
     changefreq: 'weekly',
@@ -598,21 +638,22 @@ export const ROUTES: SeoRoute[] = [
     // added GSC "alternate page with proper canonical tag" noise. The 11-language
     // UI switch still works via ?lang= — it's a UX feature, not an SEO one.
     multilingual: false,
-    extraSchema: [homepageFAQ, productSuite],
+    extraSchema: [homepageFAQ, deepTechSuite, productSuite],
     seoBody: {
       // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
-      // "Affordable AI tools built for Bharat.") so the crawler sr-only H1 and
-      // the on-page H1 match exactly. Branding stays in <title>/OG.
-      h1: 'Affordable AI tools built for Bharat',
+      // "Building the Infrastructure for Sovereign AI.") so the crawler sr-only H1
+      // and the on-page H1 match exactly. Branding stays in <title>/OG.
+      h1: 'Building the Infrastructure for Sovereign AI',
       paragraphs: [
-        'InBharat AI is an independent AI product studio building affordable, voice-first, multilingual AI tools for India. Our tools run in 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese — and work on any modern phone, tablet, or desktop with nothing to install.',
-        'The InBharat product suite includes JAK Swarm, an open-source self-hostable agentic company OS with an evidence graph, drift detection, and JAK Shield risk gating; KathaKitaab, AI-powered interactive storybooks for children in Indian languages; and TestsPrep, AI-driven adaptive test-preparation analytics.',
-        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes. You can try it free on the web with a few messages before signing in — no credit card required.',
-        'InBharat AI is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
-        'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The studio favours open-source, self-hostable components so teams keep control of their data.',
-        'InBharat AI is an independent studio founded by Reeturaj Goswami, on a mission to make practical AI affordable and accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of tools designed around how Bharat actually works.',
+        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
+        'SILT keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Pocket AI keeps the authoritative state of a personal AI on the owner\'s hardware so intelligence follows the user across machines. These technologies are developed in public repositories and are not cloud-only wrappers.',
+        'The InBharat product suite applies this deep-tech foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
+        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes across 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese. You can try it free on the web with a few messages before signing in — no credit card required.',
+        'InBharat.ai is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
+        'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The company favours open-source, self-hostable components so teams keep control of their data.',
+        'InBharat.ai is founded by Reeturaj Goswami, on a mission to make foundational AI infrastructure accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of deep-tech systems designed around how Bharat actually works.',
         'Every InBharat tool is built India-first: designed for low-bandwidth networks, low-end Android phones, and the languages people actually speak — then open-sourced or self-hosted so teams keep full control of their data, their costs, and their models.',
-        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or custom AI tooling for Indian businesses.`,
+        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or research collaboration on SILT and Pocket AI.`,
       ],
     },
   },
@@ -635,18 +676,19 @@ export const ROUTES: SeoRoute[] = [
   },
   {
     path: '/about',
-    title: 'About InBharat AI — Building Practical AI for India',
+    title: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
     description:
-      'InBharat is an independent AI product studio building voice-first, multilingual tools designed around Indian languages, devices, and workflows.',
+      'InBharat.ai is a deep-tech AI company building foundational systems for trustworthy, private and local-first AI — including SILT and Pocket AI, both patent pending in India.',
     priority: 0.7,
     changefreq: 'monthly',
     multilingual: false,
-    extraSchema: [breadcrumb('About', '/about'), founderPerson],
+    extraSchema: [breadcrumb('About', '/about'), deepTechSuite, founderPerson],
     seoBody: {
-      h1: 'About InBharat AI — Building Practical AI for India',
+      h1: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
       paragraphs: [
-        'InBharat is an independent AI product studio building voice-first, multilingual tools designed around Indian languages, devices, and workflows.',
-        'InBharat AI was founded by Reeturaj Goswami. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation.',
+        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. The company is organised around three layers: foundational deep tech (SILT and Pocket AI), applied AI infrastructure (JAK Shield, JAK Swarm, UnoOne, and InBharat Audio), and practical products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).',
+        'SILT is a trust-gated, sample-efficient AI learning layer that keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Pocket AI is a portable, host-adaptive private AI system with device-resident canonical state so personal intelligence follows the user across machines. Both technologies are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
+        'InBharat.ai was founded by Reeturaj Goswami and is engineered in Bharat for the world. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation, while publishing open-source AI infrastructure so teams keep control of their data.',
       ],
     },
   },
