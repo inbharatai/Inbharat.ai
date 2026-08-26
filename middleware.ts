@@ -7,10 +7,9 @@
  * SILT files copied to `public/silt/`. This middleware intercepts requests
  * before static matching and rewrites them to `/silt/...` when the host is
  * `silt.inbharat.ai`.
- *
- * The matcher excludes `/api/*`, `/_next/*`, and `/favicon.ico` to leave the
- * main InBharat app untouched on the primary domain.
  */
+
+import { rewrite, next } from "@vercel/edge";
 
 export const config = {
   matcher: ["/((?!api|_next|favicon.ico).*)"],
@@ -19,7 +18,7 @@ export const config = {
 export default function middleware(request: Request) {
   const host = request.headers.get("host") || "";
   if (host !== "silt.inbharat.ai") {
-    return fetch(request);
+    return next();
   }
 
   const url = new URL(request.url);
@@ -31,6 +30,5 @@ export default function middleware(request: Request) {
   const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
   const target = isAsset ? `/silt${path}` : "/silt/index.html";
 
-  const rewriteUrl = new URL(target, request.url);
-  return fetch(new Request(rewriteUrl, request));
+  return rewrite(new URL(target, request.url));
 }
