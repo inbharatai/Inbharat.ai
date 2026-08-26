@@ -8,11 +8,14 @@
  * before static matching and serves SILT content directly.
  *
  * Strategy:
- *   - Use an internal fetch to the underlying SILT file so we fully control
- *     the response that the visitor receives (important for Content-Type).
+ *   - Use an internal fetch to the underlying SILT file.
  *   - Target extension-less, non-"index" files (`/silt/__root` and
  *     `/silt/studio/__root`) so Vercel's `cleanUrls` / trailing-slash logic
  *     does not redirect them away.
+ *   - Read the response body and return a fresh Response with an explicit
+ *     Content-Type computed from the original path. This avoids relying on
+ *     Vercel's MIME detection for extension-less shell files and prevents the
+ *     silt host catch-all header from forcing text/html onto assets.
  *   - The `/silt/*` guard prevents an infinite loop when the internal fetch
  *     re-enters the edge.
  */
@@ -24,6 +27,24 @@ export const config = {
 };
 
 const HTML_TYPE = "text/html; charset=utf-8";
+
+function contentTypeForPath(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase();
+  switch (ext) {
+    case "svg":
+      return "image/svg+xml";
+    case "js":
+      return "application/javascript; charset=utf-8";
+    case "md":
+      return "text/markdown; charset=utf-8";
+    case "xml":
+      return "application/xml; charset=utf-8";
+    case "txt":
+      return "text/plain; charset=utf-8";
+    default:
+      return HTML_TYPE;
+  }
+}
 
 export default async function middleware(request: Request) {
   const host = request.headers.get("host") || "";
@@ -46,21 +67,27 @@ export default async function middleware(request: Request) {
   // other paths fall back to SILT's shell. Assets include /web/studio-bridge.js,
   // /favicon.svg, /README.md, /PATENT.md, /sitemap.xml, /robots.txt, etc.
   const isAsset = !isStudio && path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
-  const targetPath = isAsset ? `/silt${path}` : isStudio ? "/silt/studio/__root" : "/silt/__root";
-  const targetUrl = new URL(targetPath, request.url);
+  const targetPath = isAsset
+    ? `/silt${path}`
+    : isStudio
+      ? "/silt/studio/__root"
+      : "/silt/__root";
 
+  const targetUrl = new URL(targetPath, request.url);
   const response = await fetch(new Request(targetUrl, request));
 
   // Extension-less static targets are served as application/octet-stream by
-  // Vercel, so force the correct Content-Type for the HTML shells.
-  const headers = new Headers(response.headers);
-  if (!isAsset) {
-    headers.set("Content-Type", HTML_TYPE);
-  }
+  // Vercel, and the silt host catch-all header forces text/html onto assets.
+  // Compute the correct Content-Type from the original request path and return
+  // a fresh Response.
+  const body = await response.arrayBuffer();
+  const contentType = isStudio || !isAsset ? HTML_TYPE : contentTypeForPath(path);
 
-  return new Response(response.body, {
+  return new Response(body, {
     status: response.status,
     statusText: response.statusText,
-    headers,
+    headers: {
+      "Content-Type": contentType,
+    },
   });
 }
