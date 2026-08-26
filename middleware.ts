@@ -83,7 +83,7 @@ export default async function middleware(request: Request) {
     return new Response(text, {
       status: response.status,
       statusText: response.statusText,
-      headers: { "Content-Type": HTML_TYPE },
+      headers: { "Content-Type": HTML_TYPE, "X-Silt-Content-Type": HTML_TYPE },
     });
   }
 
