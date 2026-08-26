@@ -6,7 +6,7 @@ import { seedOutcomeOnPublish } from "../../lib/growth/outcomes.js";
 import { insertKnowledge, retrieveForTopic, linkToArticle } from "../../lib/growth/knowledge.js";
 import { commitBinary, upsertText, COVER_REPO } from "../../lib/growth/githubWrite.js";
 import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/authorization.js";
-import { generateCoverDraftFromFields } from "../../lib/growth/cover.js";
+import { generateCoverDraftFromFields, fetchStyleSample, clearUnpublishedCoverDrafts } from "../../lib/growth/cover.js";
 import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/growth/mermaid-validate.js";
 import { stripCitationMarkers } from "../../lib/growth/citations.js";
 import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
@@ -227,6 +227,8 @@ async function shipCoverToGitHub(
   draftId: string,
   draftUrl: string | null,
   schemaJson: CoverSchema | null,
+  /** Optional reviewer tag for auto-approval audit rows (default: manual cover publish). */
+  reviewerTag: string = "manual",
 ): Promise<CoverShipResult> {
   const pngBase64 = typeof schemaJson?.pngBase64 === "string" ? schemaJson.pngBase64 : null;
   const filename = typeof schemaJson?.filename === "string" ? schemaJson.filename : null;
@@ -272,15 +274,26 @@ async function shipCoverToGitHub(
     return { ok: false, code: "CONFLICT", error: `cover PNG committed (sha ${pngRes.commitSha?.slice(0, 7) ?? "?"}) but the article meta for "${slug}" is not in articles.meta.ts yet — publish the article first (its backstop will wire this cover's visual), or re-run cover publish once the article is live. The cover won't render until the visual is wired.`, pngCommitSha: pngRes.commitSha };
   }
 
-  // 3) Mark the draft published + audit.
+  // 3) Mark the draft published + audit (auto-approval row if shipped via article publish).
   const { error: upErr } = await supabaseAdmin!.from("growth_drafts").update({ status: "published" }).eq("id", draftId);
   if (upErr) {
     await logInfo("publish-cover-db-fail", draftUrl ?? filename, upErr.message).catch(() => undefined);
     return { ok: false, code: "SERVER_ERROR", error: `cover committed to GitHub (sha ${pngRes.commitSha?.slice(0, 7) ?? "?"}) but DB status update failed: ${upErr.message}`, pngCommitSha: pngRes.commitSha, metaCommitSha: metaRes.commitSha };
   }
+  if (reviewerTag !== "manual" && reviewerTag) {
+    await supabaseAdmin!
+      .from("growth_approvals")
+      .insert({
+        draft_id: draftId,
+        reviewer: reviewerTag,
+        decision: "approved",
+        note: `auto-approved + auto-published as companion cover for article ${slug}`,
+      })
+      .then(() => undefined, () => undefined);
+  }
   await supabaseAdmin!
     .from("growth_agent_logs")
-    .insert({ level: "info", action: "publish-cover", scope: draftUrl ?? filename, detail: `file=${filePath} pngSha=${pngRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId}` })
+    .insert({ level: "info", action: "publish-cover", scope: draftUrl ?? filename, detail: `file=${filePath} pngSha=${pngRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId} reviewer=${reviewerTag}` })
     .then(() => undefined, () => undefined);
 
   const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${filename}`;
@@ -389,21 +402,101 @@ async function findShippedCoverForSlug(slug: string): Promise<string | null> {
  * article-publish response so the founder knows to approve + Publish cover —
  * instead of the old behavior where the pending cover silently auto-shipped.
  */
-async function findPendingCompanionCover(slug: string): Promise<string | null> {
+
+/** Stale threshold in milliseconds (24h). Pending/rejected covers older than this
+ *  are considered stale and regenerated at article publish time. */
+export const STALE_COVER_MS = 24 * 60 * 60 * 1000;
+
+/** Minimal row shape used by the pure cover-draft selectors below. */
+export interface CoverDraftSelectorRow {
+  id: string;
+  status: "pending" | "approved" | "rejected" | "published";
+  schema_json: { filename?: string } | null;
+  created_at: string;
+}
+
+/**
+ * Pure selector: find a stale pending or rejected companion cover for the slug.
+ * Returns the most recent matching row whose filename is `<slug>.png` and whose
+ * created_at is older than `now - staleMs`. Published and approved rows are never
+ * stale — published rows are already shipped, approved rows are handled by
+ * shipCompanionCover.
+ */
+export function selectStaleCompanionCover(
+  rows: CoverDraftSelectorRow[],
+  slug: string,
+  now: number,
+  staleMs: number = STALE_COVER_MS,
+): CoverDraftSelectorRow | null {
+  const want = `${slug}.png`;
+  const cutoff = now - staleMs;
+  const allowedStatuses = new Set<typeof rows[number]["status"]>(["pending", "rejected"]);
+  return rows
+    .filter((r) => allowedStatuses.has(r.status) && typeof r.schema_json?.filename === "string" && r.schema_json.filename === want)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .find((r) => new Date(r.created_at).getTime() <= cutoff) ?? null;
+}
+
+/**
+ * Pure selector: find the most recent fresh pending companion cover for the slug.
+ * Returns null if the only pending cover is stale (those are regenerated and
+ * auto-shipped) or if no pending cover exists.
+ */
+export function selectFreshPendingCover(
+  rows: CoverDraftSelectorRow[],
+  slug: string,
+  now: number,
+  staleMs: number = STALE_COVER_MS,
+): { id: string; created_at: string } | null {
+  const want = `${slug}.png`;
+  const cutoff = now - staleMs;
+  const row = rows
+    .filter((r) => r.status === "pending" && typeof r.schema_json?.filename === "string" && r.schema_json.filename === want)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .find((r) => new Date(r.created_at).getTime() > cutoff);
+  return row ? { id: row.id, created_at: row.created_at } : null;
+}
+
+/**
+ * Find a stale pending or rejected companion cover for the slug. Returns the row
+ * if one exists and is older than STALE_COVER_MS, otherwise null.
+ */
+async function findStaleCompanionCover(slug: string): Promise<{ id: string; url: string | null; schema_json: CoverSchema | null; created_at: string } | null> {
   if (!supabaseAdmin) return null;
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_drafts")
-      .select("id,schema_json")
+      .select("id,url,schema_json,created_at")
+      .eq("kind", "cover")
+      .in("status", ["pending", "rejected"])
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error || !Array.isArray(data)) return null;
+    return selectStaleCompanionCover(data as CoverDraftSelectorRow[], slug, Date.now()) as { id: string; url: string | null; schema_json: CoverSchema | null; created_at: string } | null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort lookup: does a PENDING (not yet approved) companion cover draft exist
+ * for this slug? Used to surface "a cover is waiting for your approval" in the
+ * article-publish response so the founder knows to approve + Publish cover —
+ * instead of the old behavior where the pending cover silently auto-shipped.
+ * Excludes stale covers (those are regenerated and auto-shipped).
+ */
+async function findPendingCompanionCover(slug: string): Promise<{ id: string; created_at: string } | null> {
+  if (!supabaseAdmin) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("growth_drafts")
+      .select("id,schema_json,created_at")
       .eq("kind", "cover")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(20);
     if (error || !Array.isArray(data)) return null;
-    const want = `${slug}.png`;
-    const row = (data as Array<{ id: string; schema_json: CoverSchema | null }>)
-      .find((r) => typeof r.schema_json?.filename === "string" && r.schema_json.filename === want);
-    return row?.id ?? null;
+    return selectFreshPendingCover(data as CoverDraftSelectorRow[], slug, Date.now());
   } catch {
     return null;
   }
@@ -716,36 +809,45 @@ async function publishArticle(
       : { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: (companion.result as { needsToken?: boolean }).needsToken ?? false }
     : null;
 
-  // 5) If NO APPROVED companion cover shipped, check whether a PENDING cover is
-  //    waiting for approval (the founder must approve + Publish cover separately
-  //    now — the article no longer auto-publishes a pending cover). If there's no
-  //    cover draft at all (the article was published coverless — the Fine-Tuning-
-  //    vs-RAG gap), auto-DRAFT a pending cover so the founder can approve + Publish
-  //    it. This is NOT auto-publish: it creates a human-gated pending draft.
-  //    Best-effort, budget/config-gated, idempotent (generateCoverDraftFromFields
-  //    skips if a cover draft of any state already exists), never fails the article
-  //    publish. Only spends cover-model budget when the article has no cover draft.
+  // 5) If NO APPROVED companion cover shipped, handle pending/rejected covers.
+  //    A STALE pending/rejected cover (>24h old) is regenerated into a fresh cover,
+  //    auto-approved, and shipped in the same article publish so old articles don't
+  //    go live coverless. A fresh pending cover is left for human review.
+  //    If no cover draft exists at all, auto-DRAFT a pending cover so the founder can
+  //    approve + Publish cover. Best-effort, budget/config-gated, never fails the
+  //    article publish.
   let coverDrafted: { draftId: string | null; note: string } | null = null;
-  let pendingCoverId: string | null = null;
+  let pendingCover: { id: string; created_at: string } | null = null;
+  let coverRegenerated: { ok: boolean; draftId?: string; filename?: string; fileUrl?: string; pngCommitSha?: string; metaCommitSha?: string; error?: string; needsToken?: boolean } | null = null;
   if (!companion) {
-    pendingCoverId = await findPendingCompanionCover(meta.slug);
-    if (!pendingCoverId) {
-      try {
-        const drafted = await generateCoverDraftFromFields({
-          slug: meta.slug,
-          title: meta.title,
-          category: meta.category,
-          abstract: meta.abstract,
-        });
-        if (drafted.status === "pending" && drafted.draftId) {
-          coverDrafted = { draftId: drafted.draftId, note: "cover draft created — approve it in Issues, then Publish cover" };
-          await logInfo("publish-article-cover-drafted", meta.slug, `auto-drafted companion cover ${drafted.filename} (draftId=${drafted.draftId})`).catch(() => undefined);
+    // First, try to ship a stale cover (regenerate + auto-approve + publish).
+    const stale = await findStaleCompanionCover(meta.slug);
+    if (stale) {
+      coverRegenerated = await regenerateAndAutoShipCover(meta.slug, stale.id, stale.url);
+    }
+
+    // If we didn't regenerate/ship, see if a fresh pending cover is waiting.
+    if (!coverRegenerated?.ok) {
+      pendingCover = await findPendingCompanionCover(meta.slug);
+      if (!pendingCover) {
+        // No companion cover of any kind — create a pending draft for the founder.
+        try {
+          const drafted = await generateCoverDraftFromFields({
+            slug: meta.slug,
+            title: meta.title,
+            category: meta.category,
+            abstract: meta.abstract,
+          });
+          if (drafted.status === "pending" && drafted.draftId) {
+            coverDrafted = { draftId: drafted.draftId, note: "cover draft created — approve it in Issues, then Publish cover" };
+            await logInfo("publish-article-cover-drafted", meta.slug, `auto-drafted companion cover ${drafted.filename} (draftId=${drafted.draftId})`).catch(() => undefined);
+          }
+        } catch {
+          // Never let a cover-drafting failure fail the article publish.
         }
-      } catch {
-        // Never let a cover-drafting failure fail the article publish.
+      } else {
+        await logInfo("publish-article-cover-pending", meta.slug, `companion cover ${pendingCover.id} awaiting approval (not auto-shipped)`).catch(() => undefined);
       }
-    } else {
-      await logInfo("publish-article-cover-pending", meta.slug, `companion cover ${pendingCoverId} awaiting approval (not auto-shipped)`).catch(() => undefined);
     }
   }
 
@@ -756,10 +858,11 @@ async function publishArticle(
   //    race that left the multilingual article coverless: PNG committed, never
   //    referenced). The article meta was just inserted in step 2, so insertVisualField
   //    will now find the slug and wire the visual onto it. Idempotent (no-op if the
-  //    companion step already set it) and best-effort — never fails the article
-  //    publish (the article is already live); surfaced in `coverBackstop`.
+  //    companion step or regenerated cover already set it) and best-effort — never
+  //    fails the article publish (the article is already live); surfaced in
+  //    `coverBackstop`. Skipped when coverRegenerated already wired the visual.
   let coverBackstop: { ok: boolean; wired?: boolean; commitSha?: string; skipped?: boolean; error?: string } | null = null;
-  if (!companion) {
+  if (!companion && !coverRegenerated?.ok) {
     const shippedFilename = await findShippedCoverForSlug(meta.slug);
     if (shippedFilename) {
       const br = await upsertText(
@@ -780,13 +883,18 @@ async function publishArticle(
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
-    cover, coverDrafted, pendingCoverId,
+    cover, coverDrafted,
+    // Fresh pending cover waiting for human approval (non-stale). Kept for UI parity.
+    pendingCoverId: pendingCover?.id ?? null,
+    // Outcome of stale-cover regeneration + auto-ship. Present only when a stale
+    // pending/rejected cover was found, regenerated, and (on ok:true) shipped.
+    coverRegenerated,
     // Outcome of the cover-wire backstop (step 6). null = no already-shipped cover
-    // found for this slug (companion step handled it, or the article is coverless).
-    // ok:true + wired:true = a cover published before the article got its visual
-    // wired now (the race recovered). ok:true + skipped:true = visual was already
-    // set (idempotent). ok:false = the meta edit failed (article still live); re-run
-    // publish or the cover stays unreferenced until the founder re-publishes it.
+    // found for this slug (companion step or regenerated cover handled it, or the
+    // article is coverless). ok:true + wired:true = a cover published before the
+    // article got its visual wired now (the race recovered). ok:true + skipped:true
+    // = visual was already set (idempotent). ok:false = the meta edit failed
+    // (article still live); re-run publish or the cover stays unreferenced.
     coverBackstop,
     // Outcome of the auto calendar-retire (step 2b). ok:true + skipped:true = no
     // calendar topic matched this slug (free-plan article) → nothing retired.
@@ -798,6 +906,51 @@ async function publishArticle(
     // (so the UI can tell the founder a diagram was dropped — re-draft it if wanted).
     mermaidStripped: mermaidSanitize.stripped.length > 0 ? mermaidSanitize.stripped : undefined,
   });
+}
+
+/**
+ * Regenerate a stale pending/rejected cover for an article, auto-approve it, and
+ * ship it to GitHub under the article's publish gate. The old stale draft is
+ * removed first so the review queue stays clean. Uses a live style sample for
+ * family consistency. Returns a rich result for the publishArticle response.
+ * Never throws — a failure is surfaced in the returned object.
+ */
+async function regenerateAndAutoShipCover(
+  slug: string,
+  staleDraftId: string,
+  articleUrl: string | null,
+): Promise<{ ok: true; draftId: string; filename: string; fileUrl: string; pngCommitSha?: string; metaCommitSha?: string } | { ok: false; draftId?: string; error: string; needsToken?: boolean }> {
+  if (!supabaseAdmin) return { ok: false, error: "database not configured" };
+  const url = articleUrl ?? `https://inbharat.ai/learn-ai-with-reeturaj/${slug}`;
+  const meta = ARTICLES.find((a) => a.slug === slug);
+  if (!meta) return { ok: false, error: `no published article found for slug ${slug}` };
+
+  // Clear unpublished drafts for this URL (the stale one + any siblings) so the
+  // idempotency gate in generateCoverDraftFromFields lets a fresh draft through.
+  await clearUnpublishedCoverDrafts(url);
+
+  const sample = await fetchStyleSample();
+  const drafted = await generateCoverDraftFromFields(
+    { slug, title: meta.title, category: meta.category, abstract: meta.abstract },
+    sample ?? undefined,
+    { force: true },
+  );
+
+  if (drafted.status !== "pending" || !drafted.draftId) {
+    await logInfo("publish-article-cover-regenerate-skip", slug, drafted.note ?? "no draft").catch(() => undefined);
+    return { ok: false, draftId: drafted.draftId ?? undefined, error: drafted.note ?? "cover regeneration did not produce a new draft" };
+  }
+
+  // Ship the fresh cover with an auto-approval audit row. The article publish
+  // click is the human gate for the whole bundle.
+  const result = await shipCoverToGitHub(drafted.draftId, url, drafted.filename as unknown as CoverSchema | null, "auto-article-publish");
+  if (!result.ok) {
+    await logInfo("publish-article-cover-regenerate-fail", slug, result.error || "ship failed").catch(() => undefined);
+    return { ok: false, draftId: drafted.draftId, error: result.error, needsToken: (result as { needsToken?: boolean }).needsToken ?? false };
+  }
+
+  await logInfo("publish-article-cover-regenerate-shipped", slug, `draftId=${drafted.draftId} file=${result.filename}`).catch(() => undefined);
+  return { ok: true, draftId: drafted.draftId, filename: result.filename, fileUrl: result.fileUrl, pngCommitSha: result.pngCommitSha, metaCommitSha: result.metaCommitSha };
 }
 
 /**

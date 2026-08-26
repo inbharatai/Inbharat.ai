@@ -768,14 +768,24 @@ const Issues: React.FC = () => {
     // cover result, so a cover failure is reported as a next-step, not a failure.
     // When no companion cover existed, the server auto-drafts a pending cover
     // (coverDrafted) so the article is never left coverless — surface that here.
+    // When a stale pending/rejected cover existed (>24h), the server regenerates it
+    // and ships it automatically — surface that in coverRegenerated.
     const c = data.cover;
-    const coverLine = !c
-      ? data.coverDrafted
+    const rg = data.coverRegenerated;
+    let coverLine = "";
+    if (rg) {
+      coverLine = rg.ok
+        ? ` A stale cover was regenerated and shipped — ${rg.filename} (png ${rg.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${rg.fileUrl}.`
+        : ` Cover regeneration failed (article is still live): ${rg.error}${rg.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
+    } else if (!c) {
+      coverLine = data.coverDrafted
         ? ` No companion cover existed, so a fresh cover draft was auto-created — ${data.coverDrafted.note}.`
-        : " No companion cover draft, and none could be auto-created (cover model not configured or monthly budget exhausted) — generate one from the Published articles section when able."
-      : c.ok
-        ? ` Cover shipped too — ${c.filename} (png ${c.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${c.fileUrl}.`
-        : ` Cover did NOT ship (article is still live): ${c.error}${c.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
+        : " No companion cover draft, and none could be auto-created (cover model not configured or monthly budget exhausted) — generate one from the Published articles section when able.";
+    } else if (c.ok) {
+      coverLine = ` Cover shipped too — ${c.filename} (png ${c.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${c.fileUrl}.`;
+    } else {
+      coverLine = ` Cover did NOT ship (article is still live): ${c.error}${c.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
+    }
     const msg =
       `Article published — ${data.slug} committed to GitHub (md ${data.mdCommitSha?.slice(0, 7) ?? "?"}${
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""

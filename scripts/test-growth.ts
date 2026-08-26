@@ -916,7 +916,7 @@ console.log("\nDiscovery (diffSitePages pure fixtures):");
 
 // ─── Phase E: article writer + publish helpers (pure, no DB/network) ───
 const { slugifyTitle, estimateReadMinutes } = await import("../lib/growth/articleWriter.js");
-const { formatArticleEntry, insertArticleMeta, insertVisualField, retireCalendarTopic, articleMetaEntryExists } = await import("../api/growth/publish.js");
+const { formatArticleEntry, insertArticleMeta, insertVisualField, retireCalendarTopic, articleMetaEntryExists, STALE_COVER_MS, selectStaleCompanionCover, selectFreshPendingCover } = await import("../api/growth/publish.js");
 console.log("\nPhase E (article writer + publish helpers, pure):");
 {
   // slugifyTitle: lowercase, kebab, strip apostrophes, trim, fallback.
@@ -1045,6 +1045,32 @@ export function getArticleBySlug(slug: string) { return ARTICLES.find((a) => a.s
   check("retireCalendarTopic idempotent → null after retirement", retireCalendarTopic(retired ?? CAL_SRC, "evals-for-ai-features-measuring-what-actually-ships", null) === null);
   // No matching topic (free-plan article) → null, text unchanged.
   check("retireCalendarTopic no match → null", retireCalendarTopic(CAL_SRC, "some-free-plan-slug-not-on-calendar", "X") === null);
+
+  // Stale-cover selectors: pure logic behind the article-publish regeneration path.
+  // A cover draft older than STALE_COVER_MS in status pending/rejected is regenerated
+  // and auto-shipped together with the article so an old article never goes live coverless.
+  const NOW = Date.parse("2026-07-20T12:00:00.000Z");
+  const OLD = new Date(NOW - 25 * 60 * 60 * 1000).toISOString();
+  const FRESH = new Date(NOW - 1 * 60 * 60 * 1000).toISOString();
+  const ANCIENT = new Date(NOW - 48 * 60 * 60 * 1000).toISOString();
+  check("STALE_COVER_MS is 24 hours", STALE_COVER_MS === 24 * 60 * 60 * 1000);
+  const stalePending: { id: string; status: "pending" | "approved" | "rejected" | "published"; schema_json: { filename?: string } | null; created_at: string } = { id: "stale-pending", status: "pending", schema_json: { filename: "rag-guide.png" }, created_at: OLD };
+  const staleRejected = { id: "stale-rejected", status: "rejected" as const, schema_json: { filename: "rag-guide.png" }, created_at: OLD };
+  const freshPending = { id: "fresh-pending", status: "pending" as const, schema_json: { filename: "rag-guide.png" }, created_at: FRESH };
+  const approvedOld = { id: "approved-old", status: "approved" as const, schema_json: { filename: "rag-guide.png" }, created_at: OLD };
+  const publishedOld = { id: "published-old", status: "published" as const, schema_json: { filename: "rag-guide.png" }, created_at: OLD };
+  const otherSlugStale = { id: "other-slug", status: "pending" as const, schema_json: { filename: "other-topic.png" }, created_at: OLD };
+  check("selectStaleCompanionCover finds stale pending cover", selectStaleCompanionCover([stalePending], "rag-guide", NOW)?.id === "stale-pending");
+  check("selectStaleCompanionCover finds stale rejected cover", selectStaleCompanionCover([staleRejected], "rag-guide", NOW)?.id === "stale-rejected");
+  check("selectStaleCompanionCover ignores approved rows", selectStaleCompanionCover([approvedOld], "rag-guide", NOW) === null);
+  check("selectStaleCompanionCover ignores published rows", selectStaleCompanionCover([publishedOld], "rag-guide", NOW) === null);
+  check("selectStaleCompanionCover ignores fresh pending cover", selectStaleCompanionCover([freshPending], "rag-guide", NOW) === null);
+  check("selectStaleCompanionCover ignores different slug", selectStaleCompanionCover([otherSlugStale], "rag-guide", NOW) === null);
+  check("selectStaleCompanionCover picks most recent stale", selectStaleCompanionCover([stalePending, { id: "ancient-pending", status: "pending" as const, schema_json: { filename: "rag-guide.png" }, created_at: ANCIENT }], "rag-guide", NOW)?.id === "stale-pending");
+  check("selectFreshPendingCover finds fresh pending cover", selectFreshPendingCover([freshPending], "rag-guide", NOW)?.id === "fresh-pending");
+  check("selectFreshPendingCover ignores stale pending cover", selectFreshPendingCover([stalePending], "rag-guide", NOW) === null);
+  check("selectFreshPendingCover ignores rejected cover", selectFreshPendingCover([staleRejected], "rag-guide", NOW) === null);
+  check("selectFreshPendingCover picks most recent fresh", selectFreshPendingCover([freshPending, { id: "fresher-pending", status: "pending" as const, schema_json: { filename: "rag-guide.png" }, created_at: new Date(NOW - 5 * 60 * 1000).toISOString() }], "rag-guide", NOW)?.id === "fresher-pending");
 }
 
 // ─── Agent↔Issues alignment: pipeline assembly + draft→thread reverse-lookup ──

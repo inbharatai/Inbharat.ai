@@ -293,6 +293,27 @@ export async function hasExistingCoverDraft(url: string): Promise<boolean> {
 }
 
 /**
+ * Delete pending/approved/rejected cover drafts for an article URL.
+ * Published rows are intentionally kept as audit history and never deleted.
+ * Used when a stale cover must be replaced with a fresh one at article publish
+ * time, or when the founder explicitly requests a redesign. Never throws.
+ */
+export async function clearUnpublishedCoverDrafts(url: string): Promise<void> {
+  if (!supabaseAdmin) return;
+  try {
+    const { error } = await supabaseAdmin
+      .from("growth_drafts")
+      .delete()
+      .eq("url", url)
+      .eq("kind", "cover")
+      .in("status", ["pending", "approved", "rejected"]);
+    if (error) await logInfo("cover-clear-unpublished-fail", url, error.message).catch(() => undefined);
+  } catch {
+    // best-effort
+  }
+}
+
+/**
  * Fetch a canonical existing cover (live on the site) to use as a STYLE
  * REFERENCE so every new cover matches the family — the founder's "keep it
  * exactly as we have in the other articles" requirement. Tries a curated list of
