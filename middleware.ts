@@ -9,32 +9,27 @@
  * `silt.inbharat.ai`.
  */
 
-import { rewrite, next } from "@vercel/edge";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export const config = {
   matcher: ["/((?!api|_next|favicon.ico|silt/).*)"],
 };
 
-export default function middleware(request: Request) {
+export default function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
   if (host !== "silt.inbharat.ai") {
-    return next();
+    return NextResponse.next();
   }
 
-  const url = new URL(request.url);
+  const url = request.nextUrl.clone();
   const path = url.pathname;
-
-  // If the request is already rewritten to /silt/*, let Vercel serve it directly
-  // to avoid an infinite rewrite loop.
-  if (path.startsWith("/silt/")) {
-    return next();
-  }
 
   // Paths that look like static assets (have a filename extension) are
   // rewritten to the matching file under /silt/. All other paths fall back to
   // SILT's SPA shell so client-side routing works.
   const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
-  const target = isAsset ? `/silt${path}` : "/silt/index.html";
+  url.pathname = isAsset ? `/silt${path}` : "/silt/index.html";
 
-  return rewrite(new URL(target, request.url));
+  return NextResponse.rewrite(url);
 }
