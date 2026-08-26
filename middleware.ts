@@ -10,6 +10,8 @@
  * We use `@vercel/edge` `rewrite()` (not an internal fetch) and target
  * extension-less SILT entry files (`/silt/index` and `/silt/studio/index`) so
  * Vercel's `cleanUrls` / trailing-slash logic does not redirect them away.
+ * Because those files have no extension, we explicitly set `Content-Type`
+ * here for the HTML shell routes.
  */
 
 import { next, rewrite } from "@vercel/edge";
@@ -17,6 +19,8 @@ import { next, rewrite } from "@vercel/edge";
 export const config = {
   matcher: ["/:path*"],
 };
+
+const HTML_TYPE = "text/html; charset=utf-8";
 
 export default function middleware(request: Request) {
   const host = request.headers.get("host") || "";
@@ -34,13 +38,21 @@ export default function middleware(request: Request) {
 
   // SPA route: /studio (with or without trailing slash).
   if (path === "/studio" || path === "/studio/") {
-    return rewrite(new URL("/silt/studio/index", request.url));
+    return rewrite(new URL("/silt/studio/index", request.url), {
+      headers: { "Content-Type": HTML_TYPE },
+    });
   }
 
   // Determine the SILT file to serve: explicit assets get their file, all
   // other paths fall back to SILT's shell. Assets include /web/studio-bridge.js,
   // /favicon.svg, /README.md, /PATENT.md, /sitemap.xml, /robots.txt, etc.
   const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
-  const targetPath = isAsset ? `/silt${path}` : "/silt/index";
-  return rewrite(new URL(targetPath, request.url));
+  if (isAsset) {
+    return rewrite(new URL(`/silt${path}`, request.url));
+  }
+
+  // Fall back to the SILT landing shell for every other path.
+  return rewrite(new URL("/silt/index", request.url), {
+    headers: { "Content-Type": HTML_TYPE },
+  });
 }
