@@ -6,15 +6,19 @@
  * on `silt.inbharat.ai` were being served from the InBharat app instead of the
  * SILT files copied to `public/silt/`. This middleware intercepts requests
  * before static matching and serves SILT content directly.
+ *
+ * We use `@vercel/edge` `rewrite()` (not an internal fetch) and target
+ * extension-less SILT entry files (`/silt/index` and `/silt/studio/index`) so
+ * Vercel's `cleanUrls` / trailing-slash logic does not redirect them away.
  */
 
-import { next } from "@vercel/edge";
+import { next, rewrite } from "@vercel/edge";
 
 export const config = {
   matcher: ["/:path*"],
 };
 
-export default async function middleware(request: Request) {
+export default function middleware(request: Request) {
   const host = request.headers.get("host") || "";
   if (host !== "silt.inbharat.ai") {
     return next();
@@ -28,19 +32,15 @@ export default async function middleware(request: Request) {
     return next();
   }
 
-  // Determine the SILT file to serve: explicit assets get their file, all other
-  // paths fall back to SILT's SPA shell.
-  const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
-  const targetPath = isAsset ? `/silt${path}` : "/silt/index.html";
+  // SPA route: /studio (with or without trailing slash).
+  if (path === "/studio" || path === "/studio/") {
+    return rewrite(new URL("/silt/studio/index", request.url));
+  }
 
-  // Fetch the SILT content internally. The rewritten URL keeps the same host so
-  // the request re-enters the edge; the /silt/* guard above prevents a loop and
-  // lets Vercel serve the static file.
-  const targetUrl = new URL(targetPath, request.url);
-  const response = await fetch(new Request(targetUrl, request));
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers,
-  });
+  // Determine the SILT file to serve: explicit assets get their file, all
+  // other paths fall back to SILT's shell. Assets include /web/studio-bridge.js,
+  // /favicon.svg, /README.md, /PATENT.md, /sitemap.xml, /robots.txt, etc.
+  const isAsset = path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
+  const targetPath = isAsset ? `/silt${path}` : "/silt/index";
+  return rewrite(new URL(targetPath, request.url));
 }

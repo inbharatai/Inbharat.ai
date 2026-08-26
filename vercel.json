@@ -26,72 +26,180 @@
     }
   ],
   "functions": {
-    "api/growth/cron/morning.ts": { "maxDuration": 300 },
-    "api/growth/cron/daily.ts": { "maxDuration": 300 },
-    "api/growth/cron/topic-discovery.ts": { "maxDuration": 300 },
-    "api/growth/cron/analytics-sync.ts": { "maxDuration": 300 },
-    "api/growth/auto.ts": { "maxDuration": 120 },
-    "api/growth/agent.ts": { "maxDuration": 120 }
+    "api/growth/cron/morning.ts": {
+      "maxDuration": 300
+    },
+    "api/growth/cron/daily.ts": {
+      "maxDuration": 300
+    },
+    "api/growth/cron/topic-discovery.ts": {
+      "maxDuration": 300
+    },
+    "api/growth/cron/analytics-sync.ts": {
+      "maxDuration": 300
+    },
+    "api/growth/auto.ts": {
+      "maxDuration": 120
+    },
+    "api/growth/agent.ts": {
+      "maxDuration": 120
+    }
   },
-  "redirects": [
-    { "source": "/silt", "destination": "https://silt.inbharat.ai/", "permanent": true }
-  ],
+  "redirects": [],
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" },
-    { "source": "/silt/(.*)", "destination": "/silt/$1", "has": [{ "type": "host", "value": "silt.inbharat.ai" }] },
-    { "source": "/(.*)", "destination": "/silt/$1", "has": [{ "type": "host", "value": "silt.inbharat.ai" }] },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
+      "source": "/silt/(.*)",
+      "destination": "/silt/$1",
+      "has": [
+        {
+          "type": "host",
+          "value": "silt.inbharat.ai"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/silt/$1",
+      "has": [
+        {
+          "type": "host",
+          "value": "silt.inbharat.ai"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "headers": [
     {
+      "source": "/silt/studio/index",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/silt/index",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/(.*)\\.(png|jpg|jpeg|gif|webp|svg|ico|woff|woff2)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=2592000, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000, must-revalidate"
+        }
       ]
     },
     {
       "source": "/sitemap.xml",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" },
-        { "key": "Content-Type", "value": "application/xml; charset=utf-8" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/xml; charset=utf-8"
+        }
       ]
     },
     {
       "source": "/robots.txt",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" },
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        }
       ]
     },
     {
       "source": "/manifest.json",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=3600, must-revalidate" },
-        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json; charset=utf-8"
+        }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Permissions-Policy", "value": "camera=(), microphone=(self), geolocation=()" },
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; media-src 'self' blob:; connect-src 'self' http://127.0.0.1:8377 ws://127.0.0.1:8377 wss://127.0.0.1:8377 https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://*.googletagmanager.com; worker-src 'self' blob:; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self';" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(self), geolocation=()"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; media-src 'self' blob:; connect-src 'self' http://127.0.0.1:8377 ws://127.0.0.1:8377 wss://127.0.0.1:8377 https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://*.google-analytics.com https://*.googletagmanager.com; worker-src 'self' blob:; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self';"
+        }
       ]
     }
   ]
