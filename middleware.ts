@@ -12,10 +12,9 @@
  *   - Target extension-less, non-"index" files (`/silt/__root` and
  *     `/silt/studio/__root`) so Vercel's `cleanUrls` / trailing-slash logic
  *     does not redirect them away.
- *   - Read the response body and return a fresh Response with an explicit
- *     Content-Type computed from the original path. This avoids relying on
- *     Vercel's MIME detection for extension-less shell files and prevents the
- *     silt host catch-all header from forcing text/html onto assets.
+ *   - Return the body as text with an explicit Content-Type for the HTML shells.
+ *     Binary assets are returned as ArrayBuffer with Content-Type derived from
+ *     the original request path.
  *   - The `/silt/*` guard prevents an infinite loop when the internal fetch
  *     re-enters the edge.
  */
@@ -26,7 +25,7 @@ export const config = {
   matcher: ["/:path*"],
 };
 
-const HTML_TYPE = "text/plain; charset=utf-8";
+const HTML_TYPE = "text/html; charset=utf-8";
 
 function contentTypeForPath(path: string): string {
   const ext = path.split(".").pop()?.toLowerCase();
@@ -76,19 +75,22 @@ export default async function middleware(request: Request) {
   const targetUrl = new URL(targetPath, request.url);
   const response = await fetch(new Request(targetUrl, request));
 
-  // Extension-less static targets are served as application/octet-stream by
-  // Vercel, and the silt host catch-all header forces text/html onto assets.
-  // Compute the correct Content-Type from the original request path and return
-  // a fresh Response.
-  const body = await response.arrayBuffer();
-  const contentType = isStudio || !isAsset ? HTML_TYPE : contentTypeForPath(path);
+  // Vercel strips Content-Type from middleware responses when the underlying
+  // static file has none. For the HTML shells, decode the body as text and
+  // return a fresh text Response. Assets stay binary.
+  if (isStudio || !isAsset) {
+    const text = await response.text();
+    return new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: { "Content-Type": HTML_TYPE },
+    });
+  }
 
+  const body = await response.arrayBuffer();
   return new Response(body, {
     status: response.status,
     statusText: response.statusText,
-    headers: {
-      "Content-Type": contentType,
-      "X-Silt-Test": "1",
-    },
+    headers: { "Content-Type": contentTypeForPath(path) },
   });
 }
