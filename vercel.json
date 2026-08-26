@@ -144,6 +144,36 @@
       ]
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "silt.inbharat.ai"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/studio",
+      "has": [
+        {
+          "type": "host",
+          "value": "silt.inbharat.ai"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html; charset=utf-8"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
