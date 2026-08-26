@@ -489,8 +489,15 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen h-dvh sm:h-screen w-full max-w-[100vw] bg-[#0d1117] text-[#e6edf3] font-sans overflow-x-hidden overflow-y-auto relative touch-manual">
+      {/* Skip to main content — first focusable element for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-[#FF9933] focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-[#0d1117] focus:shadow-lg"
+      >
+        Skip to content
+      </a>
 
-      <Sidebar 
+      <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         sessions={filteredSessions}
@@ -511,7 +518,7 @@ const App: React.FC = () => {
       />
 
       {/* Main UI */}
-      <main className="flex-1 flex flex-col relative h-full">
+      <main id="main-content" className="flex-1 flex flex-col relative h-full">
         {/* Sign-in banner (non-blocking) */}
         {!authLoading && !isSignedIn && (
           <div className="shrink-0 bg-[#161b22] border-b border-[#30363d]/50 px-4 py-2 flex items-center justify-center gap-3 text-sm">

@@ -1106,6 +1106,14 @@ const Landing: React.FC = () => {
       )}
 
       {/* ═══════════════ NAVIGATION ═══════════════ */}
+      {/* Skip to main content — first focusable element for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-[#f59f4f] focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-[#030508] focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
       <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#030508]/70 backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
@@ -1288,7 +1296,7 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* ═══════════════ HERO ═══════════════ */}
-      <header ref={heroRef} className="relative z-10 overflow-hidden">
+      <header id="main-content" ref={heroRef} className="relative z-10 overflow-hidden">
         {/* Animated background */}
         <div className="hero-mesh" aria-hidden="true" />
         <AIEntity reduceMotion={reduceMotion} />

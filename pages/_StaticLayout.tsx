@@ -29,6 +29,14 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
       <div className="landing-atmosphere" aria-hidden="true" />
       <div className="landing-grid" aria-hidden="true" />
 
+      {/* Skip to main content — first focusable element for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-[#f59f4f] focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:text-[#030508] focus:shadow-lg"
+      >
+        Skip to content
+      </a>
+
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#030508]/70 backdrop-blur-2xl backdrop-saturate-150">
         <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
@@ -60,7 +68,7 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
       </nav>
 
       {/* Page body */}
-      <main className="relative z-10 mx-auto w-full max-w-3xl px-5 py-16 sm:px-6 sm:py-24 lg:px-10">
+      <main id="main-content" className="relative z-10 mx-auto w-full max-w-3xl px-5 py-16 sm:px-6 sm:py-24 lg:px-10">
         <header className="mb-10">
           {eyebrow && (
             <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.25em] text-[#f59f4f]">
