@@ -9,7 +9,7 @@ import { logInfo, assertAuthorized, AuthorizationError } from "../../lib/growth/
 import { generateCoverDraftFromFields, fetchStyleSample, clearUnpublishedCoverDrafts } from "../../lib/growth/cover.js";
 import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/growth/mermaid-validate.js";
 import { stripCitationMarkers } from "../../lib/growth/citations.js";
-import { ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
+import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { slugifyTitle } from "../../lib/growth/articleWriter.js";
 import { SITE } from "../../seo.config.js";
 
@@ -302,13 +302,13 @@ async function shipCoverToGitHub(
 
 /** Map a CoverShipResult to the explicit kind='cover' publish HTTP response. */
 function respondCoverShip(res: VercelResponse, requestId: string, r: CoverShipResult, draftTitle: string | null): VercelResponse {
-  if (r.ok) {
-    return res.status(200).json({ ok: true, requestId, kind: "cover", filename: r.filename, fileUrl: r.fileUrl, pngCommitSha: r.pngCommitSha, metaCommitSha: r.metaCommitSha, title: draftTitle ?? null });
+  if (!r.ok) {
+    if (r.code === "CONFLICT") return res.status(409).json({ ok: false, code: "CONFLICT", error: r.error, requestId });
+    if (r.code === "BAD_FILENAME") return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: r.error, requestId });
+    if (r.code === "PRECONDITION_FAILED") return res.status(412).json({ ok: false, code: "PRECONDITION_FAILED", error: r.error, requestId });
+    return res.status(502).json({ ok: false, code: "SERVER_ERROR", error: r.error, requestId, pngCommitSha: r.pngCommitSha, metaCommitSha: r.metaCommitSha });
   }
-  if (r.code === "CONFLICT") return res.status(409).json({ ok: false, code: "CONFLICT", error: r.error, requestId });
-  if (r.code === "BAD_FILENAME") return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: r.error, requestId });
-  if (r.code === "PRECONDITION_FAILED") return res.status(412).json({ ok: false, code: "PRECONDITION_FAILED", error: r.error, requestId });
-  return res.status(502).json({ ok: false, code: "SERVER_ERROR", error: r.error, requestId, pngCommitSha: r.pngCommitSha, metaCommitSha: r.metaCommitSha });
+  return res.status(200).json({ ok: true, requestId, kind: "cover", filename: r.filename, fileUrl: r.fileUrl, pngCommitSha: r.pngCommitSha, metaCommitSha: r.metaCommitSha, title: draftTitle ?? null });
 }
 
 /**
@@ -466,13 +466,14 @@ async function findStaleCompanionCover(slug: string): Promise<{ id: string; url:
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_drafts")
-      .select("id,url,schema_json,created_at")
+      .select("id,url,schema_json,status,created_at")
       .eq("kind", "cover")
       .in("status", ["pending", "rejected"])
       .order("created_at", { ascending: false })
       .limit(20);
     if (error || !Array.isArray(data)) return null;
-    return selectStaleCompanionCover(data as CoverDraftSelectorRow[], slug, Date.now()) as { id: string; url: string | null; schema_json: CoverSchema | null; created_at: string } | null;
+    const row = selectStaleCompanionCover(data as CoverDraftSelectorRow[], slug, Date.now());
+    return row ? { id: row.id, url: (row as { url?: string | null }).url ?? null, schema_json: row.schema_json as CoverSchema | null, created_at: row.created_at } : null;
   } catch {
     return null;
   }
@@ -490,7 +491,7 @@ async function findPendingCompanionCover(slug: string): Promise<{ id: string; cr
   try {
     const { data, error } = await supabaseAdmin
       .from("growth_drafts")
-      .select("id,schema_json,created_at")
+      .select("id,schema_json,status,created_at")
       .eq("kind", "cover")
       .eq("status", "pending")
       .order("created_at", { ascending: false })
@@ -803,11 +804,14 @@ async function publishArticle(
   //    the publish. The cover's `visual:` edit runs AFTER the article meta insert
   //    above so insertVisualField can find the freshly-added slug entry.
   const companion = await shipCompanionCover(meta.slug);
-  const cover = companion
-    ? companion.result.ok
-      ? { ok: true, draftId: companion.draftId, filename: companion.result.filename, fileUrl: companion.result.fileUrl, pngCommitSha: companion.result.pngCommitSha, metaCommitSha: companion.result.metaCommitSha }
-      : { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: (companion.result as { needsToken?: boolean }).needsToken ?? false }
-    : null;
+  let cover: { ok: true; draftId: string; filename: string; fileUrl: string; pngCommitSha?: string; metaCommitSha?: string } | { ok: false; draftId: string; error: string; needsToken?: boolean } | null = null;
+  if (companion) {
+    if (companion.result.ok) {
+      cover = { ok: true, draftId: companion.draftId, filename: companion.result.filename, fileUrl: companion.result.fileUrl, pngCommitSha: companion.result.pngCommitSha, metaCommitSha: companion.result.metaCommitSha };
+    } else {
+      cover = { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: companion.result.needsToken ?? false };
+    }
+  }
 
   // 5) If NO APPROVED companion cover shipped, handle pending/rejected covers.
   //    A STALE pending/rejected cover (>24h old) is regenerated into a fresh cover,
