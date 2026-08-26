@@ -12,7 +12,7 @@
 import { rewrite, next } from "@vercel/edge";
 
 export const config = {
-  matcher: ["/((?!api|_next|favicon.ico).*)"],
+  matcher: ["/((?!api|_next|favicon.ico|silt/).*)"],
 };
 
 export default function middleware(request: Request) {
@@ -23,6 +23,12 @@ export default function middleware(request: Request) {
 
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // If the request is already rewritten to /silt/*, let Vercel serve it directly
+  // to avoid an infinite rewrite loop.
+  if (path.startsWith("/silt/")) {
+    return next();
+  }
 
   // Paths that look like static assets (have a filename extension) are
   // rewritten to the matching file under /silt/. All other paths fall back to
