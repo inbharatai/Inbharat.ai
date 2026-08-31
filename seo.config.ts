@@ -641,9 +641,9 @@ export const ROUTES: SeoRoute[] = [
     extraSchema: [homepageFAQ, deepTechSuite, productSuite],
     seoBody: {
       // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
-      // "Building the Infrastructure for Sovereign AI.") so the crawler sr-only H1
+      // "Building the Infrastructure for Private AI Beyond the Cloud.") so the crawler sr-only H1
       // and the on-page H1 match exactly. Branding stays in <title>/OG.
-      h1: 'Building the Infrastructure for Sovereign AI',
+      h1: 'Building the Infrastructure for Private AI Beyond the Cloud',
       paragraphs: [
         'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
         'SILT keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Pocket AI keeps the authoritative state of a personal AI on the owner\'s hardware so intelligence follows the user across machines. These technologies are developed in public repositories and are not cloud-only wrappers.',

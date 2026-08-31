@@ -39,7 +39,7 @@ const assert = (name: string, cond: boolean) => {
 };
 
 console.log("\n=== Accuracy assertions ===");
-assert("H1 present and correct", !!meta.h1 && meta.h1 === "Building the Infrastructure for Sovereign AI");
+assert("H1 present and correct", !!meta.h1 && meta.h1 === "Building the Infrastructure for Private AI Beyond the Cloud");
 assert("wordCount > 0 (body content crawlable)", (meta.wordCount ?? 0) > 50);
 assert("title present", !!meta.title);
 assert("canonical set to https://www.inbharat.ai/ (www-canonical)", meta.canonical === "https://www.inbharat.ai/");
