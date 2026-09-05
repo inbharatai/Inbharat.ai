@@ -29,6 +29,7 @@ import { loadStrategy, formatStrategyBlock } from "./strategy.js";
 import { loadGlobalRules, formatRulesBlock } from "./rules.js";
 import { loadInboxContext, formatInboxBlock } from "./inbox.js";
 import { logError } from "./authorization.js";
+import { SITE } from "../../seo.config.js";
 
 /** Bound the tool-calling loop so a chatty model can't run forever. */
 const MAX_ITERATIONS = 6;
@@ -111,7 +112,7 @@ export async function runAgentTurn(
     await persistMessage(tid, "user", userRedact.redacted, null, null, null);
     const reply2 = "I caught what looks like a secret in your message and did NOT send it to the model — I've saved a redacted copy here. Remove the secret and send it again.";
     await persistMessage(tid, "assistant", reply2, null, null, null);
-    return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted", turnTools: [] };
+    return { ok: false, threadId: tid, reply: reply2, messages: (await loadHistory(tid)).map(toAgentMessage), note: "redacted", turnTools: [] };
   }
   // Persist the user message (now known secret-free) so it's saved even if the
   // model call later fails.
@@ -126,7 +127,7 @@ export async function runAgentTurn(
   if (!budgetOk) {
     const reply = "The monthly budget is exhausted — raise the cap in Settings and I'll pick this up. I've saved your message; send it again after you raise the cap.";
     await persistMessage(tid, "assistant", reply, null, null, null);
-    return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), note: "budget exhausted", turnTools: [] };
+    return { ok: true, threadId: tid, reply, messages: (await loadHistory(tid)).map(toAgentMessage), note: "budget exhausted", turnTools: [] };
   }
   const tools: GeminiFunctionDeclaration[] = AGENT_TOOLS;
 
@@ -143,7 +144,7 @@ export async function runAgentTurn(
   if (!isModelConfigured(choice)) {
     const reply = "The Growth Agent's Gemini key isn't configured (GEMINI_API_KEY), so I can't run right now. Set it in the project env to enable me.";
     await persistMessage(tid, "assistant", reply, null, null, null);
-    return { ok: false, threadId: tid, reply, messages: await loadHistory(tid), note: "model not configured", turnTools: [] };
+    return { ok: false, threadId: tid, reply, messages: (await loadHistory(tid)).map(toAgentMessage), note: "model not configured", turnTools: [] };
   }
 
   // ─── Function-calling loop ─────────────────────────────────────────────────
@@ -189,7 +190,7 @@ export async function runAgentTurn(
     if (scan.containedSecret) {
       const reply2 = "I caught what looks like a secret in the conversation context and aborted the model call. Please remove it and try again.";
       await persistMessage(tid, "assistant", reply2, null, null, null);
-      return { ok: false, threadId: tid, reply: reply2, messages: await loadHistory(tid), note: "redacted", turnTools };
+      return { ok: false, threadId: tid, reply: reply2, messages: (await loadHistory(tid)).map(toAgentMessage), note: "redacted", turnTools };
     }
 
     let result;
@@ -206,7 +207,7 @@ export async function runAgentTurn(
       void logUsage({ model: choice.model, task: "chat", promptTokens: 0, completionTokens: 0, totalTokens: 0, costUsd: 0, status: "model_error", contextUrl: null, provider: choice.provider });
       const errMsg = `I hit an error talking to the model: ${(e as Error).message}`;
       await persistMessage(tid, "assistant", errMsg, null, null, null);
-      return { ok: false, threadId: tid, reply: errMsg, messages: await loadHistory(tid), note: "model error", turnTools };
+      return { ok: false, threadId: tid, reply: errMsg, messages: (await loadHistory(tid)).map(toAgentMessage), note: "model error", turnTools };
     }
 
     // Log usage (rough token estimate from system + the model's emitted text +
@@ -323,7 +324,7 @@ export async function runAgentTurn(
     await persistMessage(tid, "assistant", reply, null, null, null);
   }
 
-  return { ok: true, threadId: tid, reply, messages: await loadHistory(tid), turnTools };
+  return { ok: true, threadId: tid, reply, messages: (await loadHistory(tid)).map(toAgentMessage), turnTools };
 }
 
 // ─── System prompt + history + persistence ─────────────────────────────────
@@ -339,7 +340,7 @@ async function buildSystemPrompt(): Promise<string> {
     "HOW TO WORK (pick the right tool):",
     "- Pasted text to review/improve/upgrade → call review_text (NOT redraft_caption, which needs an existing draft id and will fail with 'draft not found'). Long text becomes an article draft (publishes to inbharat.ai/learn-ai-with-reeturaj); short text becomes a LinkedIn caption draft.",
     "- Full article from a topic or inbox material → call write_article. Use this for long-form inbharat.ai pieces; use review_text when the founder pastes existing text to improve.",
-    "- LinkedIn caption for an article you just drafted or that's published → call promote_article with the article's URL (https://inbharat.ai/learn-ai-with-reeturaj/<slug>). It auto-loads the article's title/description so the caption is on-brand; it's idempotent (skips if a caption already exists for that URL). This is the right tool whenever the founder wants 'a post AND an article' — write_article then promote_article for the same slug.",
+    `- LinkedIn caption for an article you just drafted or that's published → call promote_article with the article's URL (${SITE.url}/learn-ai-with-reeturaj/<slug>). It auto-loads the article's title/description so the caption is on-brand; it's idempotent (skips if a caption already exists for that URL). This is the right tool whenever the founder wants 'a post AND an article' — write_article then promote_article for the same slug.`,
     "- LinkedIn caption from a standalone topic/angle (no article) → call review_text with the short angle as the text + an instruction like 'write a 60–90 word LinkedIn caption in the founder's voice from this'.",
     "- Edit an EXISTING draft the founder points at (by id, or after list_recent_drafts) → call redraft_caption with that draftId + the edit instruction.",
     "- Cover image → call generate_cover with the article draftId (right after write_article/review_text) or a published slug. To keep all covers consistent, pass sampleItemId = an inbox image the founder designated as the style sample ('use this as the cover style', 'keep all covers like this').",
@@ -453,6 +454,19 @@ export function detectNarratedToolCall(text: string, toolNames: string[]): strin
 /** Replay persisted history as alternating user/model text turns. Tool calls
  *  are narrated as a model text turn so the model has context without us having
  *  to reconstruct Gemini's strict multi-part tool turns. */
+function toAgentMessage(row: MessageRow): AgentMessage {
+  return {
+    id: row.id,
+    threadId: row.thread_id,
+    role: row.role as AgentMessage["role"],
+    content: row.content,
+    toolName: row.tool_name,
+    toolArgs: row.tool_args,
+    toolResult: row.tool_result,
+    createdAt: row.created_at,
+  };
+}
+
 function replayHistory(rows: MessageRow[]): unknown[] {
   const out: unknown[] = [];
   for (const r of rows) {

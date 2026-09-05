@@ -101,7 +101,7 @@ function isTrustedHost(host: string, set: Set<string>): boolean {
 
 function tokens(s: string): Set<string> {
   return new Set(
-    (s.toLowerCase().match(/[a-z0-9]+/g) ?? [])
+    (s.toLowerCase().match(/[a-z0-9]+/g) ?? ([] as string[]))
       .filter((t) => t.length > 2 && !STOPWORDS.has(t)),
   );
 }

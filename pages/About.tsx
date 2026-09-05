@@ -29,7 +29,7 @@ const About: React.FC = () => (
             className="rounded-xl border border-[#f59f4f]/20 bg-[#f59f4f]/[0.05] p-4"
           >
             <div className="flex flex-wrap items-center gap-3">
-              <h3 className="text-lg font-semibold text-white">{project.title}</h3>
+              <h3 className="text-lg font-semibold text-white">{project.name}</h3>
               <PatentBadge applicationNo={project.applicationNo} />
             </div>
             <p className="mt-2 text-[#96b0c8]">{project.description}</p>

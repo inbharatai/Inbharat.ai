@@ -49,7 +49,8 @@ export function classifyKind(filename: string): InboxKind {
 
 /** sha256 hex of a Buffer/string — used for dedup + the storage object path. */
 export function sha256Hex(data: string | Buffer | ArrayBuffer): string {
-  return createHash("sha256").update(typeof data === "string" ? data : Buffer.from(data)).digest("hex");
+  const bytes = typeof data === "string" ? data : data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
 /** Storage path for a dropped file: growth-inbox/<folder>/<sha>/<filename>.

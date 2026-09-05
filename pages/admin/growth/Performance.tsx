@@ -177,7 +177,7 @@ const Performance: React.FC = () => {
           <pre className="mt-3 overflow-x-auto rounded-lg bg-black/40 p-3 text-[11px] leading-[1.7] text-[#c8d6e8]">{`GA4_PROPERTY_ID=543156835
 GSC_SITE_URL=sc-domain:inbharat.ai
 GOOGLE_CLIENT_EMAIL=your-sa@inbharat.iam.gserviceaccount.com
-GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n"`}</pre>
+GOOGLE_PRIVATE_KEY=<multiline-private-key-from-service-account-json>`}</pre>
           <p className="mt-3 text-[12px] text-[#7a9ab8]">
             Then add the service-account email as a Viewer in GA4 property 543156835 and as a user in the Search Console
             property <code className="text-[#f59f4f]">sc-domain:inbharat.ai</code>. The private key is a secret — set it in the

@@ -19,6 +19,7 @@ import { auditSingleUrl } from "./audit-runner.js";
 import { getGscPageMetrics, type GscPageRow } from "./performance.js";
 import { boostTopic } from "./knowledge.js";
 import type { AuditIssue } from "./types.js";
+import { canonicalizeInBharatUrl, inBharatUrlAliases } from "./siteUrl.js";
 
 export interface OutcomeBaseline {
   seo: number | null;
@@ -70,6 +71,7 @@ export async function seedOutcomeOnPublish(
   kind: string,
 ): Promise<void> {
   if (!supabaseAdmin) return;
+  url = canonicalizeInBharatUrl(url);
   try {
     const { data: existing } = await supabaseAdmin
       .from("growth_outcomes")
@@ -85,7 +87,7 @@ export async function seedOutcomeOnPublish(
     const { data: page } = await supabaseAdmin
       .from("growth_pages")
       .select("id,seo_score,geo_score,issues")
-      .eq("url", url)
+      .in("url", inBharatUrlAliases(url))
       .order("crawled_at", { ascending: false })
       .limit(1)
       .maybeSingle();

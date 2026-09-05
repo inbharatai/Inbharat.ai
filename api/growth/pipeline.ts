@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
 import { MORNING_THREAD_TITLE } from "./cron/morning.js";
+import { sameInBharatUrl } from "../../lib/growth/siteUrl.js";
 
 /**
  * GET /api/growth/pipeline — "Today's pipeline" bundle for the shared strip on
@@ -47,7 +48,7 @@ export function assemblePipeline(drafts: PipelineDraft[], thread: { id: string; 
   const articleSlug = typeof articleRow?.schema_json?.slug === "string" ? articleRow.schema_json.slug : null;
 
   const linkedinRow = articleRow
-    ? drafts.find((d) => d.kind === "linkedin" && d.url === articleRow.url) ?? drafts.find((d) => d.kind === "linkedin") ?? null
+    ? drafts.find((d) => d.kind === "linkedin" && sameInBharatUrl(d.url, articleRow.url)) ?? drafts.find((d) => d.kind === "linkedin") ?? null
     : drafts.find((d) => d.kind === "linkedin") ?? null;
 
   const wantCoverFile = articleSlug ? `${articleSlug}.png` : null;

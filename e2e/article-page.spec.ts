@@ -110,9 +110,8 @@ test("article page renders body, hero, FAQ, and related links", async ({ page })
 
 test("article hub card opens the correct article", async ({ page }) => {
   await page.goto("/learn-ai-with-reeturaj");
-  // Click the RAG card (link whose heading text mentions RAG).
-  const ragCard = page.locator("article", { hasText: "RAG" }).first();
-  await ragCard.locator("a").first().click();
+  // Click the exact RAG route; several other article titles also mention RAG.
+  await page.locator('article a[href="/learn-ai-with-reeturaj/rag"]').first().click();
   await expect(page).toHaveURL(/\/learn-ai-with-reeturaj\/rag$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/RAG/i);
 });

@@ -10,7 +10,7 @@
  * never partially applied silently).
  *
  * Usage:
- *   SUPABASE_DB_URL="postgresql://postgres:PW@db.REF.supabase.co:5432/postgres" \
+ *   PGHOST=db.PROJECT_REF.supabase.co PGUSER=postgres PGPASSWORD='<from-secret-store>' \
  *     node scripts/apply-migrations.cjs
  */
 const fs = require("fs");

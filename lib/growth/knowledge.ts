@@ -18,7 +18,8 @@
  */
 import { supabaseAdmin } from "../../api/lib/supabaseAdmin.js";
 import { isParaphraseOf } from "./learning.js";
-import { ARTICLES } from "../../content/articles.meta.js";
+import { ARTICLES, type ArticleCategory } from "../../content/articles.meta.js";
+import type { CalendarTopic } from "../../content/build-with-reeturaj-calendar.js";
 import { logError } from "./authorization.js";
 
 export type KnowledgeType =
@@ -600,7 +601,7 @@ export async function deleteKnowledge(id: string): Promise<boolean> {
 export async function pickApprovedTopicFallback(
   publishedSlugs: Set<string>,
   draftedSlugs: string[],
-): Promise<{ topic: string; category: string; angle?: string } | null> {
+): Promise<CalendarTopic | null> {
   if (!supabaseAdmin) return null;
   try {
     const { data, error } = await supabaseAdmin
@@ -641,8 +642,8 @@ export async function pickApprovedTopicFallback(
  * otherwise the product maps (JAK Shield → Security, Sahayaak Seva/UnoOne →
  * Engineering, InBharat → InBharat); default AI Foundations.
  */
-function deriveCalendarCategory(cluster: string | null, product: string | null): string {
-  const cats = ["AI Foundations", "AI Tools", "Engineering", "Security", "InBharat"];
+function deriveCalendarCategory(cluster: string | null, product: string | null): ArticleCategory {
+  const cats: ArticleCategory[] = ["AI Foundations", "AI Tools", "Engineering", "Security", "InBharat"];
   const c = (cluster ?? "").trim();
   if (c && cats.some((k) => k.toLowerCase() === c.toLowerCase())) {
     return cats.find((k) => k.toLowerCase() === c.toLowerCase())!;

@@ -40,7 +40,7 @@ This document describes how authentication works in InBharat: **email/password**
   - `/app` → Main app (chat UI; auth is optional for guest usage)
   - `*` → redirect to `/`
 
-No dedicated “auth callback” route is defined: **email confirmation and password-reset links** redirect to the same app URL (e.g. `https://inbharat.ai/app` or `http://localhost:5173/app`). The Supabase client automatically reads the token from the URL hash and establishes the session; `onAuthStateChange` then updates the auth context.
+No dedicated “auth callback” route is defined: **email confirmation and password-reset links** redirect to the same app URL (e.g. `https://www.inbharat.ai/app` or `http://localhost:5173/app`). The Supabase client automatically reads the token from the URL hash and establishes the session; `onAuthStateChange` then updates the auth context.
 
 ---
 
@@ -98,9 +98,9 @@ To have “via email” and “via link” work correctly, Supabase must be conf
 
 ### 5.2 Authentication → URL configuration
 
-- **Site URL:** Your main app origin (e.g. `https://inbharat.ai`).
+- **Site URL:** Your main app origin (e.g. `https://www.inbharat.ai`).
 - **Redirect URLs:** Add every URL where the app can load after a link click (so Supabase allows those redirects). For example:
-  - `https://inbharat.ai/app`
+  - `https://www.inbharat.ai/app`
   - `https://YOUR_VERCEL_APP.vercel.app/app`
   - `http://localhost:5173/app` (or your local dev port)
 
@@ -154,9 +154,9 @@ If you click **Reset**, enter your email, and see "Password reset email sent" bu
 Supabase **will not send** the reset email (or may reject the request) if the `redirectTo` URL is not in the allowlist.
 
 - The app sends `redirectTo: window.location.origin + '/app'`.
-- So when you use **https://inbharat.ai**, the redirect URL is **`https://inbharat.ai/app`** (no trailing slash).
+- So when you use **https://www.inbharat.ai**, the redirect URL is **`https://www.inbharat.ai/app`** (no trailing slash).
 - In Supabase Dashboard: **Authentication** → **URL Configuration** → **Redirect URLs**.
-- Add **`https://inbharat.ai/app`** exactly if it is not there.
+- Add **`https://www.inbharat.ai/app`** exactly if it is not there.
 - If you test from a Vercel preview URL (e.g. `https://inbharat-xxx.vercel.app`), add **`https://inbharat-xxx.vercel.app/app`** as well.
 - Save and try the reset again.
 
@@ -182,8 +182,8 @@ Ref: [Redirect URLs (Supabase)](https://supabase.com/docs/guides/auth/redirect-u
 
 | Check | Where |
 |-------|--------|
-| `https://inbharat.ai/app` is in Redirect URLs | Supabase → Authentication → URL Configuration |
-| Site URL is `https://inbharat.ai` | Same page |
+| `https://www.inbharat.ai/app` is in Redirect URLs | Supabase → Authentication → URL Configuration |
+| Site URL is `https://www.inbharat.ai` | Same page |
 | Reset Password email template is present | Authentication → Email Templates |
 | Check spam/junk | Your inbox |
 | Use an email that has already signed up | — |
@@ -204,7 +204,7 @@ Supabase sends auth emails (reset, confirmation) via **their default SMTP** on t
 Set this in Vercel (and in `.env` locally if you want):
 
 - **Name:** `VITE_AUTH_REDIRECT_URL`  
-- **Value:** `https://inbharat.ai/app` (no trailing slash)
+- **Value:** `https://www.inbharat.ai/app` (no trailing slash)
 
 The app will use this as the redirect URL for “forgot password” and “email confirmation” links, so the link in the email always matches the URL you added in Supabase Redirect URLs.
 

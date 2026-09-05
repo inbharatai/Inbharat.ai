@@ -27,7 +27,7 @@
  *        LINKEDIN_PASSWORD=yourpassword
  *   2) npx tsx scripts/linkedin-populate.ts \
  *        --caption "Your LinkedIn caption here. #InBharat #DeshKaAI" \
- *        --url https://inbharat.ai/learn-ai-with-reeturaj/harness-engineering \
+ *        --url https://www.inbharat.ai/learn-ai-with-reeturaj/harness-engineering \
  *        --image public/learn-ai-with-reeturaj/harness-engineering.png
  *      (--image and --url are optional. The caption is also copied to the clipboard
  *       as a fallback so you can Ctrl+V if auto-type misses.)

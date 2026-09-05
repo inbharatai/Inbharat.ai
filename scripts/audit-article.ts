@@ -8,7 +8,7 @@ import { scoreSeo } from "../lib/growth/seo-auditor.js";
 import { scoreGeo } from "../lib/growth/geo-auditor.js";
 
 const html = readFileSync(process.argv[2], "utf8");
-const url = process.argv[3] || "https://inbharat.ai/learn-ai-with-reeturaj/harness-engineering";
+const url = process.argv[3] || "https://www.inbharat.ai/learn-ai-with-reeturaj/harness-engineering";
 const meta = parsePage(html, url);
 const seo = scoreSeo(meta);
 const geo = scoreGeo(meta);

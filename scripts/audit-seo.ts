@@ -163,6 +163,17 @@ for (const r of indexable) {
     continue;
   }
   const html = readFileSync(shell, "utf8");
+  // Discovery hygiene: retired source/query strings in shipped HTML comments
+  // can be rediscovered by crawlers even when they are no longer linked.
+  if (html.includes("/index.tsx")) {
+    failures.push({ path, check: "no source-path leakage", detail: "built shell exposes the development entry path" });
+  }
+  if (html.includes("search_term_string")) {
+    failures.push({ path, check: "no retired search template", detail: "built shell exposes the removed SearchAction placeholder" });
+  }
+  if (/href=["'](?:http:\/\/inbharat\.ai|https:\/\/inbharat\.ai)(?:[/'"?#])/i.test(html)) {
+    failures.push({ path, check: "canonical internal absolute links", detail: "built shell links to a non-www internal origin" });
+  }
   const meta = parsePage(html, expCanonical);
   const canN = meta.canonicalCount ?? 0;
   const h1N = meta.h1Count ?? 0;

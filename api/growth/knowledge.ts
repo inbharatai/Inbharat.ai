@@ -100,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "POST") {
     const parsed = PostBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
-    const item = await insertKnowledge(parsed.data);
+    const item = await insertKnowledge({ ...parsed.data, type: parsed.data.type!, title: parsed.data.title! });
     if (!item) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB insert failed (or duplicate hash)", requestId });
     await audit(admin.userId, "knowledge-create", `${item.type}:${item.title.slice(0, 80)}`);
     return res.status(201).json({ ok: true, requestId, item });

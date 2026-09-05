@@ -36,8 +36,9 @@ import {
 import type { SyndicationStatus } from "../lib/growth/syndication/types.js";
 import { formatKnowledgeBlock, findDuplicateKnowledge, type KnowledgeItem, type KnowledgeType } from "../lib/growth/knowledge.js";
 import { syndicationSummary, type PublishedMemoryItem } from "../lib/growth/publishedMemory.js";
-import { runAccuracyGates, draftToPageMeta, scoreSources, claimVsGroundingCheck, checkProductNames, checkPlatformFormat, checkClaimRisk } from "../lib/growth/gates.js";
+import { runAccuracyGates, draftToPageMeta, scoreSources, claimVsGroundingCheck, checkProductNames, checkPlatformFormat, checkClaimRisk, type GateId, type GateResult } from "../lib/growth/gates.js";
 import { stageChip, PIPELINE_STAGE_ORDER } from "../lib/growth/cockpit/stageChip.js";
+import { canonicalizeInBharatUrl, inBharatUrlAliases, sameInBharatUrl } from "../lib/growth/siteUrl.js";
 
 let pass = 0;
 let fail = 0;
@@ -413,9 +414,9 @@ console.log("\nAgent rules (no Supabase → empty, formatter pure):");
   check("loadRulesForUrl returns [] with no DB", Array.isArray(rules) && rules.length === 0);
   check("formatRulesBlock([]) is empty string", formatRulesBlock([]) === "");
   const block = formatRulesBlock([
-    { id: "1", scope: "global", scopeKey: null, kind: "dont", ruleText: "Never mention UniGurus.", enabled: true },
-    { id: "2", scope: "global", scopeKey: null, kind: "voice", ruleText: "Founder first-person voice.", enabled: true },
-    { id: "3", scope: "global", scopeKey: null, kind: "do", ruleText: "Lead with user benefit.", enabled: true },
+    { id: "1", scope: "global", scopeKey: null, kind: "dont", ruleText: "Never mention UniGurus.", enabled: true, source: "founder" },
+    { id: "2", scope: "global", scopeKey: null, kind: "voice", ruleText: "Founder first-person voice.", enabled: true, source: "founder" },
+    { id: "3", scope: "global", scopeKey: null, kind: "do", ruleText: "Lead with user benefit.", enabled: true, source: "founder" },
   ]);
   check("rules block labels each kind", block.includes("DON'T:") && block.includes("VOICE:") && block.includes("DO:"));
   check("rules block orders dont before do", block.indexOf("DON'T:") < block.indexOf("DO:"));
@@ -1115,6 +1116,16 @@ function draft(id: string, kind: string, opts: { url?: string | null; title?: st
 }
 
 {
+  const drafts = [
+    draft(A_ID, "article", { slug: "s", title: "T", url: "https://www.inbharat.ai/learn-ai-with-reeturaj/s" }),
+    draft("wrong-linkedin", "linkedin", { url: "https://www.inbharat.ai/other" }),
+    draft(LI_ID, "linkedin", { url: "https://inbharat.ai/learn-ai-with-reeturaj/s" }),
+  ];
+  const b = assemblePipeline(drafts, THREAD);
+  check("pipeline matches historical apex draft to canonical www article", b.linkedin?.draftId === LI_ID, `got ${b.linkedin?.draftId}`);
+}
+
+{
   // LinkedIn with NO matching url → falls back to most-recent linkedin.
   const drafts = [
     draft(A_ID, "article", { slug: "s", title: "T", url: ARTICLE_URL }),
@@ -1217,6 +1228,19 @@ console.log("\nArticle slug extraction (slugFromArticleUrl):");
   // and render a bare, context-less card).
   check("null on uppercase slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "Rag") === null);
   check("null on dotted slug (invalid)", slugFromArticleUrl(ARTICLE_PATH_PREFIX + "rag.pdf") === null);
+}
+
+console.log("\nCanonical site URL compatibility (apex→www transition):");
+{
+  const apex = "https://inbharat.ai/learn-ai-with-reeturaj/rag/";
+  const canonical = "https://www.inbharat.ai/learn-ai-with-reeturaj/rag";
+  check("apex article URL canonicalizes to www", canonicalizeInBharatUrl(apex) === canonical);
+  check("http article URL canonicalizes to https+www", canonicalizeInBharatUrl("http://inbharat.ai/learn-ai-with-reeturaj/rag") === canonical);
+  check("foreign URL is unchanged", canonicalizeInBharatUrl("https://example.com/rag") === "https://example.com/rag");
+  check("alias set includes canonical and historical apex", inBharatUrlAliases(canonical).includes(canonical) && inBharatUrlAliases(canonical).includes("https://inbharat.ai/learn-ai-with-reeturaj/rag"));
+  check("alias set includes historical trailing-slash rows", inBharatUrlAliases(canonical).includes("https://inbharat.ai/learn-ai-with-reeturaj/rag/"));
+  check("mixed-host URLs compare equal", sameInBharatUrl(apex, canonical));
+  check("different article paths remain distinct", !sameInBharatUrl(canonical, "https://www.inbharat.ai/learn-ai-with-reeturaj/cicd"));
 }
 
 console.log("\nGrounding retrieval (mapResults + formatGroundingBlock):");
@@ -1434,7 +1458,7 @@ console.log("\nSyndication local Playwright mode (status union + mode arg):");
   // The local Playwright path records playwright_draft (not published/draft) so
   // the ledger honestly reflects "founder ran the script + clicked Publish" vs
   // "an API actually published". A real platform publish is the only "published".
-  check("playwright_draft !== published (honest intermediate state)", s !== "published");
+  check("playwright_draft !== published (honest intermediate state)", !(["published"] as SyndicationStatus[]).includes(s));
 }
 
 console.log("\nSyndication body source (published .md via GitHub API, mocked fetch):");
@@ -1516,7 +1540,7 @@ console.log("\nSitemap lastmod (truthful per-route modification date):");
   const today = "2026-07-20";
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
   // Article route → manifest datePublished (not the build date).
-  const sampleArticleRoute = (ROUTES as Array<{ path: string; articleSlug?: string }>).find((r) => r.articleSlug);
+  const sampleArticleRoute = ROUTES.find((r) => r.articleSlug);
   const sampleArticleMeta = sampleArticleRoute ? ARTICLES.find((a) => a.slug === sampleArticleRoute.articleSlug) : undefined;
   check(
     "article route lastmod = datePublished (not build date)",
@@ -1524,7 +1548,7 @@ console.log("\nSitemap lastmod (truthful per-route modification date):");
     `route=${sampleArticleRoute?.path} date=${sampleArticleMeta?.datePublished}`,
   );
   // Non-article route with git dates → the MAX git date across its sources.
-  const homeRoute = (ROUTES as Array<{ path: string }>).find((r) => r.path === "/")!;
+  const homeRoute = ROUTES.find((r) => r.path === "/")!;
   const homeMax = computeRouteLastmod(homeRoute, null, (f) => (f === "pages/Landing.tsx" ? "2026-06-01" : f === "seo.config.ts" ? "2026-07-15" : null), today);
   check("non-article route lastmod = max git date of sources", homeMax === "2026-07-15", `got ${homeMax}`);
   // No git dates → caller fallback (today), preserving old behavior.
@@ -2373,7 +2397,7 @@ console.log("\nGate policy (major failures + override reason + audit note, pure)
   check("gate: MAJOR_GATE_IDS has 4", MAJOR_GATE_IDS.length === 4);
   check("gate: MAJOR set is the integrity four", MAJOR_GATE_IDS.join() === "duplicate,source_quality,fact_check,claim_risk");
 
-  const mkGate = (id: string, name: string, status: "pass" | "warn" | "fail", message: string) => ({
+  const mkGate = (id: GateId, name: string, status: "pass" | "warn" | "fail", message: string): GateResult => ({
     id, name, status, findings: [{ severity: "major" as const, message }],
   });
 

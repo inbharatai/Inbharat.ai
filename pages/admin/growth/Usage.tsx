@@ -94,7 +94,7 @@ function urlLabel(url: string | null): string {
   if (!url) return "(system)";
   // Shorten to the article slug / last path segment for the table.
   try {
-    const u = new URL(url, "https://inbharat.ai");
+    const u = new URL(url, "https://www.inbharat.ai");
     const seg = u.pathname.split("/").filter(Boolean).pop();
     return seg || url;
   } catch {

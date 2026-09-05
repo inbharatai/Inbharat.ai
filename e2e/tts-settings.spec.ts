@@ -16,12 +16,14 @@ test("settings panel opens and TTS/speech controls do not crash", async ({ page 
     }
   }
   await settingsBtn.click();
-  await expect(page.locator("text=Voice & speech")).toBeVisible({ timeout: 5000 });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: 5000 });
+  await expect(dialog).toContainText(/Speech rate/i);
 
-  const rate = page.locator('input[type="range"]').first();
+  const rate = dialog.locator('input[type="range"]').first();
   await expect(rate).toBeVisible();
   await rate.fill("1.2");
 
-  await page.getByRole("button", { name: "Close" }).first().click();
-  await expect(page.locator("text=Voice & speech")).not.toBeVisible();
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(dialog).not.toBeVisible();
 });

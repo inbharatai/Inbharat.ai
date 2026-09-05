@@ -753,6 +753,7 @@ const Issues: React.FC = () => {
       mdCommitSha?: string; metaCommitSha?: string; error?: string; code?: string;
       cover?: { ok: boolean; draftId?: string; filename?: string; fileUrl?: string; pngCommitSha?: string; metaCommitSha?: string; error?: string; needsToken?: boolean } | null;
       coverDrafted?: { draftId: string | null; note: string } | null;
+      coverRegenerated?: { ok: boolean; draftId?: string; filename?: string; fileUrl?: string; pngCommitSha?: string; metaCommitSha?: string; error?: string; needsToken?: boolean } | null;
     }>("/api/growth/publish", { method: "POST", body: JSON.stringify({ draftId: d.id, mode: "article" }) });
     setPublishingId(null);
     if (error || !data?.ok) {
@@ -846,7 +847,7 @@ const Issues: React.FC = () => {
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://inbharat.ai/"
+          placeholder="https://www.inbharat.ai/"
           className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] text-white placeholder:text-[#5f7c98] focus:border-[#f59f4f]/50 focus:outline-none"
         />
         <button

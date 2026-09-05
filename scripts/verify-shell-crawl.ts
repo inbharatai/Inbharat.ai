@@ -33,8 +33,8 @@ console.log("SEO issues:   ", seo.issues.length);
 console.log("GEO issues:   ", geo.issues.length);
 
 let failures = 0;
-const assert = (name: string, cond: boolean) => {
-  console.log(`  ${cond ? "✓" : "✗"} ${name}`);
+const assert = (name: string, cond: boolean, detail?: string) => {
+  console.log(`  ${cond ? "✓" : "✗"} ${name}${!cond && detail ? ` — ${detail}` : ""}`);
   if (!cond) failures++;
 };
 

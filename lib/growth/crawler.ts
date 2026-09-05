@@ -141,7 +141,7 @@ export async function fetchPage(
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   const chain: { url: string; status: number }[] = [];
-  const headers = { "user-agent": "InBharatGrowthAgent/1.0 (+https://inbharat.ai)" };
+  const headers = { "user-agent": "InBharatGrowthAgent/1.0 (+https://www.inbharat.ai)" };
   let currentUrl = url;
   try {
     let res = await fetch(currentUrl, { headers, redirect: "manual", signal: controller.signal });

@@ -70,7 +70,7 @@ The public site combines:
 
 ### Prerequisites
 
-- **Node.js** 18+ (20+ recommended)
+- **Node.js** 20.19+ on the 20.x line, or 22.12+ (the GitHub Actions workflow uses the latest Node 20). The React Vite plugin sets this minimum; older Node 18/20 minors are not supported.
 - **Vercel CLI** for local serverless (`npm i -g vercel`) — optional but needed for `/api/*` locally
 
 ### 1. Clone and install
@@ -115,18 +115,77 @@ npm run dev:local    # API on :3001, Vite on :5173 with /api proxied to :3001
 | `npm run dev` | `vercel dev` — full local dev (SPA + `/api/*`) |
 | `npm run dev:vite` | Vite only (UI; `/api/*` 404) |
 | `npm run dev:local` | Local API (`server/local-api.ts` :3001) + Vite (:5173) with `/api` proxy — no Vercel CLI |
-| `npm run build` | `vite build && tsx scripts/build-seo.ts && tsx scripts/sync-published-articles.ts` — emits `dist/` + per-route SEO shells + sitemap + OG image, then mirrors published articles into the `published_articles` SEO-memory table (non-fatal if Supabase is absent) |
+| `npm run build` | Runs `build:app` (`vite build && tsx scripts/build-seo.ts && tsx scripts/sync-published-articles.ts`) plus the CI-only lifecycle gates described below — emits `dist/` + per-route SEO shells + sitemap + OG image, then mirrors published articles into the `published_articles` SEO-memory table (non-fatal if Supabase is absent) |
 | `npm run build:seo` | Re-run only the SEO shell generator over the existing `dist/` |
 | `npm run preview` | Preview the production build locally (`vite preview`, :4173) |
-| `npm run lint` | ESLint, zero warnings required (the project gate) |
-| `npm run test:growth` | 667 hermetic Growth Agent unit checks — cron auth, redaction, crawler, auditor, promoter, calendar topic picker, agent narration detection, article slug resolution, knowledge-base FTS/dedupe, topic-discovery scoring |
-| `npm run test:e2e` | Playwright end-to-end (founder hub, article pages, growth admin, chat regression) |
+| `npm run lint` | ESLint (zero warnings), TypeScript validation, secret scan + negative controls, and CI routing controls; fails on the first failed gate |
+| `npm run lint:eslint` | ESLint only, zero warnings required |
+| `npm run typecheck` | Repository TypeScript validation under tsconfig.json; zero errors required |
+| `npm run audit:secrets` | Scanner controls, then high-signal scan of tracked text files; unreadable tracked files fail closed, matched values are never printed; not a history scan |
+| `npm run audit:prod` | `npm audit --omit=dev --audit-level=moderate`; production dependency gate (requires npm registry access) |
+| `npm run audit:seo` | Hermetic SEO audit of built `dist/` |
+| `npm run audit:shell` | Hermetic shell-crawl verification of built `dist/` |
+| `npm run ci:build` | Explicit local CI build equivalent: production audit, application build, SEO audit, shell crawl, Chromium install, Playwright |
+| `npm run test:growth` | 687 hermetic Growth Agent checks — cron auth, redaction, crawler, auditor, promoter, calendar topic picker, agent narration detection, article slug resolution, knowledge-base FTS/dedupe, topic-discovery scoring |
+| `npm run test:e2e` | 19 Playwright end-to-end checks against the built static shells; API-dependent flows use explicit mocks |
+
+### CI gates and local reproduction
+
+`.github/workflows/ci.yml` is unchanged. Its existing `npm run lint` now runs
+ESLint, `tsc --noEmit`, the secret audit (including synthetic negative controls),
+and CI routing controls. TypeScript uses the current `tsconfig.json`; this does
+not claim that TypeScript strict mode is enabled.
+
+Only when **both `GITHUB_ACTIONS=true` and `GITHUB_JOB=build`** are present,
+`npm run build` runs a production dependency audit via `prebuild`, then its
+existing application/SEO build, then installs Chromium with
+`playwright install --with-deps chromium` and runs the full Playwright suite via
+`postbuild`. The unchanged workflow runs its existing `audit:seo` and
+`verify-shell-crawl.ts` steps afterward. Generic `CI=true`, ordinary local builds,
+and normal Vercel builds do **not** activate these audit/browser lifecycle gates.
+Do not set the GitHub-specific variables on Vercel. Keep npm lifecycle scripts
+enabled (do not use `--ignore-scripts` to run CI build/lint gates).
+
+Run the same checks locally, without a Vercel login or deployment credentials:
+
+```bash
+npm ci
+npm run lint
+npm run test:growth
+npm run ci:build
+```
+
+`ci:build` deliberately builds through `build:app` to avoid recursive lifecycle
+hooks, supplies the workflow's placeholder Supabase browser configuration, and
+passes only a small OS environment allowlist to subprocesses (no inherited API
+keys, remote Playwright URL, or deployment tokens). Use a checkout without real
+`.env*` files: Vite itself reads local environment files. Local Chromium install
+does not change OS packages; if Linux libraries are missing, explicitly run
+`npx playwright install --with-deps chromium` with the appropriate permissions.
+Only the GitHub build runner automatically uses `--with-deps`. Browser tests use
+a local Vite preview of `dist/`; API-dependent specs supply their own mocks.
+The current placeholder-environment validation on Node 20.20.2 ran 19 browser
+cases: **17 passed and 2 existing GA checks skipped** because `PLAYWRIGHT_GA_ID`
+was not set. The Growth suite passed **687 checks**. This is local evidence,
+not a claim that a hosted GitHub Actions run or live GA integration was verified.
+
+Current dependency engine metadata supports Node 20.19+ for all required
+packages, including React Router 7, Sharp 0.35, Vercel 59 / `@vercel/node` 12,
+and the Vite React plugin. Rollup's optional Linux LZMA accelerator requires
+Node 22.20+ (or newer supported lines); npm skips it on Node 20. It is not a
+required build dependency, so it is not forced to an incompatible older binary.
+
+Keep local validation logs under ignored `reports/` and browser output under
+ignored `playwright-report/` / `test-results/`. Reports may contain sensitive
+historical evidence: never stage, commit, or publish them. A passing current-tree
+secret audit is not proof that Git history is secret-free or that old credentials
+have been revoked.
 
 ### Production & preview check
 
 After deploying to Vercel, confirm static assets are public:
 
-- **`/favicon.png`** should return **200** on both production (`https://inbharat.ai`) and the preview domain. If you see 401, disable Deployment Protection for Preview (Vercel → Project → Settings → Deployment Protection).
+- **`/favicon.png`** should return **200** on both production (`https://www.inbharat.ai`) and the preview domain. If you see 401, disable Deployment Protection for Preview (Vercel → Project → Settings → Deployment Protection).
 - **`/learn-ai-with-reeturaj/rag`** should return **200** with `TechArticle` + `FAQPage` JSON-LD and a crawlable article body (non-JS crawlers see the full article).
 
 ---

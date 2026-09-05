@@ -29,6 +29,7 @@ import { runAccuracyGates, type GateRun } from "./gates.js";
 import { slugFromArticleUrl } from "./articleSlug.js";
 import { ARTICLES, articlePath } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
+import { canonicalizeInBharatUrl, inBharatUrlAliases } from "./siteUrl.js";
 
 export interface ArticlePageMeta {
   title?: string;
@@ -70,6 +71,7 @@ export async function promoteArticle(
   // Deny-by-default guard. Throws AuthorizationError if the domain isn't
   // authorized for 'draft' (inbharat.ai is; canPublishDirectly stays false).
   assertAuthorized("draft", url);
+  url = canonicalizeInBharatUrl(url);
   const scope = new URL(url).hostname.replace(/^www\./, "");
 
   // Idempotency: skip if a linkedin draft already exists for this URL.
@@ -188,7 +190,7 @@ async function hasExistingDraft(url: string): Promise<boolean> {
     const { data } = await supabaseAdmin
       .from("growth_drafts")
       .select("id")
-      .eq("url", url)
+      .in("url", inBharatUrlAliases(url))
       .eq("kind", "linkedin")
       .not("body_md", "is", null)
       .neq("status", "rejected")

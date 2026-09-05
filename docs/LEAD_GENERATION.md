@@ -73,7 +73,7 @@ Every one of these is a draft + a learned-rule proposal, not an autonomous actio
 
 Once each sibling site is connected to analytics (GA4 property + GSC verification per site), the same three layers port wholesale:
 
-- **Capture:** each site embeds `<LeadCapture>` (or its own minimal form posting to `https://inbharat.ai/api/growth/leads` with its `source_site`). Centralized capture, per-site attribution.
+- **Capture:** each site embeds `<LeadCapture>` (or its own minimal form posting to `https://www.inbharat.ai/api/growth/leads` with its `source_site`). Centralized capture, per-site attribution.
 - **Attribution:** `source_site` + cross-site UTMs let the agent see cross-product funnels — "40% of JAK Swarm trial signups originated from an InBharat article" — which justifies doubling down on the article funnel rather than paid ads.
 - **Agent analysis:** the agent's analytics reader adds a `site` filter; the admin console (Sites page already exists at `/admin/growth/sites`) becomes the per-site dashboard. Learned rules can be `scope: 'site:jakswarm.com'` so a rule learned for one site doesn't leak into another's prompts.
 

@@ -41,6 +41,7 @@ import { generateInsights, summarizeSnapshot, inferProduct, type Insight } from 
 import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
+import { SITE } from "../../seo.config.js";
 
 /** Result every executor returns: a JSON-serializable object the agent loop
  *  feeds back to Gemini as a functionResponse part + persists to
@@ -206,7 +207,7 @@ export const AGENT_TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "promote_article",
     description:
-      "Draft a human-gated LinkedIn caption for a 'Build with Reeturaj' article at the given URL — the article's eventual live URL (https://inbharat.ai/learn-ai-with-reeturaj/<slug>), whether the article is already published OR just drafted via write_article. Idempotent — skips URLs that already have a LinkedIn caption draft, so re-running the morning plan never duplicates. Call this right after write_article to create the companion LinkedIn post for the same article. Returns the linkedin draft id. Never publishes — the founder approves in Issues.",
+      `Draft a human-gated LinkedIn caption for a 'Build with Reeturaj' article at the given URL — the article's eventual live URL (${SITE.url}/learn-ai-with-reeturaj/<slug>), whether the article is already published OR just drafted via write_article. Idempotent — skips URLs that already have a LinkedIn caption draft, so re-running the morning plan never duplicates. Call this right after write_article to create the companion LinkedIn post for the same article. Returns the linkedin draft id. Never publishes — the founder approves in Issues.`,
     parameters: {
       type: "object",
       properties: {
@@ -1263,7 +1264,7 @@ async function reviewText(args: Args): Promise<ToolResult> {
     .from("growth_drafts")
     .insert({
       kind,
-      url: kind === "article" ? `https://inbharat.ai/learn-ai-with-reeturaj/${slug}` : null,
+      url: kind === "article" ? `${SITE.url}/learn-ai-with-reeturaj/${slug}` : null,
       title: kind === "article" ? title : (title + " (review)"),
       body_md: revised,
       schema_json: schemaJson,

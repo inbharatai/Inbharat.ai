@@ -103,7 +103,7 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <RouteEffects />
         <Suspense fallback={<StaticLoader />}>
           <Routes>

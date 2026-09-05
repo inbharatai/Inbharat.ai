@@ -139,5 +139,5 @@ export async function authorizeCron(req: VercelRequest): Promise<CronAuthResult>
 
   // No path matched. Allow in local dev so cron tests work without secrets.
   if (isLocalDev()) return { ok: true, requestId, source: "local-dev" };
-  return admin; // AdminErr (401/403/500)
+  return isAdminErr(admin) ? admin : { ok: true, requestId, source: "admin", userId: admin.userId };
 }

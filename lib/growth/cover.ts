@@ -29,6 +29,7 @@ import { callGeminiImage } from "./gemini.js";
 import { articlePath, ARTICLE_HUB_PATH, ARTICLES } from "../../content/articles.meta.js";
 import { SITE } from "../../seo.config.js";
 import type { ArticleMeta } from "../../content/articles.meta.js";
+import { inBharatUrlAliases } from "./siteUrl.js";
 
 export interface CoverDraft {
   taskId: string | null;
@@ -283,7 +284,7 @@ export async function hasExistingCoverDraft(url: string): Promise<boolean> {
     const { data } = await supabaseAdmin
       .from("growth_drafts")
       .select("id")
-      .eq("url", url)
+      .in("url", inBharatUrlAliases(url))
       .eq("kind", "cover")
       .limit(1);
     return Array.isArray(data) && data.length > 0;
@@ -304,7 +305,7 @@ export async function clearUnpublishedCoverDrafts(url: string): Promise<void> {
     const { error } = await supabaseAdmin
       .from("growth_drafts")
       .delete()
-      .eq("url", url)
+      .in("url", inBharatUrlAliases(url))
       .eq("kind", "cover")
       .in("status", ["pending", "approved", "rejected"]);
     if (error) await logInfo("cover-clear-unpublished-fail", url, error.message).catch(() => undefined);

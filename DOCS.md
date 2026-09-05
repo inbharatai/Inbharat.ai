@@ -58,8 +58,8 @@ If `vercel dev` fails with “No existing credentials found”, run:
 
 1. Supabase Dashboard → **Authentication → Providers**: enable **Email** (and optionally **Google**).
 2. Supabase Dashboard → **Authentication → URL Configuration**:
-   - Set Site URL to your production domain (e.g. `https://inbharat.ai`).
-   - Add redirect URLs for local dev (e.g. `http://localhost:3003/app`) and production (`https://inbharat.ai/app`).
+   - Set Site URL to your production domain (e.g. `https://www.inbharat.ai`).
+   - Add redirect URLs for local dev (e.g. `http://localhost:3003/app`) and production (`https://www.inbharat.ai/app`).
 3. Vercel env:
    - Browser: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
    - Server: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`

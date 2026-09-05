@@ -9,6 +9,7 @@ export type OpenAISanitizedCode =
   | "SERVER_ERROR"
   | "AUTH_ERROR"
   | "UNAUTHORIZED"
+  | "GUEST_LIMIT"
   | "CONFIG_ERROR";
 
 export class OpenAISanitizedError extends Error {

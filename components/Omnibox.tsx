@@ -272,7 +272,7 @@ const Omnibox: React.FC<OmniboxProps> = ({
             onBlur={() => setIsFocused(false)}
             disabled={disabled}
             onKeyDown={(e) => !disabled && e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSubmit())}
-            placeholder={disabled ? t('signInToChat') : (initialMode === AgentMode.STANDARD ? t('askInBharat') : t('askMode', { mode: currentAgent.label }))}
+            placeholder={disabled ? t('signInToChat') : (initialMode === AgentMode.STANDARD ? t('askInBharat') : t('askMode', { mode: initialMode.charAt(0) + initialMode.slice(1).toLowerCase() }))}
             className={`flex-1 bg-transparent text-white placeholder-gray-500 py-1.5 sm:py-2 resize-none outline-none text-sm sm:text-base font-medium min-h-[36px] max-h-[80px] ${
               disabled ? "opacity-60 cursor-not-allowed" : ""
             }`}

@@ -32,6 +32,9 @@ dist-ssr
 # Agent Arcade (local telemetry — cloned separately)
 agent-arcade/
 
+# Local validation output
+reports/
+
 # Playwright
 playwright-report/
 test-results/

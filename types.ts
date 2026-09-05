@@ -88,6 +88,7 @@ export type MessageErrorCode =
   | "SERVER_ERROR"
   | "AUTH_ERROR"
   | "UNAUTHORIZED"
+  | "GUEST_LIMIT"
   | "CONFIG_ERROR";
 
 export interface Message {

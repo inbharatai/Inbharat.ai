@@ -48,9 +48,11 @@ const SECRET_PATTERNS: { kind: string; re: RegExp }[] = [
   // Supabase service role keys (eyJ... JWT-shaped)
   { kind: "supabase_service_key", re: /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/g },
   // Database / connection URLs with credentials
-  { kind: "db_url_credentials", re: /\b(postgres|postgresql|mongodb(\+srv)?|mysql|redis|amqp)?:\/\/[^:\s]+:[^@\s]+@[^/\s'"]+/gi },
-  // Generic URL with embedded user:pass@
-  { kind: "url_credentials", re: /\bhttps?:\/\/[^:\s]+:[^@\s]+@/gi },
+  { kind: "db_url_credentials", re: /\b(?:postgres|postgresql|mongodb(?:\+srv)?|mysql|redis|amqp):\/\/[^:@/\s]+:[^@/\s]+@[^/\s'"]+/gi },
+  // Generic URL with embedded user:pass@. Keep both credential fields inside
+  // the authority so query strings containing @ (for example Google Fonts)
+  // cannot be misclassified as credentials.
+  { kind: "url_credentials", re: /\bhttps?:\/\/[^:@/\s]+:[^@/\s]+@/gi },
   // Private key PEM blocks
   { kind: "private_key_block", re: /-----BEGIN (RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----[\s\S]*?-----END (RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/g },
   // .env-style lines (KEY=value) where value looks secret-ish

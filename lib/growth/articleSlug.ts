@@ -1,7 +1,7 @@
 /**
  * InBharat Growth Agent — pure helper: extract an article slug from its URL.
  *
- * Article URLs follow the shape `https://inbharat.ai/learn-ai-with-reeturaj/<slug>`
+ * Canonical article URLs follow `https://www.inbharat.ai/learn-ai-with-reeturaj/<slug>`
  * (see `articlePath` in `content/articles.meta.ts`). Two Issues-page call sites
  * need this: (1) the LinkedIn draft card looks the source article up in the local
  * ARTICLES registry to show its real description (works for OLD drafts too — no

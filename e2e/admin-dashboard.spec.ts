@@ -146,7 +146,7 @@ test("Overview 'Run daily audit now' triggers the cron and shows per-domain resu
   await page.route("**/api/growth/whoami", (r) => fulfill(r, WHOAMI_ADMIN));
   await page.route("**/api/growth/insights", (r) => fulfill(r, INSIGHTS_BODY));
   await page.route("**/api/growth/cron/daily", (r) => fulfill(r, CRON_RESULT));
-  await page.goto("/admin/growth", { waitUntil: "load" });
+  await page.goto("/admin/growth/overview", { waitUntil: "load" });
   await expect(page.locator("body")).toContainText(/Pages audited/i, { timeout: 15000 });
 
   await page.getByRole("button", { name: /Run daily audit now/i }).click();

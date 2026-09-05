@@ -223,6 +223,12 @@ type CoverShipResult =
   | { ok: true; filename: string; fileUrl: string; pngCommitSha?: string; metaCommitSha?: string }
   | { ok: false; code: "CONFLICT" | "BAD_FILENAME" | "PRECONDITION_FAILED" | "SERVER_ERROR"; error: string; pngCommitSha?: string; metaCommitSha?: string; needsToken?: boolean };
 
+type CoverShipError = Extract<CoverShipResult, { ok: false }>;
+
+function isCoverShipError(result: CoverShipResult): result is CoverShipError {
+  return result.ok === false;
+}
+
 async function shipCoverToGitHub(
   draftId: string,
   draftUrl: string | null,
@@ -296,13 +302,13 @@ async function shipCoverToGitHub(
     .insert({ level: "info", action: "publish-cover", scope: draftUrl ?? filename, detail: `file=${filePath} pngSha=${pngRes.commitSha ?? ""} metaSha=${metaRes.commitSha ?? ""} draftId=${draftId} reviewer=${reviewerTag}` })
     .then(() => undefined, () => undefined);
 
-  const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${filename}`;
+  const fileUrl = `${SITE.url}/learn-ai-with-reeturaj/${filename}`;
   return { ok: true, filename, fileUrl, pngCommitSha: pngRes.commitSha, metaCommitSha: metaRes.commitSha };
 }
 
 /** Map a CoverShipResult to the explicit kind='cover' publish HTTP response. */
 function respondCoverShip(res: VercelResponse, requestId: string, r: CoverShipResult, draftTitle: string | null): VercelResponse {
-  if (!r.ok) {
+  if (isCoverShipError(r)) {
     if (r.code === "CONFLICT") return res.status(409).json({ ok: false, code: "CONFLICT", error: r.error, requestId });
     if (r.code === "BAD_FILENAME") return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: r.error, requestId });
     if (r.code === "PRECONDITION_FAILED") return res.status(412).json({ ok: false, code: "PRECONDITION_FAILED", error: r.error, requestId });
@@ -777,7 +783,7 @@ async function publishArticle(
     type: "article",
     title: meta.title,
     summary: meta.description || meta.abstract || null,
-    sourceUrl: draftUrl ?? `https://inbharat.ai/learn-ai-with-reeturaj/${meta.slug}`,
+    sourceUrl: draftUrl ?? `${SITE.url}/learn-ai-with-reeturaj/${meta.slug}`,
     sourceType: "website",
     topicCluster: meta.title,
     keywords: meta.hashtags,
@@ -806,10 +812,10 @@ async function publishArticle(
   const companion = await shipCompanionCover(meta.slug);
   let cover: { ok: true; draftId: string; filename: string; fileUrl: string; pngCommitSha?: string; metaCommitSha?: string } | { ok: false; draftId: string; error: string; needsToken?: boolean } | null = null;
   if (companion) {
-    if (companion.result.ok) {
-      cover = { ok: true, draftId: companion.draftId, filename: companion.result.filename, fileUrl: companion.result.fileUrl, pngCommitSha: companion.result.pngCommitSha, metaCommitSha: companion.result.metaCommitSha };
-    } else {
+    if (isCoverShipError(companion.result)) {
       cover = { ok: false, draftId: companion.draftId, error: companion.result.error, needsToken: companion.result.needsToken ?? false };
+    } else {
+      cover = { ok: true, draftId: companion.draftId, filename: companion.result.filename, fileUrl: companion.result.fileUrl, pngCommitSha: companion.result.pngCommitSha, metaCommitSha: companion.result.metaCommitSha };
     }
   }
 
@@ -883,7 +889,7 @@ async function publishArticle(
     }
   }
 
-  const fileUrl = `https://inbharat.ai/learn-ai-with-reeturaj/${meta.slug}`;
+  const fileUrl = `${SITE.url}/learn-ai-with-reeturaj/${meta.slug}`;
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
@@ -925,7 +931,7 @@ async function regenerateAndAutoShipCover(
   articleUrl: string | null,
 ): Promise<{ ok: true; draftId: string; filename: string; fileUrl: string; pngCommitSha?: string; metaCommitSha?: string } | { ok: false; draftId?: string; error: string; needsToken?: boolean }> {
   if (!supabaseAdmin) return { ok: false, error: "database not configured" };
-  const url = articleUrl ?? `https://inbharat.ai/learn-ai-with-reeturaj/${slug}`;
+  const url = articleUrl ?? `${SITE.url}/learn-ai-with-reeturaj/${slug}`;
   const meta = ARTICLES.find((a) => a.slug === slug);
   if (!meta) return { ok: false, error: `no published article found for slug ${slug}` };
 
@@ -945,12 +951,33 @@ async function regenerateAndAutoShipCover(
     return { ok: false, draftId: drafted.draftId ?? undefined, error: drafted.note ?? "cover regeneration did not produce a new draft" };
   }
 
+  // Reload the persisted schema because generateCoverDraftFromFields returns
+  // metadata only; the PNG payload lives in growth_drafts.schema_json. Passing
+  // drafted.filename here used to cast a string to CoverSchema, so every stale
+  // cover regeneration failed with "no image payload".
+  const { data: freshDraft, error: freshDraftError } = await supabaseAdmin
+    .from("growth_drafts")
+    .select("url,schema_json")
+    .eq("id", drafted.draftId)
+    .maybeSingle();
+  const freshRaw = freshDraft?.schema_json;
+  const freshSchema: CoverSchema | null = freshRaw && typeof freshRaw === "object"
+    ? {
+        pngBase64: (freshRaw as Record<string, unknown>).pngBase64,
+        mimeType: (freshRaw as Record<string, unknown>).mimeType,
+        filename: (freshRaw as Record<string, unknown>).filename,
+      }
+    : null;
+  if (freshDraftError || !freshSchema) {
+    return { ok: false, draftId: drafted.draftId, error: `cover regenerated but its persisted image payload could not be loaded${freshDraftError?.message ? `: ${freshDraftError.message}` : ""}` };
+  }
+
   // Ship the fresh cover with an auto-approval audit row. The article publish
   // click is the human gate for the whole bundle.
-  const result = await shipCoverToGitHub(drafted.draftId, url, drafted.filename as unknown as CoverSchema | null, "auto-article-publish");
-  if (!result.ok) {
+  const result = await shipCoverToGitHub(drafted.draftId, typeof freshDraft.url === "string" ? freshDraft.url : url, freshSchema, "auto-article-publish");
+  if (isCoverShipError(result)) {
     await logInfo("publish-article-cover-regenerate-fail", slug, result.error || "ship failed").catch(() => undefined);
-    return { ok: false, draftId: drafted.draftId, error: result.error, needsToken: (result as { needsToken?: boolean }).needsToken ?? false };
+    return { ok: false, draftId: drafted.draftId, error: result.error, needsToken: result.needsToken ?? false };
   }
 
   await logInfo("publish-article-cover-regenerate-shipped", slug, `draftId=${drafted.draftId} file=${result.filename}`).catch(() => undefined);

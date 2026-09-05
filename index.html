@@ -78,10 +78,10 @@
       }
     }
     </script>
-    <!-- ── JSON-LD: WebSite (SearchAction removed — Google retired the
-         sitelinks search box Nov 2024; the /app?q={search_term_string}
-         template offered no search benefit and only created GSC
-         "Alternative page with proper canonical" noise) ── -->
+    <!-- ── JSON-LD: WebSite. The obsolete sitelinks SearchAction was removed
+         after Google retired that result feature in November 2024. Keep the
+         retired query template out of shipped HTML so crawlers cannot
+         rediscover it from comments. ── -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -222,7 +222,7 @@
         try {
           if (/[?&]__r=1\b/.test(location.search)) return; // already retried — don't loop
           var s = document.querySelector('script[type="module"][src^="/assets/"]');
-          if (!s) return; // dev mode (src="/index.tsx") or already hydrated — ignore
+          if (!s) return; // development entry or already hydrated — ignore
           s.addEventListener('error', function () {
             var url = location.pathname + (location.search ? location.search + '&' : '?') + '__r=1';
             location.replace(url);

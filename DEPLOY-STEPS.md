@@ -60,10 +60,10 @@ Use the **default** project URL: `https://yxyikhnlevqioaqksevy.supabase.co`. No 
 **C3. Authentication — URL configuration**
 
 - Go to **Authentication** → **URL Configuration**.
-- **Site URL:** set to `https://inbharat.ai`  
+- **Site URL:** set to `https://www.inbharat.ai`
   (Or your live app URL if different, e.g. `https://your-app.vercel.app`.)
 - **Redirect URLs:** add these one by one (plus any others you need):
-  - `https://inbharat.ai/app`
+  - `https://www.inbharat.ai/app`
   - `https://YOUR_VERCEL_APP.vercel.app/app`  
     (Replace `YOUR_VERCEL_APP` with your actual Vercel project subdomain.)
   - `http://localhost:5173/app`  
@@ -182,7 +182,7 @@ This step only makes your **website** (frontend) load at inbharat.ai. Supabase s
 
 - Do **not** add a CNAME for `api` or any TXT for `_acme-challenge.api`. Those are only for a custom Supabase domain; you are using the free default URL.
 
-After propagation, visiting `https://inbharat.ai` (and `https://www.inbharat.ai` if configured) will show your Vercel-hosted app.
+After propagation, visiting `https://www.inbharat.ai` (and `https://www.inbharat.ai` if configured) will show your Vercel-hosted app.
 
 ---
 
@@ -190,15 +190,15 @@ After propagation, visiting `https://inbharat.ai` (and `https://www.inbharat.ai`
 
 **F1. App and auth**
 
-- Open `https://inbharat.ai` (or your Vercel URL if the domain is not ready yet).
-- Go to `https://inbharat.ai/app` (or `https://your-project.vercel.app/app`).
+- Open `https://www.inbharat.ai` (or your Vercel URL if the domain is not ready yet).
+- Go to `https://www.inbharat.ai/app` (or `https://your-project.vercel.app/app`).
 - Try the guest flow: send a few messages without signing in.
 - Click **Sign in**, create an account (email + password), and sign in.
 - Send a message; then refresh the page. The conversation should still be there (Supabase storage).
 
 **F2. Health check**
 
-- Open: `https://inbharat.ai/api/health` (or `https://your-project.vercel.app/api/health`).
+- Open: `https://www.inbharat.ai/api/health` (or `https://your-project.vercel.app/api/health`).
 - You should see JSON with `ok: true` and flags for OPENAI, SERPER, SUPABASE_ADMIN. No secrets should appear.
 
 **F3. Optional**
@@ -225,9 +225,9 @@ After propagation, visiting `https://inbharat.ai` (and `https://www.inbharat.ai`
 
 **URLs**
 
-- App: `https://inbharat.ai` and `https://inbharat.ai/app` (after DNS and Vercel domain).
+- App: `https://www.inbharat.ai` and `https://www.inbharat.ai/app` (after DNS and Vercel domain).
 - Supabase (free): `https://yxyikhnlevqioaqksevy.supabase.co` (no custom domain).
-- Health: `https://inbharat.ai/api/health`.
+- Health: `https://www.inbharat.ai/api/health`.
 
 ---
 

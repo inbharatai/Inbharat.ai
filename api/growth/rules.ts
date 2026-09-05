@@ -97,9 +97,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "POST") {
     const parsed = PostBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: "Invalid body", requestId });
-    const scopeCheck = validateScopeKey(parsed.data.scope, parsed.data.scopeKey);
+    const input = { ...parsed.data, scope: parsed.data.scope!, kind: parsed.data.kind!, ruleText: parsed.data.ruleText! };
+    const scopeCheck = validateScopeKey(input.scope, input.scopeKey);
     if (scopeCheck !== true) return res.status(400).json({ ok: false, code: "SERVER_ERROR", error: scopeCheck, requestId });
-    const row = toRow(parsed.data);
+    const row = toRow(input);
     const { data, error } = await supabaseAdmin.from("growth_agent_rules").insert(row).select("id").single();
     if (error) return res.status(500).json({ ok: false, code: "SERVER_ERROR", error: "DB insert failed", requestId });
     bustRulesCache();
