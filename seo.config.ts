@@ -21,6 +21,7 @@ import {
   articleVisualPath,
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
+import { deepTechById } from './content/deepTech.js';
 import { awardStrings, credentialSchemaNodes } from './content/credentials.js';
 import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
 
@@ -338,7 +339,7 @@ const deepTechSuite = {
         name: 'SILT',
         url: 'https://silt.inbharat.ai',
         description:
-          'A trust-gated, sample-efficient AI learning layer that keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Patent pending in India (application 202631101454).',
+          `${deepTechById.silt.description} Patent pending in India (application 202631101454).`,
         identifier: '202631101454',
       },
     },
@@ -350,7 +351,7 @@ const deepTechSuite = {
         name: 'Pocket AI',
         url: 'https://github.com/inbharatai/PAI.V2',
         description:
-          'A portable, host-adaptive private AI system with device-resident canonical state, so personal AI follows the user across machines while keeping the authoritative state on the owner\'s hardware. Patent pending in India (application 202631102427).',
+          `${deepTechById.pai.description} Patent pending in India (application 202631102427).`,
         identifier: '202631102427',
       },
     },
@@ -646,7 +647,7 @@ export const ROUTES: SeoRoute[] = [
       h1: 'Building the Infrastructure for Private AI Beyond the Cloud',
       paragraphs: [
         'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
-        'SILT keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Pocket AI keeps the authoritative state of a personal AI on the owner\'s hardware so intelligence follows the user across machines. These technologies are developed in public repositories and are not cloud-only wrappers.',
+        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description}`,
         'The InBharat product suite applies this deep-tech foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
         'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes across 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese. You can try it free on the web with a few messages before signing in — no credit card required.',
         'InBharat.ai is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
@@ -687,7 +688,7 @@ export const ROUTES: SeoRoute[] = [
       h1: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
       paragraphs: [
         'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. The company is organised around three layers: foundational deep tech (SILT and Pocket AI), applied AI infrastructure (JAK Shield, JAK Swarm, UnoOne, and InBharat Audio), and practical products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).',
-        'SILT is a trust-gated, sample-efficient AI learning layer that keeps training data local, records tamper-evident capability credentials, and composes small specialized models without centralising sensitive data. Pocket AI is a portable, host-adaptive private AI system with device-resident canonical state so personal intelligence follows the user across machines. Both technologies are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
+        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description} Both technologies are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).`,
         'InBharat.ai was founded by Reeturaj Goswami and is engineered in Bharat for the world. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation, while publishing open-source AI infrastructure so teams keep control of their data.',
       ],
     },

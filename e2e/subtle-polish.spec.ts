@@ -49,7 +49,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     await expect(hero.locator('.hero-edge-depth')).toHaveAttribute('aria-hidden', 'true');
     await expect(hero.locator('.hero-edge-depth')).toHaveCSS('pointer-events', 'none');
     await expect(hero.locator('.hero-edge-depth')).toHaveCSS('z-index', '3');
-    await expect(page.locator('.field-lab, .field-media, video')).toHaveCount(0);
+    await expect(page.locator('.field-lab, .field-media, header video')).toHaveCount(0);
     await expect(hero.getByRole('link', { name: /Launch InBharat AI/i })).toHaveAttribute('href', '/app');
     await expect(page.locator('#why h2')).toHaveText(translations.en.landWhy1Title);
     await expect(hero.locator('h1')).toHaveCSS('color', 'rgb(255, 255, 255)');

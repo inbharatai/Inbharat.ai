@@ -4,6 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "media:products": "tsx scripts/build-product-concept-media.ts",
+    "predev": "npm run media:products",
+    "predev:vite": "npm run media:products",
+    "predev:vite:proxy": "npm run media:products",
+    "prebuild:app": "npm run media:products",
+    "prebuild:vite-only": "npm run media:products",
     "dev": "vercel dev",
     "dev:vite": "vite",
     "dev:api": "tsx server/local-api.ts",

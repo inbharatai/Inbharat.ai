@@ -21,7 +21,8 @@ for (const width of [390, 1440]) {
     await expect(page.locator('.hero-mesh')).toBeAttached();
     await expect(page.locator('.field-lab')).toHaveCount(0);
     await expect(page.locator('.field-media')).toHaveCount(0);
-    await expect(page.locator('video')).toHaveCount(0);
+    // Approved product-card videos do not reintroduce the rejected hero video.
+    await expect(hero.locator('video')).toHaveCount(0);
     await expect(hero.getByRole('link', { name: /Launch InBharat AI/i })).toHaveAttribute('href', '/app');
     await page.locator('#ecosystem').scrollIntoViewIfNeeded();
     for (const label of ['SocialFlow', 'JAK Swarm', 'KathaKitaab', 'Agent Arcade']) {

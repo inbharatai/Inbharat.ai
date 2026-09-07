@@ -500,3 +500,40 @@ h1, h2, h3, h4 {
   .hero-edge-left, .hero-edge-right { animation: none !important; }
   .hero-edge-pause { display: none; }
 }
+
+/* Approved in-card concept footage only. Text exclusion mask is measured per card. */
+/* Clip decorative overflow without creating a programmatically scrollable card.
+   Focusing the media control must never pan the original content sideways. */
+#deep-tech .product-concept-card { overflow: clip; }
+#deep-tech .product-concept-layer {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  overflow: hidden; border-radius: inherit; mix-blend-mode: screen; opacity: .46;
+  visibility: hidden; mask-repeat: no-repeat; mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat; -webkit-mask-size: 100% 100%;
+}
+#deep-tech .product-concept-layer[data-ready="true"] { visibility: visible; }
+#deep-tech .product-concept-stage {
+  position: absolute; right: 18px; top: 84px; width: 46%; height: 170px;
+  mask-image: radial-gradient(ellipse, black 35%, transparent 76%);
+  -webkit-mask-image: radial-gradient(ellipse, black 35%, transparent 76%);
+}
+#deep-tech .product-concept-stage img,
+#deep-tech .product-concept-stage video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+#deep-tech .product-concept-stage video { visibility: hidden; }
+#deep-tech .product-concept-layer[data-ready="true"] video.is-ready { visibility: visible; }
+#deep-tech [data-concept-content] { z-index: 1; }
+#deep-tech .product-concept-note {
+  position: relative; z-index: 1; margin-top: 12px; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 4px 10px; color: #9ab2c9; font-size: 10px; line-height: 16px;
+}
+#deep-tech .product-concept-control-slot { display: inline-flex; min-height: 28px; min-width: 40px; }
+#deep-tech .product-concept-note button { padding: 6px 8px; border-radius: 4px; color: #c7d5e5; background: #0a0f18; cursor: pointer; }
+#deep-tech .product-concept-note button:focus-visible { outline: 2px solid #f59f4f; outline-offset: 2px; }
+@media (max-width: 767px) {
+  #deep-tech .product-concept-layer { opacity: .30; }
+  #deep-tech .product-concept-stage { width: 44%; right: 9px; top: 106px; height: 125px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #deep-tech .product-concept-layer video { display: none; }
+  #deep-tech .product-concept-note button { display: none; }
+}

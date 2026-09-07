@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUpRight, Github, ShieldCheck, Cpu } from 'lucide-react';
 import { DEEP_TECH_PROJECTS } from '../content/deepTech';
 import { PatentBadge } from './PatentBadge';
+import { ProductConceptMedia } from './landing/ProductConceptMedia';
 
 const ICONS = {
   silt: ShieldCheck,
@@ -33,7 +34,7 @@ export const DeepTechSpotlight: React.FC = () => {
             return (
               <article
                 key={project.id}
-                className="group relative overflow-hidden rounded-3xl border border-white/[0.08]
+                className="product-concept-card group relative overflow-hidden rounded-3xl border border-white/[0.08]
                            bg-gradient-to-b from-white/[0.045] to-white/[0.015] p-6
                            transition-all duration-300 hover:-translate-y-1
                            hover:border-[#f59f4f]/30 sm:p-8"
@@ -44,8 +45,8 @@ export const DeepTechSpotlight: React.FC = () => {
                   aria-hidden="true"
                 />
 
-                <div className="relative">
-                  <div className="flex items-start justify-between gap-4">
+                <div className="relative" data-concept-content>
+                  <div className="flex items-start justify-between gap-4" data-concept-protect>
                     <div className="flex h-12 w-12 items-center justify-center rounded-2xl
                                     border border-white/[0.09] bg-[#0a0f18]">
                       <Icon size={23} className="text-[#f5b76f]" />
@@ -108,6 +109,7 @@ export const DeepTechSpotlight: React.FC = () => {
                     </a>
                   </div>
                 </div>
+                <ProductConceptMedia id={project.id} label={project.shortName} />
               </article>
             );
           })}

@@ -12,6 +12,8 @@ dist
 dist-ssr
 # Built from checksummed assets-source/field-lab, never edited directly
 public/field-lab/
+# Built from checksummed assets-source/product-concepts
+public/product-concepts/
 *.local
 .env
 .env.local

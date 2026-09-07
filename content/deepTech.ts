@@ -27,7 +27,7 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
     category: 'Foundational Deep Tech',
     tagline: 'The Trust Gate for AI Learning',
     description:
-      'A local-first trust layer for controlled AI skill transfer, training and certified model adaptation. SILT measures whether a capability should be admitted before it is allowed to remain, with held-out evaluation, non-bypassable gates, human approval for high-risk domains, tamper-evident audit and rollback.',
+      'Skill Interchange Layer with Trust-gating. A local-first system for representing and transferring narrow AI capabilities, measuring their benefit on held-out cases, and enforcing admission, safety and rollback rules. Default packet transfer leaves receiver weights unchanged; optional adaptation and compression require their own validation.',
     patentStatus: 'Patent Pending',
     jurisdiction: 'India',
     applicationNo: '202631101454',
@@ -60,7 +60,7 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
     category: 'Foundational Deep Tech',
     tagline: 'Private AI You Can Carry',
     description:
-      'A portable host-adaptive private AI architecture in which models, runtimes, identity and encrypted canonical state travel on a removable device rather than permanently living on the host computer.',
+      'A portable, host-adaptive private AI system whose removable drive holds the canonical models, runtimes, identity and encrypted vault. A compatible host assesses its capabilities, verifies the required assets and launches an appropriate local model/runtime. The host computes; the drive remains the authoritative store.',
     patentStatus: 'Patent Pending',
     jurisdiction: 'India',
     applicationNo: '202631102427',

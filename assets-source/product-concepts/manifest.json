@@ -1,0 +1,26 @@
+{
+  "description": "User-approved AI-generated conceptual animations and frames. Not physical product photographs, protocol simulations, live telemetry or evidence of performance. SILT abstract capability-transfer metaphor; PAI unbranded illustrative USB enclosure.",
+  "created": "2026-09-07",
+  "assets": [
+    {
+      "filename": "silt.mp4",
+      "bytes": 793381,
+      "sha256": "caa202dbebea410308f85cf03068f998ad9d507a8668cfd0ec613bdf46141ddc"
+    },
+    {
+      "filename": "silt.webp",
+      "bytes": 55790,
+      "sha256": "30b25637423322771f531764dca870c9fb3548e2acbd87eb529b0ed932216cc5"
+    },
+    {
+      "filename": "pai.mp4",
+      "bytes": 93339,
+      "sha256": "acd50ec59a788a3606c79e117a54bd328d520fc4ee80f149cc4cf62adbd2f9ba"
+    },
+    {
+      "filename": "pai.webp",
+      "bytes": 3464,
+      "sha256": "e7b8a76886782bc9471c635f29ab1ead0c167528663bdf6e47c809a48742c49b"
+    }
+  ]
+}
