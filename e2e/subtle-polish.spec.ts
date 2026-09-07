@@ -148,6 +148,16 @@ test('unrelated font completion does not hide correct decoration', async ({ page
   await page.goto('/');
   await ready(page);
   await expect.poll(() => unprotectedText(page)).toEqual([]);
+  // The restored page still has delayed, finite entrance animations under
+  // reduced motion. Wait for those actual animations, not an arbitrary delay:
+  // a geometry-changing animation is not an unrelated/no-op font event.
+  await page.evaluate(async () => {
+    const finite = document.getAnimations().filter(animation =>
+      animation.effect?.getComputedTiming().iterations !== Infinity);
+    await Promise.all(finite.map(animation => animation.finished.catch(() => undefined)));
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+  await ready(page);
   const state = await page.evaluate(() => {
     document.fonts.dispatchEvent(new Event('loadingdone'));
     const layer = document.querySelector<HTMLElement>('.hero-edge-depth')!;

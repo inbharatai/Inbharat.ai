@@ -15,6 +15,9 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
     let disposed = false;
     let pending = 0;
     let followup = 0;
+    let entranceStart = 0;
+    let entranceFrame = 0;
+    let entranceComplete = false;
     // Include standalone badge text as well as the preview's full text/control
     // rectangles. Nested spans already protected by a parent need no extra box.
     const boxes = Array.from(hero.querySelectorAll<HTMLElement>('h1,h2,h3,p,a,button,select,ul,span')).filter(
@@ -50,7 +53,7 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
       }
       exclusions.replaceChildren(fragment);
       lastGeometry = geometryKey();
-      layer.dataset.ready = 'true';
+      layer.dataset.ready = entranceComplete ? 'true' : 'false';
     };
     // Read after the existing Motion hero transforms. Event-driven/coalesced,
     // not a perpetual drawing loop; both frames and late font promises are safe
@@ -84,8 +87,26 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
     window.addEventListener('scroll', align, { passive: true });
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     reduced.addEventListener('change', align);
-    // One final measurement after the original entrance animations settle.
-    const entrance = window.setTimeout(alignIfChanged, 2000);
+    // Original delayed text entrances move without resize/scroll events.
+    // Keep the *added* decoration hidden until those finite animations finish,
+    // then align against their final geometry. The original page never waits.
+    entranceStart = requestAnimationFrame(() => {
+      entranceStart = 0;
+      entranceFrame = requestAnimationFrame(() => {
+        entranceFrame = 0;
+        if (disposed) return;
+        const entrances = hero.getAnimations({ subtree: true }).filter(animation => {
+          const target = (animation.effect as KeyframeEffect | null)?.target;
+          return target instanceof Element && !layer.contains(target) &&
+            animation.effect?.getComputedTiming().iterations !== Infinity;
+        });
+        void Promise.all(entrances.map(animation => animation.finished.catch(() => undefined))).then(() => {
+          if (disposed) return;
+          entranceComplete = true;
+          align();
+        });
+      });
+    });
     return () => {
       disposed = true;
       observer.disconnect();
@@ -93,7 +114,8 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
       window.removeEventListener('resize', align);
       window.removeEventListener('scroll', align);
       reduced.removeEventListener('change', align);
-      window.clearTimeout(entrance);
+      cancelAnimationFrame(entranceStart);
+      cancelAnimationFrame(entranceFrame);
       cancelAnimationFrame(pending);
       cancelAnimationFrame(followup);
     };
