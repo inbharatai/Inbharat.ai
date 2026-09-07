@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
 import HeroGitaQuote from '../components/HeroGitaQuote';
+import HeroEdgeDepth from '../components/landing/HeroEdgeDepth';
 import { DeepTechSpotlight } from '../components/DeepTechSpotlight';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -1300,6 +1301,7 @@ const Landing: React.FC = () => {
         {/* Animated background */}
         <div className="hero-mesh" aria-hidden="true" />
         <AIEntity reduceMotion={reduceMotion} />
+        <HeroEdgeDepth language={i18n.resolvedLanguage || i18n.language} />
 
         {/* Scanline */}
         <div className="pointer-events-none absolute inset-0 z-[2]" aria-hidden="true"
@@ -1489,7 +1491,7 @@ const Landing: React.FC = () => {
           <div className="text-center mb-14">
             <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavAbout')}</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
-              {t('landWhy1Title').split(' ').slice(0, 3).join(' ')}
+              {t('landWhy1Title')}
             </h2>
           </div>
 

@@ -56,7 +56,7 @@ const HeroGitaQuote: React.FC = () => {
         </p>
 
         {/* Citation */}
-        <p className="mt-2 sm:mt-3 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-[#5a6f8c]/70">
+        <p className="mt-2 sm:mt-3 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-[#96b0c8]">
           {t('gitaCitation')}
         </p>
       </motion.div>
