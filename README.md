@@ -301,6 +301,16 @@ Admin routes ship as prebuilt **noindex** shells (so the SPA boots and the `/adm
 
 ---
 
+## Field Lab landing page
+
+The landing page uses a graphite/saffron engineering presentation, a poster-first conceptual hero, readable portfolio and technology diagrams, and one six-vertical product selector. Chat entry links still lead to `/app`; authentication, API handlers and the Growth Engine are unchanged by this visual update.
+
+- The hero is **AI-generated conceptual artwork**, not real Pocket AI hardware, a benchmark, or a live product demo. Desktop can play an 8-second silent pre-rendered MP4; this is not interactive WebGL.
+- Mobile, reduced-motion and save-data contexts use the poster. Eligible playback pauses offscreen, on document visibility changes, and via the user's pause button.
+- `npm run media:build` verifies the versioned sources in `assets-source/field-lab/` against their SHA-256 manifest and materializes `public/field-lab/`. Normal build and development entry points run it automatically. No remote asset host or credentials are required. The generated binary directory is gitignored; Base64 source files allow the complete media and code release to be committed atomically through the repository integration.
+- Delivered assets: 27,844-byte WebP poster and 232,654-byte H.264 MP4 without an audio track. Byte sizes are asset measurements, not a performance benchmark.
+- `e2e/field-lab.spec.ts` exercises layout, selectors, motion preferences and fallback behavior. API mocks and playback stubs in contract tests do not establish real service operation; native media playback is checked separately before release.
+
 ## Authentication (Supabase)
 
 - Sign in with email/password (and optionally Google).

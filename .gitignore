@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+# Built from checksummed assets-source/field-lab, never edited directly
+public/field-lab/
 *.local
 .env
 .env.local

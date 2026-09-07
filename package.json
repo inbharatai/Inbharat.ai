@@ -4,6 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "media:build": "tsx scripts/build-field-lab-media.ts",
+    "predev": "npm run media:build",
+    "predev:vite": "npm run media:build",
+    "predev:vite:proxy": "npm run media:build",
+    "prebuild:app": "npm run media:build",
+    "prebuild:vite-only": "npm run media:build",
     "dev": "vercel dev",
     "dev:vite": "vite",
     "dev:api": "tsx server/local-api.ts",

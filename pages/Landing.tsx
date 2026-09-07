@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
+import { motion, MotionConfig, useReducedMotion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
-import HeroGitaQuote from '../components/HeroGitaQuote';
-import { DeepTechSpotlight } from '../components/DeepTechSpotlight';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { FieldMedia } from '../components/landing/FieldMedia';
+import { SystemMap, JakDiagram } from '../components/landing/SystemMap';
+import { DeepTechField } from '../components/landing/DeepTechField';
 import {
   ArrowRight,
   BookOpen,
@@ -35,845 +34,17 @@ import { CredentialRail, CredentialTrustList } from '../components/Credentials';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
 
-gsap.registerPlugin(ScrollTrigger);
-
-/* ═══════════════════════════════════════════════════════
-   ANIMATION PRIMITIVES
-   ═══════════════════════════════════════════════════════ */
-
+// Landing animation is opacity-only; reduced-motion content is visible immediately.
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
-
-const revealSection = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.85, ease },
-  },
-};
-
-const itemReveal = {
-  hidden: { opacity: 0, y: 28, scale: 0.97 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.65, delay: i * 0.08, ease },
-  }),
-};
-
-/* ── Reveal wrapper ── */
+const itemReveal = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.45 } } };
 type SectionProps = { id?: string; className?: string; children: React.ReactNode };
-
-const Reveal: React.FC<SectionProps> = ({ id, className = '', children }) => (
-  <motion.section
-    id={id}
-    className={className}
-    variants={revealSection}
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true, amount: 0.06 }}
-  >
+const Reveal: React.FC<SectionProps> = ({ id, className = '', children }) => {
+  const reduced = useReducedMotion();
+  return <motion.section id={id} className={className} initial={reduced ? false : { opacity: 0 }}
+    whileInView={{ opacity: 1 }} viewport={{ once: true, amount: 0.06 }} transition={{ duration: reduced ? 0 : 0.45 }}>
     {children}
-  </motion.section>
-);
-
-/* ── Word-by-word slide-up ── */
-const WordReveal: React.FC<{ text: string; className?: string; delay?: number }> = ({
-  text,
-  className = '',
-  delay = 0,
-}) => {
-  const prefersReduced = useReducedMotion();
-  const words = text.split(' ');
-  return (
-    <span className={`inline ${className}`} aria-label={text}>
-      {words.map((word, i) => (
-        <motion.span
-          key={i}
-          style={{ display: 'inline-block', overflow: 'hidden', lineHeight: 'inherit', verticalAlign: 'top' }}
-        >
-          <motion.span
-            style={{ display: 'inline-block' }}
-            initial={prefersReduced ? undefined : { y: '110%', opacity: 0 }}
-            animate={{ y: '0%', opacity: 1 }}
-            transition={{ duration: 0.8, delay: delay + i * 0.055, ease }}
-          >
-            {word}
-          </motion.span>
-          {i < words.length - 1 ? '\u00a0' : ''}
-        </motion.span>
-      ))}
-    </span>
-  );
+  </motion.section>;
 };
-
-/* ═══════════════════════════════════════════════════════
-   ANIMATED AI ENTITY — Premium hero visualization
-   A glowing AI core with orbiting data rings, streaming
-   particles, and intelligence pulses.
-   ═══════════════════════════════════════════════════════ */
-
-const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || reduceMotion) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let raf: number;
-    let time = 0;
-    // Pause the rAF loop when the canvas scrolls out of view (CWV + battery
-    // guard for low-end devices). Resumes automatically on re-entry.
-    let paused = false;
-
-    // Particles orbiting the core
-    const particles: { angle: number; radius: number; speed: number; size: number; color: string; trail: number }[] = [];
-    for (let i = 0; i < 60; i++) {
-      particles.push({
-        angle: Math.random() * Math.PI * 2,
-        radius: 80 + Math.random() * 120,
-        speed: 0.003 + Math.random() * 0.008,
-        size: 0.5 + Math.random() * 2,
-        color: ['#f59f4f', '#6366f1', '#10b981', '#3b82f6'][Math.floor(Math.random() * 4)],
-        trail: 3 + Math.random() * 8,
-      });
-    }
-
-    // Data stream lines
-    const streams: { y: number; speed: number; x: number; length: number; opacity: number }[] = [];
-    for (let i = 0; i < 12; i++) {
-      streams.push({
-        y: Math.random() * 600,
-        speed: 0.5 + Math.random() * 1.5,
-        x: 60 + Math.random() * 480,
-        length: 30 + Math.random() * 80,
-        opacity: 0.04 + Math.random() * 0.08,
-      });
-    }
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const draw = () => {
-      time += 0.016;
-      const w = canvas.getBoundingClientRect().width;
-      const h = canvas.getBoundingClientRect().height;
-      const cx = w / 2;
-      const cy = h / 2;
-
-      ctx.clearRect(0, 0, w, h);
-
-      // === OUTER GLOW ===
-      const glowRadius = 140 + Math.sin(time * 0.5) * 20;
-      const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
-      glow.addColorStop(0, 'rgba(245, 159, 79, 0.08)');
-      glow.addColorStop(0.4, 'rgba(99, 102, 241, 0.04)');
-      glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, w, h);
-
-      // === DATA STREAMS (vertical) ===
-      streams.forEach((s) => {
-        s.y -= s.speed;
-        if (s.y + s.length < 0) {
-          s.y = h + 20;
-          s.x = 60 + Math.random() * (w - 120);
-        }
-        const grad = ctx.createLinearGradient(s.x, s.y, s.x, s.y + s.length);
-        grad.addColorStop(0, `rgba(99, 102, 241, ${s.opacity})`);
-        grad.addColorStop(1, 'rgba(99, 102, 241, 0)');
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x, s.y + s.length);
-        ctx.stroke();
-      });
-
-      // === ORBITAL RINGS ===
-      for (let ring = 0; ring < 3; ring++) {
-        const ringRadius = 60 + ring * 45;
-        const ringOpacity = 0.06 - ring * 0.015;
-        const rotation = time * (0.15 - ring * 0.04);
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(rotation);
-        ctx.strokeStyle = `rgba(245, 159, 79, ${ringOpacity})`;
-        ctx.lineWidth = 0.8;
-        ctx.setLineDash([4, 8 + ring * 4]);
-        ctx.beginPath();
-        ctx.ellipse(0, 0, ringRadius, ringRadius * 0.35, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-      }
-
-      // === ORBITING PARTICLES ===
-      particles.forEach((p) => {
-        p.angle += p.speed;
-        const px = cx + Math.cos(p.angle) * p.radius;
-        const py = cy + Math.sin(p.angle) * (p.radius * 0.3);
-
-        // Only draw if in viewport
-        if (px > -10 && px < w + 10 && py > -10 && py < h + 10) {
-          // Particle trail
-          const trailX = cx + Math.cos(p.angle - p.speed * p.trail) * p.radius;
-          const trailY = cy + Math.sin(p.angle - p.speed * p.trail) * (p.radius * 0.3);
-          const trailGrad = ctx.createLinearGradient(trailX, trailY, px, py);
-          trailGrad.addColorStop(0, 'rgba(0,0,0,0)');
-          trailGrad.addColorStop(1, p.color + '40');
-          ctx.strokeStyle = trailGrad;
-          ctx.lineWidth = p.size * 0.6;
-          ctx.beginPath();
-          ctx.moveTo(trailX, trailY);
-          ctx.lineTo(px, py);
-          ctx.stroke();
-
-          // Particle dot
-          ctx.fillStyle = p.color + '90';
-          ctx.beginPath();
-          ctx.arc(px, py, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // === CORE ===
-      const coreRadius = 28 + Math.sin(time * 1.2) * 3;
-
-      // Core outer glow
-      const coreGlow = ctx.createRadialGradient(cx, cy, coreRadius * 0.5, cx, cy, coreRadius * 2.5);
-      coreGlow.addColorStop(0, 'rgba(245, 159, 79, 0.15)');
-      coreGlow.addColorStop(0.5, 'rgba(99, 102, 241, 0.06)');
-      coreGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = coreGlow;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius * 2.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Core body
-      const coreFill = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreRadius);
-      coreFill.addColorStop(0, 'rgba(245, 159, 79, 0.3)');
-      coreFill.addColorStop(0.6, 'rgba(99, 102, 241, 0.15)');
-      coreFill.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
-      ctx.fillStyle = coreFill;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Core border
-      ctx.strokeStyle = 'rgba(245, 159, 79, 0.25)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Inner pulse ring
-      const pulseScale = 1 + ((time * 0.4) % 1) * 1.5;
-      const pulseOpacity = 0.2 * (1 - ((time * 0.4) % 1));
-      ctx.strokeStyle = `rgba(245, 159, 79, ${pulseOpacity})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius * pulseScale, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Second pulse (offset)
-      const pulse2Scale = 1 + (((time * 0.4) + 0.5) % 1) * 1.5;
-      const pulse2Opacity = 0.15 * (1 - (((time * 0.4) + 0.5) % 1));
-      ctx.strokeStyle = `rgba(99, 102, 241, ${pulse2Opacity})`;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(cx, cy, coreRadius * pulse2Scale, 0, Math.PI * 2);
-      ctx.stroke();
-
-      if (!paused) raf = requestAnimationFrame(draw);
-    };
-
-    raf = requestAnimationFrame(draw);
-    if (typeof IntersectionObserver !== 'undefined') {
-      const io = new IntersectionObserver(
-        ([entry]) => {
-          const wasPaused = paused;
-          paused = !entry.isIntersecting;
-          if (wasPaused && !paused) raf = requestAnimationFrame(draw);
-        },
-        { threshold: 0 },
-      );
-      io.observe(canvas);
-      return () => {
-        io.disconnect();
-        cancelAnimationFrame(raf);
-        window.removeEventListener('resize', resize);
-      };
-    }
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
-    };
-  }, [reduceMotion]);
-
-  // Static fallback for reduced motion
-  if (reduceMotion) {
-    return (
-      <div className="absolute inset-0 z-[1] flex items-center justify-center opacity-30">
-        <div className="h-40 w-40 rounded-full border border-[#f59f4f]/20 bg-[radial-gradient(circle,rgba(245,159,79,0.1)_0%,transparent_70%)]" />
-      </div>
-    );
-  }
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 z-[1] h-full w-full"
-      style={{ opacity: 0.7 }}
-      aria-hidden="true"
-    />
-  );
-};
-
-/* ═══════════════════════════════════════════════════════
-   MARQUEE TICKER
-   ═══════════════════════════════════════════════════════ */
-
-const TICKER_NAMES = [
-  'SILT', 'Pocket AI', 'JAK Shield', 'JAK Swarm', 'UnoOne',
-  'InBharat AI', 'Phoring', 'Sahayaak AI', 'UniAssist.ai', 'TestsPrep.in', 'KathaKitaab',
-];
-
-const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
-  const doubled = [...TICKER_NAMES, ...TICKER_NAMES];
-  return (
-    <div className="overflow-hidden py-4" aria-hidden="true">
-      <div className={`flex gap-12 whitespace-nowrap ${reverse ? 'marquee-rtl' : 'marquee-ltr'}`}>
-        {doubled.map((name, i) => (
-          <span
-            key={i}
-            className="flex shrink-0 items-center gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-[#8ab4d8]"
-          >
-            <span className="h-1 w-1 rounded-full bg-[#f59f4f]/40 flex-shrink-0" />
-            {name}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════
-   COUNT-UP ANIMATION
-   ═══════════════════════════════════════════════════════ */
-
-const CountUp: React.FC<{ target: string; reduceMotion: boolean }> = ({ target, reduceMotion }) => {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [inView, setInView] = useState(false);
-  const [display, setDisplay] = useState(target);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
-      { threshold: 0.4 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!inView || reduceMotion) return;
-    const numericMatch = target.match(/^([\d,.]+)/);
-    if (!numericMatch) return;
-    const end = parseFloat(numericMatch[1].replace(/,/g, ''));
-    const suffix = target.slice(numericMatch[1].length);
-    const hasDecimal = numericMatch[1].includes('.');
-    const duration = 1400;
-    const start = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 4);
-      const val = eased * end;
-      setDisplay((hasDecimal ? val.toFixed(1) : Math.round(val).toLocaleString()) + suffix);
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    setDisplay((hasDecimal ? '0.0' : '0') + target.slice(numericMatch[1].length));
-    requestAnimationFrame(step);
-  }, [inView, reduceMotion, target]);
-
-  return <span ref={ref}>{display}</span>;
-};
-
-/* ═══════════════════════════════════════════════════════
-   JAK SWARM FLOW GRAPH — Animated closed-loop agent pipeline
-   Renders the JAK Swarm data-flow: Sources → Evidence Graph →
-   Agent Work → Drift Detection → JAK Shield (risk gate) →
-   Tamper-Evident Audit Trail → Approved Artifact
-   ═══════════════════════════════════════════════════════ */
-
-const GRAPH_BLUE: [number, number, number] = [239, 68, 68];     // jak red #ef4444
-const GRAPH_CYAN: [number, number, number] = [56, 189, 248];
-const GRAPH_AMBER: [number, number, number] = [245, 159, 79];
-const GRAPH_GREEN: [number, number, number] = [52, 211, 153];
-const GRAPH_PURPLE: [number, number, number] = [147, 51, 234];
-const GRAPH_ROSE: [number, number, number] = [244, 63, 94];
-
-interface GNode { x: number; y: number; r: number; color: [number, number, number]; label: string; tech?: string; baseAlpha: number }
-interface GEdge { from: number; to: number }
-interface GSignal { edgeIdx: number; progress: number; speed: number; size: number }
-
-const G_NODES: GNode[] = [
-  { x: 0.50, y: 0.92, r: 9, color: GRAPH_BLUE, label: 'SOURCES', tech: 'Context · Docs · Code', baseAlpha: 1.0 },
-  { x: 0.30, y: 0.76, r: 6, color: GRAPH_CYAN, label: 'INGEST', tech: 'Parse + Embed', baseAlpha: 0.85 },
-  { x: 0.70, y: 0.76, r: 7, color: GRAPH_BLUE, label: 'EVIDENCE GRAPH', tech: 'Graph DB', baseAlpha: 0.9 },
-  { x: 0.12, y: 0.55, r: 4.5, color: GRAPH_GREEN, label: 'ENTITIES', tech: 'Nodes + Edges', baseAlpha: 0.7 },
-  { x: 0.37, y: 0.52, r: 5, color: GRAPH_PURPLE, label: 'PLANS', tech: 'Specs + Tasks', baseAlpha: 0.75 },
-  { x: 0.63, y: 0.52, r: 5, color: GRAPH_AMBER, label: 'TOOLS', tech: 'Sandboxed Run', baseAlpha: 0.75 },
-  { x: 0.88, y: 0.55, r: 4.5, color: GRAPH_CYAN, label: 'POLICY', tech: 'Risk Config', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.36, r: 8, color: GRAPH_AMBER, label: 'AGENT WORK', tech: 'Executes Specs', baseAlpha: 0.9 },
-  { x: 0.32, y: 0.20, r: 5.5, color: GRAPH_GREEN, label: 'DRIFT DETECT', tech: 'Diff vs Spec', baseAlpha: 0.8 },
-  { x: 0.68, y: 0.20, r: 4.5, color: GRAPH_BLUE, label: 'JAK SHIELD', tech: 'Risk Gate', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.08, r: 6, color: GRAPH_ROSE, label: 'AUDIT TRAIL', tech: 'Approved Artifact', baseAlpha: 0.85 },
-];
-
-const G_EDGES: GEdge[] = [
-  { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 2 },
-  { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 5 }, { from: 2, to: 6 },
-  { from: 3, to: 4 },
-  { from: 3, to: 7 }, { from: 4, to: 7 }, { from: 5, to: 7 }, { from: 6, to: 7 },
-  { from: 7, to: 8 }, { from: 7, to: 9 }, { from: 9, to: 8 }, { from: 8, to: 10 },
-];
-
-function gBezier(ax: number, ay: number, bx: number, by: number, t: number) {
-  const mx = (ax + bx) / 2, my = ay - (ay - by) * 0.6;
-  const u = 1 - t;
-  return { x: u * u * ax + 2 * u * t * mx + t * t * bx, y: u * u * ay + 2 * u * t * my + t * t * by };
-}
-
-const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
-
-    let w = 0, h = 0, raf = 0;
-    const phases = G_NODES.map(() => Math.random() * Math.PI * 2);
-    const signals: GSignal[] = [];
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      w = rect.width; h = rect.height;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    if (reduceMotion) {
-      // Static render: draw edges + nodes once
-      const nx = (v: number) => v * w, ny = (v: number) => v * h;
-      for (const e of G_EDGES) {
-        const a = G_NODES[e.from], b = G_NODES[e.to];
-        const [r, g, bb] = b.color;
-        ctx.beginPath();
-        for (let s = 0; s <= 50; s++) { const t = s / 50; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
-        ctx.strokeStyle = `rgba(${r},${g},${bb},0.18)`; ctx.lineWidth = 1.2; ctx.stroke();
-      }
-      for (const n of G_NODES) {
-        const [r, g, b] = n.color; const px = nx(n.x), py = ny(n.y);
-        const cg = ctx.createRadialGradient(px, py, 0, px, py, n.r);
-        cg.addColorStop(0, `rgba(${r},${g},${b},${n.baseAlpha * 0.9})`);
-        cg.addColorStop(1, `rgba(${r},${g},${b},${n.baseAlpha * 0.2})`);
-        ctx.beginPath(); ctx.arc(px, py, n.r, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
-        ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
-        ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
-        ctx.fillText(n.label, px, py - n.r - 10);
-        if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},0.55)`; ctx.fillText(n.tech, px, py - n.r - 1); }
-      }
-      return () => window.removeEventListener('resize', resize);
-    }
-
-    const startTime = performance.now();
-    // Pause when offscreen; resume on re-entry (CWV + battery guard).
-    let paused = false;
-
-    const animate = (time: number) => {
-      const elapsed = time - startTime;
-      ctx.clearRect(0, 0, w, h);
-      const intro = Math.min(elapsed / 4000, 1);
-      const eased = 1 - Math.pow(1 - intro, 3);
-      const nx = (v: number) => v * w, ny = (v: number) => v * h;
-
-      // Edges
-      for (const e of G_EDGES) {
-        const a = G_NODES[e.from], b = G_NODES[e.to];
-        const [r, g, bb] = b.color;
-        const df = 1 - b.y, ed = df * 0.5;
-        const ei = Math.max(0, Math.min((eased - ed) / (1 - ed), 1));
-        if (ei <= 0) continue;
-        const steps = 50, draw = Math.floor(steps * ei);
-        ctx.beginPath();
-        for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
-        ctx.strokeStyle = `rgba(${r},${g},${bb},${0.18 * ei})`; ctx.lineWidth = 1.2; ctx.stroke();
-        if (ei > 0.5) { ctx.beginPath(); for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.strokeStyle = `rgba(${r},${g},${bb},${0.04 * ei})`; ctx.lineWidth = 4; ctx.stroke(); }
-      }
-
-      // Nodes
-      for (let i = 0; i < G_NODES.length; i++) {
-        const n = G_NODES[i];
-        phases[i] += 0.015 + (i % 3) * 0.003;
-        const df = 1 - n.y, nd = df * 0.5;
-        const ni = Math.max(0, Math.min((eased - nd) / (1 - nd), 1));
-        if (ni <= 0) continue;
-        const pulse = Math.sin(phases[i]) * 0.3 + 0.7;
-        const alpha = n.baseAlpha * ni * pulse;
-        const [r, g, b] = n.color;
-        const px = nx(n.x), py = ny(n.y), rr = n.r * ni;
-
-        // Atmospheric glow
-        const og = ctx.createRadialGradient(px, py, 0, px, py, rr * 6);
-        og.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.12})`);
-        og.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.03})`);
-        og.addColorStop(1, `rgba(${r},${g},${b},0)`);
-        ctx.beginPath(); ctx.arc(px, py, rr * 6, 0, Math.PI * 2); ctx.fillStyle = og; ctx.fill();
-
-        // Mid glow ring
-        ctx.beginPath(); ctx.arc(px, py, rr * 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.12})`; ctx.lineWidth = 0.8; ctx.stroke();
-
-        // Core
-        const cg = ctx.createRadialGradient(px, py, 0, px, py, rr);
-        cg.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.9})`);
-        cg.addColorStop(0.7, `rgba(${r},${g},${b},${alpha * 0.6})`);
-        cg.addColorStop(1, `rgba(${r},${g},${b},${alpha * 0.2})`);
-        ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
-        ctx.beginPath(); ctx.arc(px, py, rr * 0.35, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`; ctx.fill();
-
-        // Pulse rings for key nodes
-        if ((i === 0 || i === 7 || i === 10) && ni > 0.5) {
-          const ra = Math.sin(time * 0.002 + i) * 0.3 + 0.5;
-          ctx.beginPath(); ctx.arc(px, py, rr * 3 * ni, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(${r},${g},${b},${ra * 0.15 * ni})`; ctx.lineWidth = 0.7; ctx.stroke();
-        }
-
-        // Labels
-        if (ni > 0.6) {
-          const la = (ni - 0.6) / 0.4;
-          ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
-          ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.92})`;
-          ctx.fillText(n.label, px, py - rr - 10);
-          if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.60})`; ctx.fillText(n.tech, px, py - rr - 1); }
-        }
-      }
-
-      // Data signals
-      if (eased > 0.5 && signals.length < 18 && Math.random() < 0.04) {
-        signals.push({ edgeIdx: Math.floor(Math.random() * G_EDGES.length), progress: 0, speed: 0.003 + Math.random() * 0.005, size: 1.5 + Math.random() * 2 });
-      }
-      for (let i = signals.length - 1; i >= 0; i--) {
-        const s = signals[i]; s.progress += s.speed;
-        if (s.progress > 1) { signals.splice(i, 1); continue; }
-        const e = G_EDGES[s.edgeIdx]; const a = G_NODES[e.from], b = G_NODES[e.to];
-        const pos = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), s.progress);
-        const [r, g, bb] = b.color; const fa = Math.sin(s.progress * Math.PI);
-        const tg = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, s.size * 6);
-        tg.addColorStop(0, `rgba(${r},${g},${bb},${fa * 0.25})`); tg.addColorStop(1, `rgba(${r},${g},${bb},0)`);
-        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size * 6, 0, Math.PI * 2); ctx.fillStyle = tg; ctx.fill();
-        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${bb},${fa * 0.85})`; ctx.fill();
-      }
-
-      // Stage labels on left
-      if (eased > 0.85) {
-        const ra = (eased - 0.85) / 0.15;
-        ctx.font = `500 ${Math.max(6.5, Math.min(8, w * 0.009))}px "Sora","Manrope",sans-serif`;
-        ctx.textAlign = 'left';
-        for (const st of [
-          { y: 0.92, label: 'INPUT', color: GRAPH_BLUE },
-          { y: 0.76, label: 'STAGE 1 · EVIDENCE GRAPH', color: GRAPH_CYAN },
-          { y: 0.53, label: 'STAGE 2 · PLANNING', color: GRAPH_PURPLE },
-          { y: 0.36, label: 'STAGE 3 · AGENT WORK', color: GRAPH_AMBER },
-          { y: 0.20, label: 'STAGE 4 · DRIFT & SHIELD', color: GRAPH_GREEN },
-          { y: 0.08, label: 'OUTPUT · AUDIT TRAIL', color: GRAPH_ROSE },
-        ]) { const [r, g, b] = st.color; ctx.fillStyle = `rgba(${r},${g},${b},${ra * 0.55})`; ctx.fillText(st.label, 6, ny(st.y) + 3); }
-      }
-
-      if (!paused) raf = requestAnimationFrame(animate);
-    };
-
-    raf = requestAnimationFrame(animate);
-    if (typeof IntersectionObserver !== 'undefined') {
-      const io = new IntersectionObserver(
-        ([entry]) => {
-          const wasPaused = paused;
-          paused = !entry.isIntersecting;
-          if (wasPaused && !paused) raf = requestAnimationFrame(animate);
-        },
-        { threshold: 0 },
-      );
-      io.observe(canvas);
-      return () => { io.disconnect(); cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-    }
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-  }, [reduceMotion]);
-
-  return <canvas ref={canvasRef} className="w-full h-full" aria-hidden="true" />;
-};
-
-/* ═══════════════════════════════════════════════════════
-   ECOSYSTEM ORBITAL — Premium 3-ring system map
-
-  Layout logic:
-  - Ring 1 (r=28%): 3 flagship products, speed 0.06 rad/s
-  - Ring 2 (r=38%): 5 ecosystem tools, speed -0.04 rad/s
-  - Ring 3 (r=46%): 4 supporting tools, speed 0.025 rad/s
-   - All positions computed from polar coordinates
-   - Pills stay upright (no rotation), only translate
-   - Differential ring speeds create depth parallax
-   ═══════════════════════════════════════════════════════ */
-
-type OrbitalModule = {
-  label: string;
-  color: string;
-  ring: 1 | 2 | 3;
-  baseAngle: number; // degrees, evenly distributed per ring
-  flagship?: boolean;
-};
-
-// Ring 1: 3 flagships, evenly spaced at 120 degrees
-// Ring 2: 5 ecosystem modules, evenly spaced at 72 degrees
-// Ring 3: 4 supporting, evenly spaced at 90 degrees
-const ORBITAL_MODULES: OrbitalModule[] = [
-  // Ring 1 — flagships
-  { label: 'InBharat AI',    color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
-  { label: 'KathaKitaab', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
-  { label: 'Sahayaak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
-  // Ring 2 — ecosystem
-  { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
-  { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 72 },
-  { label: 'TestsPrep',    color: '#f43f5e', ring: 2, baseAngle: 144 },
-  { label: 'Phoring',      color: '#10b981', ring: 2, baseAngle: 216 },
-  { label: 'JAK Swarm',    color: '#ef4444', ring: 2, baseAngle: 288 },
-  // Ring 3 — supporting
-  { label: 'Agent Arcade',  color: '#4C8BF5', ring: 3, baseAngle: 45 },
-  { label: 'SocialFlow',    color: '#7C3AED', ring: 3, baseAngle: 135 },
-  { label: 'OpenClawFix',   color: '#14b8a6', ring: 3, baseAngle: 225 },
-  { label: 'Sahayaak Seva',  color: '#059669', ring: 3, baseAngle: 315 },
-];
-
-const RING_CONFIG = {
-  1: { radius: 28, speed: 0.06, opacity: 0.10, dash: '3 6' },
-  2: { radius: 38, speed: -0.04, opacity: 0.07, dash: '2 8' },
-  3: { radius: 46, speed: 0.025, opacity: 0.05, dash: '1.5 10' },
-} as const;
-
-const EcosystemOrbital: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [positions, setPositions] = useState<{ x: number; y: number }[]>(
-    () => ORBITAL_MODULES.map((m) => {
-      const cfg = RING_CONFIG[m.ring];
-      const rad = (m.baseAngle * Math.PI) / 180;
-      return { x: 50 + cfg.radius * Math.cos(rad), y: 50 + cfg.radius * Math.sin(rad) };
-    })
-  );
-
-  // Animate orbital positions via rAF for smooth 60fps
-  useEffect(() => {
-    if (reduceMotion) return;
-    let raf: number;
-    let t = 0;
-
-    // Pause the orbital animation when offscreen (CWV + battery guard; this
-    // loop drives ~60 React re-renders/sec via setPositions, so pausing matters).
-    let paused = false;
-    const tick = () => {
-      if (paused) return;
-      t += 0.016; // ~60fps
-      const next = ORBITAL_MODULES.map((m) => {
-        const cfg = RING_CONFIG[m.ring];
-        const angle = ((m.baseAngle * Math.PI) / 180) + cfg.speed * t;
-        return {
-          x: 50 + cfg.radius * Math.cos(angle),
-          y: 50 + cfg.radius * Math.sin(angle),
-        };
-      });
-      setPositions(next);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    let io: IntersectionObserver | undefined;
-    if (typeof IntersectionObserver !== 'undefined' && containerRef.current) {
-      io = new IntersectionObserver(
-        ([entry]) => {
-          const wasPaused = paused;
-          paused = !entry.isIntersecting;
-          if (wasPaused && !paused) raf = requestAnimationFrame(tick);
-        },
-        { threshold: 0 },
-      );
-      io.observe(containerRef.current);
-    }
-    return () => { io?.disconnect(); cancelAnimationFrame(raf); };
-  }, [reduceMotion]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative mx-auto aspect-square w-full max-w-[340px] sm:max-w-[440px] lg:max-w-[500px]"
-    >
-      {/* SVG layer: orbit rings, connector lines, signal pulses */}
-      <svg
-        viewBox="0 0 100 100"
-        className="absolute inset-0 h-full w-full"
-        aria-hidden="true"
-      >
-        <defs>
-          <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f59f4f" stopOpacity="0.15" />
-            <stop offset="40%" stopColor="#6366f1" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="#000" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        {/* Center glow */}
-        <circle cx="50" cy="50" r="18" fill="url(#core-glow)" />
-
-        {/* Orbit ring lines */}
-        {([1, 2, 3] as const).map((ring) => {
-          const cfg = RING_CONFIG[ring];
-          return (
-            <circle
-              key={`ring-${ring}`}
-              cx="50" cy="50" r={cfg.radius}
-              fill="none"
-              stroke="#f59f4f"
-              strokeWidth="0.3"
-              strokeOpacity={cfg.opacity}
-              strokeDasharray={cfg.dash}
-            />
-          );
-        })}
-
-        {/* Connector lines from modules to center */}
-        {ORBITAL_MODULES.map((m, i) => (
-          <line
-            key={`conn-${i}`}
-            x1="50" y1="50"
-            x2={positions[i].x} y2={positions[i].y}
-            stroke={m.color}
-            strokeWidth={hoveredIdx === i ? '0.4' : '0.15'}
-            strokeOpacity={hoveredIdx === i ? 0.5 : 0.15}
-            strokeDasharray="1.5 3"
-            style={{ transition: 'stroke-opacity 0.3s, stroke-width 0.3s' }}
-          />
-        ))}
-
-        {/* Signal pulses — only for flagship products */}
-        {!reduceMotion && ORBITAL_MODULES.map((m, i) => {
-          if (!m.flagship) return null;
-          return (
-            <circle
-              key={`pulse-${i}`}
-              cx={positions[i].x} cy={positions[i].y}
-              r="1"
-              fill={m.color}
-              opacity="0.6"
-            >
-              <animate
-                attributeName="r" values="0.5;2.5;0.5"
-                dur="3s" begin={`${i * 1}s`} repeatCount="indefinite"
-              />
-              <animate
-                attributeName="opacity" values="0.6;0;0.6"
-                dur="3s" begin={`${i * 1}s`} repeatCount="indefinite"
-              />
-            </circle>
-          );
-        })}
-      </svg>
-
-      {/* Center core (DOM for crispness) */}
-      <div className="absolute left-1/2 top-1/2 z-20 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#080d16] shadow-[0_0_60px_rgba(245,159,79,0.18),0_0_120px_rgba(99,102,241,0.08)] sm:h-20 sm:w-20">
-        <motion.img
-          src="/inbharat-logo.svg"
-          alt="InBharat.ai logo"
-          className="h-8 w-8 object-contain sm:h-10 sm:w-10"
-          animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      {/* Pulsing energy ring around core */}
-      {!reduceMotion && (
-        <motion.div
-          className="absolute left-1/2 top-1/2 z-10 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f59f4f]/20 sm:h-20 sm:w-20"
-          animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-
-      {/* Module pills (DOM elements, always upright) */}
-      {ORBITAL_MODULES.map((m, i) => {
-        const isHovered = hoveredIdx === i;
-        return (
-          <div
-            key={m.label}
-            className="absolute z-10"
-            style={{
-              left: `${positions[i].x}%`,
-              top: `${positions[i].y}%`,
-              transform: 'translate(-50%, -50%)',
-              // No will-change to avoid layer explosion on mobile
-            }}
-            onMouseEnter={() => setHoveredIdx(i)}
-            onMouseLeave={() => setHoveredIdx(null)}
-          >
-            <div
-              className="whitespace-nowrap rounded-lg px-2 py-1 text-[8px] font-bold tracking-wide text-white/90 backdrop-blur-sm sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-[10px]"
-              style={{
-                backgroundColor: isHovered ? `${m.color}20` : 'rgba(12, 20, 34, 0.92)',
-                border: `1px solid ${isHovered ? m.color + '50' : 'rgba(255,255,255,0.1)'}`,
-                boxShadow: isHovered
-                  ? `0 0 20px ${m.color}25, 0 4px 12px rgba(0,0,0,0.3)`
-                  : '0 2px 8px rgba(0,0,0,0.2)',
-                transform: isHovered ? 'scale(1.08)' : 'scale(1)',
-                transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-              }}
-            >
-              <span
-                className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2"
-                style={{
-                  backgroundColor: m.color,
-                  boxShadow: isHovered ? `0 0 6px ${m.color}` : 'none',
-                }}
-              />
-              {m.label}
-              {m.flagship && (
-                <span className="ml-1 text-[7px] opacity-50 sm:text-[8px]">*</span>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════
-   PRODUCT DEFINITIONS
-   ═══════════════════════════════════════════════════════ */
 
 type ProductLogoProps = {
   logo: string | null;
@@ -903,7 +74,7 @@ const ProductLogo: React.FC<ProductLogoProps> = ({ logo, name, color, size = 40,
 
 const TypeBadge: React.FC<{ children: React.ReactNode; color: string }> = ({ children, color }) => (
   <span
-    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider"
     style={{ backgroundColor: `${color}12`, color, border: `1px solid ${color}25` }}
   >
     {children}
@@ -918,22 +89,22 @@ const PRODUCT_DEFS = [
   // ── Agent Ops & Trust ──
   { name: 'JAK Swarm', bucket: 'agentOps', tagKey: 'landProdJakTag', descKey: 'landProdJakDesc', ctaKey: 'landProdJakCta', typeKey: 'landProdJakType', href: 'https://github.com/inbharatai/jak-swarm', logo: null, icon: ShieldCheck, internal: false, color: '#ef4444', tech: ['Evidence Graph', 'Drift Detection', 'JAK Shield', 'Audit Trail'] },
   { name: 'JAK Shield', bucket: 'agentOps', tagKey: 'landProdJakshieldTag', descKey: 'landProdJakshieldDesc', ctaKey: 'landProdJakshieldCta', typeKey: 'landProdJakshieldType', href: 'https://github.com/inbharatai/jak-shield', logo: null, icon: Shield, internal: false, color: '#dc2626', tech: ['PII Detection', 'Sandboxed Exec', 'Audit Trail', 'Open Source'] },
-  { name: 'Agent Arcade', bucket: 'agentOps', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#4C8BF5', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
+  { name: 'Agent Arcade', bucket: 'agentOps', tagKey: 'landProdArcadeTag', descKey: 'landProdArcadeDesc', ctaKey: 'landProdArcadeCta', typeKey: 'landProdArcadeType', href: 'https://github.com/inbharatai/agent-arcade-gateway', logo: null, internal: false, color: '#8da995', tech: ['Bun', 'Next.js', 'Socket.IO', 'SQLite'] },
   // ── Growth & Publishing ──
-  { name: 'SocialFlow', bucket: 'growth', tagKey: 'landProdSocialFlowTag', descKey: 'landProdSocialFlowDesc', ctaKey: 'landProdSocialFlowCta', typeKey: 'landProdSocialFlowType', href: 'https://github.com/inbharatai/SocialFlow', logo: null, icon: Share2, internal: false, color: '#7C3AED', tech: ['FastAPI', 'Playwright', 'AES-256', '12 Platforms'] },
+  { name: 'SocialFlow', bucket: 'growth', tagKey: 'landProdSocialFlowTag', descKey: 'landProdSocialFlowDesc', ctaKey: 'landProdSocialFlowCta', typeKey: 'landProdSocialFlowType', href: 'https://github.com/inbharatai/SocialFlow', logo: null, icon: Share2, internal: false, color: '#8da995', tech: ['FastAPI', 'Playwright', 'AES-256', '12 Platforms'] },
   // ── Consumer & Culture ──
   { name: 'Sahayaak AI', bucket: 'consumer', tagKey: 'landProdSahaayakTag', descKey: 'landProdSahaayakDesc', ctaKey: 'landProdSahaayakCta', typeKey: 'landProdSahaayakType', href: 'https://github.com/inbharatai/sahaayak-ai-public', logo: null, icon: Monitor, internal: false, color: '#ff9933', tech: ['FastAPI', 'Next.js', 'Whisper', 'Vosk'] },
   { name: 'KathaKitaab', bucket: 'consumer', tagKey: 'landProdKathakitaabTag', descKey: 'landProdKathakitaabDesc', ctaKey: 'landProdKathakitaabCta', typeKey: 'landProdKathakitaabType', href: 'https://www.kathakitaab.com/', logo: null, icon: FileText, internal: false, color: '#f97316', tech: ['React', 'Vercel', 'Indian Languages', 'AI'] },
   { name: 'UniBot', bucket: 'eduCareer', tagKey: 'landProdUnibotTag', descKey: 'landProdUnibotDesc', ctaKey: 'landProdUnibotCta', typeKey: 'landProdUnibotType', href: '#chatbot', logo: '/unibot-logo.png', internal: false, color: '#25D366', tech: ['WhatsApp API', 'NLP', 'Multilingual'] },
   { name: 'Phoring', bucket: 'agentOps', tagKey: 'landProdPhoringTag', descKey: 'landProdPhoringDesc', ctaKey: 'landProdPhoringCta', typeKey: 'landProdPhoringType', href: 'https://github.com/inbharatai/phoring', logo: '/phoring-logo.png', internal: false, color: '#10b981', tech: ['Python', 'Vue 3', 'OASIS', 'Zep Cloud'] },
   // ── Education & Career ──
-  { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
-  { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
-  { name: 'UnoOne', bucket: 'consumer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
+  { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#8da995', tech: ['React', 'Node.js', 'AI Matching'] },
+  { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#8da995', tech: ['React', 'AI Analytics', 'Adaptive'] },
+  { name: 'UnoOne', bucket: 'consumer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8da995', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
   { name: 'OpenClawFix', bucket: 'consumer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
   // ── Health & Public Service ──
   { name: 'Sahayaak Seva', bucket: 'health', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://sahayaakseva.in', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
-  { name: 'SwasthyaScore AI', bucket: 'health', tagKey: 'landProdSwasthyaTag', descKey: 'landProdSwasthyaDesc', ctaKey: 'landProdSwasthyaCta', typeKey: 'landProdSwasthyaType', href: 'https://swasthyascore-ai.vercel.app', logo: null, icon: Target, internal: false, color: '#0ea5e9', tech: ['PWA', 'rPPG Vitals', 'Lab OCR', 'Voice Screening'] },
+  { name: 'SwasthyaScore AI', bucket: 'health', tagKey: 'landProdSwasthyaTag', descKey: 'landProdSwasthyaDesc', ctaKey: 'landProdSwasthyaCta', typeKey: 'landProdSwasthyaType', href: 'https://swasthyascore-ai.vercel.app', logo: null, icon: Target, internal: false, color: '#8da995', tech: ['PWA', 'rPPG Vitals', 'Lab OCR', 'Voice Screening'] },
 ] as const;
 
 // Six verticals = the tabs in the product browser. Order here is the tab order.
@@ -942,9 +113,9 @@ const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; roleKey:
   { key: 'core', labelKey: 'landBucketCore', descKey: 'landBucketCoreDesc', roleKey: 'landBucketRoleCore', icon: Brain, color: '#f59f4f' },
   { key: 'agentOps', labelKey: 'landBucketAgentOps', descKey: 'landBucketAgentOpsDesc', roleKey: 'landBucketRoleAgentOps', icon: ShieldCheck, color: '#ef4444' },
   { key: 'consumer', labelKey: 'landBucketConsumer', descKey: 'landBucketConsumerDesc', roleKey: 'landBucketRoleConsumer', icon: MessageCircle, color: '#ff9933' },
-  { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', roleKey: 'landBucketRoleEduCareer', icon: BookOpen, color: '#3b82f6' },
+  { key: 'eduCareer', labelKey: 'landBucketEduCareer', descKey: 'landBucketEduCareerDesc', roleKey: 'landBucketRoleEduCareer', icon: BookOpen, color: '#8da995' },
   { key: 'health', labelKey: 'landBucketHealth', descKey: 'landBucketHealthDesc', roleKey: 'landBucketRoleHealth', icon: Users, color: '#059669' },
-  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', roleKey: 'landBucketRoleGrowth', icon: Target, color: '#7C3AED' },
+  { key: 'growth', labelKey: 'landBucketGrowth', descKey: 'landBucketGrowthDesc', roleKey: 'landBucketRoleGrowth', icon: Target, color: '#8da995' },
 ];
 
 /* ═══════════════════════════════════════════════════════
@@ -959,61 +130,11 @@ const Landing: React.FC = () => {
   const prefersReducedMotion = useReducedMotion();
   const reduceMotion = Boolean(prefersReducedMotion);
   const shellRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLDivElement>(null);
-
-  // Parallax scroll for hero
-  const { scrollY } = useScroll();
-  const heroY = useTransform(scrollY, [0, 1200], [0, 100]);
-  const heroOpacity = useTransform(scrollY, [0, 400, 1000], [1, 1, 0]);
-
-  /* Cursor glow */
-  useEffect(() => {
-    const shell = shellRef.current;
-    if (!shell || reduceMotion) return;
-    const handleMove = (e: MouseEvent) => {
-      shell.style.setProperty('--mx', `${e.clientX}px`);
-      shell.style.setProperty('--my', `${e.clientY}px`);
-    };
-    window.addEventListener('mousemove', handleMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMove);
-  }, [reduceMotion]);
-
-  /* GSAP scroll-triggered animations */
-  useEffect(() => {
-    if (reduceMotion) return;
-    const ctx = gsap.context(() => {
-      // Animate section headers on scroll
-      gsap.utils.toArray<HTMLElement>('.gsap-header').forEach((el) => {
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.9,
-            ease: 'power3.out',
-            scrollTrigger: { trigger: el, start: 'top 85%', once: true },
-          }
-        );
-      });
-    }, shellRef);
-    return () => ctx.revert();
-  }, [reduceMotion]);
-
   // Product browser: one vertical at a time. Default = InBharat Core AI.
   const [activeBucket, setActiveBucket] = useState<ProductBucket>('core');
-  // Which product within the active vertical is shown in the hero detail (left
-  // column). Index is into the active vertical's filtered product list. We do
-  // NOT auto-reset on vertical change: the right-panel/top-tab switchers reset
-  // explicitly to 0, while the Core "Ecosystem Tools" launcher jumps to a
-  // specific product in a *different* vertical, so an auto-reset would clobber
-  // that. Call sites that change the vertical are responsible for setting the
-  // desired product index.
+  // Product detail selection is retained across cross-vertical launcher clicks.
   const [activeProductIndex, setActiveProductIndex] = useState(0);
 
-  // Switch vertical AND which product to highlight in one shot. Used by the
-  // Core ecosystem launcher (chips live in other verticals) and by the
-  // right-panel/top-tab selectors (which pass 0 for the first product).
   const selectVertical = (bucket: ProductBucket, productIndexInBucket = 0) => {
     setActiveBucket(bucket);
     setActiveProductIndex(productIndexInBucket);
@@ -1059,12 +180,13 @@ const Landing: React.FC = () => {
       const section = document.querySelector(id);
       if (!section) return;
       event.preventDefault();
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: reduceMotion ? 'instant' : 'smooth', block: 'start' });
       setMobileOpen(false);
     };
-    document.addEventListener('click', clickHandler);
-    return () => document.removeEventListener('click', clickHandler);
-  }, []);
+    const shell = shellRef.current;
+    shell?.addEventListener('click', clickHandler);
+    return () => shell?.removeEventListener('click', clickHandler);
+  }, [reduceMotion]);
 
   /* Active section tracking */
   useEffect(() => {
@@ -1089,22 +211,9 @@ const Landing: React.FC = () => {
   }, [navItems]);
 
   return (
-    <div ref={shellRef} className="landing-shell min-h-screen overflow-x-hidden bg-[#030508] text-[#e8eef8]">
-      {/* Atmospheric layers */}
-      <div className="landing-atmosphere" aria-hidden="true" />
-      <div className="landing-grid" aria-hidden="true" />
-      {!reduceMotion && <div className="landing-grain" aria-hidden="true" />}
-      {!reduceMotion && <div className="cursor-glow" aria-hidden="true" />}
-
-      {/* Floating orbs */}
-      {!reduceMotion && (
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
-          <div className="orb-float-a absolute -left-48 top-[15%] h-[600px] w-[600px] rounded-full bg-[#f59f4f]/[0.035] blur-[120px]" />
-          <div className="orb-float-b absolute -right-40 top-[35%] h-[500px] w-[500px] rounded-full bg-[#4c8bf5]/[0.04] blur-[100px]" />
-          <div className="orb-float-c absolute bottom-[15%] left-[25%] h-[450px] w-[450px] rounded-full bg-[#10b981]/[0.03] blur-[100px]" />
-        </div>
-      )}
-
+    <MotionConfig reducedMotion={reduceMotion ? "always" : "user"}>
+    <div ref={shellRef} data-reduced-motion={reduceMotion} className="field-lab landing-shell min-h-screen">
+      <div className="field-atmosphere" aria-hidden="true" />
       {/* ═══════════════ NAVIGATION ═══════════════ */}
       {/* Skip to main content — first focusable element for keyboard users */}
       <a
@@ -1114,8 +223,8 @@ const Landing: React.FC = () => {
         Skip to content
       </a>
 
-      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#030508]/70 backdrop-blur-2xl backdrop-saturate-150">
-        <div className="mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
+      <nav aria-label="Main navigation" className="field-nav sticky top-0 z-50 border-b border-white/[0.06] bg-[#030508]/70 backdrop-blur-2xl backdrop-saturate-150">
+        <div className="field-nav-inner mx-auto flex h-[60px] w-full max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-10">
           <Link to="/" className="group flex items-center gap-3">
             <div className="logo-badge flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-[#0a0f18] shadow-[0_8px_24px_rgba(0,0,0,0.4)] transition-all duration-400 group-hover:border-[#f59f4f]/40 group-hover:shadow-[0_12px_36px_rgba(245,159,79,0.15)]">
               <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5.5 w-5.5 object-contain" width={22} height={22} />
@@ -1126,7 +235,7 @@ const Landing: React.FC = () => {
             </div>
           </Link>
 
-          <div className="hidden items-center gap-1 lg:flex">
+          <div className="field-nav-sections hidden items-center gap-1 lg:flex">
             {navItems.map((item) =>
               item.route ? (
                 <Link
@@ -1142,7 +251,7 @@ const Landing: React.FC = () => {
                   {item.label}
                   {activeSection === item.href && (
                     <motion.div
-                      layoutId="nav-indicator"
+                      layoutId={reduceMotion ? undefined : "nav-indicator"}
                       className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.1]"
                       style={{ zIndex: -1 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
@@ -1162,7 +271,7 @@ const Landing: React.FC = () => {
                   {item.label}
                   {activeSection === item.href && (
                     <motion.div
-                      layoutId="nav-indicator"
+                      layoutId={reduceMotion ? undefined : "nav-indicator"}
                       className="absolute inset-0 rounded-full bg-white/[0.07] border border-white/[0.1]"
                       style={{ zIndex: -1 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
@@ -1173,7 +282,7 @@ const Landing: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="field-nav-actions flex items-center gap-2.5">
             <select
               value={i18n.language}
               onChange={(e) => void i18n.changeLanguage(e.target.value)}
@@ -1191,14 +300,15 @@ const Landing: React.FC = () => {
             <Link
               to="/learn-ai-with-reeturaj"
               onClick={() => trackEvent('cta_nav_build_ai_with_reeturaj')}
-              className="hidden rounded-full border border-[#f59f4f]/35 bg-[#f59f4f]/[0.12] px-4 py-1.5 text-[11px] font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/60 hover:bg-[#f59f4f]/[0.2] hover:text-[#ffe2bf] lg:inline-flex"
+              className="field-founder-link hidden rounded-full border border-[#f59f4f]/35 bg-[#f59f4f]/[0.12] px-4 py-1.5 text-[11px] font-bold text-[#f8c791] transition-all hover:border-[#f59f4f]/60 hover:bg-[#f59f4f]/[0.2] hover:text-[#ffe2bf] lg:inline-flex"
             >
               Build with Reeturaj
             </Link>
 
+            <Link to="/app" className="field-nav-launch" aria-label="Open InBharat AI chat">Launch AI <ArrowRight size={15} aria-hidden="true" /></Link>
             {isSignedIn ? (
               <>
-                <div className="hidden rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-[#7a8da8] md:block">
+                <div className="sr-only">
                   {user?.email ?? t('guest')}
                 </div>
                 <button
@@ -1212,7 +322,7 @@ const Landing: React.FC = () => {
             ) : (
               <Link
                 to="/app"
-                className="rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-5 py-1.5 text-[11px] font-bold text-[#0a0c10] shadow-[0_0_20px_rgba(245,159,79,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(245,159,79,0.4)]"
+                className="field-sign-in"
               >
                 {t('signIn')}
               </Link>
@@ -1222,7 +332,9 @@ const Landing: React.FC = () => {
               type="button"
               className="rounded-lg border border-white/8 p-1.5 text-[#b4c8de] transition-colors hover:bg-white/[0.06] hover:text-white lg:hidden"
               onClick={() => setMobileOpen((prev) => !prev)}
-              aria-label={t('openMenu')}
+              aria-label={mobileOpen ? 'Close menu' : t('openMenu')}
+              aria-expanded={mobileOpen}
+              aria-controls="field-mobile-menu"
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
@@ -1232,10 +344,11 @@ const Landing: React.FC = () => {
         {/* Mobile menu */}
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.25 }}
-            className="border-t border-white/[0.06] bg-[#050810]/98 px-5 py-4 backdrop-blur-2xl lg:hidden"
+            id="field-mobile-menu"
+            className="field-mobile-menu border-t border-white/[0.06] bg-[#050810]/98 px-5 py-4 backdrop-blur-2xl lg:hidden"
           >
             <div className="grid gap-1">
               <Link
@@ -1296,118 +409,26 @@ const Landing: React.FC = () => {
       </nav>
 
       {/* ═══════════════ HERO ═══════════════ */}
-      <header id="main-content" ref={heroRef} className="relative z-10 overflow-hidden">
-        {/* Animated background */}
-        <div className="hero-mesh" aria-hidden="true" />
-        <AIEntity reduceMotion={reduceMotion} />
-
-        {/* Scanline */}
-        <div className="pointer-events-none absolute inset-0 z-[2]" aria-hidden="true"
-          style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(245,159,79,0.02) 30%, transparent 60%, rgba(99,102,241,0.015) 80%, transparent 100%)' }}
-        />
-
-        {/* Bhagavad Gita Quote — hero top */}
-        <HeroGitaQuote />
-
-        <motion.div
-          className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-10"
-          style={reduceMotion ? {} : { y: heroY, opacity: heroOpacity }}
-        >
-          <div className="flex flex-col items-center pt-8 pb-12 text-center sm:pt-12 sm:pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease }}
-            >
-              <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.25em] text-[#a8bfd4] backdrop-blur-sm">
-                <motion.span
-                  animate={reduceMotion ? undefined : { scale: [1, 1.3, 1] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="inline-block h-1.5 w-1.5 rounded-full bg-[#f59f4f] shadow-[0_0_8px_rgba(245,159,79,0.5)]"
-                />
-                {t('landHeroBadge')}
-              </span>
-            </motion.div>
-
-            {/* Credential rail — featured recognitions & programmes */}
-            <CredentialRail
-              className="mt-4 justify-center [&>li:nth-child(n+4)]:hidden sm:[&>li:nth-child(n+4)]:inline-flex"
-            />
-
-            {/* Headline */}
-            <h1 className="hero-headline mt-8 max-w-5xl text-white sm:mt-10">
-              <WordReveal text={t('landHeroTitle1')} delay={0.1} />
-              <span className="block mt-1 bg-gradient-to-r from-[#f59f4f] via-[#fde8d0] to-[#6fd3a3] bg-clip-text text-transparent">
-                <WordReveal text={t('landHeroTitle2')} delay={0.3} />
-              </span>
-            </h1>
-
-            {/* Subheadline */}
-            <motion.p
-              className="mt-6 max-w-2xl text-[15px] leading-relaxed text-[#9aafc6] sm:text-[16px] sm:leading-[1.7]"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.55, ease }}
-            >
-              {t('landHeroDesc')}
-            </motion.p>
-
-            {/* CTAs */}
-            <motion.div
-              className="mt-10 flex flex-wrap items-center justify-center gap-3"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.7, ease }}
-            >
-              <Link
-                to="/app"
-                onClick={() => trackEvent('cta_hero_try_app')}
-                className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
-              >
-                {t('landHeroCta1')}
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <a
-                href="#ecosystem"
-                className="group inline-flex items-center gap-2.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-[#c0cfe0] backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
-              >
-                {t('landHeroCta2')}
-                <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-              </a>
-            </motion.div>
-
-            {/* Metrics */}
-            <motion.div
-              className="mt-14 grid w-full max-w-xl gap-4 sm:grid-cols-3"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.85, ease }}
-            >
-              {[
-                { value: t('landMetric1Val'), label: t('landMetric1Label') },
-                { value: t('landMetric2Val'), label: t('landMetric2Label') },
-                { value: t('landMetric3Val'), label: t('landMetric3Label') },
-              ].map((metric) => (
-                <div
-                  key={metric.label}
-                  className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4 backdrop-blur-sm"
-                >
-                  <p className="metric-num bg-gradient-to-br from-white to-[#c8d8ea] bg-clip-text text-transparent">
-                    <CountUp target={metric.value} reduceMotion={reduceMotion} />
-                  </p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#96b0c8]">{metric.label}</p>
-                </div>
-              ))}
-            </motion.div>
+      <header id="main-content" className="field-hero relative z-10">
+        <div className="field-container field-hero-grid">
+          <div className="field-hero-copy">
+            <p className="field-kicker">INBHARAT / FIELD LAB <span>PRIVATE AI INFRASTRUCTURE</span></p>
+            <h1 className="field-headline"><span>{t('landHeroTitle1')}</span>{' '}<span>{t('landHeroTitle2')}</span></h1>
+            <p className="field-hero-summary">{i18n.resolvedLanguage === 'en' ? 'Trust-gated learning. Portable private intelligence. Agentic security. Engineered in Bharat for a world beyond cloud-only AI.' : t('landHeroDesc')}</p>
+            <blockquote className="field-verse">
+              <p lang="sa">कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।<br />मा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥</p>
+              <p>{t('gitaTranslation')}</p><cite>{t('gitaCitation')}</cite>
+            </blockquote>
+            <div className="field-hero-actions">
+              <Link to="/app" className="field-button field-primary" data-testid="hero-launch" onClick={() => trackEvent('cta_hero_try_app')}>{t('landHeroCta1')}<ArrowRight size={17} aria-hidden="true" /></Link>
+              <a href="#ecosystem" className="field-text-link">{t('landHeroCta2')}<ArrowRight size={16} aria-hidden="true" /></a>
+            </div>
+            <CredentialRail className="field-credentials" />
           </div>
-        </motion.div>
+          <FieldMedia />
+        </div>
+        <div className="field-container field-hero-index"><span>LOCAL-FIRST BY DESIGN</span><span>Trust / Intelligence / Autonomy</span><a href="#deep-tech">Explore the research ↓</a></div>
       </header>
-
-      {/* Marquee */}
-      <div className="relative z-10 border-y border-white/[0.04] bg-[#030508]/80" aria-hidden="true">
-        <Marquee />
-      </div>
 
       {/* ═══════════════ ECOSYSTEM ═══════════════ */}
       <Reveal id="ecosystem" className="relative z-10 py-24 sm:py-32">
@@ -1415,22 +436,22 @@ const Landing: React.FC = () => {
           <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landEcoLabel')}</p>
-              <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
+              <p className="eyebrow-line text-[#96b0c8] field-section-title">{t('landEcoLabel')}</p>
+              <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] field-section-title">
                 {t('landEcoTitle')}
               </h2>
 
               <div className="mt-10 space-y-4">
                 {[
                   { title: t('landEcoLayer1Title'), desc: t('landEcoLayer1Desc'), icon: Brain, color: '#f59f4f' },
-                  { title: t('landEcoLayer2Title'), desc: t('landEcoLayer2Desc'), icon: MessageCircle, color: '#6366f1' },
+                  { title: t('landEcoLayer2Title'), desc: t('landEcoLayer2Desc'), icon: MessageCircle, color: '#8da995' },
                   { title: t('landEcoLayer3Title'), desc: t('landEcoLayer3Desc'), icon: Target, color: '#10b981' },
                 ].map((item, i) => (
                   <motion.div
                     key={item.title}
                     custom={i}
                     variants={itemReveal}
-                    initial="hidden"
+                    initial={reduceMotion ? false : "hidden"}
                     whileInView="visible"
                     viewport={{ once: true, amount: 0.3 }}
                     className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
@@ -1466,15 +487,15 @@ const Landing: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Orbital visualization */}
+            {/* Right: readable portfolio index */}
             <motion.div
               className="flex items-center justify-center"
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
+              initial={reduceMotion ? false : { opacity: 0 }}
+              whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1, ease }}
             >
-              <EcosystemOrbital reduceMotion={reduceMotion} />
+              <SystemMap />
             </motion.div>
           </div>
         </div>
@@ -1487,23 +508,23 @@ const Landing: React.FC = () => {
       <Reveal id="why" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavAbout')}</p>
-            <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
-              {t('landWhy1Title').split(' ').slice(0, 3).join(' ')}
+            <p className="eyebrow-line justify-center text-[#96b0c8] field-section-title">{t('landNavAbout')}</p>
+            <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl field-section-title">
+              {t('landWhy1Title')}
             </h2>
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
             {[
               { title: t('landWhy1Title'), text: t('landWhy1Desc'), icon: ShieldCheck, color: '#f59f4f' },
-              { title: t('landWhy2Title'), text: t('landWhy2Desc'), icon: Globe, color: '#6366f1' },
+              { title: t('landWhy2Title'), text: t('landWhy2Desc'), icon: Globe, color: '#8da995' },
               { title: t('landWhy3Title'), text: t('landWhy3Desc'), icon: Sparkles, color: '#10b981' },
             ].map((item, i) => (
               <motion.article
                 key={item.title}
                 custom={i}
                 variants={itemReveal}
-                initial="hidden"
+                initial={reduceMotion ? false : "hidden"}
                 whileInView="visible"
                 viewport={{ once: true, amount: 0.2 }}
                 className="group glow-card rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 transition-all duration-400"
@@ -1526,7 +547,7 @@ const Landing: React.FC = () => {
 
 
       {/* ═══════════════ FOUNDATIONAL DEEP TECH SPOTLIGHT ═══════════════ */}
-      <DeepTechSpotlight />
+      <DeepTechField />
 
       <div className="landing-seam" aria-hidden="true" />
 
@@ -1572,28 +593,12 @@ const Landing: React.FC = () => {
                     {t('landJakDesc')}
                   </p>
 
-                  {/* Stats */}
-                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {([
-                      { val: '6', label: t('landJakStat1') },
-                      { val: '100%', label: t('landJakStat2') },
-                      { val: '0', label: t('landJakStat3') },
-                      { val: '1', label: t('landJakStat4') },
-                    ] as const).map((stat, i) => (
-                      <motion.div
-                        key={stat.label}
-                        custom={i}
-                        variants={itemReveal}
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        className="rounded-xl border border-[#ef4444]/15 bg-[#ef4444]/[0.05] p-3.5 text-center"
-                      >
-                        <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
-                      </motion.div>
-                    ))}
-                  </div>
+                  <dl className="field-jak-capabilities">
+                    <div><dt>Evidence</dt><dd>Traceable sources</dd></div>
+                    <div><dt>Drift checks</dt><dd>Compare work to the spec</dd></div>
+                    <div><dt>Risk gates</dt><dd>Review before approval</dd></div>
+                    <div><dt>Audit trail</dt><dd>Tamper-evident records</dd></div>
+                  </dl>
 
                   {/* Feature chips */}
                   <div className="mt-6 flex flex-wrap gap-1.5">
@@ -1631,15 +636,15 @@ const Landing: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right: JAK Swarm Flow Graph — live closed-loop pipeline visualization */}
+                {/* Right: JAK evidence workflow — conceptual, not live telemetry */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
+                  initial={reduceMotion ? false : { opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.9, delay: 0.1, ease }}
                   className="relative overflow-hidden rounded-2xl border border-[#ef4444]/15 bg-[#030608] min-h-[400px] lg:min-h-0 lg:self-stretch"
                 >
-                  <JakSwarmFlowGraph reduceMotion={reduceMotion} />
+                  <JakDiagram />
                 </motion.div>
               </div>
             </div>
@@ -1654,8 +659,8 @@ const Landing: React.FC = () => {
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
-              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
+              <p className="eyebrow-line text-[#96b0c8] field-section-title">{t('landProdLabel')}</p>
+              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl field-section-title">{t('landProdTitle')}</h2>
               <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[#96b0c8]">{t('landProdSub')}</p>
             </div>
             <a
@@ -1669,39 +674,15 @@ const Landing: React.FC = () => {
             </a>
           </div>
 
-          {/* Vertical tabs — mobile/tablet only. On desktop the right-side Six
-              Verticals panel is the sole vertical selector, so this row is
-              hidden to avoid duplicate navigation layers. Shown below lg. */}
-          <div className="mb-8 flex flex-wrap justify-center gap-2 lg:hidden">
-            {BUCKETS.map((bucket) => {
-              const count = ALL_PRODUCTS.filter((p) => p.bucket === bucket.key).length;
-              const active = bucket.key === activeBucket;
-              return (
-                <button
-                  key={bucket.key}
-                  type="button"
-                  onClick={() => selectVertical(bucket.key, 0)}
-                  aria-pressed={active}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 ${active ? 'border-white/20 bg-white/[0.07] text-white shadow-[0_0_24px_-8px_rgba(255,255,255,0.25)]' : 'border-white/[0.08] bg-white/[0.02] text-[#96b0c8] hover:border-white/15 hover:text-white'}`}
-                >
-                  <bucket.icon size={14} color={bucket.color} />
-                  <span>{t(bucket.labelKey)}</span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/10 text-white' : 'bg-white/[0.04] text-[#7a9ab8]'}`}>{count}</span>
-                </button>
-              );
-            })}
+          <div className="field-vertical-selector" role="group" aria-label="Six product verticals">
+            {BUCKETS.map((bucket, index) => <button key={bucket.key} type="button"
+              data-vertical={bucket.key} aria-pressed={activeBucket === bucket.key}
+              aria-controls="field-product-detail" onClick={() => selectVertical(bucket.key)}>
+              <small>0{index + 1}</small><span>{t(bucket.labelKey)}</span>
+              <span className="field-count">{ALL_PRODUCTS.filter((p) => p.bucket === bucket.key).length}</span>
+            </button>)}
           </div>
 
-          {/* Active vertical content — a 2-column hero card.
-              LEFT  (~55-60%): active product details (small logo, category label,
-                name, 2-line desc, max 3-4 chips, CTA) + a compact product picker
-                when the vertical has more than one product.
-              RIGHT (~40-45%): the Six Verticals ecosystem panel — every vertical at
-                a glance, with the active vertical highlighted. Clicking a vertical
-                on the right switches the main tab above (and resets the picker).
-              The giant InBharat star/logo that used to sit on the right of the core
-              panel is GONE — the right side now explains the ecosystem instead of
-              decorating it. Product logos stay small, next to the product name. */}
           {(() => {
             const products = ALL_PRODUCTS.filter((p) => p.bucket === activeBucket);
             if (products.length === 0) return null;
@@ -1712,28 +693,28 @@ const Landing: React.FC = () => {
             return (
               <motion.div
                 key={activeBucket}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
                 transition={{ duration: 0.4, ease }}
-                className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-gradient-to-br from-[#0b0f17] via-[#090c12] to-[#030508] p-5 sm:p-7 lg:p-8"
+                id="field-product-detail" className="field-product-detail"
               >
                 <div
                   className="pointer-events-none absolute inset-0"
                   style={{ background: `radial-gradient(ellipse 640px 320px at 12% -10%, ${bucketDef.color}22, transparent 55%)` }}
                 />
-                <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.95fr] lg:items-stretch">
+                <div className="field-product-layout">
                   {/* LEFT — active product details */}
-                  <div className="flex flex-col">
+                  <div className="field-product-content">
                     <div className="mb-4 flex items-center gap-3">
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03]">
                         <ProductLogo logo={p.logo as string | null} name={p.name} color={p.color} icon={p.iconComp} />
                       </div>
                       <div className="min-w-0">
                         <TypeBadge color={p.color}>{p.type}</TypeBadge>
-                        <h3 className="mt-1 truncate text-xl font-bold text-white sm:text-2xl">{p.name}</h3>
+                        <h3 className="mt-1 text-xl font-bold text-white sm:text-2xl">{p.name}</h3>
                       </div>
                     </div>
-                    <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de] line-clamp-2">{p.desc}</p>
+                    <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de]">{p.desc}</p>
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {p.tech.slice(0, 4).map((tech) => (
                         <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>
@@ -1751,18 +732,7 @@ const Landing: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Left-bottom product launcher — fills the space below the CTA
-                        with real ecosystem products (never internal console modes).
-                          Core AI  → "Ecosystem Tools": every other product in the studio
-                                     as a cross-vertical launcher. Clicking one jumps to
-                                     that product's vertical + product (hero, left launcher,
-                                     and right Six-Verticals panel all resync).
-                          Others   → "{Label} Tools": the products inside this vertical as
-                                     a switcher; clicking updates the hero detail above
-                                     (right panel tracks the vertical, so it stays put).
-                        3-col compact grid on desktop, 2-col on mobile. Each chip reuses
-                        the existing ProductLogo asset/icon, shows name + short tagline,
-                        and highlights the active product with its own color accent. */}
+                    {/* Core links to all products; other verticals show their own picker. */}
                     {(() => {
                       const isCore = activeBucket === 'core';
                       // Core surfaces the whole studio (everything except the core
@@ -1780,12 +750,12 @@ const Landing: React.FC = () => {
                       const indexOfInBucket = (name: string, bucket: ProductBucket) =>
                         ALL_PRODUCTS.filter((x) => x.bucket === bucket).findIndex((x) => x.name === name);
                       return (
-                        <div className="mt-7">
+                        <div className="field-product-picker">
                           <div className="mb-2.5 flex items-baseline justify-between gap-3">
                             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white">{title}</p>
                             <span className="shrink-0 text-[10px] text-[#7a9ab8]">{sub}</span>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          <div className="field-product-options">
                             {toolProducts.map((prod) => {
                               const sel = !isCore && prod.name === p.name;
                               const onClick = isCore
@@ -1807,8 +777,8 @@ const Landing: React.FC = () => {
                                     <ProductLogo logo={prod.logo as string | null} name={prod.name} color={prod.color} icon={prod.iconComp} size={22} />
                                   </span>
                                   <span className="min-w-0">
-                                    <span className={`block truncate text-[11px] font-bold ${sel ? 'text-white' : 'text-[#c8d6e8]'} group-hover:text-white`}>{prod.name}</span>
-                                    <span className="block truncate text-[10px] text-[#7a9ab8]">{prod.tagline}</span>
+                                    <span className={`block text-[14px] font-bold ${sel ? 'text-white' : 'text-[#c8d6e8]'} group-hover:text-white`}>{prod.name}</span>
+                                    <span className="block text-[12px] text-[#7a9ab8]">{prod.tagline}</span>
                                   </span>
                                 </button>
                               );
@@ -1819,65 +789,12 @@ const Landing: React.FC = () => {
                     })()}
                   </div>
 
-                  {/* RIGHT — Six Verticals ecosystem panel.
-                      Desktop/tablet: a vertical list inside the hero card. Mobile: a
-                      compact 2-column grid (grid-cols-2 → lg:flex lg:flex-col) so the
-                      ecosystem stays visible without overflowing a narrow viewport.
-                      Active vertical highlighted with a stronger border + glow + filled
-                      gradient; clicking a vertical switches the main tab. */}
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4">
-                    <div className="mb-3 flex items-baseline justify-between">
-                      <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">{t('landEcoPanelTitle')}</h4>
-                      <span className="text-[10px] text-[#7a9ab8]">{t('landEcoPanelSub')}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-1.5">
-                      {BUCKETS.map((b) => {
-                        const count = ALL_PRODUCTS.filter((pp) => pp.bucket === b.key).length;
-                        const active = b.key === activeBucket;
-                        return (
-                          <button
-                            key={b.key}
-                            type="button"
-                            onClick={() => selectVertical(b.key, 0)}
-                            aria-pressed={active}
-                            className={`group flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-200 ${
-                              active
-                                ? 'border-[2px] bg-gradient-to-br from-white/[0.07] to-white/[0.02]'
-                                : 'border-white/[0.06] bg-white/[0.01] hover:border-white/15 hover:bg-white/[0.03]'
-                            }`}
-                            style={active ? { borderColor: `${b.color}80`, boxShadow: `0 0 24px -6px ${b.color}55` } : undefined}
-                          >
-                            <div
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
-                              style={{ backgroundColor: `${b.color}12`, borderColor: active ? `${b.color}55` : 'rgba(255,255,255,0.06)' }}
-                            >
-                              <b.icon size={15} color={b.color} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <span className={`truncate text-[12px] font-bold ${active ? 'text-white' : 'text-[#c8d6e8]'}`}>{t(b.labelKey)}</span>
-                                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-white/[0.05] text-[#7a9ab8]'}`}>{count}</span>
-                              </div>
-                              <p className={`mt-0.5 truncate text-[10px] ${active ? 'text-[#b4c8de]' : 'text-[#7a9ab8]'}`}>{t(b.roleKey)}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               </motion.div>
             );
           })()}
         </div>
       </Reveal>
-
-      <div className="landing-seam" aria-hidden="true" />
-
-      {/* Reverse marquee */}
-      <div className="relative z-10 border-y border-white/[0.04] bg-[#030508]/80" aria-hidden="true">
-        <Marquee reverse />
-      </div>
 
       <div className="landing-seam" aria-hidden="true" />
 
@@ -1909,7 +826,7 @@ const Landing: React.FC = () => {
             </div>
 
             {/* Trust */}
-            <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-[#0a1020]/80 to-[#060810]/80 p-7 sm:p-9">
+            <div className="rounded-[24px] border border-white/[0.06] bg-[#141817] p-7 sm:p-9">
               <p className="eyebrow-line text-[#96b0c8]">{t('landTrustLabel')}</p>
               <CredentialTrustList className="mt-6" />
             </div>
@@ -1962,8 +879,8 @@ const Landing: React.FC = () => {
                 ].map((point, i) => (
                   <motion.div
                     key={point}
-                    initial={{ opacity: 0, x: 14 }}
-                    whileInView={{ opacity: 1, x: 0 }}
+                    initial={reduceMotion ? false : { opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
                     viewport={{ once: true, amount: 0.3 }}
                     transition={{ duration: 0.5, delay: i * 0.08 }}
                     className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4 text-sm leading-relaxed text-[#b4c8de]"
@@ -2063,8 +980,7 @@ const Landing: React.FC = () => {
       <div className="relative z-10 border-y border-white/[0.05] bg-[#030508]/90 py-3.5">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-x-7 gap-y-2 px-5 text-[11px] sm:px-6 lg:px-10">
           <span className="inline-flex items-center gap-2 font-semibold text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 status-pulse" />
-            {t('landStatusOperational')}
+            InBharat AI · Independent deep-tech engineering
           </span>
           <span className="text-[#7a9ab8]">{supportedLanguages.length} Languages</span>
           <span className="text-[#7a9ab8]">{ALL_PRODUCTS.length} Products</span>
@@ -2129,11 +1045,12 @@ const Landing: React.FC = () => {
             <Link to="/privacy" className="transition-colors hover:text-white">{t('navPrivacy')}</Link>
             <Link to="/terms" className="transition-colors hover:text-white">{t('navTerms')}</Link>
             <Link to="/app" className="transition-colors hover:text-white">{t('landFooterInbharat')}</Link>
-            <span className="text-[#5a738f]">©  InBharat AI</span>
+            <span className="text-[#bac2b8]">©  InBharat AI</span>
           </div>
         </div>
       </footer>
     </div>
+    </MotionConfig>
   );
 };
 

@@ -1,0 +1,16 @@
+{
+  "description": "AI-generated conceptual engineering artwork; not actual hardware, telemetry or a product demo. Silent 8-second 3D-rendered video, with a static poster. Base64 sources keep release media in the same atomic text-tree commit; build verifies and materializes standard web assets.",
+  "created": "2026-09-07",
+  "assets": [
+    {
+      "filename": "hero-poster.webp",
+      "bytes": 27844,
+      "sha256": "ee868013826d079d2968e02b0197dc400a3c5a0fc9786037a6db240aa4eb55e9"
+    },
+    {
+      "filename": "hero-loop.mp4",
+      "bytes": 232654,
+      "sha256": "fd0a042f20f5ff5e537d3dc0d2c026865e73b30fde7ae0589bf99e359b4d2683"
+    }
+  ]
+}
