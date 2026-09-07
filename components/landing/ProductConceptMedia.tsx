@@ -16,14 +16,12 @@ export function ProductConceptMedia({ id, label }: { id: 'silt' | 'pai'; label: 
   const [frameReady, setFrameReady] = useState(false);
 
   useEffect(() => {
-    const mobile = matchMedia('(max-width: 767px)');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const connection = (navigator as Navigator & { connection?: Connection }).connection;
     const update = () => setPolicy({ ready: true, reduced: reduced.matches,
-      automatic: !mobile.matches && !connection?.saveData, saveData: !!connection?.saveData });
+      automatic: !connection?.saveData, saveData: !!connection?.saveData });
     const visibility = () => setHidden(document.hidden);
     update();
-    mobile.addEventListener('change', update);
     reduced.addEventListener('change', update);
     connection?.addEventListener('change', update);
     document.addEventListener('visibilitychange', visibility);
@@ -32,7 +30,6 @@ export function ProductConceptMedia({ id, label }: { id: 'silt' | 'pai'; label: 
     if (card) observer.observe(card);
     return () => {
       observer.disconnect();
-      mobile.removeEventListener('change', update);
       reduced.removeEventListener('change', update);
       connection?.removeEventListener('change', update);
       document.removeEventListener('visibilitychange', visibility);

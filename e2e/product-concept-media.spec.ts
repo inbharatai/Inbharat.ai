@@ -38,11 +38,8 @@ for (const width of [1440, 390, 320]) {
     await expect(page.locator(`${cards} video[src]`)).toHaveCount(0);
     await enter(page);
     const first = page.locator(cards).first();
-    if (width < 768) {
-      await expect(page.locator(`${cards} video[src]`)).toHaveCount(0);
-      expect(videoRequests).toEqual([]);
-      await expect(first.getByRole('button', { name: 'Play SILT concept animation' })).toBeVisible();
-    }
+    await expect(first.locator('video')).toHaveAttribute('src', '/product-concepts/silt.mp4');
+    await expect.poll(() => first.locator('video').evaluate(v => (v as HTMLVideoElement).currentTime)).toBeGreaterThan(0.1);
     const stage = first.locator('.product-concept-stage');
     await expect(stage).toHaveCSS('top', width < 768 ? '106px' : '84px');
     await expect(stage).toHaveCSS('right', width < 768 ? '9px' : '18px');
@@ -125,20 +122,34 @@ test('native local clips decode/play; user pause survives scrolling; offscreen a
   await expect.poll(() => page.locator(`${cards} video`).evaluateAll(vs => vs.every(v => (v as HTMLVideoElement).paused))).toBeTruthy();
 });
 
-test('mobile native playback requires explicit opt-in', async ({ page }) => {
+test('mobile clips autoplay muted in-view, repeat, and preserve explicit user pause', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 1000 });
-  await page.goto('/'); await enter(page);
-  const first = page.locator(cards).first();
-  await expect(first.locator('video')).not.toHaveAttribute('src');
-  const before = await geometry(page);
-  await first.getByRole('button', { name: 'Play SILT concept animation' }).click();
-  await expect.poll(() => first.locator('video').evaluate(v => (v as HTMLVideoElement).currentTime)).toBeGreaterThan(0.1);
-  expect(await geometry(page)).toEqual(before);
+  await page.goto('/');
+  await expect(page.locator(`${cards} video[src]`)).toHaveCount(0);
+  for (const index of [0, 1]) {
+    const card = page.locator(cards).nth(index);
+    await card.scrollIntoViewIfNeeded();
+    const video = card.locator('video');
+    // No Play click: native time advancement proves muted autoplay.
+    await expect.poll(() => video.evaluate(v => (v as HTMLVideoElement).currentTime)).toBeGreaterThan(0.1);
+    expect(await video.evaluate(v => ({ muted: (v as HTMLVideoElement).muted, inline: (v as HTMLVideoElement).playsInline, loop: (v as HTMLVideoElement).loop }))).toEqual({ muted: true, inline: true, loop: true });
+    await video.evaluate(v => { const media = v as HTMLVideoElement; media.currentTime = media.duration - 0.2; });
+    await expect.poll(() => video.evaluate(v => (v as HTMLVideoElement).currentTime)).toBeLessThan(2);
+    await expect(card.getByRole('button', { name: /^Pause / })).toBeVisible();
+    await card.getByRole('button', { name: /^Pause / }).click();
+    await page.locator('header#main-content').scrollIntoViewIfNeeded();
+    await expect.poll(() => page.locator(`${cards} video`).evaluateAll(vs => vs.every(v => (v as HTMLVideoElement).paused))).toBeTruthy();
+    await card.scrollIntoViewIfNeeded();
+    expect(await video.evaluate(v => (v as HTMLVideoElement).paused)).toBeTruthy();
+    await card.getByRole('button', { name: /^Play / }).click();
+    await expect.poll(() => video.evaluate(v => (v as HTMLVideoElement).paused)).toBeFalsy();
+  }
 });
 
 for (const mode of ['reduce', 'saveData'] as const) {
-  test(`${mode} stays static without video requests`, async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 1000 });
+  for (const width of [390, 1440]) {
+  test(`${mode} stays static without video requests at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
     if (mode === 'reduce') await page.emulateMedia({ reducedMotion: 'reduce' });
     else await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { configurable: true, value: Object.assign(new EventTarget(), { saveData: true }) }));
     const requests: string[] = [];
@@ -149,6 +160,7 @@ for (const mode of ['reduce', 'saveData'] as const) {
     if (mode === 'reduce') await expect(page.locator('.product-concept-note button')).toHaveCount(0);
     else await expect(page.getByRole('button', { name: 'Play SILT concept animation (loads video)' })).toBeVisible();
   });
+  }
 }
 
 test('failed video remains a labelled poster with no misleading playback control', async ({ page }) => {
@@ -162,12 +174,14 @@ test('failed video remains a labelled poster with no misleading playback control
   await expect(first.getByText('Concept animation · not actual hardware or a demonstration.')).toBeVisible();
 });
 
-test('autoplay rejection exposes deliberate Play (policy test only, not playback evidence)', async ({ page }) => {
-  await page.addInitScript(() => { HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('NotAllowed', 'NotAllowedError')); });
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/'); await enter(page);
-  await expect(page.getByRole('button', { name: 'Play SILT concept animation' })).toBeVisible();
-});
+for (const width of [390, 1440]) {
+  test(`autoplay rejection exposes deliberate Play at ${width}px (policy stub, not playback evidence)`, async ({ page }) => {
+    await page.addInitScript(() => { HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('NotAllowed', 'NotAllowedError')); });
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/'); await enter(page);
+    await expect(page.getByRole('button', { name: 'Play SILT concept animation' })).toBeVisible();
+  });
+}
 
 test('original entry and section anchors remain present; route unmount removes media', async ({ page }) => {
   await page.goto('/');

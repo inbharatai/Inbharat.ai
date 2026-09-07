@@ -6,7 +6,7 @@ The SILT and Pocket AI cards retain the existing InBharat layout and use the own
 - PAI holds canonical models, runtimes, identity and encrypted state on the removable drive. Computation runs on a compatible host after assessment and asset verification; the drive is not presented as a compute accelerator.
 - Media does not replace textual descriptions, navigation, patent notices or buttons.
 - A glyph-line and control mask keeps the added imagery away from reading and interaction areas. Invalid/loading masks keep decoration hidden.
-- Desktop playback is muted and admitted only when the card enters view. Mobile defaults to a poster with explicit Play. Reduced-motion stays static; Save-Data requires explicit playback. Offscreen/hidden tabs pause. Failed media retains the poster.
+- Desktop and mobile playback is muted, inline and looping, admitted only when the card enters view. Reduced-motion stays static; Save-Data requires explicit playback. Offscreen/hidden tabs pause, and an explicit user pause survives scrolling away and back. If the browser blocks autoplay (for example under an OS power-saving policy), the poster remains with a Play control. Failed media retains the poster. Autoplay is conditional, never guaranteed against browser policy.
 
 ## Source and build
 
