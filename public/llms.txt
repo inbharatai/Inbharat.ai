@@ -29,19 +29,17 @@ Government of India).
 
 - [Home](https://www.inbharat.ai/): the product ecosystem and what InBharat builds.
 - [About](https://www.inbharat.ai/about): who InBharat is and how it works.
-- [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj):
-  founder-led, jargon-free articles on AI agents, RAG, context engineering,
-  evals, local-first AI, vibe coding and DevSecOps — written for Bharat.
+- [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj): founder-led practical AI articles for Bharat.
 - [Contact](https://www.inbharat.ai/contact): how to reach the team.
 
 ## Products
 
-- KathaKitaab — AI storytelling and interactive learning: https://www.kathakitaab.com
-- JAK Swarm — agentic automation and multi-agent orchestration: https://jakswarm.com
-- UniAssist.ai — AI guidance for students and study-abroad: https://www.uniassist.ai
-- TestsPrep — AI-powered test preparation: https://testsprep.in
-- Sahayaak Seva — AI healthcare and field-assistance workflows: https://sahayaakseva.in
-- OpenClawFix — developer tooling: https://openclawfix.pro
+- [KathaKitaab](https://www.kathakitaab.com): AI storytelling and interactive learning.
+- [JAK Swarm](https://jakswarm.com): agentic automation and multi-agent orchestration.
+- [UniAssist.ai](https://www.uniassist.ai): AI guidance for students and study-abroad.
+- [TestsPrep](https://testsprep.in): AI-powered test preparation.
+- [Sahayaak Seva](https://sahayaakseva.in): AI healthcare and field-assistance workflows.
+- [OpenClawFix](https://openclawfix.pro): developer tooling.
 
 ## Notes for AI crawlers
 

@@ -26,6 +26,7 @@ export type SiteLike = {
 
 /** Minimal shape of the founder Person object from seo.config. */
 export type PersonLike = {
+  '@id'?: string;
   '@type': string;
   name: string;
   url: string;
@@ -46,17 +47,20 @@ export function buildTechArticle(
     description: meta.description,
     abstract: meta.abstract,
     url,
+    mainEntityOfPage: url,
     image: site.url + articleVisualPath(meta),
     datePublished: meta.datePublished,
     dateModified: meta.datePublished,
     inLanguage: 'en',
     author: {
+      '@id': author['@id'],
       '@type': 'Person',
       name: author.name,
       url: author.url,
       sameAs: author.sameAs,
     },
     publisher: {
+      '@id': `${site.url}/#organization`,
       '@type': 'Organization',
       name: site.name,
       url: site.url,

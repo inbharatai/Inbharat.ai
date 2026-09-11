@@ -131,8 +131,13 @@ const ORG_SAMEAS = [
   'https://github.com/inbharatai/PAI.V2',
 ];
 
+const ORGANIZATION_ID = `${SITE.url}/#organization`;
+const FOUNDER_ID = `${SITE.url}/#founder-reeturaj-goswami`;
+const WEBSITE_ID = `${SITE.url}/#website`;
+
 const baseOrganization = {
   '@context': 'https://schema.org',
+  '@id': ORGANIZATION_ID,
   '@type': 'Organization',
   name: SITE.name,
   alternateName: SITE.shortName,
@@ -169,6 +174,7 @@ const baseOrganization = {
   hasCredential: credentialSchemaNodes('org'),
   award: awardStrings('org'),
   founder: {
+    '@id': FOUNDER_ID,
     '@type': 'Person',
     name: 'Reeturaj Goswami',
     url: `${SITE.url}/learn-ai-with-reeturaj`,
@@ -187,10 +193,11 @@ const baseOrganization = {
  */
 const baseFounder = {
   '@context': 'https://schema.org',
+  '@id': FOUNDER_ID,
   '@type': 'Person',
   name: 'Reeturaj Goswami',
   jobTitle: 'Founder & Builder',
-  worksFor: { '@type': 'Organization', name: SITE.name, url: SITE.url },
+  worksFor: { '@id': ORGANIZATION_ID, '@type': 'Organization', name: SITE.name, url: SITE.url },
   url: `${SITE.url}/learn-ai-with-reeturaj`,
   image: `${SITE.url}/reeturaj-founder.jpg`,
   sameAs: [SITE.social.linkedin].filter(Boolean),
@@ -200,6 +207,7 @@ const baseFounder = {
 
 const baseWebsite = {
   '@context': 'https://schema.org',
+  '@id': WEBSITE_ID,
   '@type': 'WebSite',
   name: SITE.name,
   url: SITE.url,
@@ -294,6 +302,7 @@ const softwareApplication = {
   description:
     'Voice-first agentic AI for Bharat. Research, coding, education, executive, and shopper modes with multi-language support.',
   publisher: {
+    '@id': ORGANIZATION_ID,
     '@type': 'Organization',
     name: SITE.name,
     url: SITE.url,
@@ -310,15 +319,17 @@ const softwareApplication = {
 // client-side JSON-LD (kept in sync with the baked shell schema).
 export const founderPerson = {
   '@context': 'https://schema.org',
+  '@id': FOUNDER_ID,
   '@type': 'Person',
   name: 'Reeturaj Goswami',
-  url: SITE.url + '/about',
+  url: SITE.url + '/learn-ai-with-reeturaj',
   worksFor: {
+    '@id': ORGANIZATION_ID,
     '@type': 'Organization',
     name: SITE.name,
     url: SITE.url,
   },
-  sameAs: ORG_SAMEAS,
+  sameAs: [SITE.social.linkedin],
 };
 
 /**
@@ -544,14 +555,17 @@ const founderLearningPage = {
     'Founder-led practical AI learning hub from Reeturaj Goswami with build logs, videos, workshops, and implementation lessons from real products.',
   url: SITE.url + '/learn-ai-with-reeturaj',
   about: {
+    '@id': FOUNDER_ID,
     '@type': 'Person',
     name: 'Reeturaj Goswami',
+    url: SITE.url + '/learn-ai-with-reeturaj',
     worksFor: {
+      '@id': ORGANIZATION_ID,
       '@type': 'Organization',
       name: SITE.name,
       url: SITE.url,
     },
-    sameAs: ORG_SAMEAS,
+    sameAs: [SITE.social.linkedin],
   },
 };
 

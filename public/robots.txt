@@ -9,38 +9,58 @@
 # ── OpenAI ChatGPT / Search ──
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: GPTBot
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Perplexity ──
 User-agent: PerplexityBot
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: Perplexity-User
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Anthropic Claude ──
 User-agent: ClaudeBot
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 User-agent: anthropic-ai
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Google AI (separate from Googlebot search) ──
 User-agent: Google-Extended
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Common Crawl (powers many open-source models) ──
 User-agent: CCBot
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Apple AI ──
 User-agent: Applebot-Extended
 Allow: /
+Disallow: /api/
+Disallow: /admin/
 
 # ── Default for everything else (Googlebot, Bingbot, etc.) ──
 User-agent: *
