@@ -648,7 +648,8 @@ const PRIVATE_AI_ROUTES: SeoRoute[] = PRIVATE_AI_PAGES.map(page=>({
   extraSchema:[
     breadcrumb(page.name,page.path),
     {'@context':'https://schema.org','@type':page.path==='/technology'?'WebPage':page.path==='/enterprise-ai'?'Service':'SoftwareApplication',
-     name:page.name,url:SITE.url+page.path,description:page.description}
+     name:page.name,url:SITE.url+page.path,description:page.description,
+     ...(page.path.startsWith('/unoone') ? {applicationCategory:'ProductivityApplication'} : {})}
   ],
   seoBody:{h1:page.h1,paragraphs:[page.description,page.audience,...page.features.map(x=>x.title+': '+x.body),...page.sections.map(x=>x.title+': '+x.body),...page.faqs.map(x=>x.q+' '+x.a),page.status]}
 }));
@@ -674,6 +675,7 @@ export const ROUTES: SeoRoute[] = [
         'Power and Mobile share a vision of one personal agent across separate encrypted device stores. Current desktop and physical-device integration qualification is pending, so feature availability is confirmed per pilot.',
         'JAK Shield is a deterministic agent policy and execution-control gateway with tool approvals, risk gates, redaction and audit. JAK Swarm focuses on orchestrated autonomous work and evidence.',
         'SILT explores trust-gated skill transfer and measured hardware-aware AI. Earlier portable pen-drive AI work remains research history but is no longer the flagship product.',
+        'Patent Pending research filings: SILT Indian application 202631101454, and historical portable AI application 202631102427. The pen-drive product is discontinued, and a patent filing does not establish UnoOne production readiness.',
         'Explore UnoOne at /unoone, Power at /unoone/power, Mobile at /unoone/mobile, enterprise tools at /enterprise-ai and private AI research at /technology.'
       ],
     },
@@ -706,6 +708,7 @@ export const ROUTES: SeoRoute[] = [
       paragraphs: [
         'InBharat.ai builds local-first personal agents, controlled enterprise AI and measured trust-gated AI research.',
         'UnoOne Power and Mobile are current private AI priorities. The old portable-drive AI product has been discontinued; patent and research history remains historical.',
+        'Patent Pending research filings: SILT Indian application 202631101454, and historical portable AI application 202631102427. The pen-drive product is discontinued, and a patent filing does not establish UnoOne production readiness.',
         'Deployment and release availability depend on qualified builds and owner-approved integrations.'
       ]
     },

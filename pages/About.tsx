@@ -41,7 +41,7 @@ const About: React.FC = () => (
       </div>
     </section>
 
-    <p className="text-sm text-[#96b0c8]">Earlier removable-drive AI work remains part of our documented patent and engineering history. The pen-drive product is discontinued, and UnoOne Power and Mobile do not require it.</p>
+    <p className="text-sm text-[#96b0c8]">Patent Pending research: SILT Indian application 202631101454 and historical portable AI application 202631102427. These are filing records, not production certifications. The pen-drive product is discontinued, and UnoOne Power and Mobile do not require it.</p>
     <section>
       <h2 className="text-xl font-bold text-white">What we&apos;ve built</h2>
       <p>Our flagship private personal AI is <Link to="/unoone" className="text-[#f59f4f] hover:underline">UnoOne</Link>, spanning Power for desktop and Mobile for Android. For organisations, <Link to="/enterprise-ai" className="text-[#f59f4f] hover:underline">JAK Swarm and JAK Shield</Link> focus on approvals, audit trails and safe agent execution. The <Link to="/app" className="text-[#f59f4f] hover:underline">InBharat AI Console</Link> and other applied products remain available. Our public descriptions distinguish development prototypes from tested releases.
