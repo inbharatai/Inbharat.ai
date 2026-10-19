@@ -55,12 +55,12 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
   },
   {
     id: 'pai',
-    name: 'Pocket AI',
+    name: 'Pocket AI — Historical Research',
     shortName: 'PAI',
     category: 'Foundational Deep Tech',
-    tagline: 'Private AI You Can Carry',
+    tagline: 'Discontinued pen-drive product · historic research',
     description:
-      'A portable, host-adaptive private AI system whose removable drive holds the canonical models, runtimes, identity and encrypted vault. A compatible host assesses its capabilities, verifies the required assets and launches an appropriate local model/runtime. The host computes; the drive remains the authoritative store.',
+      'Historical research into a portable host-adaptive AI system with removable device-resident state. The pen-drive product has been discontinued; UnoOne Power and Mobile do not require removable-drive hardware.',
     patentStatus: 'Patent Pending',
     jurisdiction: 'India',
     applicationNo: '202631102427',
