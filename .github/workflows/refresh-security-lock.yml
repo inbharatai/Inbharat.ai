@@ -1,0 +1,53 @@
+name: Refresh patched dependency lockfile
+# Owner-controlled maintenance: triggers only when package.json changes.
+# Never disables npm audit. Commits a lockfile only after lint, growth tests
+# and production security build all pass with the patched dependency graph.
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - .github/workflows/refresh-security-lock.yml
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve lockfile without running install scripts
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+      - name: Install resolved dependency graph
+        run: npm ci
+      - name: Verify ESLint, TypeScript, secret checks and SEO contract
+        run: npm run lint
+      - name: Verify Growth Agent tests
+        run: npm run test:growth
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
+      - name: Verify security audit and production build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
+      - name: Verify built SEO and crawl contract
+        run: |
+          npm run audit:seo
+          npm run audit:shell
+      - name: Commit lockfile only if checks pass
+        run: |
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name "inbharat-ci"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "fix(deps): refresh lockfile to patched audited versions"
+            git push origin HEAD:main
+          else
+            echo "Lockfile already up to date"
+          fi
