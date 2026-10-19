@@ -207,6 +207,36 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- The root is initially empty. If the app module never executes, offer
+         a visible, shloka-preserving recovery page instead of a black screen.
+         No content is inserted if React has already mounted. -->
+    <script>
+      (function () {
+        window.setTimeout(function () {
+          var root = document.getElementById('root');
+          if (!root || root.firstElementChild) return;
+          root.innerHTML = [
+            '<main id="inbharat-boot-fallback" style="min-height:100vh;background:#030508;color:#e6ecf5;display:flex;align-items:center;justify-content:center;padding:32px;text-align:center;font-family:system-ui,sans-serif">',
+            '<div style="max-width:640px">',
+            '<a href="/" style="color:#f59f4f;font-weight:700;text-decoration:none;font-size:18px">InBharat.ai</a>',
+            '<p lang="sa" style="font-size:18px;line-height:2;margin-top:28px">कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।<br>मा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥</p>',
+            '<h1 style="font-size:28px;margin:28px 0 12px">The website is having trouble loading.</h1>',
+            '<p style="color:#a8bfd4;line-height:1.7">Please retry. The website and product information will be available as soon as the application loads.</p>',
+            '<a id="inbharat-retry" href="/" style="display:inline-block;margin-top:24px;background:#f59f4f;color:#030508;padding:12px 24px;border-radius:30px;font-weight:700;text-decoration:none">Retry website</a>',
+            '<p style="margin-top:22px"><a href="/contact" style="color:#a8bfd4">Contact us</a></p>',
+            '</div></main>'
+          ].join('');
+          var retry = document.getElementById('inbharat-retry');
+          retry.addEventListener('click', function (event) {
+            event.preventDefault();
+            var url = new URL(location.href);
+            url.searchParams.set('__recover', String(Date.now()));
+            location.assign(url.pathname + url.search);
+          });
+          console.warn('[InBharat] React did not mount within 5 seconds; recovery view shown.');
+        }, 5000);
+      })();
+    </script>
     <script type="module" src="/index.tsx"></script>
     <!-- Self-heal for stale carrier-proxy HTML. If a mobile carrier proxy serves
          a pre-deploy index.html whose hashed app module (/assets/index-<oldhash>.js)

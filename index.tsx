@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import App from './App.tsx';
+import AppRuntimeBoundary from './components/AppRuntimeBoundary';
 import Landing from './pages/Landing.tsx';
 import './index.css';
 import './lib/i18n';
@@ -9,7 +9,10 @@ import { AuthProvider } from './lib/auth.tsx';
 import { trackPageView } from './lib/analytics';
 import { useDocumentHead } from './lib/useDocumentHead';
 
+// Keep the large AI console isolated from public landing startup.
+const App = lazy(() => import('./App.tsx'));
 const About = lazy(() => import('./pages/About.tsx'));
+
 const PrivateAIPage = lazy(() => import('./pages/PrivateAIPage.tsx'));
 const Contact = lazy(() => import('./pages/Contact.tsx'));
 const Privacy = lazy(() => import('./pages/Privacy.tsx'));
@@ -103,6 +106,7 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
+    <AppRuntimeBoundary>
     <AuthProvider>
       <BrowserRouter>
         <RouteEffects />
@@ -131,5 +135,6 @@ root.render(
         </Suspense>
       </BrowserRouter>
     </AuthProvider>
+    </AppRuntimeBoundary>
   </React.StrictMode>,
 );
