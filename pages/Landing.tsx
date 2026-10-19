@@ -1022,9 +1022,9 @@ const Landing: React.FC = () => {
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
-      { href: '#deep-tech', label: t('landNavDeepTech') },
-      { href: '#jakswarm', label: t('landNavSystems') },
-      { href: '#products', label: t('landNavProducts') },
+      { href: '/unoone', label: 'UnoOne', route: '/unoone' },
+      { href: '/enterprise-ai', label: 'Enterprise AI', route: '/enterprise-ai' },
+      { href: '/technology', label: 'Technology', route: '/technology' },
       { href: '#mission', label: t('landNavMission') },
       { href: '#about', label: t('landNavAbout'), route: '/about' },
       // Contact routes to the dedicated /contact page (like the footer link),
@@ -1363,8 +1363,8 @@ const Landing: React.FC = () => {
               transition={{ duration: 0.7, delay: 0.7, ease }}
             >
               <Link
-                to="/app"
-                onClick={() => trackEvent('cta_hero_try_app')}
+                to="/unoone"
+                onClick={() => trackEvent('cta_hero_unoone')}
                 className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
               >
                 {t('landHeroCta1')}
@@ -1411,6 +1411,27 @@ const Landing: React.FC = () => {
         <Marquee />
       </div>
 
+      {/* ═══════════════ UNOONE FLAGSHIP (original Bhagavad Gita shloka untouched) ═══════════════ */}
+      <section id="private-ai" className="relative z-10 border-b border-white/10 bg-[#030508] py-20 sm:py-28" aria-labelledby="private-ai-heading">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+          <p className="text-xs font-semibold uppercase tracking-[.25em] text-[#f59f4f]">One foundation. Private AI, your way.</p>
+          <h2 id="private-ai-heading" className="mt-4 max-w-4xl text-4xl font-bold leading-tight text-white sm:text-5xl">Private intelligence for real life and real work.</h2>
+          <p className="mt-5 max-w-3xl text-base leading-8 text-[#9aafc6]">UnoOne helps define the next chapter of personal AI: one agent vision spanning computer and Android. For organisations, JAK provides controlled workflows and agent security. Explore what is built, what is being tested and how to join a pilot.</p>
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {[{number:'01',name:'UnoOne Power',desc:'Local-first desktop AI for files, research, coding and controlled task workflows.',path:'/unoone/power',status:'Desktop development'},
+              {number:'02',name:'UnoOne Mobile',desc:'An Android personal assistant with native permissions, local speech and verified action evidence.',path:'/unoone/mobile',status:'Android alpha'},
+              {number:'03',name:'Enterprise AI',desc:'JAK Swarm and JAK Shield for risk-gated autonomous work and auditable tool actions.',path:'/enterprise-ai',status:'Controlled testing'}].map(item=>(
+              <Link key={item.path} to={item.path} className="group flex min-h-[280px] flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-[#101a20] to-[#070b10] p-7 hover:border-[#f59f4f]/50">
+                <span className="text-xs font-mono tracking-widest text-[#f59f4f]">{item.number} / PRIVATE AI</span>
+                <h3 className="mt-9 text-2xl font-bold text-white">{item.name}</h3>
+                <p className="mt-4 text-sm leading-7 text-[#b4c8de]">{item.desc}</p>
+                <div className="mt-auto flex items-center justify-between pt-6"><span className="text-xs text-[#8ca6ba]">{item.status}</span><ArrowRight size={20} className="text-[#f59f4f] transition-transform group-hover:translate-x-1"/></div>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-6 text-xs text-[#8ca6ba]">Current qualification varies by product. UnoOne Power and Mobile do not require a pen drive.</p>
+        </div>
+      </section>
       {/* ═══════════════ ECOSYSTEM ═══════════════ */}
       <Reveal id="ecosystem" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">

@@ -10,6 +10,7 @@ import { trackPageView } from './lib/analytics';
 import { useDocumentHead } from './lib/useDocumentHead';
 
 const About = lazy(() => import('./pages/About.tsx'));
+const PrivateAIPage = lazy(() => import('./pages/PrivateAIPage.tsx'));
 const Contact = lazy(() => import('./pages/Contact.tsx'));
 const Privacy = lazy(() => import('./pages/Privacy.tsx'));
 const Terms = lazy(() => import('./pages/Terms.tsx'));
@@ -110,6 +111,7 @@ root.render(
             <Route path="/" element={<Landing />} />
             <Route path="/app" element={<App />} />
             <Route path="/about" element={<About />} />
+            {["/unoone","/unoone/power","/unoone/mobile","/enterprise-ai","/technology"].map(path=><Route key={path} path={path} element={<PrivateAIPage />} />)}
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
