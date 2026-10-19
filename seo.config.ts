@@ -145,7 +145,7 @@ const baseOrganization = {
   url: SITE.url,
   logo: `${SITE.url}/inbharat-logo-1024.png`,
   description:
-    'Deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including trust-gated learning, portable private intelligence, agent security, and hardware-aware AI. Patent pending in India. Engineered in Bharat for the world.',
+    'Private AI infrastructure company developing UnoOne Power and UnoOne Mobile, local-first AI agents for computers and phones, alongside JAK Swarm, JAK Shield and SILT research. Engineered in Bharat for the world.',
   areaServed: 'IN',
   sameAs: ORG_SAMEAS,
   contactPoint: {
