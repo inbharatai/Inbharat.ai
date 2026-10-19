@@ -8,6 +8,7 @@ on:
     paths:
       - package.json
       - seo.config.ts
+      - scripts/verify-shell-crawl.ts
       - .github/workflows/refresh-security-lock.yml
 jobs:
   refresh:
