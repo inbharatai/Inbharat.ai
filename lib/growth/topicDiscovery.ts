@@ -37,21 +37,23 @@ interface ProductTemplate {
 /** Founder-authored high-intent query templates per product. Transactional /
  *  comparison / "best AI tool for" intents surface buyer-stage demand. */
 const PRODUCT_TEMPLATES: ProductTemplate[] = [
-  { product: "inbharat", label: "Private AI infrastructure", queries: [
-    "private AI agents for organisations", "self hosted AI assistant for business", "local AI infrastructure",
-    "AI agent approval and audit trail", "local-first AI for small companies",
-  ]},  { product: "sahayaak-seva", label: "Sahayaak Seva healthcare", queries: [
+  { product: "inbharat", label: "InBharat AI studio", queries: [
+    "best AI tool for Indian startups", "agentic AI workflow for business", "MCP security for agents",
+    "AI governance for agents", "browser automation agent 2026", "AI for Indian startups build",
+  ]},
+  { product: "sahayaak-seva", label: "Sahayaak Seva healthcare", queries: [
     "AI for rural healthcare India", "healthcare documentation AI", "offline AI for clinics",
     "AI medical scribe India", "AI for community health workers",
   ]},
-  { product: "jak-shield", label: "JAK Shield secure agent gateway", queries: [
-    "AI agent tool security gateway", "MCP approval audit trail", "risk based AI agent action control",
-    "prompt injection tool execution defense", "AI agent tool approval",
-  ]},  { product: "unoone", label: "UnoOne Power and Mobile private AI", queries: [
-    "private AI assistant for Windows", "offline AI agent Android", "local desktop AI agent for files",
-    "private assistant sync between phone and computer", "local-first AI assistant for desktop",
-    "Android personal AI agent native permissions",
-  ]},  { product: "uniassist", label: "UniAssist study abroad", queries: [
+  { product: "jak-shield", label: "JAK Shield risk detection", queries: [
+    "deepfake detection for business", "AI risk detection tool", "tender scam detection AI",
+    "AI content safety classifier", "PII detection AI",
+  ]},
+  { product: "unoone", label: "UnoOne expert mode", queries: [
+    "AI expert mode assistant", "voice AI accessibility tool", "AI skills platform",
+    "multilingual AI assistant offline",
+  ]},
+  { product: "uniassist", label: "UniAssist study abroad", queries: [
     "study abroad AI assistant", "AI for university applications", "visa application AI assistant",
     "AI counselor for international students",
   ]},

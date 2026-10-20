@@ -22,7 +22,6 @@ import {
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
 import { deepTechById } from './content/deepTech.js';
-import { PRIVATE_AI_PAGES } from './content/privateAI.js';
 import { awardStrings, credentialSchemaNodes } from './content/credentials.js';
 import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
 
@@ -31,10 +30,10 @@ export const SITE = {
   // All sitemap <loc>, <link rel=canonical>, OG urls, and JSON-LD urls derive
   // from this — must be the www host so signals point at the canonical URL.
   url: 'https://www.inbharat.ai',
-  name: 'InBharat.ai',
+  name: 'InBharat AI',
   shortName: 'InBharat',
   description:
-    'InBharat.ai builds private AI agents for people and organisations, led by UnoOne Power and Mobile, JAK Swarm and JAK Shield, with local-first engineering research.',
+    'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Engineered in Bharat for the world.',
   themeColor: '#0d1117',
   ogImage: '/og-image.png',
   twitterCard: 'summary_large_image' as const,
@@ -145,7 +144,7 @@ const baseOrganization = {
   url: SITE.url,
   logo: `${SITE.url}/inbharat-logo-1024.png`,
   description:
-    'Private AI infrastructure company developing UnoOne Power and UnoOne Mobile, local-first AI agents for computers and phones, alongside JAK Swarm, JAK Shield and SILT research. Engineered in Bharat for the world.',
+    'Deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including trust-gated learning, portable private intelligence, agent security, and hardware-aware AI. Patent pending in India. Engineered in Bharat for the world.',
   areaServed: 'IN',
   sameAs: ORG_SAMEAS,
   contactPoint: {
@@ -247,7 +246,7 @@ const homepageFAQ = {
       name: 'What is InBharat AI?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'InBharat.ai develops UnoOne Power and Mobile as local-first personal AI agents, JAK Swarm and JAK Shield for controlled autonomous workflows, and trust-gated SILT research.',
+        text: 'InBharat AI is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India (applications 202631101454 and 202631102427).',
       },
     },
     {
@@ -642,22 +641,10 @@ const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
   },
 }));
 
-const PRIVATE_AI_ROUTES: SeoRoute[] = PRIVATE_AI_PAGES.map(page=>({
-  path:page.path,title:page.title,description:page.description,
-  priority:page.path==='/unoone'?0.95:0.85,changefreq:'monthly',multilingual:false,
-  extraSchema:[
-    breadcrumb(page.name,page.path),
-    {'@context':'https://schema.org','@type':page.path==='/technology'?'WebPage':page.path==='/enterprise-ai'?'Service':'SoftwareApplication',
-     name:page.name,url:SITE.url+page.path,description:page.description,
-     ...(page.path.startsWith('/unoone') ? {applicationCategory:'ProductivityApplication'} : {})}
-  ],
-  seoBody:{h1:page.h1,paragraphs:[page.description,page.audience,...page.features.map(x=>x.title+': '+x.body),...page.sections.map(x=>x.title+': '+x.body),...page.faqs.map(x=>x.q+' '+x.a),page.status]}
-}));
-
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
-    title: 'InBharat.ai | Private AI for People & Organisations',
+    title: 'InBharat.ai — Deep-Tech AI Infrastructure Built in Bharat',
     description: SITE.description,
     priority: 1.0,
     changefreq: 'weekly',
@@ -668,15 +655,20 @@ export const ROUTES: SeoRoute[] = [
     multilingual: false,
     extraSchema: [homepageFAQ, deepTechSuite, productSuite],
     seoBody: {
-      h1: 'Your AI. Your devices. Your control.',
+      // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
+      // "Building the Infrastructure for Private AI Beyond the Cloud.") so the crawler sr-only H1
+      // and the on-page H1 match exactly. Branding stays in <title>/OG.
+      h1: 'Building the Infrastructure for Private AI Beyond the Cloud',
       paragraphs: [
-        'InBharat.ai builds private AI agents for individuals and organisations. UnoOne Power is the desktop agent direction; UnoOne Mobile brings bounded assistance to Android; JAK Shield and JAK Swarm focus on controlled enterprise workflows.',
-        'UnoOne Power focuses on local-first inference, files, coding, research and permissioned computer tasks. UnoOne Mobile uses native-authorized Android actions and on-device components with verifiable action evidence.',
-        'Power and Mobile share a vision of one personal agent across separate encrypted device stores. Current desktop and physical-device integration qualification is pending, so feature availability is confirmed per pilot.',
-        'JAK Shield is a deterministic agent policy and execution-control gateway with tool approvals, risk gates, redaction and audit. JAK Swarm focuses on orchestrated autonomous work and evidence.',
-        'SILT explores trust-gated skill transfer and measured hardware-aware AI. Earlier portable pen-drive AI work remains research history but is no longer the flagship product.',
-        'Patent Pending research filings: SILT Indian application 202631101454, and historical portable AI application 202631102427. The pen-drive product is discontinued, and a patent filing does not establish UnoOne production readiness.',
-        'Explore UnoOne at /unoone, Power at /unoone/power, Mobile at /unoone/mobile, enterprise tools at /enterprise-ai and private AI research at /technology.'
+        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
+        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description}`,
+        'The InBharat product suite applies this deep-tech foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
+        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes across 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese. You can try it free on the web with a few messages before signing in — no credit card required.',
+        'InBharat.ai is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
+        'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The company favours open-source, self-hostable components so teams keep control of their data.',
+        'InBharat.ai is founded by Reeturaj Goswami, on a mission to make foundational AI infrastructure accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of deep-tech systems designed around how Bharat actually works.',
+        'Every InBharat tool is built India-first: designed for low-bandwidth networks, low-end Android phones, and the languages people actually speak — then open-sourced or self-hosted so teams keep full control of their data, their costs, and their models.',
+        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or research collaboration on SILT and Pocket AI.`,
       ],
     },
   },
@@ -699,21 +691,23 @@ export const ROUTES: SeoRoute[] = [
   },
   {
     path: '/about',
-    title: 'About InBharat.ai | Private AI Built in Bharat',
-    description: 'InBharat.ai develops UnoOne Power and Mobile, JAK agent security and foundational SILT research. Learn about its private AI mission.',
-    priority: 0.7, changefreq: 'monthly', multilingual: false,
-    extraSchema: [breadcrumb('About', '/about'), founderPerson],
+    title: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
+    description:
+      'InBharat.ai is a deep-tech AI company building foundational systems for trustworthy, private and local-first AI — including SILT and Pocket AI, both patent pending in India.',
+    priority: 0.7,
+    changefreq: 'monthly',
+    multilingual: false,
+    extraSchema: [breadcrumb('About', '/about'), deepTechSuite, founderPerson],
     seoBody: {
-      h1: 'About InBharat.ai — Building Private AI Infrastructure',
+      h1: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
       paragraphs: [
-        'InBharat.ai builds local-first personal agents, controlled enterprise AI and measured trust-gated AI research.',
-        'UnoOne Power and Mobile are current private AI priorities. The old portable-drive AI product has been discontinued; patent and research history remains historical.',
-        'Patent Pending research filings: SILT Indian application 202631101454, and historical portable AI application 202631102427. The pen-drive product is discontinued, and a patent filing does not establish UnoOne production readiness.',
-        'Deployment and release availability depend on qualified builds and owner-approved integrations.'
-      ]
+        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. The company is organised around three layers: foundational deep tech (SILT and Pocket AI), applied AI infrastructure (JAK Shield, JAK Swarm, UnoOne, and InBharat Audio), and practical products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).',
+        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description} Both technologies are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).`,
+        'InBharat.ai was founded by Reeturaj Goswami and is engineered in Bharat for the world. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation, while publishing open-source AI infrastructure so teams keep control of their data.',
+      ],
     },
   },
-    {
+  {
     path: '/learn-ai-with-reeturaj',
     title: 'Learn AI with Reeturaj Goswami — Founder-Led Practical AI | InBharat AI',
     description:
@@ -736,7 +730,6 @@ export const ROUTES: SeoRoute[] = [
       ],
     },
   },
-  ...PRIVATE_AI_ROUTES,
   // One route per "Build AI with Reeturaj" article (12 in Phase 1).
   ...ARTICLE_ROUTES,
   {

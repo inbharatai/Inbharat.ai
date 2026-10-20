@@ -84,7 +84,7 @@ export async function reloadRegistry(): Promise<void> {
       supabaseAdmin.from("growth_repo_registry").select("*"),
       supabaseAdmin.from("growth_authorized_assets").select("*"),
     ]);
-    if (reposRes.error || assetsRes.error) { registryCache = { assets: [], repos: [] }; return; }
+    if (reposRes.error || assetsRes.error) { registryCache = null; return; }
     const repos = (reposRes.data ?? []).map(mapRepoRow);
     const assets = (assetsRes.data ?? []).map(mapAssetRow);
     // Only adopt the DB view if it has rows; a freshly-migrated-but-unseeded DB
@@ -92,8 +92,7 @@ export async function reloadRegistry(): Promise<void> {
     if (repos.length === 0 && assets.length === 0) { registryCache = null; return; }
     registryCache = { assets, repos };
   } catch {
-    // Authorization must fail closed if the configured DB is inaccessible.
-    registryCache = { assets: [], repos: [] };
+    registryCache = null;
   }
 }
 
@@ -159,9 +158,7 @@ export function isDomainAuthorized(domainOrUrl: string): boolean {
 /** Is this repo authorized to be read by the agent? */
 export function isRepoAuthorized(repo: string): boolean {
   const r = findRepo(repo);
-  return !!r && r.allowAgentRead && r.sourceOfTruth !== "do_not_use" && (
-    repo === r.canonicalPrivateRepo || (repo === r.publicRepo && r.publicRepoStatus !== "do_not_use")
-  );
+  return !!r && r.allowAgentRead && r.publicRepoStatus !== "do_not_use";
 }
 
 /** Decide whether an action is permitted on an asset. Deny by default. */

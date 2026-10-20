@@ -32,11 +32,6 @@ export const ROUTE_LASTMOD_SOURCE: Record<string, string[]> = {
   // truthful lastmod source for /app.
   "/app": ["seo.config.ts"],
   "/about": ["pages/About.tsx", "seo.config.ts"],
-  "/unoone": ["content/privateAI.ts", "pages/PrivateAIPage.tsx", "seo.config.ts"],
-  "/unoone/power": ["content/privateAI.ts", "pages/PrivateAIPage.tsx", "seo.config.ts"],
-  "/unoone/mobile": ["content/privateAI.ts", "pages/PrivateAIPage.tsx", "seo.config.ts"],
-  "/enterprise-ai": ["content/privateAI.ts", "pages/PrivateAIPage.tsx", "seo.config.ts"],
-  "/technology": ["content/privateAI.ts", "pages/PrivateAIPage.tsx", "seo.config.ts"],
   // articles.meta.ts is a source for the hub so adding an article bumps the
   // hub lastmod (the baked article grid changes).
   "/learn-ai-with-reeturaj": [

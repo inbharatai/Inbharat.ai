@@ -1,30 +1,50 @@
 # InBharat AI
 
-> InBharat.ai builds local-first private AI for people and organisations.
-> Flagship product direction: UnoOne Power (desktop) and UnoOne Mobile (Android).
-> Enterprise systems: JAK Swarm and JAK Shield. Research: SILT.
+> InBharat is an independent AI product studio building affordable, voice-first,
+> multilingual AI tools for Bharat. Products span agentic search, coding
+> assistants, education, healthcare and business automation, working across 11
+> Indian languages: English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati,
+> Kannada, Malayalam, Odia and Assamese.
 
-Current product capabilities depend on tested builds and pilot access. The earlier Pocket AI pen-drive product has been discontinued. Patent filings are historical research, not proof of production readiness.
+Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP, a
+DPIIT-recognised startup (Artificial Intelligence & Machine Learning sector,
+Government of India).
+
+## Recognitions and programmes
+
+- DPIIT-Recognised Startup, AI & ML — Department for Promotion of Industry and
+  Internal Trade, Government of India. Held by Uni Guru Technologies LLP.
+- Stanford Seed Spark 2026 — Stanford Seed, Stanford Graduate School of Business.
+- OpenAI Partner Network — member, partner onboarding completed 2026.
+- Google Cloud Gen AI Academy, APAC Cohort 3 (2026) — Google Cloud.
+- Hyperagent Founding 500, founding member.
+- Sarvam Startup Program — Sarvam AI.
+- Google Developer Program: Premium tier; Gemini Enterprise Agent Ready badge;
+  5-Day AI Agents intensive.
+- Anthropic Education: Introduction to Model Context Protocol; AI Fluency for
+  Educators (both July 2026).
+- Microsoft Education: AI tools for educators modules.
 
 ## Key pages
 
-- [Home](https://www.inbharat.ai/): private AI ecosystem overview.
-- [UnoOne](https://www.inbharat.ai/unoone): private personal AI.
-- [UnoOne Power](https://www.inbharat.ai/unoone/power): desktop private AI.
-- [UnoOne Mobile](https://www.inbharat.ai/unoone/mobile): Android agent.
-- [Enterprise AI](https://www.inbharat.ai/enterprise-ai): controlled agent workflows.
-- [Technology](https://www.inbharat.ai/technology): SILT and local-first AI.
-- [About](https://www.inbharat.ai/about): company details.
-- [Contact](https://www.inbharat.ai/contact): pilots and partnerships.
-- [Learn AI](https://www.inbharat.ai/learn-ai-with-reeturaj): practical AI articles.
-- [InBharat Console](https://www.inbharat.ai/app): web-based AI console.
-- [JAK Swarm](https://jakswarm.com): enterprise agent workflows.
-- [KathaKitaab](https://www.kathakitaab.com): interactive stories.
-- [TestsPrep](https://testsprep.in): AI-supported learning.
+- [Home](https://www.inbharat.ai/): the product ecosystem and what InBharat builds.
+- [About](https://www.inbharat.ai/about): who InBharat is and how it works.
+- [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj): founder-led practical AI articles for Bharat.
+- [Contact](https://www.inbharat.ai/contact): how to reach the team.
 
-## Crawl
+## Products
 
-- [Sitemap](https://www.inbharat.ai/sitemap.xml): canonical pages.
-- [Robots](https://www.inbharat.ai/robots.txt): crawler policy.
+- [KathaKitaab](https://www.kathakitaab.com): AI storytelling and interactive learning.
+- [JAK Swarm](https://jakswarm.com): agentic automation and multi-agent orchestration.
+- [UniAssist.ai](https://www.uniassist.ai): AI guidance for students and study-abroad.
+- [TestsPrep](https://testsprep.in): AI-powered test preparation.
+- [Sahayaak Seva](https://sahayaakseva.in): AI healthcare and field-assistance workflows.
+- [OpenClawFix](https://openclawfix.pro): developer tooling.
 
-This file does not guarantee search ranking or AI citations.
+## Notes for AI crawlers
+
+- All public pages are crawlable; see https://www.inbharat.ai/robots.txt.
+- Canonical host is https://www.inbharat.ai (the apex redirects here).
+- Full article text is present in the served HTML, so pages can be read without
+  executing JavaScript.
+- Sitemap: https://www.inbharat.ai/sitemap.xml

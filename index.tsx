@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import AppRuntimeBoundary from './components/AppRuntimeBoundary';
+import App from './App.tsx';
 import Landing from './pages/Landing.tsx';
 import './index.css';
 import './lib/i18n';
@@ -9,11 +9,7 @@ import { AuthProvider } from './lib/auth.tsx';
 import { trackPageView } from './lib/analytics';
 import { useDocumentHead } from './lib/useDocumentHead';
 
-// Keep the large AI console isolated from public landing startup.
-const App = lazy(() => import('./App.tsx'));
 const About = lazy(() => import('./pages/About.tsx'));
-
-const PrivateAIPage = lazy(() => import('./pages/PrivateAIPage.tsx'));
 const Contact = lazy(() => import('./pages/Contact.tsx'));
 const Privacy = lazy(() => import('./pages/Privacy.tsx'));
 const Terms = lazy(() => import('./pages/Terms.tsx'));
@@ -106,7 +102,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AppRuntimeBoundary>
     <AuthProvider>
       <BrowserRouter>
         <RouteEffects />
@@ -115,7 +110,6 @@ root.render(
             <Route path="/" element={<Landing />} />
             <Route path="/app" element={<App />} />
             <Route path="/about" element={<About />} />
-            {["/unoone","/unoone/power","/unoone/mobile","/enterprise-ai","/technology"].map(path=><Route key={path} path={path} element={<PrivateAIPage />} />)}
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
@@ -135,6 +129,5 @@ root.render(
         </Suspense>
       </BrowserRouter>
     </AuthProvider>
-    </AppRuntimeBoundary>
   </React.StrictMode>,
 );

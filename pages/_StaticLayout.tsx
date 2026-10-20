@@ -154,11 +154,6 @@ const StaticLayout: React.FC<Props> = ({ title, description, eyebrow, updated, c
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-[#7a9ab8]">
             <Link to="/" className="transition-colors hover:text-white">Home</Link>
             <Link to="/about" className="transition-colors hover:text-white">About</Link>
-            <Link to="/unoone" className="transition-colors hover:text-white">UnoOne</Link>
-            <Link to="/unoone/power" className="transition-colors hover:text-white">Power</Link>
-            <Link to="/unoone/mobile" className="transition-colors hover:text-white">Mobile</Link>
-            <Link to="/enterprise-ai" className="transition-colors hover:text-white">Enterprise</Link>
-            <Link to="/technology" className="transition-colors hover:text-white">Technology</Link>
             <Link to="/contact" className="transition-colors hover:text-white">Contact</Link>
             <Link to="/privacy" className="transition-colors hover:text-white">Privacy</Link>
             <Link to="/terms" className="transition-colors hover:text-white">Terms</Link>
