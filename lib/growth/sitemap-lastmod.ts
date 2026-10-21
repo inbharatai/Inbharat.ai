@@ -42,6 +42,21 @@ export const ROUTE_LASTMOD_SOURCE: Record<string, string[]> = {
   "/contact": ["pages/Contact.tsx", "seo.config.ts"],
   "/privacy": ["pages/Privacy.tsx", "seo.config.ts"],
   "/terms": ["pages/Terms.tsx", "seo.config.ts"],
+  // Private-AI/UnoOne suite: claim content and crawlable shells are authored in
+  // content/privateAI.ts; the page views and the device composition live in
+  // pages/unoone/ and components/landing/.
+  "/private-ai": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/unoone": [
+    "content/privateAI.ts",
+    "pages/unoone/UnoOnePages.tsx",
+    "components/landing/UnoOneDevices.tsx",
+    "seo.config.ts",
+  ],
+  "/unoone/power": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/unoone/mobile": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/unoone/sync": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/enterprise-ai": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/technology": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
