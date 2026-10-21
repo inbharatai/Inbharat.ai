@@ -22,6 +22,7 @@ import {
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
 import { deepTechById } from './content/deepTech.js';
+import { UNOONE_PAGES, type PrivateAiPage } from './content/privateAI.js';
 import { awardStrings, credentialSchemaNodes } from './content/credentials.js';
 import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
 
@@ -33,7 +34,7 @@ export const SITE = {
   name: 'InBharat AI',
   shortName: 'InBharat',
   description:
-    'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Engineered in Bharat for the world.',
+    'InBharat.ai is a deep-tech artificial intelligence company building private agentic AI for a private world. Its flagship is PAI — one personal private AI agent — implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Research includes SILT, patent pending in India. Engineered in Bharat for the world.',
   themeColor: '#0d1117',
   ogImage: '/og-image.png',
   twitterCard: 'summary_large_image' as const,
@@ -246,7 +247,23 @@ const homepageFAQ = {
       name: 'What is InBharat AI?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'InBharat AI is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India (applications 202631101454 and 202631102427).',
+        text: 'InBharat AI is a deep-tech artificial intelligence company building private agentic AI for a private world. Its flagship, PAI (pronounced "Pi"), is one personal private AI agent implemented through the UnoOne ecosystem — UnoOne Power for desktop and UnoOne Mobile for Android — with local models, permission-controlled tools and encrypted personal memory. Its research layer includes SILT, a trust-gated AI learning layer, and the historical Pocket AI portable architecture. SILT and Pocket AI are patent pending in India (applications 202631101454 and 202631102427).',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'What is PAI and UnoOne?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'PAI (pronounced "Pi") is InBharat.ai’s one personal private AI agent: a persistent, permission-controlled assistant — not a chatbot wrapper. UnoOne is the ecosystem that implements PAI on your devices: UnoOne Power, your desktop personal AI agent, and UnoOne Mobile, your Android personal AI agent.',
+      },
+    },
+    {
+      '@type': 'Question',
+      name: 'Does PAI send my data to the cloud?',
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: 'The design is local-first: PAI’s personal memory and records are stored encrypted on your own device by the agent layer, and models run on your hardware. Optional capabilities such as a mail sweep or a web search reach external services, and each one is a permission you explicitly grant and can revoke.',
       },
     },
     {
@@ -263,14 +280,6 @@ const homepageFAQ = {
       acceptedAnswer: {
         '@type': 'Answer',
         text: 'Yes. You can try InBharat AI on the web with a few free messages before signing in. No credit card required.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Do I need to install anything?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'No. InBharat AI runs in your browser on any modern device. There is nothing to download or install.',
       },
     },
     {
@@ -364,6 +373,20 @@ const deepTechSuite = {
         description:
           `${deepTechById.pai.description} Patent pending in India (application 202631102427).`,
         identifier: '202631102427',
+      },
+    },
+    {
+      '@type': 'ListItem',
+      position: 3,
+      item: {
+        '@type': 'SoftwareApplication',
+        name: 'UnoOne',
+        url: SITE.url + '/unoone',
+        description:
+          'The software ecosystem that implements PAI, one personal private AI agent — UnoOne Power for Windows desktop and laptop, and UnoOne Mobile for Android — with local models, permission-controlled tools and encrypted personal memory.',
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Windows, Android',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
       },
     },
   ],
@@ -591,6 +614,49 @@ const ARTICLE_AUDIENCE_LINE =
   'A practical, jargon-free guide for Indian engineering teams and founders — part of the Learn AI with Reeturaj series on InBharat AI.';
 
 /**
+ * Private-AI / UnoOne routes are generated from content/privateAI.ts so the
+ * crawlable body, FAQ schema, titles and the visible pages share one source
+ * of truth — the same text a reader sees on-page is what the shell emits.
+ * Per-path priority/changefreq tuning lives in the override map below.
+ */
+const UNOONE_PRIORITY: Record<string, { priority: number; changefreq: 'weekly' | 'monthly' | 'yearly' }> = {
+  '/private-ai': { priority: 0.9, changefreq: 'weekly' },
+  '/unoone': { priority: 0.9, changefreq: 'weekly' },
+  '/unoone/power': { priority: 0.8, changefreq: 'monthly' },
+  '/unoone/mobile': { priority: 0.8, changefreq: 'monthly' },
+  '/unoone/sync': { priority: 0.6, changefreq: 'monthly' },
+  '/enterprise-ai': { priority: 0.7, changefreq: 'monthly' },
+  '/technology': { priority: 0.7, changefreq: 'monthly' },
+};
+
+const unooneFaqSchema = (page: PrivateAiPage) => ({
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: page.faqs.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: { '@type': 'Answer', text: faq.a },
+  })),
+});
+
+const privateAiRoutes: SeoRoute[] = UNOONE_PAGES.map((page) => {
+  const tuning = UNOONE_PRIORITY[page.path] ?? { priority: 0.6, changefreq: 'monthly' as const };
+  return {
+    path: page.path,
+    title: `${page.h1} | InBharat.ai`,
+    description: page.description,
+    priority: tuning.priority,
+    changefreq: tuning.changefreq,
+    multilingual: false,
+    extraSchema: [breadcrumb(page.eyebrow, page.path), unooneFaqSchema(page)],
+    seoBody: {
+      h1: page.h1,
+      paragraphs: [page.description, page.status, page.audience],
+    },
+  };
+});
+
+/**
  * One SeoRoute per article: TechArticle + FAQPage + BreadcrumbList schema
  * (built in content/article-schema.ts), a per-article OG image, and a
  * crawlable seoBody (the direct-answer abstract + the audience line). Spread
@@ -644,8 +710,9 @@ const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
-    title: 'InBharat.ai — Deep-Tech AI Infrastructure Built in Bharat',
-    description: SITE.description,
+    title: 'InBharat.ai | Private Agentic AI for a Private World',
+    description:
+      'Meet PAI — one personal private AI agent, implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Local models, permission-controlled tools, encrypted personal memory. Try the InBharat AI console free in your browser.',
     priority: 1.0,
     changefreq: 'weekly',
     // hreflang disabled until real localized route shells (/hi/, /bn/ …) exist:
@@ -656,19 +723,19 @@ export const ROUTES: SeoRoute[] = [
     extraSchema: [homepageFAQ, deepTechSuite, productSuite],
     seoBody: {
       // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
-      // "Building the Infrastructure for Private AI Beyond the Cloud.") so the crawler sr-only H1
+      // "Your AI. Your devices. Your control.") so the crawler sr-only H1
       // and the on-page H1 match exactly. Branding stays in <title>/OG.
-      h1: 'Building the Infrastructure for Private AI Beyond the Cloud',
+      h1: 'Your AI. Your devices. Your control.',
       paragraphs: [
-        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its core technologies include SILT, a trust-gated AI learning layer, and Pocket AI, a portable private AI architecture. Both are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).',
-        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description}`,
-        'The InBharat product suite applies this deep-tech foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
+        'InBharat.ai is a deep-tech artificial intelligence company building private agentic AI for a private world. Our flagship is PAI — one personal private AI agent, pronounced "Pi" — a persistent, permission-controlled personal AI experience, not a chatbot wrapper.',
+        'PAI is brought to life through the UnoOne ecosystem: UnoOne Power, your desktop personal AI agent, and UnoOne Mobile, your Android personal AI agent — one agent experience spanning two devices, under your control. The model can change; your personal memory and permissions stay yours.',
+        'How PAI is engineered: local models admitted by a measured memory budget on your own hardware; tool execution behind explicit, revocable permissions with approval cards; personal memory stored encrypted outside the model so context survives model switches; and bounded actions checked against their intended outcome with real receipts.',
+        `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description} SILT is patent pending in India (application 202631101454); the Pocket AI portable architecture is preserved as a historical patent-pending filing (application 202631102427).`,
+        'The InBharat product suite applies this foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
         'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes across 11 Indian languages — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia, and Assamese. You can try it free on the web with a few messages before signing in — no credit card required.',
-        'InBharat.ai is built for Bharat: small business owners automating operations, students preparing for exams, developers shipping faster, and teams that need AI in their own language. The console is voice-first so it works on low-end phones and patchy networks, and every response is grounded with live web search when facts matter.',
-        'Trust and safety are first-class. JAK Swarm pairs an evidence graph with drift detection and a JAK Shield risk gate so agentic work is auditable and reversible; every approved artifact leaves an audit trail. The company favours open-source, self-hostable components so teams keep control of their data.',
-        'InBharat.ai is founded by Reeturaj Goswami, on a mission to make foundational AI infrastructure accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but a suite of deep-tech systems designed around how Bharat actually works.',
-        'Every InBharat tool is built India-first: designed for low-bandwidth networks, low-end Android phones, and the languages people actually speak — then open-sourced or self-hosted so teams keep full control of their data, their costs, and their models.',
-        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for partnerships, product feedback, or research collaboration on SILT and Pocket AI.`,
+        'Status, stated honestly: UnoOne Power is working development-stage software verified on a Windows test system; UnoOne Mobile is an Android alpha with green local test gates and device validation in progress; cross-device continuity is designed with tests and marked as in development until a full round trip is qualified. We do not advertise capabilities without evidence.',
+        'InBharat.ai is founded by Reeturaj Goswami, on a mission to make private AI infrastructure accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but deep-tech systems designed so intelligence, memory and controlled action stay close to their owner.',
+        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for early access, pilots, partnerships, or research collaboration on PAI, UnoOne and SILT.`,
       ],
     },
   },
@@ -707,6 +774,7 @@ export const ROUTES: SeoRoute[] = [
       ],
     },
   },
+  ...privateAiRoutes,
   {
     path: '/learn-ai-with-reeturaj',
     title: 'Learn AI with Reeturaj Goswami — Founder-Led Practical AI | InBharat AI',

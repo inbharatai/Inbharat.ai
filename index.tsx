@@ -17,6 +17,15 @@ const LearnAIWithReeturaj = lazy(() => import('./pages/LearnAIWithReeturaj.tsx')
 const ArticlePage = lazy(() => import('./pages/ArticlePage.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
+// Private-AI / UnoOne pages (static marketing content, lazily chunk-split).
+const PrivateAiOverview = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.PrivateAiPageNew })));
+const UnoOnePage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.UnoOnePage })));
+const PowerPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.PowerPage })));
+const MobilePage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.MobilePage })));
+const SyncPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.SyncPage })));
+const EnterpriseAiPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.EnterpriseAiPage })));
+const TechnologyPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.TechnologyPage })));
+
 // InBharat Growth Agent admin (audit-only). Client-gated by RequireAdmin;
 // real enforcement is server-side in api/lib/requireAdmin.ts. Excluded from
 // the public sitemap (not listed in seo.config ROUTES) + forces noindex.
@@ -110,6 +119,13 @@ root.render(
             <Route path="/" element={<Landing />} />
             <Route path="/app" element={<App />} />
             <Route path="/about" element={<About />} />
+            <Route path="/private-ai" element={<PrivateAiOverview />} />
+            <Route path="/unoone" element={<UnoOnePage />} />
+            <Route path="/unoone/power" element={<PowerPage />} />
+            <Route path="/unoone/mobile" element={<MobilePage />} />
+            <Route path="/unoone/sync" element={<SyncPage />} />
+            <Route path="/enterprise-ai" element={<EnterpriseAiPage />} />
+            <Route path="/technology" element={<TechnologyPage />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />

@@ -33,6 +33,7 @@ import {
   X,
 } from 'lucide-react';
 import { CredentialRail, CredentialTrustList } from '../components/Credentials';
+import UnoOneDevices from '../components/landing/UnoOneDevices';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
 
@@ -347,7 +348,7 @@ const AIEntity: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
    ═══════════════════════════════════════════════════════ */
 
 const TICKER_NAMES = [
-  'SILT', 'Pocket AI', 'JAK Shield', 'JAK Swarm', 'UnoOne',
+  'SILT', 'PAI', 'UnoOne', 'JAK Shield', 'JAK Swarm',
   'InBharat AI', 'Phoring', 'Sahayaak AI', 'UniAssist.ai', 'TestsPrep.in', 'KathaKitaab',
 ];
 
@@ -1022,16 +1023,14 @@ const Landing: React.FC = () => {
 
   const navItems = useMemo<{ href: string; label: string; route?: string }[]>(
     () => [
+      // PAI/UnoOne is the flagship: the route page sits first, then the in-page
+      // device-composition anchor, then the engineering sections.
+      { href: '/unoone', label: t('landNavUnoOne'), route: '/unoone' },
+      { href: '#devices', label: t('landNavPai') },
       { href: '#deep-tech', label: t('landNavDeepTech') },
       { href: '#jakswarm', label: t('landNavSystems') },
       { href: '#products', label: t('landNavProducts') },
-      { href: '#mission', label: t('landNavMission') },
-      { href: '#about', label: t('landNavAbout'), route: '/about' },
-      // Contact routes to the dedicated /contact page (like the footer link),
-      // NOT an in-page `#contact` scroll. `route` opts this item out of the
-      // smooth-scroll handler (which only intercepts a[href^="#"]) and renders a
-      // router <Link> so navigation is SPA, not a full page reload.
-      { href: '#contact', label: t('landNavContact'), route: '/contact' },
+      { href: '#contact', label: t('landNavContact') },
     ],
     [t],
   );
@@ -1070,6 +1069,7 @@ const Landing: React.FC = () => {
   /* Active section tracking */
   useEffect(() => {
     const sections = navItems
+      .filter((item) => item.href.startsWith('#'))
       .map((item) => document.querySelector(item.href))
       .filter((node): node is Element => Boolean(node));
     if (sections.length === 0) return;
@@ -1370,13 +1370,14 @@ const Landing: React.FC = () => {
                 {t('landHeroCta1')}
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <a
-                href="#ecosystem"
+              <Link
+                to="/unoone"
+                onClick={() => trackEvent('cta_hero_meet_pai')}
                 className="group inline-flex items-center gap-2.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-[#c0cfe0] backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
               >
                 {t('landHeroCta2')}
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-              </a>
+              </Link>
             </motion.div>
 
             {/* Metrics */}
@@ -1411,78 +1412,61 @@ const Landing: React.FC = () => {
         <Marquee />
       </div>
 
-      {/* ═══════════════ ECOSYSTEM ═══════════════ */}
-      <Reveal id="ecosystem" className="relative z-10 py-24 sm:py-32">
+      {/* ═══════════════ MEET PAI ═══════════════ */}
+      <Reveal id="pai" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
-            {/* Left: Content */}
-            <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landEcoLabel')}</p>
-              <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
-                {t('landEcoTitle')}
-              </h2>
-
-              <div className="mt-10 space-y-4">
-                {[
-                  { title: t('landEcoLayer1Title'), desc: t('landEcoLayer1Desc'), icon: Brain, color: '#f59f4f' },
-                  { title: t('landEcoLayer2Title'), desc: t('landEcoLayer2Desc'), icon: MessageCircle, color: '#6366f1' },
-                  { title: t('landEcoLayer3Title'), desc: t('landEcoLayer3Desc'), icon: Target, color: '#10b981' },
-                ].map((item, i) => (
-                  <motion.div
-                    key={item.title}
-                    custom={i}
-                    variants={itemReveal}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, amount: 0.3 }}
-                    className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08]"
-                        style={{ backgroundColor: `${item.color}10` }}
-                      >
-                        <item.icon size={18} style={{ color: item.color }} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-white">{item.title}</h3>
-                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Platform pulse */}
-              <div className="mt-8 grid grid-cols-2 gap-2.5">
-                {[
-                  t('landEcoPulse1'),
-                  t('landEcoPulse2'),
-                  t('landEcoPulse3'),
-                  t('landEcoPulse4'),
-                ].map((line) => (
-                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
-                    {line}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Orbital visualization */}
-            <motion.div
-              className="flex items-center justify-center"
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, ease }}
-            >
-              <EcosystemOrbital reduceMotion={reduceMotion} />
-            </motion.div>
+          <div className="text-center mb-14">
+            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landPaiEyebrow')}</p>
+            <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
+              {t('landPaiHeading')}
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.75] text-[#9aafc6] sm:text-[15px]">
+              {t('landPaiBody')}
+            </p>
           </div>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              { title: t('landPaiLayer1Title'), text: t('landPaiLayer1Desc'), icon: ShieldCheck, color: '#f59f4f' },
+              { title: t('landPaiLayer2Title'), text: t('landPaiLayer2Desc'), icon: Sparkles, color: '#10b981' },
+              { title: t('landPaiLayer3Title'), text: t('landPaiLayer3Desc'), icon: Globe, color: '#4c8bf5' },
+            ].map((item, i) => (
+              <motion.article
+                key={item.title}
+                custom={i}
+                variants={itemReveal}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.2 }}
+                className="group glow-card rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 transition-all duration-400"
+              >
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08]"
+                  style={{ backgroundColor: `${item.color}08` }}
+                >
+                  <item.icon size={22} style={{ color: item.color }} />
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{item.text}</p>
+              </motion.article>
+            ))}
+          </div>
+
+          <p className="mt-10 text-center text-sm font-semibold tracking-[0.18em] text-[#96b0c8]">
+            {t('landPaiLayersHeading')}
+          </p>
         </div>
       </Reveal>
 
       <div className="landing-seam" aria-hidden="true" />
+
+      {/* ═══════════════ ONE AGENT · TWO DEVICES ═══════════════ */}
+      <Reveal id="devices" className="relative z-10 py-20 sm:py-28">
+        <UnoOneDevices showCards />
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
 
 
       {/* ═══════════════ WHY INBHARAT ═══════════════ */}
@@ -1645,6 +1629,79 @@ const Landing: React.FC = () => {
                 </motion.div>
               </div>
             </div>
+          </div>
+        </div>
+      </Reveal>
+
+      <div className="landing-seam" aria-hidden="true" />
+
+      {/* ═══════════════ ECOSYSTEM ═══════════════ */}
+      <Reveal id="ecosystem" className="relative z-10 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+          <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
+            {/* Left: Content */}
+            <div>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landEcoLabel')}</p>
+              <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
+                {t('landEcoTitle')}
+              </h2>
+
+              <div className="mt-10 space-y-4">
+                {[
+                  { title: t('landEcoLayer1Title'), desc: t('landEcoLayer1Desc'), icon: Brain, color: '#f59f4f' },
+                  { title: t('landEcoLayer2Title'), desc: t('landEcoLayer2Desc'), icon: MessageCircle, color: '#6366f1' },
+                  { title: t('landEcoLayer3Title'), desc: t('landEcoLayer3Desc'), icon: Target, color: '#10b981' },
+                ].map((item, i) => (
+                  <motion.div
+                    key={item.title}
+                    custom={i}
+                    variants={itemReveal}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.3 }}
+                    className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08]"
+                        style={{ backgroundColor: `${item.color}10` }}
+                      >
+                        <item.icon size={18} style={{ color: item.color }} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Platform pulse */}
+              <div className="mt-8 grid grid-cols-2 gap-2.5">
+                {[
+                  t('landEcoPulse1'),
+                  t('landEcoPulse2'),
+                  t('landEcoPulse3'),
+                  t('landEcoPulse4'),
+                ].map((line) => (
+                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Orbital visualization */}
+            <motion.div
+              className="flex items-center justify-center"
+              initial={{ opacity: 0, scale: 0.95 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1, ease }}
+            >
+              <EcosystemOrbital reduceMotion={reduceMotion} />
+            </motion.div>
           </div>
         </div>
       </Reveal>
@@ -1995,7 +2052,7 @@ const Landing: React.FC = () => {
           </div>
 
           <div className="mt-12 space-y-3">
-            {[1, 2, 3, 4, 5, 6].map((n) => (
+            {[1, 2, 3, 4, 5, 6, 7].map((n) => (
               <details
                 key={n}
                 className="group rounded-2xl border border-white/[0.06] bg-white/[0.025] px-5 py-4 transition-colors open:border-[#f59f4f]/30 open:bg-white/[0.04]"
@@ -2126,6 +2183,11 @@ const Landing: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/[0.04] pt-5 text-[11px] text-[#7a9ab8]">
+            <Link to="/unoone" className="transition-colors hover:text-white">{t('landNavUnoOne')}</Link>
+            <Link to="/unoone/power" className="transition-colors hover:text-white">{t('landDevicesPower')}</Link>
+            <Link to="/unoone/mobile" className="transition-colors hover:text-white">{t('landDevicesMobile')}</Link>
+            <Link to="/technology" className="transition-colors hover:text-white">{t('landNavDeepTech')}</Link>
+            <Link to="/enterprise-ai" className="transition-colors hover:text-white">{t('landNavSystems')}</Link>
             <Link to="/about" className="transition-colors hover:text-white">{t('navAbout')}</Link>
             <Link to="/contact" className="transition-colors hover:text-white">{t('navContact')}</Link>
             <Link to="/privacy" className="transition-colors hover:text-white">{t('navPrivacy')}</Link>

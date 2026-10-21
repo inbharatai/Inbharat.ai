@@ -36,7 +36,7 @@ export const DeepTechSpotlight: React.FC = () => {
                 key={project.id}
                 className="product-concept-card group relative overflow-hidden rounded-3xl border border-white/[0.08]
                            bg-gradient-to-b from-white/[0.045] to-white/[0.015] p-6
-                           transition-all duration-300 hover:-translate-y-1
+                           transition-colors duration-300
                            hover:border-[#f59f4f]/30 sm:p-8"
               >
                 <div

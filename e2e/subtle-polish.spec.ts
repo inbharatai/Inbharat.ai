@@ -75,9 +75,12 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     await expect(hero.locator('.hero-edge-left')).toHaveCSS('animation-name', 'none');
     if (width < 768) await expect(hero.locator('.hero-edge-depth')).toHaveCSS('opacity', '0.55');
     if (width === 1440) {
+      // All words on a single line share one y — word choice follows the
+      // current approved headline ("Your AI. Your devices." has a repeated
+      // word to anchor the same-line assertion).
       const words = await hero.locator('h1 > span:first-child > span').evaluateAll(nodes => nodes.map(n => ({ text: n.textContent?.trim(), y: n.getBoundingClientRect().y })));
-      const forWord = words.find(w => w.text === 'for')!;
-      expect(words.some(w => w.text !== 'for' && Math.abs(w.y - forWord.y) < 2)).toBe(true);
+      const anchor = words.find(w => w.text === 'Your')!;
+      expect(words.some(w => w.text !== 'Your' && Math.abs(w.y - anchor.y) < 2)).toBe(true);
     }
   });
 

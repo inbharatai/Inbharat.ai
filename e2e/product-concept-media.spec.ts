@@ -8,8 +8,14 @@ test('crawlable copy includes the same precise product boundaries', async ({ req
     expect(response.status()).toBe(200);
     const html = await response.text();
     expect(html).toContain('Default packet transfer leaves receiver weights unchanged');
-    expect(html).toContain('The host computes; the drive remains the authoritative store');
+    expect(html).toContain('one personal private AI agent');
+    expect(html).toContain('202631102427');
   }
+  // The retired removable-drive formulation is stated as historical prior
+  // research in the /about crawlable body.
+  const about = await request.get('/about');
+  const aboutHtml = await about.text();
+  expect(aboutHtml).toContain('the drive remains the authoritative store');
 });
 async function enter(page: Page) {
   await page.locator(cards).first().scrollIntoViewIfNeeded();
@@ -79,7 +85,7 @@ for (const width of [1440, 390, 320]) {
     });
     await expect.poll(uncovered).toEqual([]);
     await expect(first.locator('h3')).toHaveText('SILT');
-    await expect(page.locator(cards).nth(1).locator('h3')).toHaveText('Pocket AI');
+    await expect(page.locator(cards).nth(1).locator('h3')).toHaveText('PAI');
     await expect(first.getByRole('link', { name: 'Explore SILT' })).toHaveAttribute('href', 'https://silt.inbharat.ai');
     await expect(first.getByText(/Patent Pending/)).toBeVisible();
     const note = await first.locator('.product-concept-note').boundingBox();
@@ -141,7 +147,20 @@ test('mobile clips autoplay muted in-view, repeat, and preserve explicit user pa
     await expect.poll(() => page.locator(`${cards} video`).evaluateAll(vs => vs.every(v => (v as HTMLVideoElement).paused))).toBeTruthy();
     await card.scrollIntoViewIfNeeded();
     expect(await video.evaluate(v => (v as HTMLVideoElement).paused)).toBeTruthy();
-    await card.getByRole('button', { name: /^Play / }).click();
+    // Settle first: the page uses CSS smooth scrolling, so a click that races
+    // the scroll animation is rejected for instability on slower runs.
+    // Park the mouse in the static top-left corner first: a cursor left behind
+    // by the previous card's click can rest exactly on the next card's top
+    // edge, where the card's own hover transition lifts the card out from
+    // under the cursor, hover drops, the card settles back — a never-ending
+    // wiggle loop (proven by rAF sampling: article:hover and translate flip
+    // forever while layout stays constant). Parking the cursor breaks that
+    // loop and matches what a real user's settled cursor does.
+    await page.mouse.move(0, 0);
+    const probe = card.getByRole('button', { name: /^Play / });
+    await expect.poll(() => probe.evaluate(b => b.getBoundingClientRect().top)).toBeGreaterThan(0);
+    await page.waitForTimeout(300);
+    await probe.click();
     await expect.poll(() => video.evaluate(v => (v as HTMLVideoElement).paused)).toBeFalsy();
   }
 });

@@ -1,0 +1,16 @@
+{
+  "description": "Illustrative interface mockups of the UnoOne Power (desktop) and UnoOne Mobile (Android) agent UI, reconstructed from the approved internal investor deck. AI-generated conceptual UI illustrations - NOT live product screenshots or physical devices. Labels on site must read Illustrative interface.",
+  "created": "2026-10-21",
+  "assets": [
+    {
+      "filename": "power-ui.png",
+      "bytes": 82764,
+      "sha256": "0b034fe7b057a2539d328c5dc887fb25038f8f0d1a9dc525bec3f16544dd0275"
+    },
+    {
+      "filename": "mobile-ui.png",
+      "bytes": 52108,
+      "sha256": "5046f13c20735c4c950c485d2f910e406c07fa7312a1694aba2ea2d2ba06cbfe"
+    }
+  ]
+}

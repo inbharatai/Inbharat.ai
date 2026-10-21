@@ -1,10 +1,13 @@
 # InBharat AI
 
-> InBharat is an independent AI product studio building affordable, voice-first,
-> multilingual AI tools for Bharat. Products span agentic search, coding
-> assistants, education, healthcare and business automation, working across 11
-> Indian languages: English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati,
-> Kannada, Malayalam, Odia and Assamese.
+> InBharat is an independent AI product studio building private agentic AI for a
+> private world, plus affordable, voice-first, multilingual AI tools for Bharat.
+> Its flagship is PAI (pronounced "Pi") — one personal private AI agent,
+> implemented through the UnoOne ecosystem: UnoOne Power (desktop) and
+> UnoOne Mobile (Android). Products also span agentic search, coding assistants,
+> education, healthcare and business automation across 11 Indian languages:
+> English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam,
+> Odia and Assamese.
 
 Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP, a
 DPIIT-recognised startup (Artificial Intelligence & Machine Learning sector,
@@ -27,7 +30,14 @@ Government of India).
 
 ## Key pages
 
-- [Home](https://www.inbharat.ai/): the product ecosystem and what InBharat builds.
+- [Home](https://www.inbharat.ai/): private agentic AI for a private world — PAI and the UnoOne ecosystem.
+- [PAI](https://www.inbharat.ai/private-ai): the definition and engineering principles behind PAI, one personal private AI agent.
+- [UnoOne](https://www.inbharat.ai/unoone): the software ecosystem for PAI — one personal private AI agent on two devices.
+- [UnoOne Power](https://www.inbharat.ai/unoone/power): the desktop personal AI agent — local models, permissions, encrypted memory.
+- [UnoOne Mobile](https://www.inbharat.ai/unoone/mobile): the Android personal AI agent — on-device planning, offline speech, drafts-never-sends.
+- [UnoOne Sync](https://www.inbharat.ai/unoone/sync): cross-device continuity — what works today and what is on the roadmap.
+- [Enterprise AI](https://www.inbharat.ai/enterprise-ai): JAK Swarm and JAK Shield — governance-built agentic AI for organisations.
+- [Technology](https://www.inbharat.ai/technology): the engineering under PAI and UnoOne, plus SILT research and patent-pending history.
 - [About](https://www.inbharat.ai/about): who InBharat is and how it works.
 - [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj): founder-led practical AI articles for Bharat.
 - [Contact](https://www.inbharat.ai/contact): how to reach the team.
