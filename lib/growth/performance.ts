@@ -60,7 +60,7 @@ function isoDaysAgo(days: number): string {
 }
 
 /** Mint a Google OAuth access token from a service account. */
-async function getServiceAccountToken(clientEmail: string, privateKeyPem: string, scope: string): Promise<string> {
+export async function getServiceAccountToken(clientEmail: string, privateKeyPem: string, scope: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const header = { alg: "RS256", typ: "JWT" };
   const claim = { iss: clientEmail, scope, aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 };

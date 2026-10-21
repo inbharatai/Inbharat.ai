@@ -1572,6 +1572,53 @@ console.log("\nSitemap lastmod (truthful per-route modification date):");
   check("every article datePublished is YYYY-MM-DD", ARTICLES.every((a) => dateRe.test(a.datePublished)), ARTICLES.filter((a) => !dateRe.test(a.datePublished)).map((a) => a.slug).join(","));
 }
 
+console.log("\nSearch-engine submission lane (sitemap → GSC + IndexNow, pure + injected fetch):");
+{
+  const { readFileSync } = await import("node:fs");
+  const readFileSyncSafe = (p: string): string | null => { try { return readFileSync(new URL(`../${p}`, import.meta.url), "utf8"); } catch { return null; } };
+  const m = await import("../lib/growth/search-submit.ts");
+  const { INDEXNOW_KEY } = m;
+  // The committed key file must exist publicly in the repo: public/<key>.txt.
+  const keyFile = readFileSyncSafe(`public/${INDEXNOW_KEY}.txt`);
+  check("IndexNow key file exists at public/<key>.txt", keyFile !== null && keyFile.trim() === INDEXNOW_KEY, keyFile?.slice(0, 20));
+
+  // parseSitemap: urlset with lastmod → entries; non-urlset (sitemapindex / garbage) → [].
+  const xml = `<urlset xmlns="..."><url><loc>https://www.inbharat.ai/</loc><lastmod>2026-10-21</lastmod></url><url><loc>https://www.inbharat.ai/unoone</loc></url></urlset>`;
+  const parsed = m.parseSitemap(xml);
+  check("parseSitemap extracts loc+lastmod and skips missing lastmod", parsed.length === 2 && parsed[0].lastmod === "2026-10-21" && parsed[1].lastmod === undefined, JSON.stringify(parsed));
+  check("parseSitemap rejects a malformed body", m.parseSitemap("not xml {{").length === 0);
+
+  // Payload builder: only same-host URLs cross to engines; key shape enforced.
+  const host = "https://www.inbharat.ai";
+  const good = m.buildIndexNowPayload(host, INDEXNOW_KEY, [`${host}/`, `${host}/unoone`, "https://evil.example.com/steal"]);
+  check("buildIndexNowPayload drops non-host urls", !("error" in good) && (good as { urlList: string[] }).urlList.length === 2, JSON.stringify(good).slice(0, 140));
+  check("buildIndexNowPayload includes the keyLocation", !("error" in good) && (good as { keyLocation: string }).keyLocation === `${host}/${INDEXNOW_KEY}.txt`);
+  check("buildIndexNowPayload rejects a bad key shape", "error" in m.buildIndexNowPayload(host, "short", [`${host}/`]));
+
+  // submitIndexNow with an injected fetch: 2xx → submitted; 4xx → failed with the key hint.
+  const okFetch = (async () => new Response(null, { status: 202 })) as unknown as typeof fetch;
+  const badFetch = (async () => new Response(null, { status: 400 })) as unknown as typeof fetch;
+  const submitted = await m.submitIndexNow(okFetch, host, INDEXNOW_KEY, [`${host}/`]);
+  check("submitIndexNow 202 → submitted", submitted.status === "submitted", JSON.stringify(submitted));
+  const refused = await m.submitIndexNow(badFetch, host, "0".repeat(16), [`${host}/`]);
+  check("submitIndexNow 400 → failed with hint", refused.status === "failed" && refused.detail.includes("check key"));
+
+  // GSC sitemap submit: 200 → submitted; 403 → failed with the delegate hint (the
+  // honest degraded state until the owner adds the service account in GSC).
+  const gscPut = m.gscSitemapUrl("https://www.inbharat.ai", "https://www.inbharat.ai/sitemap.xml");
+  check("gscSitemapUrl encodes site and feedpath", gscPut === "https://searchconsole.googleapis.com/webmasters/v3/sites/https%3A%2F%2Fwww.inbharat.ai/sitemaps/https%3A%2F%2Fwww.inbharat.ai%2Fsitemap.xml", gscPut);
+  const gscOk = await m.submitSitemapToGsc(okFetch, "https://www.inbharat.ai", "https://www.inbharat.ai/sitemap.xml", "t");
+  check("submitSitemapToGsc 2xx → submitted", gscOk.status === "submitted");
+  const forbiddenFetch = (async () => new Response(null, { status: 403 })) as unknown as typeof fetch;
+  const gsc403 = await m.submitSitemapToGsc(forbiddenFetch, "https://www.inbharat.ai", "https://www.inbharat.ai/sitemap.xml", "t");
+  check("submitSitemapToGsc 403 → failed with delegate hint", gsc403.status === "failed" && gsc403.detail.includes("delegate"), gsc403.detail);
+
+  // vercel.json crons all point at real handler files (the schedule can't 404 at runtime).
+  const crons = JSON.parse(readFileSyncSafe("vercel.json")!).crons as Array<{ path: string }>;
+  const missingHandlers = crons.map((c) => c.path.split("?")[0].replace(/^\/api\//, "api/").replace(/\/$/, "") + ".ts").filter((f) => readFileSyncSafe(f) === null);
+  check("every vercel.json cron maps to an existing handler", missingHandlers.length === 0, missingHandlers.join(","));
+}
+
 console.log("\nKnowledge base (FTS + token-match, cross-source dedupe):");
 {
   // 1) formatKnowledgeBlock — empty input → "" (prompt unchanged when KB empty).

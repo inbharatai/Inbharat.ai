@@ -23,9 +23,16 @@
     {
       "path": "/api/growth/cron/analytics-sync",
       "schedule": "47 3 * * *"
+    },
+    {
+      "path": "/api/growth/cron/search-submit",
+      "schedule": "11 4 * * *"
     }
   ],
   "functions": {
+    "api/growth/cron/search-submit.ts": {
+      "maxDuration": 120
+    },
     "api/growth/cron/morning.ts": {
       "maxDuration": 300
     },
