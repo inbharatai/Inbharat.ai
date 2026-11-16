@@ -92,7 +92,7 @@ const UnoOneDevices: React.FC<{
             <div className="mt-4 flex justify-center sm:mt-5">
               <span className={`${chipBase} border-[#f8b76a]/40 bg-[#1a1209]/80 text-[#f8b76a]`}>
                 <span className="h-1.5 w-1.5 rounded-full bg-[#f8b76a]"></span>
-                ANDROID · TESTING PENDING
+                ANDROID · ALPHA VALIDATION
               </span>
             </div>
           </div>
@@ -116,16 +116,16 @@ const UnoOneDevices: React.FC<{
               </div>
               <div>
                 <p className="flex items-center gap-2 text-[11px] font-bold tracking-[0.2em] text-[#63beea]">
-                  <ShieldCheck size={13} /> ONE VAULT
+                  <ShieldCheck size={13} /> PER-DEVICE MEMORY
                 </p>
                 <p className="mt-1.5 text-sm font-medium text-[#dbe6f2]">
-                  Model-independent personal memory
+                  Separate encrypted local stores
                 </p>
               </div>
             </div>
           </div>
           <p className="mt-3 text-center text-[11px] tracking-wide text-[#6d8299]">
-            {t('landDevicesBadge')}
+            {t('landDevicesBadge')} · {t('landDevicesSyncStatus')}
           </p>
         </div>
       </div>

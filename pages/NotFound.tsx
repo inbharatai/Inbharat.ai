@@ -1,24 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Home } from 'lucide-react';
 import StaticLayout from './_StaticLayout';
 
 const NotFound: React.FC = () => {
-  // Surface a proper 404 status hint to anyone (incl. crawlers) inspecting
-  // the document head. Vercel serves this via the SPA fallback, but the
-  // robots meta below makes intent explicit.
-  useEffect(() => {
-    let el = document.head.querySelector<HTMLMetaElement>('meta[name="prerender-status-code"]');
-    if (!el) {
-      el = document.createElement('meta');
-      el.setAttribute('name', 'prerender-status-code');
-      document.head.appendChild(el);
-    }
-    el.setAttribute('content', '404');
-    return () => {
-      el?.remove();
-    };
-  }, []);
+  // RouteEffects applies explicit noindex + error metadata for unmatched
+  // routes. A browser meta tag cannot set the server's HTTP response status.
 
   return (
     <StaticLayout

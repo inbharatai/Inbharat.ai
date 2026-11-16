@@ -29,7 +29,7 @@
     "build:vite-only": "vite build",
     "build:seo": "tsx scripts/build-seo.ts",
     "preview": "vite preview",
-    "lint": "npm run lint:eslint && npm run typecheck && npm run audit:secrets && npm run test:ci && npm run test:seo-contract",
+    "lint": "npm run lint:eslint && npm run typecheck && npm run audit:secrets && npm run test:ci && npm run test:seo-contract && npm run test:seo-hardening",
     "lint:eslint": "eslint . --ext .ts,.tsx --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "test:growth": "tsx scripts/test-growth.ts",
@@ -40,7 +40,21 @@
     "arcade": "cd agent-arcade && node scripts/dev-arcade-auto.mjs \"%CD%\"",
     "arcade:gateway": "cd agent-arcade && npm run dev:gateway",
     "arcade:web": "cd agent-arcade && npm run dev:web",
-    "arcade:sim": "cd agent-arcade && npm run sim:human"
+    "arcade:sim": "cd agent-arcade && npm run sim:human",
+    "test:search-submission": "tsx scripts/test-search-submission.ts",
+    "test:rendering-contract": "tsx scripts/test-rendering-contract.ts",
+    "test:article-lifecycle": "tsx scripts/test-article-lifecycle.ts",
+    "test:seo-audit-contracts": "tsx scripts/test-seo-audit-contracts.ts",
+    "test:seo-hardening": "npm run test:search-submission && npm run test:rendering-contract && npm run test:article-lifecycle && npm run test:seo-audit-contracts && npm run test:article-display && npm run test:content-accuracy && npm run test:canonical-article-sync && npm run test:article-render-safety && npm run test:publication-read-models && npm run test:publication-sql && npm run test:locale-boundaries && npm run test:publication-cron-auth",
+    "audit:deployment": "tsx scripts/audit-production-seo.ts",
+    "test:article-display": "tsx scripts/test-article-display.ts",
+    "test:content-accuracy": "tsx scripts/test-content-accuracy.mjs",
+    "test:canonical-article-sync": "tsx scripts/test-canonical-article-sync.ts",
+    "test:article-render-safety": "tsx scripts/test-article-render-safety.ts",
+    "test:publication-read-models": "tsx scripts/test-publication-read-models.ts",
+    "test:publication-sql": "node scripts/test-publication-sql.mjs",
+    "test:locale-boundaries": "tsx scripts/test-locale-boundaries.tsx",
+    "test:publication-cron-auth": "tsx scripts/test-publication-cron-auth.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -51,7 +65,7 @@
     "lucide-react": "^0.562.0",
     "mermaid": "^11.17.2",
     "motion": "^12.38.0",
-    "openai": "^4.77.0",
+    "openai": "^6.49.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-i18next": "^16.5.5",
@@ -60,9 +74,10 @@
     "remark-gfm": "^4.0.0",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/express": "^5.0.6",
@@ -94,8 +109,8 @@
   },
   "overrides": {
     "tar": "7.5.22",
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.18",
     "katex": "0.18.2",
-    "undici": "7.29.1"
+    "undici": "7.30.2"
   }
 }

@@ -15,18 +15,16 @@
  *   - Return the body as text with an explicit Content-Type for the HTML shells.
  *     Binary assets are returned as ArrayBuffer with Content-Type derived from
  *     the original request path.
- *   - The `/silt/*` guard prevents an infinite loop when the internal fetch
+ *   - The exact internal-file guard prevents an infinite loop when the internal fetch
  *     re-enters the edge.
  */
 
 import { next } from "@vercel/edge";
+import { resolveSiltRenderingRoute, siltNotFoundResponse } from "./lib/silt-rendering-routes";
 
 export const config = {
-  // Match every path — including the trailing-slash form (`/studio/`), which
-  // `/:path*` alone misses (path-to-regexp treats the trailing slash as an
-  // empty segment). Without this, `/studio/` fell through to Vercel's
-  // `trailingSlash: false` 308 redirect before middleware could route it to
-  // `/silt/studio/__root`. The host check inside the handler gates the work.
+  // Include the trailing-slash alias so it redirects consistently to /studio.
+  // The host check leaves main-site /app, admin and asset behavior untouched.
   matcher: ["/(.*)"],
 };
 
@@ -59,36 +57,34 @@ export default async function middleware(request: Request) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // If the request is already targeting /silt/*, let Vercel serve it directly.
-  if (path.startsWith("/silt/")) {
-    return next();
+  const route = resolveSiltRenderingRoute(path);
+  if (route.kind === "missing") return siltNotFoundResponse();
+  if (route.kind === "redirect") {
+    const canonical = new URL(route.path, request.url);
+    canonical.search = url.search;
+    return Response.redirect(canonical, 308);
   }
-
-  // SPA route: /studio (with or without trailing slash).
-  const isStudio = path === "/studio" || path === "/studio/";
-
-  // Determine the SILT file to serve: explicit assets get their file, all
-  // other paths fall back to SILT's shell. Assets include /web/studio-bridge.js,
-  // /favicon.svg, /README.md, /PATENT.md, /sitemap.xml, /robots.txt, etc.
-  const isAsset = !isStudio && path !== "/" && /\/[^/]+\.[^/]+$/.test(path);
-  const targetPath = isAsset
-    ? `/silt${path}`
-    : isStudio
-      ? "/silt/studio/__root"
-      : "/silt/__root";
+  if (route.kind === "internal") {
+    // Direct storage-file URLs are not public canonical pages. These headers
+    // are not forwarded to the root research page's fresh response below.
+    return next({ headers: { "X-Robots-Tag": "noindex, nofollow" } });
+  }
+  const targetPath = route.path;
 
   const targetUrl = new URL(targetPath, request.url);
   const response = await fetch(new Request(targetUrl, request));
 
+  if (response.status === 404) return siltNotFoundResponse();
+
   // Vercel strips Content-Type from middleware responses when the underlying
   // static file has none. For the HTML shells, decode the body as text and
   // return a fresh text Response. Assets stay binary.
-  if (isStudio || !isAsset) {
+  if (route.html) {
     const text = await response.text();
     return new Response(text, {
       status: response.status,
       statusText: response.statusText,
-      headers: { "Content-Type": HTML_TYPE },
+      headers: { "Content-Type": HTML_TYPE, ...(route.noIndex ? { "X-Robots-Tag": "noindex, nofollow" } : {}) },
     });
   }
 

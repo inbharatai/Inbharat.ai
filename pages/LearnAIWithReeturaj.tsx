@@ -1,3 +1,4 @@
+import { formatArticleDate, compareArticleRecency } from '../lib/article-display';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'motion/react';
@@ -243,7 +244,7 @@ const ArticleExplorer: React.FC = () => {
         a.abstract.toLowerCase().includes(q) ||
         a.category.toLowerCase().includes(q)
       );
-    }).sort((a, b) => (a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0));
+    }).sort(compareArticleRecency);
   }, [query, activeCategory]);
 
   const chips: Array<ArticleCategory | 'All'> = ['All', ...ARTICLE_CATEGORIES];
@@ -353,7 +354,7 @@ const ArticleExplorer: React.FC = () => {
                       <Clock size={12} /> {a.readMinutes} min
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      <CalendarDays size={12} /> {new Date(a.datePublished + 'T00:00:00Z').toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                      <CalendarDays size={12} /> {formatArticleDate(a.datePublished, true)}
                     </span>
                     <span className="ml-auto inline-flex items-center gap-1 font-semibold text-[#f5b76f] opacity-0 transition-opacity group-hover:opacity-100">
                       Read <ArrowRight size={12} />

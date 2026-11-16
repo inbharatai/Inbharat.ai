@@ -2,6 +2,7 @@
  * InBharat Growth Agent — Module 5: SEO Auditor.
  * Scores a page out of 100 across title/meta/H1/canonical/headings/internal
  * links/image alt/schema/sitemap/robots/mobile/duplicate/thin/CTA.
+ * House heuristics only, not measured Google rankings/indexing eligibility.
  * Pure function over PageMeta; hermetically testable.
  */
 import type { AuditIssue, PageMeta, SeoScore } from "./types.js";
@@ -31,7 +32,7 @@ export function scoreSeo(page: PageMeta): SeoScore {
   if (!page.h1) {
     issues.push(issue("high", "h1", "Missing H1", "Add a single descriptive H1 per page."));
   } else if ((page.h1Count ?? 1) > 1) {
-    issues.push(issue("high", "h1", `Multiple H1 tags (${page.h1Count})`, "Use exactly one <h1> per page; demote the rest to <h2>."));
+    issues.push(issue("normal", "h1", `Multiple H1 tags (${page.h1Count})`, "Check the heading hierarchy and stale/duplicate content; multiple H1s alone are not an indexing failure."));
   }
   if ((page.h2Count ?? 0) === 0) {
     issues.push(issue("normal", "headings", "No H2 subheadings", "Add H2 sections to structure content for users and crawlers."));
@@ -46,7 +47,7 @@ export function scoreSeo(page: PageMeta): SeoScore {
 
   // Word count / thin content
   if ((page.wordCount ?? 0) < 300) {
-    issues.push(issue("high", "wordCount", `Thin content (${page.wordCount ?? 0} words)`, "Expand to ≥300 words of useful, proof-backed content; avoid doorway pages."));
+    issues.push(issue("low", "wordCount", `Short main-content estimate (${page.wordCount ?? 0} words)`, "Review completeness for this page's purpose. Search engines have no universal minimum word count; do not pad contact or utility pages."));
   } else if ((page.wordCount ?? 0) < 600) {
     issues.push(issue("low", "wordCount", `Light content (${page.wordCount} words)`, "Consider expanding with examples, FAQs, and proof."));
   }
@@ -89,8 +90,9 @@ export function scoreSeo(page: PageMeta): SeoScore {
   // Redirect chain depth — more than one hop to reach the page is a minor
   // inefficiency Google may flag. Page-level (not the canonical host redirect,
   // which is expected for non-www/apex variants).
-  if ((page.redirectChain?.length ?? 0) > 1) {
-    issues.push(issue("normal", "redirect", `Reached via ${page.redirectChain!.length} redirect hops`, "Collapse the redirect chain to a single hop where possible; each hop wastes crawl budget and link equity."));
+  const redirectHops = (page.redirectChain || []).filter((hop) => [301, 302, 303, 307, 308].includes(hop.status)).length;
+  if (redirectHops > 1) {
+    issues.push(issue("normal", "redirect", `Reached via ${redirectHops} redirect hops`, "Reduce unnecessary redirect hops where possible. A valid canonical redirect is not an indexing failure."));
   }
 
   // CTA

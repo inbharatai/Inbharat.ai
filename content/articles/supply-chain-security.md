@@ -1,6 +1,8 @@
-> Software supply chain security protects your product from malicious code slipping in through dependencies and build tools you didn't write. Your app rests on hundreds of libraries, CI runners, and package registries—each a target. Practices like SBOM generation, dependency scanning, signed commits, and locked-down pipelines catch compromise before it reaches production.
+> **Content correction — 16 November 2026:** Corrected the SolarWinds chronology and separated hypothetical attacks from named-company incidents. Removed guaranteed setup-time and breach-cost claims. SBOMs and signatures provide inventory/provenance evidence, not proof that code is safe.
 
-Three years ago, a cybersecurity attack hit major software companies across the world through SolarWinds, a company that nobody outside the software industry had ever heard of. An attacker compromised a trusted software update, and suddenly thousands of organizations—including government agencies—had malicious code running inside their systems.
+> Software supply-chain security combines dependency inventory, vulnerability review, build isolation, provenance and access controls. SBOMs help identify components, while signatures help authenticate artifacts or commits. Neither guarantees safe code or complete vulnerability detection; controls need ongoing review and project-specific validation.
+
+In 2020, a cybersecurity attack disclosed in December affected major software companies across the world through SolarWinds, a company that nobody outside the software industry had ever heard of. An attacker compromised a trusted software update, and suddenly thousands of organizations—including government agencies—had malicious code running inside their systems.
 
 The attack wasn't through a lack of security. It was through a supply chain compromise.
 
@@ -18,7 +20,7 @@ The framework you used to build your app (React, Django, Spring Boot). The libra
 
 Each of these is written by someone else. Each one could theoretically be compromised.
 
-Software supply chain security is the practice of managing all of these dependencies so that an attacker can't slip malicious code into your product through a component you didn't write.
+Software supply chain security is the practice of managing all of these dependencies to reduce the chance that an attacker inserts malicious code into your product through a component you didn't write.
 
 It works through several layers. **Source code integrity:** you need to know that the code you're pulling from GitHub actually came from the person who claims to have written it. **Dependency management:** you need to know every library your app depends on and whether each one has known vulnerabilities. **Secure development:** your build pipeline, your CI/CD systems, the servers that compile your code—all need to be locked down so an attacker can't inject code during the build process. **Access control:** not everyone in your organization should be able to approve code changes or deploy to production.
 
@@ -38,11 +40,11 @@ That's where supply chain security practices become critical. You're creating a 
 
 Let me be specific about what we're defending against:
 
-**Malicious code in open source libraries:** A developer publishes a "helpful" npm package, it gets 10,000 downloads, then one day it starts stealing data. A Flipkart engineer adds it as a dependency. Suddenly, customer data is exfiltrating. This has happened multiple times, including with packages that had millions of downloads.
+**Malicious code in open source libraries:** A developer publishes a "helpful" npm package, it gets 10,000 downloads, then one day it starts stealing data. In a hypothetical example, an engineer adds it as a dependency. Suddenly, customer data is exfiltrating. This illustrates a supply-chain attack path, not a documented incident at a named company.
 
 **Compromised build tools:** An attacker gains access to the GitHub Actions runner that compiles your code. They insert code that silently records all API keys in your environment. Every time you deploy, malicious code goes to production. You don't notice because it's invisible.
 
-**Typosquatting attacks:** Someone publishes a package called "reqeusts" (close to "requests") on npm. Engineers with fat fingers install the wrong package. Now you're running attacker code in production.
+**Typosquatting attacks:** Someone publishes a similarly spelled package name in a package registry. Engineers with fat fingers install the wrong package. Now you're running attacker code in production.
 
 **Outdated dependencies with known exploits:** You're using a 2-year-old version of a library that has three known security vulnerabilities. An attacker finds your IP address, runs an exploit against your outdated library, and gains access to your database.
 
@@ -52,9 +54,9 @@ Let me be specific about what we're defending against:
 
 If you're a 10-person startup in Bangalore, here's what I'd do:
 
-**1. Generate a software bill of materials (SBOM).** Use a tool like CycloneDX to automatically scan your codebase and generate a complete list of every dependency you have. You probably have 500+ dependencies and never knew it. Now you do.
+**1. Generate a software bill of materials (SBOM).** Use a tool like CycloneDX to automatically scan your codebase and generate an inventory of detected components; completeness depends on the generator and build scope. You probably have 500+ dependencies and never knew it. Now you do.
 
-**2. Scan those dependencies for known vulnerabilities.** Snyk, Dependabot, or WhiteSource will check every library against a database of known security flaws. When a vulnerability is found, they auto-generate a pull request to update to a patched version. This takes 2 hours to set up and saves months of manual work.
+**2. Scan those dependencies for known vulnerabilities.** Snyk, Dependabot, or WhiteSource will check every library against a database of known security flaws. When a vulnerability is found, they auto-generate a pull request to update to a patched version. Setup time and coverage depend on repositories, tooling and response processes.
 
 **3. Implement SBOM requirements in your vendor relationships.** If you're paying a third-party payment processor or using an API from a vendor, require them to provide an SBOM and a statement that they scan for vulnerabilities. If they won't, that's a red flag.
 
@@ -64,9 +66,9 @@ If you're a 10-person startup in Bangalore, here's what I'd do:
 
 ## The Cost vs. The Risk
 
-Here's the math: implementing supply chain security measures at an early-stage startup takes maybe 40-80 hours of engineering time. That's one engineer working for 1-2 weeks.
+Here's the math: the effort to implement supply-chain controls depends on the estate, threat model and existing pipeline; no fixed one- or two-week implementation is promised.
 
-The cost of a supply chain breach? That's not measured in hours. That's measured in ₹10-100 crore in fines, lost customer trust, potential legal liability, and regulatory investigations.
+The cost of a supply chain breach? That's not measured in hours. Potential consequences include lost customer trust, recovery costs and legal or regulatory exposure, depending on the incident and applicable law.
 
 I know an Indian fintech that discovered a dependency vulnerability that would have allowed an attacker to steal all customer passwords. They found it through automated scanning. They fixed it on a Tuesday. Nobody ever knew. They avoided a breach that would have been devastating.
 
@@ -87,16 +89,16 @@ Start this week. Generate your SBOM. Scan your dependencies. Lock down your GitH
 ## Frequently Asked Questions
 
 **What is software supply chain security?**
-Managing every dependency and build tool your software relies on so an attacker can't slip malicious code into your product through a component you didn't write—covering source integrity, dependency management, secure builds, and access control.
+Managing every dependency and build tool your software relies on to reduce the chance of malicious code entering your product through a component you didn't write—covering source integrity, dependency management, secure builds, and access control.
 
 **What is an SBOM and why do I need one?**
-A Software Bill of Materials—a complete, machine-generated list of every dependency in your app (often 500+). Tools like CycloneDX scan your codebase so you actually know what you're running and can scan it for known vulnerabilities.
+A Software Bill of Materials—an inventory of software components, often generated automatically. Completeness depends on tooling and build scope. Tools that generate the CycloneDX SBOM format inspect your dependency inventory so you actually know what you're running and can scan it for known vulnerabilities.
 
 **What are common supply chain attacks?**
 Malicious code hidden in popular npm/PyPI packages, compromised CI build tools that silently steal secrets, typosquatting (installing "reqeusts" instead of "requests"), outdated dependencies with known exploits, and credentials accidentally committed to GitHub.
 
 **How does a small startup implement this?**
-Generate an SBOM (CycloneDX), scan dependencies (Snyk/Dependabot) with auto-PRs to patched versions, require SBOMs from vendors, lock down builds (branch protection, signed commits, environment-specific secrets), and do quarterly dependency audits. ~1–2 weeks of work.
+Generate an SBOM (CycloneDX), scan dependencies (Snyk/Dependabot) with auto-PRs to patched versions, require SBOMs from vendors, lock down builds (branch protection, signed commits, environment-specific secrets), and do quarterly dependency audits. Scope effort to the project and maintain the controls continuously.
 
 **Why does supply chain security matter for Indian startups?**
 Indian fintech and edtech are targets for nation-state and criminal actors, but have small teams that can't audit every library. Automated supply chain controls catch problems at scale without a security army—and protect the global clients who rely on Indian-built code.

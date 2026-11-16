@@ -233,8 +233,8 @@ const CardInspector: React.FC<{
 
 const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
   const cells: { label: string; url: string | null; status: string | null | undefined; manual?: boolean }[] = [
-    { label: "InBharat", url: item.canonicalUrl, status: "live" },
-    { label: "LinkedIn", url: null, status: item.linkedin.status, manual: true },
+    { label: "InBharat", url: item.canonicalUrl, status: item.publicationState ?? "unverified" },
+    { label: "LinkedIn", url: item.linkedin.url, status: item.linkedin.status, manual: !item.linkedin.url && item.linkedin.status === "manual" },
     { label: "Instagram", url: item.instagram?.url ?? null, status: item.instagram?.status ?? null },
   ];
   return (
@@ -256,7 +256,7 @@ const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
               <span className="font-semibold text-[#c0cfe0]">{c.label}</span>
               {c.url ? (
                 <a href={c.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[#7ab9e6] hover:underline">
-                  <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">{c.manual ? "posted manually" : (c.status ?? "live")}</span>
+                  <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-300">{c.manual ? "posted manually" : (c.status ?? "unknown")}</span>
                   <ExternalLink size={10} />
                 </a>
               ) : c.manual && c.status ? (
@@ -270,9 +270,15 @@ const MemoryInspector: React.FC<{ item: PublishedMemoryItem }> = ({ item }) => {
           ))}
         </ul>
         <p className="mt-2 text-[10px] text-[#5f7c98]">
-          LinkedIn shows &quot;posted manually&quot; honestly — the share-template flow never persists the post URL. Instagram shows the permalink when available.
+          Website state is the latest recorded observation, not proof of search indexing. LinkedIn/Instagram URLs appear only when stored.
           {item.measuredAt ? ` measured_at ${new Date(item.measuredAt).toLocaleDateString()} (LinkedIn outcomes only).` : " No LinkedIn outcomes measured yet."}
         </p>
+      </div>
+      <div className="text-[11px] text-[#9fb2c6]">
+        <p>First verified: {item.firstVerifiedAt ?? 'not recorded'} (not a publication date)</p>
+        <p>Last verified: {item.verifiedAt ?? 'not recorded'}</p>
+        <p>Source revision: {item.sourceCommitSha?.slice(0, 12) ?? 'unknown'}</p>
+        <p>Snapshot: {item.canonicalSnapshotId?.slice(0, 16) ?? 'unknown'}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Link to="/admin/growth/issues" className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-[#c0cfe0] hover:bg-white/[0.06]">Open in Issues ↗</Link>

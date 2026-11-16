@@ -39,7 +39,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
     const hero = page.locator(heroSelector);
     await expect(hero.locator('h1')).toHaveCount(1);
     const heading = await hero.locator('h1').boundingBox();
-    for (const signature of [hero.locator('[lang="sa"]'), hero.getByText('DPIIT Recognised', { exact: true }), hero.getByText(/Stanford Seed Spark/), hero.getByText('OpenAI Partner Network', { exact: true })]) {
+    for (const signature of [hero.locator('[lang="sa"]'), hero.getByText('DPIIT Recognised', { exact: true }), hero.getByText(/Stanford Seed Spark/), hero.getByText('OpenAI Partner Network · Member', { exact: true })]) {
       await expect(signature).toBeVisible();
       expect((await signature.boundingBox())!.y).toBeLessThan(heading!.y);
     }
@@ -203,7 +203,7 @@ for (const width of [390, 1440]) {
       ? page.locator('#products .lg\\:hidden button[aria-pressed]')
       : page.locator('#products h4').locator('..').locator('..').getByRole('button');
     await expect(controls).toHaveCount(6);
-    const productCounts = await page.locator('#products h4').locator('..').locator('..').getByRole('button').evaluateAll(buttons => buttons.map(b => Number(b.querySelector('span:last-child')?.textContent)));
+    const productCounts = await page.locator('#products h4').locator('..').locator('..').getByRole('button').evaluateAll(buttons => buttons.map(b => Number(b.querySelector('[data-product-count]')?.textContent)));
     expect(productCounts.reduce((sum, count) => sum + count, 0)).toBe(15);
     const first = controls.first();
     const second = controls.nth(1);

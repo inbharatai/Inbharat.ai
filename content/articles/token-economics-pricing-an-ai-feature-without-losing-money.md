@@ -1,4 +1,6 @@
-> "You're getting $8000 worth of AI usage for a $200 subscription" sounds great until you realize those studies use scripts to max out usage . For Indian SMBs building AI features, this kind of marketing fluff is dangerous. We need concrete strategies to price AI without losing money, especially when dealing with variable token costs and unpredictable user behavior. At InBharat AI, we've learned that getting token economics right is crucial for survival, not just profitability .
+> **Content correction — 16 November 2026:** All prices, token quantities and traffic multipliers here are illustrative calculations, not product offers or current provider quotes. P95 is a distribution statistic, not a profitability guarantee; include the tail, fixed costs and failure/retry costs.
+
+> Pricing AI features is tricky: a viral day can quickly turn profit into loss if your token economics are off. We'll explore per-request vs. per-token models, how to account for the long tail of complex queries, and setting a price floor that keeps your Indian AI product sustainable.
 
 ## The Core Problem: Variable Costs Meet Fixed Expectations
 
@@ -30,12 +32,12 @@ This is closer to how you pay the underlying LLM provider (e.g., OpenAI, Anthrop
 
 Most requests will be short and cheap. But a small percentage of users will make very long, complex, or repetitive requests that consume a disproportionate number of tokens. This is the p95 long tail – the 95th percentile of your usage. If your pricing only covers the average, these edge cases will quickly drain your budget.
 
-**Example:** In a content generation tool like KathaKitaab, most users might generate a 500-word story. But a few might try to generate a 5000-word novel in one go. If you charge per story, the 5000-word one costs 10x more to generate but brings in the same revenue.
+**Example:** In a content generation tool like KathaKitaab, most users might generate a 500-word story. But a few might try to generate a 5000-word novel in one go. If you charge per story, the longer output may cost substantially more, though word count and total cost are not exactly proportional but brings in the same revenue.
 
 To handle the p95 long tail:
 
 1.  **Analyze Your Usage Data:** Before launching, or even during beta, log token usage for every interaction. Understand your distribution. What's your average? What's your 90th percentile? Your 95th? Your max?
-2.  **Price for the P95, Not the Average:** Your base price should cover at least the 95th percentile of your expected token usage, plus your desired profit margin. This ensures you're profitable on most interactions, even the longer ones.
+2.  **Price for the P95, Not the Average:** Your base price should cover at least the 95th percentile of your expected token usage, plus your desired profit margin. This can inform a tier, but profitability also depends on the remaining tail, fixed costs, retries, free usage and demand. Add hard budgets rather than assuming p95 coverage is sufficient.
 3.  **Implement Hard Limits:** Set maximum input/output token limits per interaction. If a user exceeds it, prompt them to break down their request or indicate that additional charges apply. This prevents single, runaway requests from bankrupting your service.
 4.  **Prompt Engineering for Cost:** Teach users (and your internal agents) to be concise. For example, instead of "Write me an essay on the history of India," suggest "Summarize key events in Indian history from 1947-2000 in 300 words." This is where skills like [Prompt Engineering Is a Real Skill](https://www.inbharat.ai/learn-ai-with-reeturaj/prompt-engineering) become directly relevant to your bottom line.
 
@@ -62,7 +64,7 @@ Building for Bharat means specific constraints and opportunities:
 *   **Cost Sensitivity:** Indian users and SMBs are highly price-sensitive. A feature that's ₹50 in the US might need to be ₹5 in India. This means your underlying token costs need to be aggressively managed.
 *   **Regional Languages:** Processing regional languages can sometimes have different tokenization behaviors or require specialized, potentially more expensive, models. If your product, like KathaKitaab, focuses on regional languages, factor this in.
 *   **Inferencing on Local Hardware:** If you're running smaller, fine-tuned models on your own hardware (or even edge devices for Sahayaak Seva field agents), your cost structure shifts from API calls to compute and maintenance. This requires a different kind of FinOps approach .
-*   **UPI Integration:** Seamless payment integration via UPI can reduce friction for micro-transactions, making per-token or small per-request charges more viable.
+*   **UPI Integration:** Seamless payment integration via UPI can reduce friction for micro-transactions, which may help collection, subject to payment-provider fees, rules and user experience.
 
 At InBharat AI, we're always optimizing our model choices and prompt strategies to keep costs down. Sometimes, a series of smaller, cheaper models chained together can outperform a single, expensive behemoth for specific tasks. This is a core tenet of building [Desh Ka AI](https://www.inbharat.ai/learn-ai-with-reeturaj/desh-ka-ai).
 

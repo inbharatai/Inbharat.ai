@@ -1,10 +1,12 @@
+> **Content correction — 16 November 2026:** Healthcare examples are hypothetical design considerations, not proof of deployed patient-record access. Removed unresolved citations and corrected the implication that context overflow always silently truncates. JAK Shield is a tool-use risk layer, not a certified scam detector.
+
 In real-world AI applications in India, especially those dealing with diverse data like medical records or regional language content, simply writing a good prompt is rarely enough. The true challenge lies in **context engineering**: managing everything the LLM "sees" or "knows" when generating a response, including selecting, ordering, and truncating information to fit within token limits and achieve precise outputs.
 
 ## Why Context Engineering Matters More Than Ever
 
 When I started building AI agents for specific Indian use cases, like Sahayaak Seva for healthcare field assistance or TestsPrep for exam preparation, I quickly realized that prompt engineering, while important, was just one piece of the puzzle. An LLM's output quality isn't solely dependent on the instruction you give it; it's heavily influenced by the *context* you provide alongside that instruction. This includes documents, prior conversation turns, user profiles, and even system-level metadata.
 
-Think about it: an LLM has a finite "attention span" – its context window. If you feed it irrelevant information, or too much information, its ability to focus on the crucial details diminishes. For us at InBharat AI, operating with cost constraints and often on mid-range devices, efficient use of this context window is not a luxury; it's a necessity. Context engineering is the practice of deliberately designing, structuring, and optimizing this information [1, 2]. It encompasses managing everything the model "sees" or "knows" , going beyond crafting effective prompts .
+Think about it: an LLM has a finite "attention span" – its context window. If you feed it irrelevant information, or too much information, its ability to focus on the crucial details diminishes. For us at InBharat AI, operating with cost constraints and often on mid-range devices, efficient use of this context window is not a luxury; it's a necessity. Context engineering is the practice of deliberately designing, structuring, and optimizing this information. It encompasses managing everything the model "sees" or "knows" , going beyond crafting effective prompts .
 
 ## The Three Pillars of Context Engineering
 
@@ -20,7 +22,7 @@ Let's dive into each with examples relevant to building AI in India.
 
 This is perhaps the most critical step. Feeding an LLM too much irrelevant data is like asking a student to find a specific answer in a textbook without telling them which chapter to look in. They'll spend more time sifting through noise than finding the signal.
 
-For Sahayaak Seva, our healthcare assistant, imagine a field worker asking about a patient's medication. We don't just dump the entire patient history into the prompt. Instead, we intelligently select:
+For Sahayaak Seva, our healthcare assistant, imagine a field worker asking about a patient's medication. We don't just dump the entire patient history into the prompt. A proposed design would select with authorization and clinical review:
 
 *   **Relevant medical history**: Only conditions related to the current query or recent consultations.
 *   **Current medication list**: The most up-to-date prescription data.
@@ -47,9 +49,9 @@ Another common pattern is to place the core instruction or the most critical pie
 
 ### 3. Truncation: Managing the Context Window
 
-Every LLM has a maximum context window, measured in tokens. Exceeding this limit means your input gets cut off, leading to incomplete or nonsensical outputs. This is especially challenging when dealing with long documents, extended conversations, or detailed user profiles.
+Every LLM has a maximum context window, measured in tokens. Exceeding the limit may cause a rejected request or application-controlled truncation, depending on the provider and client. Reserve room for output and validate the actual behaviour. This is especially challenging when dealing with long documents, extended conversations, or detailed user profiles.
 
-For our scam detection agent, JAK Shield, analyzing a suspicious message chain might involve many turns. If the conversation exceeds the token limit, we need smart truncation strategies:
+For a proposed risk-review workflow, analyzing a suspicious message chain might involve many turns. JAK Shield’s tool-use risk controls do not establish a certified scam detector. If the conversation exceeds the token limit, we need smart truncation strategies:
 
 *   **Summarization**: Use a smaller LLM or a pre-trained summarization model to condense earlier parts of the conversation. This preserves the gist while reducing token count.
 *   **Sliding Window**: For very long documents or conversations, process the text in chunks, maintaining a "sliding window" of the most recent and most relevant information. This is common in agentic AI systems, as discussed in "What Agentic AI Really Means — and Why It Matters for India’s Future" (https://www.inbharat.ai/learn-ai-with-reeturaj/agentic-ai).
@@ -94,8 +96,19 @@ This is why a "prompt engineer" at InBharat AI is often more of a "context engin
 
 ## Bottom Line
 
-Context engineering is the unsung hero behind robust, cost-effective AI applications. It's the deliberate process of curating and presenting information to an LLM, ensuring it "sees" exactly what it needs to, no more and no less. For Indian builders, mastering selection, ordering, and truncation isn't just about better AI; it's about building AI that truly works for Bharat – efficient, accurate, and mindful of our unique constraints. This is how we move beyond simple chatbots and build truly intelligent agents, as explored in "AI Agents Aren’t Just Chatbots — They’re the Workforce Multiplier India Needs" (https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents).
+Context engineering is the unsung hero behind robust, cost-effective AI applications. It's the deliberate process of curating and presenting information to an LLM, aiming to supply relevant, authorized information while testing for omitted or misleading context. For Indian builders, mastering selection, ordering, and truncation isn't just about better AI; it's about building AI that truly works for Bharat – efficient, accurate, and mindful of our unique constraints. This is how we move beyond simple chatbots and build truly intelligent agents, as explored in "AI Agents Aren’t Just Chatbots — They’re the Workforce Multiplier India Needs" (https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents).
 
 ---
 Reeturaj
 #AI #ContextEngineering #LLMs #InBharatAI #IndianTech
+
+## Frequently Asked Questions
+
+**What is the difference between prompt engineering and context engineering?**
+Prompt engineering focuses on crafting effective instructions for an LLM. Context engineering is a broader discipline that encompasses prompt engineering but also includes the strategic selection, ordering, and truncation of all other information (documents, conversation history, user data) provided to the model at inference time.
+
+**Why is context engineering particularly important for AI development in India?**
+In India, context engineering is crucial due to factors like multilingualism, data scarcity in specific domains, the need for cost-efficient solutions (minimizing token usage), and optimizing for network latency on diverse internet infrastructures. It supports evaluating accuracy, cost and performance across relevant local conditions; no context strategy guarantees them.
+
+**What are some common techniques for context truncation?**
+Common techniques for context truncation include summarization of older information, using a sliding window to keep only the most recent or relevant parts of a long text, and prioritizing critical information to ensure it is always included even if other parts are cut.

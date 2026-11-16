@@ -4,6 +4,7 @@ import { logInfo, logError } from "../../../lib/growth/authorization.js";
 import { SITE } from "../../../seo.config.js";
 import {
   INDEXNOW_KEY,
+  gscPropertyCoversSite,
   parseSitemap,
   submitIndexNow,
   submitSitemapToGsc,
@@ -49,7 +50,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Our own canonical sitemap only — never any third-party URL.
     const sitemapUrl = `${SITE.url}/sitemap.xml`;
-    const smRes = await fetch(sitemapUrl, { headers: { "User-Agent": "InBharatGrowthAgent/1.0 (search-submit)" } });
+    const smRes = await fetch(sitemapUrl, {
+      headers: { "User-Agent": "InBharatGrowthAgent/1.0 (search-submit)" },
+      signal: AbortSignal.timeout(15000), redirect: "error",
+    });
     if (!smRes.ok) {
       await logInfo("cron-search-submit-done", "global", `trigger=${cron.source} sitemap-fetch=${smRes.status}`);
       return res.status(200).json({
@@ -60,25 +64,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const entries = parseSitemap(await smRes.text());
     const urls = entries.map((e) => e.loc);
+    if (!urls.length) {
+      return res.status(502).json({ ok: false, requestId, configured: false,
+        detail: "Own sitemap contained no parseable URLs; nothing submitted", outcomes });
+    }
     if (urls.length) {
-      // Google Search Console (scope may be ungranted; reports honestly).
+      // Same property as the existing GSC reporting integration, never inferred
+      // from the website origin (domain and URL-prefix properties differ).
+      const property = (process.env.GSC_SITE_URL || "").trim();
       const email = googleClientEmail();
       const key = googlePrivateKey();
-      if (email && key) {
+      if (email && key && property && gscPropertyCoversSite(property, SITE.url)) {
         try {
           const token = await getServiceAccountToken(email, key, "https://www.googleapis.com/auth/webmasters");
-          outcomes.push(await submitSitemapToGsc(fetch, SITE.url, `${SITE.url}/sitemap.xml`, token));
+          outcomes.push(await submitSitemapToGsc(fetch, property, `${SITE.url}/sitemap.xml`, token));
         } catch (e) {
           await logError("search-submit-gsc-token", "global", (e as Error).message);
           outcomes.push({ channel: "gsc-sitemap", status: "failed", detail: `token error: ${(e as Error).message?.slice(0, 100)}` });
         }
       } else {
-        outcomes.push({ channel: "gsc-sitemap", status: "unconfigured", detail: "no Google service-account credentials configured" });
+        outcomes.push({ channel: "gsc-sitemap", status: "unconfigured", detail:
+          !email || !key ? "no Google service-account credentials configured" :
+          !property ? "GSC_SITE_URL property is not configured" :
+          "GSC_SITE_URL does not cover the canonical sitemap origin" });
       }
 
       // IndexNow (key file must be live on the canonical host).
       try {
-        const keyFile = await fetch(`${SITE.url}/${INDEXNOW_KEY}.txt`);
+        const keyFile = await fetch(`${SITE.url}/${INDEXNOW_KEY}.txt`, {
+          signal: AbortSignal.timeout(15000), redirect: "error",
+        });
         if (keyFile.ok && (await keyFile.text()).trim() === INDEXNOW_KEY) {
           outcomes.push(await submitIndexNow(fetch, `${SITE.url.replace(/\/$/, "")}`, INDEXNOW_KEY, urls));
         } else {

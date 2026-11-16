@@ -12,6 +12,7 @@
  *                            but keeping the builder here lets the page render
  *                            its own canonical block if needed).
  */
+import { articleSchemaDates } from './article-lifecycle.js';
 import type { ArticleMeta } from './articles.meta.js';
 import { ARTICLE_HUB_PATH, articlePath, articleVisualPath } from './articles.meta.js';
 
@@ -49,8 +50,7 @@ export function buildTechArticle(
     url,
     mainEntityOfPage: url,
     image: site.url + articleVisualPath(meta),
-    datePublished: meta.datePublished,
-    dateModified: meta.datePublished,
+    ...articleSchemaDates(meta),
     inLanguage: 'en',
     author: {
       '@id': author['@id'],

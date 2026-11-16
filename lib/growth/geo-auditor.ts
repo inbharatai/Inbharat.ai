@@ -26,7 +26,7 @@ export function scoreGeo(page: PageMeta): GeoScore {
 
   // Problem → solution framing (needs enough substance)
   if ((page.wordCount ?? 0) < 300) {
-    issues.push(issue("high", "substance", "Too thin for AI extraction", "Add a problem/solution section with concrete workflow and proof."));
+    issues.push(issue("low", "substance", "Short main-content estimate", "Review whether this page answers its intended question. There is no universal AI-search word minimum; do not add filler."));
   }
 
   // FAQs (great for AI answer extraction)
@@ -41,7 +41,7 @@ export function scoreGeo(page: PageMeta): GeoScore {
 
   // Proof / demo
   if (!page.proofPresent) {
-    issues.push(issue("normal", "proof", "No proof/demo/screenshots", "Add screenshots, a demo link, or example output to back claims."));
+    issues.push(issue("normal", "proof", "No proof-related text detected", "Review the actual evidence for claims. This keyword heuristic cannot verify screenshots, benchmarks or deployments."));
   }
 
   // Schema (entities)
@@ -58,7 +58,7 @@ export function scoreGeo(page: PageMeta): GeoScore {
 
   // Noindex / broken = invisible to AI
   if (page.metaRobots && /noindex/i.test(page.metaRobots)) {
-    issues.push(issue("critical", "robots", "noindex — invisible to AI search", "Remove noindex so AI engines can surface the page."));
+    issues.push(issue("critical", "robots", "noindex — excluded from compliant search indexes", "Keep noindex on private/utility pages. Remove only if this page is intended for public search; robots directives are not access control."));
   }
   if (page.httpStatus && page.httpStatus >= 400) {
     issues.push(issue("critical", "httpStatus", `HTTP ${page.httpStatus}`, "Fix the page so AI crawlers can fetch it."));

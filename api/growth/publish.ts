@@ -11,6 +11,9 @@ import { sanitizeMermaidFences, type MermaidSanitizeResult } from "../../lib/gro
 import { stripCitationMarkers } from "../../lib/growth/citations.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { slugifyTitle } from "../../lib/growth/articleWriter.js";
+import { publishArticleToRepository } from "../../lib/growth/article-repository.js";
+export { formatArticleEntry } from "../../lib/growth/article-publication.js";
+import { insertArticleVisual, hasArticleMeta } from "../../lib/growth/article-publication.js";
 import { SITE } from "../../seo.config.js";
 
 /**
@@ -23,12 +26,12 @@ import { SITE } from "../../seo.config.js";
  *     account-ban risk, zero new infra.
  *
  *   kind='article' (POST { draftId, mode:'article' })
- *     Commits content/articles/<slug>.md + inserts the ArticleMeta entry into
- *     content/articles.meta.ts, marks the draft published, then AUTO-SHIPS the
+ *     Atomically commits content/articles/<slug>.md + upserts its ArticleMeta
+ *     in content/articles.meta.ts, marks the draft repository-published, then handles the
  *     companion cover: if a kind='cover' draft (pending or approved) exists for
  *     the same slug, its PNG + `visual:` edit are committed in the SAME publish so
  *     one click ships article + cover together (the founder's choice). The cover
- *     ships best-effort — the article is already live, so a cover failure is
+ *     ships best-effort — the article is already repository-published, so a cover failure is
  *     surfaced in the `cover` field, never rolled back, never fails the publish.
  *     If NO companion cover draft exists, a pending cover is AUTO-DRAFTED (budget
  *     permitting) so the article is never left coverless — surfaced in
@@ -65,7 +68,7 @@ interface ArticleSchema {
   slug?: unknown;
   description?: unknown;
   category?: unknown;
-  datePublished?: unknown;
+  generatedAt?: unknown; // legacy draft datePublished is intentionally ignored
   readMinutes?: unknown;
   abstract?: unknown;
   faq?: unknown;
@@ -342,7 +345,7 @@ async function publishCover(
  * auto-publishing it with the article would bypass the never-auto-publish rule. The
  * founder approves + Publishes the cover separately (the cover has its own Publish
  * button in Issues). Best-effort: a cover failure never rolls back or fails the
- * article publish (the article is already live); the outcome is returned so
+ * article publish (the article is already repository-published); the outcome is returned so
  * publishArticle can surface it.
  *
  * Returns null when there is no APPROVED companion cover draft for the slug (a
@@ -521,24 +524,7 @@ async function findPendingCompanionCover(slug: string): Promise<{ id: string; cr
  * safely located.
  */
 export function insertVisualField(source: string, slug: string, filename: string): string | null {
-  // Match the WHOLE article entry: from `slug: '<slug>',` through the entry's
-  // closing `  },` line. Non-greedy so it stops at THIS entry's close (the faq
-  // array closes with `]`, not `  },`, so the first `\n  },` is the entry close).
-  const entryRe = new RegExp(
-    `(slug:\\s*['"]${escapeRe(slug)}['"]\\s*,[\\s\\S]*?readMinutes:\\s*\\d+\\s*,)([\\s\\S]*?\\n  \\},)`,
-    "m",
-  );
-  const m = source.match(entryRe);
-  if (!m) return null; // slug not found → don't touch the file
-  const head = m[1]; // slug ... readMinutes: <n>,
-  const tail = m[2]; // rest of the entry through `  },`
-  // Idempotency: if a visual field already exists anywhere in this entry, no-op.
-  // (The previous version only checked between slug and readMinutes, but the
-  // visual is inserted AFTER readMinutes — so a re-run never saw the existing
-  // visual and inserted a second one, producing a duplicate `visual:` line.)
-  if (/visual\s*:\s*['"]/.test(head + tail)) return null;
-  const insertion = `\n    visual: '${filename}',`;
-  return source.replace(entryRe, `${head}${insertion}${tail}`);
+  return insertArticleVisual(source, slug, filename);
 }
 
 function escapeRe(s: string): string {
@@ -560,7 +546,7 @@ function escapeRe(s: string): string {
  * Pure + hermetically testable (mirrors insertVisualField's slug-line match).
  */
 export function articleMetaEntryExists(source: string, slug: string): boolean {
-  return new RegExp(`slug:\\s*['"]${escapeRe(slug)}['"]`).test(source);
+  return hasArticleMeta(source, slug);
 }
 
 // ─── Phase E: article + video-script publish ─────────────────────────────────
@@ -569,11 +555,11 @@ export function articleMetaEntryExists(source: string, slug: string): boolean {
  *  the draft can't be published (missing body, bad slug, bad category). */
 function readArticleMeta(title: string | null, bodyMd: string | null, schema: ArticleSchema | null): {
   slug: string; title: string; description: string; category: ArticleCategory;
-  datePublished: string; readMinutes: number; abstract: string;
+  readMinutes: number; abstract: string;
   faq: { q: string; a: string }[]; hashtags: string[];
 } | null {
   const slug = typeof schema?.slug === "string" ? schema.slug.trim() : "";
-  if (!/^[a-z0-9-]+$/.test(slug)) return null;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return null;
   const body = typeof bodyMd === "string" ? bodyMd.trim() : "";
   if (!body) return null;
   const t = (typeof title === "string" ? title.trim() : "") || "Untitled article";
@@ -581,48 +567,21 @@ function readArticleMeta(title: string | null, bodyMd: string | null, schema: Ar
   const abstract = typeof schema?.abstract === "string" ? schema.abstract : "";
   const rawCat = typeof schema?.category === "string" ? schema.category : "";
   const category = (ARTICLE_CATEGORIES as readonly string[]).includes(rawCat) ? (rawCat as ArticleCategory) : "AI Foundations";
-  const datePublished = typeof schema?.datePublished === "string" && /^\d{4}-\d{2}-\d{2}$/.test(schema.datePublished) ? schema.datePublished : new Date().toISOString().slice(0, 10);
-  const readMinutes = typeof schema?.readMinutes === "number" && schema.readMinutes > 0 ? Math.min(60, Math.round(schema.readMinutes)) : 5;
+  const readMinutes = typeof schema?.readMinutes === "number" && Number.isFinite(schema.readMinutes) && schema.readMinutes > 0 ? Math.min(60, Math.round(schema.readMinutes)) : 5;
   const faq = Array.isArray(schema?.faq)
     ? (schema.faq as Array<Record<string, unknown>>).filter((f) => typeof f?.q === "string" && typeof f?.a === "string").map((f) => ({ q: String(f.q), a: String(f.a) }))
     : [];
   const hashtags = Array.isArray(schema?.hashtags) ? (schema.hashtags as unknown[]).filter((h) => typeof h === "string").map(String) : [];
-  return { slug, title: t, description, category, datePublished, readMinutes, abstract, faq, hashtags };
-}
-
-/** Build a single-quoted TS object literal for one ArticleMeta entry, matching
- *  the file's 2-space indent + field-order convention. Pure + testable. */
-export function formatArticleEntry(m: {
-  slug: string; title: string; description: string; category: ArticleCategory;
-  datePublished: string; readMinutes: number; abstract: string;
-  faq: { q: string; a: string }[]; hashtags: string[];
-}): string {
-  const q = (s: string): string => "'" + s.replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'";
-  const faqStr = m.faq.length === 0
-    ? "[]"
-    : "[\n" + m.faq.map((f) => `      { q: ${q(f.q)}, a: ${q(f.a)} },`).join("\n") + "\n    ]";
-  const hashtagsStr = m.hashtags.length === 0 ? "[]" : "[" + m.hashtags.map(q).join(", ") + "]";
-  return [
-    "  {",
-    `    slug: ${q(m.slug)},`,
-    `    title: ${q(m.title)},`,
-    `    description: ${q(m.description)},`,
-    `    category: ${q(m.category)},`,
-    `    datePublished: ${q(m.datePublished)},`,
-    `    readMinutes: ${m.readMinutes},`,
-    `    abstract: ${q(m.abstract)},`,
-    `    faq: ${faqStr},`,
-    `    hashtags: ${hashtagsStr},`,
-    "  },",
-  ].join("\n");
+  return { slug, title: t, description, category, readMinutes, abstract, faq, hashtags };
 }
 
 /**
  * Scoped insert of a NEW ArticleMeta entry into articles.meta.ts: place it just
  * before the `];` that closes the ARTICLES array (the one immediately followed by
  * `export function getArticleBySlug`). Idempotent — returns null if the slug is
- * already present, so re-publishing a published article only re-commits the
- * markdown (no duplicate meta entry). Returns the edited text or null when the
+ * already present. Legacy insert-only helper retained for old callers/tests;
+ * publication uses planArticlePublication instead (which updates existing meta).
+ * Returns the edited text or null when the
  * marker can't be safely located. Pure + hermetically testable.
  */
 export function insertArticleMeta(source: string, slug: string, entryText: string): string | null {
@@ -660,7 +619,7 @@ export function retireCalendarTopic(source: string, slug: string, articleTitle: 
     if (!topicMatch) return block;
     if (slugifyTitle(topicMatch[1]) !== slug) return block;
     found = true;
-    const titleSuffix = articleTitle ? ` ("${articleTitle}")` : "";
+    const titleSuffix = articleTitle ? ` (${JSON.stringify(articleTitle).replace(/\u2028/g, " ").replace(/\u2029/g, " ")})` : "";
     return [
       `\n  // NOTE: "${topicMatch[1]}" was auto-retired by publishArticle because it`,
       `  // shipped as the article of slug ${slug}${titleSuffix}. Now that the slug is`,
@@ -674,11 +633,9 @@ export function retireCalendarTopic(source: string, slug: string, articleTitle: 
 }
 
 /**
- * Article publish (Phase E): commit content/articles/<slug>.md (markdown body) +
- * insert the ArticleMeta entry into content/articles.meta.ts, then mark the draft
- * published. Vercel auto-rebuilds so the article ships live on inbharat.ai. The
- * markdown commit uses commitBinary (create-or-update, handles new files); the
- * meta edit uses upsertText with the scoped insertArticleMeta transform.
+ * Article publish: atomically commit body + metadata for new or existing slug,
+ * then mark the draft repository-published. The Git Data API uses pinned reads
+ * and a non-force branch update. Success is not proof of production promotion.
  */
 async function publishArticle(
   res: VercelResponse,
@@ -721,24 +678,15 @@ async function publishArticle(
   const mdPath = `content/articles/${meta.slug}.md`;
   const metaPath = "content/articles.meta.ts";
 
-  // 1) Commit the markdown body (create-or-update; base64 = correct utf8 on decode).
-  //    bodyToCommit has any unparseable mermaid fences stripped (see above).
-  const mdBase64 = Buffer.from(bodyToCommit, "utf-8").toString("base64");
-  const mdRes = await commitBinary(mdPath, mdBase64, `article: add ${meta.slug} (Growth Agent, human-gated)`);
+  // Atomically accept body + updated metadata in ONE Git commit. This is not
+  // proof of deployment or a live publication timestamp.
+  const mdRes = await publishArticleToRepository(meta, bodyToCommit);
+  const metaRes = mdRes; // response compatibility: both files share one commit
   if (!mdRes.ok) {
-    await logInfo("publish-article-fail-md", mdPath, mdRes.error || "commit failed").catch(() => undefined);
-    if (mdRes.needsToken) {
-      return res.status(412).json({ ok: false, code: "PRECONDITION_FAILED", error: `GitHub token cannot push to ${COVER_REPO}: ${mdRes.error}. Set GITHUB_TOKEN (contents:write) in Vercel env.`, requestId });
-    }
-    return res.status(502).json({ ok: false, code: "SERVER_ERROR", error: `article markdown commit failed: ${mdRes.error}`, requestId });
-  }
-
-  // 2) Insert the ArticleMeta entry (idempotent — no-op if slug already present).
-  const metaRes = await upsertText(metaPath, (current) => insertArticleMeta(current, meta.slug, formatArticleEntry(meta)), `article: add meta for ${meta.slug} (Growth Agent, human-gated)`);
-  if (!metaRes.ok && !metaRes.skipped) {
-    await logInfo("publish-article-fail-meta", metaPath, metaRes.error || "edit failed").catch(() => undefined);
-    // Markdown committed but meta not wired → the .md exists but the hub won't list it until the meta edit lands.
-    return res.status(502).json({ ok: false, code: "SERVER_ERROR", error: `article markdown committed (sha ${mdRes.commitSha?.slice(0, 7) ?? "?"}) but articles.meta.ts edit failed: ${metaRes.error}. Re-run publish to wire the meta entry.`, requestId, mdCommitSha: mdRes.commitSha });
+    return res.status(mdRes.needsToken ? 412 : 502).json({
+      ok: false, code: mdRes.needsToken ? "PRECONDITION_FAILED" : "SERVER_ERROR",
+      error: mdRes.error, publicationState: "repository_unconfirmed", requestId,
+    });
   }
 
   // 3) Mark the draft published + audit.
@@ -758,7 +706,7 @@ async function publishArticle(
   //     pickNextCalendarTopic skips it every morning anyway). This used to be a
   //     manual whack-a-mole edit after every publish; automating it keeps CI green
   //     without founder effort. Best-effort, non-fatal: the article is already
-  //     live, so a calendar-edit failure is surfaced in `calendarRetire` (never
+  //     repository-published, so a calendar-edit failure is surfaced in `calendarRetire` (never
   //     rolls back, never fails the publish) — the founder can re-run publish to
   //     retire it, or retire by hand. Idempotent (retireCalendarTopic no-ops once
   //     the entry is already a NOTE). Skipped silently for free-plan articles not
@@ -805,7 +753,7 @@ async function publishArticle(
 
   // 4) Auto-ship the APPROVED companion cover with the article (Stage 2: only an
   //    approved cover ships — a pending one has not been reviewed and must not be
-  //    auto-published). The article is already live at this point, so a cover
+  //    auto-published). The article is already repository-published at this point, so a cover
   //    failure is NON-fATAL — we surface it in the `cover` field instead of failing
   //    the publish. The cover's `visual:` edit runs AFTER the article meta insert
   //    above so insertVisualField can find the freshly-added slug entry.
@@ -869,7 +817,7 @@ async function publishArticle(
   //    referenced). The article meta was just inserted in step 2, so insertVisualField
   //    will now find the slug and wire the visual onto it. Idempotent (no-op if the
   //    companion step or regenerated cover already set it) and best-effort — never
-  //    fails the article publish (the article is already live); surfaced in
+  //    fails the article publish (the article is already repository-published); surfaced in
   //    `coverBackstop`. Skipped when coverRegenerated already wired the visual.
   let coverBackstop: { ok: boolean; wired?: boolean; commitSha?: string; skipped?: boolean; error?: string } | null = null;
   if (!companion && !coverRegenerated?.ok) {
@@ -893,6 +841,8 @@ async function publishArticle(
   return res.status(200).json({
     ok: true, requestId, kind: "article", slug: meta.slug, title: meta.title,
     fileUrl, mdCommitSha: mdRes.commitSha, metaCommitSha: metaRes.commitSha,
+    publicationState: "repository_published", liveVerified: false,
+    note: "Committed to the repository; production deployment and first live publication are not yet verified.",
     cover, coverDrafted,
     // Fresh pending cover waiting for human approval (non-stale). Kept for UI parity.
     pendingCoverId: pendingCover?.id ?? null,
@@ -904,12 +854,12 @@ async function publishArticle(
     // article is coverless). ok:true + wired:true = a cover published before the
     // article got its visual wired now (the race recovered). ok:true + skipped:true
     // = visual was already set (idempotent). ok:false = the meta edit failed
-    // (article still live); re-run publish or the cover stays unreferenced.
+    // (article still repository-published); re-run publish or the cover stays unreferenced.
     coverBackstop,
     // Outcome of the auto calendar-retire (step 2b). ok:true + skipped:true = no
     // calendar topic matched this slug (free-plan article) → nothing retired.
     // ok:true + skipped:false = a topic was retired + committed. ok:false = the
-    // calendar edit failed (article still live); re-run publish or retire by hand
+    // calendar edit failed (article still repository-published); re-run publish or retire by hand
     // or the next CI push trips the slug-collision guard.
     calendarRetire,
     // Present only when one or more broken mermaid fences were stripped before commit

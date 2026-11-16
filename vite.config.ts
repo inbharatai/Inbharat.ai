@@ -1,8 +1,36 @@
 import path from 'path';
-import { defineConfig } from 'vite';
+import { existsSync } from 'node:fs';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
+/** Vite preview otherwise serves the root SPA at extensionless routes even
+ * when dist/route/index.html exists. Exercise the real static route shells in
+ * local tests; this does NOT emulate Vercel headers, middleware or redirects. */
+function builtRoutePreview(): Plugin {
+  return {
+    name: 'built-route-preview',
+    configurePreviewServer(server) {
+      const dist = path.resolve(server.config.root, server.config.build.outDir);
+      server.middlewares.use((req, res, next) => {
+        if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+        try {
+          const url = new URL(req.url || '/', 'http://preview.local');
+          const route = decodeURIComponent(url.pathname);
+          const file = path.resolve(dist, '.' + route, 'index.html');
+          if (file.startsWith(dist + path.sep) && existsSync(file)) {
+            req.url = (url.pathname.replace(/\/$/, '') || '') + '/index.html' + url.search;
+          }
+          return next();
+        } catch {
+          res.statusCode = 400;
+          res.end('Invalid preview path');
+        }
+      });
+    },
+  };
+}
+
+export default defineConfig(() => {
   const apiProxyTarget = process.env.VITE_PROXY_API_TARGET || process.env.API_PROXY_TARGET;
   return {
     server: {
@@ -19,7 +47,7 @@ export default defineConfig(({ mode }) => {
           }
         : undefined,
     },
-    plugins: [react()],
+    plugins: [react(), builtRoutePreview()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

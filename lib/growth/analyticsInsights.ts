@@ -9,7 +9,7 @@
  *   low_ctr_page       — page getting impressions but few clicks → improve title/meta.
  *   rising_page        — clicks/impressions up vs previous period → update + syndicate.
  *   falling_page       — clicks dropped vs previous period → refresh or archive.
- *   no_traffic_page    — published article, 0 impressions in 28d → refresh or archive.
+ *   no_traffic_page    — observed-live article absent from a limited pages report → investigate.
  *   top_query          — high-impression query → create a follow-up article.
  *   follow_up_article  — article getting traffic for a query → write the follow-up.
  *   product_traffic    — a product page getting search traffic → create LinkedIn post.
@@ -22,13 +22,13 @@
  *   - "rising"/"falling" require BOTH current + previous period rows; when the
  *     previous period is absent, those insight types are NOT emitted (we don't
  *     guess a trend from a single window).
- *   - "no_traffic_page" requires a known published article (ARTICLES manifest)
- *     that is ≥30 days old AND absent from GSC rows — not just any URL.
+ *   - "no_traffic_page" retains its API name, but is a coverage-gap recommendation,
+ *     NOT measured zero traffic. Requires verified live inventory observed ≥30 days.
+ *   - Source publication dates never substitute for first_verified_at evidence.
  *   - Insights are bounded (capInsights) so a noisy snapshot can't flood the KB.
  *
- * Server-only import of ARTICLES is safe (pure data). No side effects here.
+ * No DB, source manifest, or network access. Callers supply observation inventory.
  */
-import { ARTICLES } from "../../content/articles.meta.js";
 import type { KnowledgeType } from "./knowledge.js";
 
 // ─── shared shapes ──────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ export function daysSince(iso: string, now: number): number {
 
 const LOW_CTR_IMPRESSIONS_MIN = 200;   // below this, CTR noise dominates
 const LOW_CTR_THRESHOLD = 0.02;        // <2% CTR with ≥200 impressions → fix title
-const NO_TRAFFIC_DAYS_MIN = 30;        // article must be ≥30 days published
+const NO_TRAFFIC_DAYS_MIN = 30;        // elapsed since first verified live observation
 const RISING_DELTA_MIN = 5;            // +5 clicks vs previous period
 const FALLING_DELTA_MIN = 5;           // −5 clicks vs previous period
 const TOP_QUERY_IMPRESSIONS_MIN = 100;
@@ -252,27 +252,74 @@ function fallingPages(current: GscRow[], previous: GscRow[]): Insight[] {
   return out;
 }
 
-function noTrafficPages(gsc: GscReport, now: number, days: number): Insight[] {
+export interface ArticleObservation {
+  slug: string;
+  title: string;
+  publicationState: "live" | "unverified" | "removed";
+  firstVerifiedAt: string | null;
+  verifiedAt: string | null;
+  verificationMethod: string | null;
+  canonicalSnapshotId: string | null;
+  sourceCommitSha: string | null;
+}
+export interface ArticleObservationInventory {
+  status: "available" | "unavailable";
+  articles: ArticleObservation[];
+  reason?: string;
+}
+
+/** Days elapsed since first observed live, NOT a publication date or proof of
+ * continuous availability (first observation survives removal/revival). */
+export function observedLiveAge(a: ArticleObservation, now: number): number | null {
+  const first = Date.parse(a.firstVerifiedAt ?? "");
+  const latest = Date.parse(a.verifiedAt ?? "");
+  if (a.publicationState !== "live" || !a.slug || !Number.isFinite(now) ||
+      !Number.isFinite(first) || !Number.isFinite(latest) || first > latest || latest > now ||
+      a.verificationMethod !== "canonical_snapshot" ||
+      !/^[a-f0-9]{64}$/.test(a.canonicalSnapshotId ?? "") ||
+      !/^[a-f0-9]{40}$/.test(a.sourceCommitSha ?? "")) return null;
+  return Math.floor((now - first) / 86400000);
+}
+
+/** Separate diagnostics preserve Insight[] API compatibility without silently
+ * treating missing/legacy verification as zero eligible articles. */
+export function publicationInsightCoverage(inventory: ArticleObservationInventory | undefined, now: number) {
+  const counts = { eligible: 0, tooYoung: 0, unknownVerification: 0, unverified: 0, removed: 0 };
+  for (const a of inventory?.status === "available" ? inventory.articles : []) {
+    if (a.publicationState === "removed") { counts.removed++; continue; }
+    if (a.publicationState !== "live") { counts.unverified++; continue; }
+    const age = observedLiveAge(a, now);
+    if (age === null) counts.unknownVerification++;
+    else if (age < NO_TRAFFIC_DAYS_MIN) counts.tooYoung++;
+    else counts.eligible++;
+  }
+  const status = inventory?.status ?? "unavailable";
+  const summary = status === "unavailable"
+    ? (inventory?.reason ?? "Publication verification inventory unavailable; observation age is unknown.")
+    : `Publication observation coverage: ${counts.eligible} eligible, ${counts.tooYoung} observed for less than 30 days, ${counts.unverified} unverified, ${counts.unknownVerification} with unknown verification age/provenance, ${counts.removed} removed. Missing from the limited top-pages report is not measured zero traffic; check the URL-level report before refresh/archive decisions.`;
+  return { status, ...counts, summary };
+}
+
+function noTrafficPages(gsc: GscReport, now: number, days: number, inventory?: ArticleObservationInventory): Insight[] {
+  if (inventory?.status !== "available") return [];
   const seen = new Set<string>();
   for (const r of gsc.topPages) {
     const slug = slugFromPath(r.keys[0] ?? "");
     if (slug) seen.add(slug);
   }
   const out: Insight[] = [];
-  for (const a of ARTICLES) {
-    if (!a.slug || !a.datePublished) continue;
-    const age = daysSince(a.datePublished, now);
-    if (age < NO_TRAFFIC_DAYS_MIN) continue;
-    if (seen.has(a.slug)) continue;
+  for (const a of inventory.articles) {
+    const age = observedLiveAge(a, now);
+    if (age === null || age < NO_TRAFFIC_DAYS_MIN || seen.has(a.slug)) continue;
     out.push({
-      type: "no_traffic_page",
+      type: "no_traffic_page", // compatibility: coverage-gap signal, not measured zero
       source: "Search Console",
       page: `${ARTICLE_HUB}${a.slug}`,
       linkedArticleSlug: a.slug,
       relatedProduct: inferProduct(a.slug + " " + a.title),
-      metrics: { impressions: 0, clicks: 0, ageDays: age },
-      summary: `Article "${a.slug}" has no Search Console impressions in the last ${days} days (published ${age}d ago).`,
-      recommendedAction: `Refresh or archive "${a.slug}" — update the angle, improve on-page SEO, or retire it if the topic no longer fits.`,
+      metrics: { ageDays: age },
+      summary: `Article "${a.slug}" was observed live for at least ${age} days (since first verification; not proof of continuous availability) and is absent from the limited top-pages report for the last ${days} days. This does not establish zero impressions or clicks.`,
+      recommendedAction: `Check the URL-level Search Console report for "${a.slug}" and its indexing/coverage before deciding whether to refresh or archive it. Absence from this limited report alone is not evidence of no traffic.`,
       priority: clamp(Math.round(40 + Math.min(age / 5, 30))),
     });
   }
@@ -434,6 +481,8 @@ function sourceAngles(ga4: Ga4Report): Insight[] {
 
 export interface GenerateInsightsInput {
   snapshot: AnalyticsSnapshot;
+  /** DB-backed observation inventory; omitted/failed means unknown, never source-date fallback. */
+  articleInventory?: ArticleObservationInventory;
   /** Previous-period GSC page rows (same length window, just before `range`).
    *  Optional — when absent, rising/falling insights are NOT emitted. */
   previousGscPages?: GscRow[];
@@ -458,7 +507,7 @@ export function generateInsights(input: GenerateInsightsInput): Insight[] {
     // Guard with `pagesOk !== false` so a snapshot built before the flag existed
     // (treated as undefined → allowed) still works, but an explicit failure stops it.
     if (snapshot.gsc.pagesOk !== false) {
-      out.push(...noTrafficPages(snapshot.gsc, now, snapshot.range.days));
+      out.push(...noTrafficPages(snapshot.gsc, now, snapshot.range.days, input.articleInventory));
       if (previousGscPages && previousGscPages.length > 0) {
         out.push(...risingPages(snapshot.gsc.topPages, previousGscPages));
         out.push(...fallingPages(snapshot.gsc.topPages, previousGscPages));

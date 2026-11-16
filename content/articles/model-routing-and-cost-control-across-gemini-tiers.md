@@ -1,8 +1,10 @@
-> When we started building AI agents for Bharat, one of the first things we realized was that raw API costs from large models could quickly sink a project. We managed to cut our Gemini API expenses by a significant 60% by implementing a smart model routing strategy. This isn't about fancy algorithms; it's about practical decision-making: using the right model for the right task and caching results aggressively.
+> **Content correction — 16 November 2026:** The earlier 60% saving lacked a dated baseline, workload, pricing snapshot and quality evaluation; it is not a verified InBharat result. Legacy Gemini 1.5/1.0 model and SDK examples below are historical, not current availability recommendations. Check official model lifecycle and pricing documentation before use.
+
+> Model routing assigns tasks to model tiers and can reduce cost when quality remains acceptable. Savings depend on workload, pricing, retries, cache hit rate and evaluation. This article retains historical Gemini examples as teaching material, not a current SDK recipe or a verified 60% InBharat cost reduction.
 
 ## The Cost Challenge of LLMs in India
 
-Building AI products for India means operating under unique constraints. Our users might be on 4G networks, using mid-range devices, and every rupee spent on infrastructure counts. A single complex prompt to a powerful LLM can cost a few rupees. Multiply that by lakhs of users, and your monthly bill quickly becomes unsustainable. For example, prompts exceeding 200k tokens can cost as much as $4.00 for input and $18.00 for output [2, 3]. These are not numbers a bootstrapped Indian startup can ignore.
+Building AI products for India means operating under unique constraints. Our users might be on 4G networks, using mid-range devices, and every rupee spent on infrastructure counts. A single complex prompt to a powerful LLM can cost a few rupees. Multiply that by lakhs of users, and your monthly bill quickly becomes unsustainable. Input and output prices depend on the model, token count and pricing tier. Use a dated provider price table rather than treating historical dollar amounts as current rates.
 
 At InBharat AI, we're building vertical AI tools like Sahayaak Seva for healthcare and TestsPrep for exam preparation. These applications need reliable, fast, and cost-effective AI. Throwing a `Gemini 1.5 Pro` at every request is like using a sledgehammer to crack a nut – effective, but wasteful. We needed a way to be intelligent about our model usage.
 
@@ -10,13 +12,15 @@ At InBharat AI, we're building vertical AI tools like Sahayaak Seva for healthca
 
 Our strategy boils down to three core principles:
 
-1.  **Task-to-Model Matching:** Don't use a powerful, expensive model for a simple task. Gemini offers tiers like `Flash` (or `Flash-Lite`) for lighter loads and `Pro` for more complex, multi-step tasks . `Gemini 1.5 Pro` is the latest frontier model, while `Gemini 1.0 Pro` is a cheaper, proven fallback . We use this to our advantage.
+1.  **Task-to-Model Matching:** Don't use a powerful, expensive model for a simple task. Gemini offers tiers like `Flash` (or `Flash-Lite`) for lighter loads and `Pro` for more complex, multi-step tasks . The original article used Gemini 1.5/1.0 names as examples. They must not be treated as the latest or currently supported models.
 2.  **Aggressive Caching:** If a user asks the same question twice, or if a common query comes up, serve the answer from a cache. This avoids hitting the LLM API altogether.
 3.  **Budget-Aware Fallbacks:** Define clear thresholds for spending. If a request is too expensive, or if a model fails, have a fallback plan, even if it means failing gracefully or escalating to human review.
 
 ## Implementing a Simple Routing Table
 
-Here’s a simplified version of the routing logic we use. It's a `switch` statement or a lookup table that maps the `task_type` to the appropriate `model_name` and `max_tokens`.
+Here is a historical, simplified routing example; it is not a production-ready integration. It's a `switch` statement or a lookup table that maps the `task_type` to the appropriate `model_name` and `max_tokens`.
+
+**Historical teaching code:** Do not use this prompt-only cache across users. It omits authorization scoping, source expiry, deletion, credential configuration, budgets and current SDK compatibility. All medical text below is synthetic example data.
 
 ```python
 import os
@@ -107,9 +111,9 @@ if __name__ == "__main__":
 3.  **Caching Layer:** We implement a simple in-memory cache (though for production, you'd use Redis or a similar distributed cache). Before any API call, we check if the exact prompt has been processed before. If it has, we return the cached result, saving both time and money.
 4.  **Error Handling and Fallbacks:** The `try-except` block in `call_llm` is crucial. If an API call fails (e.g., due to rate limits, invalid input, or budget constraints), we can implement retries, switch to a different model, or even flag the request for human review. This is part of our human-gated safety approach at InBharat.
 
-### The Impact: Real Savings
+### Measuring the impact
 
-By implementing this, we saw a direct reduction in our API costs. Simple queries, which form a large percentage of user interactions, no longer hit the most expensive models. Caching further reduces redundant calls. For example, in TestsPrep, common questions about exam patterns or syllabus details are almost always served from the cache after the first query.
+To establish savings, compare equivalent workloads before and after routing, including quality failures and retries. Simple queries, which form a large percentage of user interactions, no longer hit the most expensive models. Caching further reduces redundant calls. For example, repeated public syllabus queries may be cacheable if the underlying source is current; no TestsPrep cache-hit rate is established here.
 
 This approach aligns with our philosophy of building practical AI for Bharat. We're not just chasing the latest, most powerful model; we're optimizing for real-world constraints: cost, latency, and reliability on diverse Indian networks.
 
@@ -126,7 +130,7 @@ This intelligent routing is a critical component of building robust AI agents. A
 
 ## Bottom Line
 
-Don't let LLM API costs eat into your budget. By implementing a simple, task-aware routing strategy, aggressively caching results, and having budget-conscious fallbacks, you can significantly reduce your operational expenses while maintaining performance. This practical approach is vital for any Indian startup building AI products that need to scale efficiently across the diverse landscape of Bharat. Start with a basic routing table and iterate based on your usage patterns and cost data. You'll be surprised how much you can save.
+Don't let LLM API costs eat into your budget. By implementing a simple, task-aware routing strategy, aggressively caching results, and having budget-conscious fallbacks, you can significantly reduce your operational expenses provided task-quality and latency evaluations still pass. This practical approach is vital for any Indian startup building AI products that need to scale efficiently across the diverse landscape of Bharat. Start with a basic routing table and iterate based on your usage patterns and cost data. You'll be surprised how much you can save.
 
 ## FAQ
 
@@ -137,7 +141,7 @@ A: The primary benefit is cost reduction. By using less powerful (and cheaper) m
 A: Generally, tasks requiring deep contextual understanding, multi-step reasoning, or generating long, creative content benefit from `Gemini 1.5 Pro`. Simpler tasks like summarization, sentiment analysis, or short translations are well-suited for `Gemini 1.5 Flash`. Experimentation with your specific use case is key.
 
 ### Q: Is caching really that effective for LLM calls?
-A: Yes, incredibly so. Many user queries are repetitive, especially for information retrieval or common questions. Caching these responses eliminates redundant API calls, saving significant cost and improving response times. A simple key-value store based on the prompt text works wonders.
+A: Yes, incredibly so. Many user queries are repetitive, especially for information retrieval or common questions. Caching these responses eliminates redundant API calls, saving significant cost and improving response times. A production cache must include tenant/user authorization scope, model/version, prompt policy and source revision, with expiry and deletion rules; prompt text alone is not a safe key.
 
 ### Q: What if a task requires a powerful model but my budget is very tight?
 A: Consider a multi-stage approach. First, try a simpler model with a constrained prompt. If it fails or the quality is insufficient, then escalate to a more powerful model. For critical tasks, you might also implement a human review fallback, especially if the cost of an incorrect AI output is high.

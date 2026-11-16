@@ -8,16 +8,20 @@ const About: React.FC = () => (
   <StaticLayout
     eyebrow="About"
     title="Foundational AI infrastructure, engineered in Bharat."
-    description="InBharat.ai is a deep-tech artificial intelligence company building trustworthy, private and local-first AI — including SILT and Pocket AI, both patent pending in India."
+    description="InBharat.ai is a deep-tech artificial intelligence company building trustworthy, private and local-first AI — with PAI implemented through UnoOne Power (Windows) and UnoOne Mobile (Android), alongside SILT research."
   >
     <section>
       <h2 className="text-xl font-bold text-white">What we do</h2>
       <p>
         InBharat.ai builds the foundational systems that make trustworthy, private and local-first AI
-        real. Our work is organised in three layers: foundational deep tech (SILT and Pocket AI),
-        applied AI infrastructure (JAK Shield, JAK Swarm, UnoOne, and InBharat Audio), and practical
+        practical. Our flagship is PAI, one personal private AI agent, implemented through UnoOne Power
+        (Windows) and UnoOne Mobile (Android). Research includes SILT and the historical Pocket AI
+        portable architecture. Alongside this are applied infrastructure (JAK Shield, JAK Swarm,
+        and InBharat Audio) and practical
         products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).
       </p>
+      <p>Power is a Windows development build; Mobile is an Android alpha. No public UnoOne
+        installer is offered, and phone–desktop continuity is not yet qualified end to end.</p>
     </section>
 
     <section>
@@ -36,6 +40,12 @@ const About: React.FC = () => (
             <p className="mt-2 text-sm text-[#96b0c8]">
               Pillars: {project.pillars.join(' · ')}
             </p>
+            <p className="mt-3 flex flex-wrap gap-4 text-sm">
+              <a href={project.publicUrl} className="text-[#f59f4f] underline">Explore {project.name}</a>
+              <a href={project.repository} target="_blank" rel="noopener noreferrer" className="text-[#f59f4f] underline">
+                {project.id === 'pai' ? 'Historical portable research source' : 'Research source'}
+              </a>
+            </p>
           </div>
         ))}
       </div>
@@ -44,7 +54,7 @@ const About: React.FC = () => (
     <section>
       <h2 className="text-xl font-bold text-white">What we&apos;ve built</h2>
       <p>
-        Our flagship product is{' '}
+        Our separate browser product is{' '}
         <Link to="/app" className="text-[#f59f4f] underline-offset-4 hover:underline">
           InBharat AI
         </Link>{' '}
@@ -73,12 +83,13 @@ const About: React.FC = () => (
           for the products and infrastructure that benefit from it.
         </li>
         <li>
-          Privacy-respecting by default — SILT and Pocket AI are designed so sensitive data stays
-          local unless the owner explicitly chooses otherwise.
+          Local-first by design — UnoOne keeps personal memory encrypted per device. Approved
+          searches, connectors, browser actions and uploads can transmit data to external services.
         </li>
         <li>
-          Multilingual from day one — English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati,
-          Kannada, Malayalam, Odia, and Assamese.
+          Language selection includes English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati,
+          Kannada, Malayalam, Odia, and Assamese. Translation coverage is partial; language
+          selection does not establish speech or model support on every product.
         </li>
       </ul>
     </section>

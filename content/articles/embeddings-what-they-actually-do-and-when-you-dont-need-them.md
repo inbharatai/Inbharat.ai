@@ -1,14 +1,16 @@
-> When I started building AI features for our products at InBharat, like Sahayaak Seva or TestsPrep, I quickly realised that while embeddings are powerful, they aren't always the first tool you reach for. Many Indian teams, myself included, often find that a well-implemented `pgvector` or even traditional Full-Text Search (FTS) can get you 80% of the way there for 20% of the complexity and cost. It's about choosing the right tool for the job, especially when every rupee and every hour of engineering time counts.
+> **Content correction — 16 November 2026:** Corrected pgvector’s cosine-distance operator and the distinction between vectors and full-text search. Removed unsourced numeric citations and the 80/20 claim. Capacity and semantic quality require workload-specific evaluation; cosine values are geometry, not a truth or meaning certificate.
+
+> Embeddings represent data as vectors for similarity-based retrieval. pgvector stores and searches those embeddings within PostgreSQL; full-text search is a different, keyword-based approach that may not require embeddings. Cosine similarity measures vector direction, not guaranteed meaning. Choose and benchmark retrieval methods against real queries and access-control requirements.
 
 ## What Are Embeddings, Really?
 
-At their core, embeddings convert diverse data types—like text, images, audio, or even graphs—into dense, low-dimensional numerical vectors [1, 2, 3, 4]. Think of it like this: if you have a word, a sentence, or even a whole document, an embedding model turns that complex human-readable information into a list of numbers. These numbers capture the semantic meaning and context of the original data.
+At their core, embeddings convert diverse data types—like text, images, audio, or even graphs—into dense, low-dimensional numerical vectors. Think of it like this: if you have a word, a sentence, or even a whole document, an embedding model turns that complex human-readable information into a list of numbers. These numbers capture the semantic meaning and context of the original data.
 
-Imagine a 300-dimensional space. Each word or phrase isn't just a point in that space, but its position relative to other words tells you how similar or related they are. Words with similar meanings, like "doctor" and "physician," will have vectors that point in roughly the same direction and are close to each other. Words with opposite meanings, like "hot" and "cold," will be far apart.
+Imagine a 300-dimensional space. Each word or phrase isn't just a point in that space, but its position relative to other words tells you how similar or related they are. Words with similar meanings, like "doctor" and "physician," will have vectors that point in roughly the same direction and are close to each other. Opposites such as “hot” and “cold” may be close because they appear in similar contexts; distance is model-dependent.
 
 ### The Magic of Cosine Similarity
 
-Once your text is turned into these vectors, you can do powerful things with them. The most common operation is calculating *cosine similarity*. This metric tells you how similar two vectors are by measuring the cosine of the angle between them. A cosine similarity of 1 means the vectors are identical (same meaning), 0 means they are orthogonal (no relation), and -1 means they are diametrically opposite (opposite meaning).
+Once your text is turned into these vectors, you can do powerful things with them. The most common operation is calculating *cosine similarity*. This metric tells you how similar two vectors are by measuring the cosine of the angle between them. For nonzero vectors, cosine similarity 1 means the same direction (not necessarily the same magnitude), 0 means orthogonal directions and -1 means opposite directions. These values do not prove identical, unrelated or opposite human meanings.
 
 
 
@@ -16,7 +18,7 @@ This is why embeddings are so crucial for tasks like semantic search. Instead of
 
 ## When Embeddings Shine (and When They Don't)
 
-Embeddings are a cornerstone of modern AI applications, especially for Retrieval Augmented Generation (RAG) systems, which we use extensively at InBharat for products like TestsPrep to provide relevant study material. (If you're building an LLM-powered product, I highly recommend reading my article on [RAG: How Indian AI Teams Make LLMs Actually Useful](https://www.inbharat.ai/learn-ai-with-reeturaj/rag)).
+Embeddings are a cornerstone of modern AI applications, especially for Retrieval Augmented Generation (RAG) systems, which could retrieve relevant study material for an educational application; no particular TestsPrep deployment is established by this example. (If you're building an LLM-powered product, I highly recommend reading my article on [RAG: How Indian AI Teams Make LLMs Actually Useful](https://www.inbharat.ai/learn-ai-with-reeturaj/rag)).
 
 They are excellent for:
 
@@ -43,7 +45,7 @@ Here's why `pgvector` is often a smarter choice for your first AI feature:
 
 1.  **Zero New Infrastructure:** You're leveraging your existing Postgres instance. No new servers, no new services to learn.
 2.  **Simplified Data Management:** Your text data and its embeddings live side-by-side in the same table. No need for complex data synchronization between different systems.
-3.  **Cost-Effective:** If you're already paying for a Postgres instance, the additional cost for `pgvector` is negligible, often just increased storage and CPU usage.
+3.  **Cost-Effective:** If you're already paying for a Postgres instance, storage, indexes, memory and query compute still have costs that should be measured.
 4.  **Familiarity:** Your team already knows SQL. Querying vectors becomes another SQL operation.
 
 Let's say you have a table `documents` with `id`, `content`, and `embedding` (a `vector` type column). A simple similarity search looks like this:
@@ -55,7 +57,7 @@ ORDER BY similarity DESC
 LIMIT 5;
 ```
 
-The `embedding <=> '[query_embedding]'` is the L2 distance operator. `pgvector` supports various distance metrics and indexing (like HNSW) for performance. For a detailed guide on `pgvector`, I recommend checking out the official documentation or a good tutorial.
+The `<=>` operator is cosine distance; `<->` is L2 distance. `1 - cosine distance` gives cosine similarity. Replace the illustrative placeholder with a bound vector parameter in actual code. `pgvector` supports various distance metrics and indexing (like HNSW) for performance. For a detailed guide on `pgvector`, I recommend checking out the official documentation or a good tutorial.
 
 ### When Full-Text Search (FTS) is Enough
 
@@ -80,7 +82,7 @@ For most Indian SMBs building their first AI features, `pgvector` offers a compe
 
 ## My Approach at InBharat
 
-At InBharat, we often start with `pgvector` for our initial AI features. For instance, when building the first version of our AI-powered study assistant for TestsPrep, we used `pgvector` to store embeddings of study materials. This allowed us to iterate quickly, test different embedding models, and gather user feedback without incurring significant infrastructure costs. We could easily integrate it with our existing data pipelines and deploy it with confidence. Only when a feature shows significant traction and requires scaling beyond what `pgvector` can comfortably handle do we consider more specialized solutions.
+For a study-assistant prototype, pgvector is a reasonable baseline when PostgreSQL is already available. This is a design recommendation, not evidence of a specific TestsPrep deployment or measured infrastructure saving. Benchmark data size, recall, latency, concurrent queries and operational cost before choosing a separate vector service.
 
 This pragmatic approach ensures we're building with the Indian context in mind: optimizing for cost, leveraging existing skills, and delivering value quickly. It's about smart engineering, not just chasing the latest shiny tech.
 
@@ -101,3 +103,7 @@ Embeddings are fundamental to modern AI, transforming complex data into a numeri
 ### Q3: Can I use Full-Text Search and embeddings together?
 
 Absolutely. Many robust search systems combine keyword-based Full-Text Search with semantic search using embeddings. This hybrid approach allows you to capture both explicit keyword matches and conceptual relevance, providing a more comprehensive search experience for users.
+
+## Technical reference
+
+[pgvector querying documentation](https://github.com/pgvector/pgvector#querying) lists the distance operators.

@@ -46,6 +46,8 @@ i18n
       as: { translation: as_ },
     },
     fallbackLng: 'en',
+    supportedLngs: supportedLanguages.map(({ code }) => code),
+    load: 'languageOnly',
     interpolation: { escapeValue: false },
     detection: {
       order: ['localStorage', 'navigator'],
@@ -53,5 +55,20 @@ i18n
       caches: ['localStorage'],
     },
   });
+
+/** The selector changes UI resources, not URLs or article language. No localized
+ * canonical routes/hreflang are implied. Landing owns its mixed-language shell;
+ * other public content routes remain English documents until explicitly localized. */
+export function selectedUiLanguage(): string {
+  const candidate = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
+  return supportedLanguages.some(({ code }) => code === candidate) ? candidate : 'en';
+}
+export function syncDocumentLanguage(): void {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  document.documentElement.lang = window.location.pathname === '/' ? selectedUiLanguage() : 'en';
+}
+i18n.on('languageChanged', syncDocumentLanguage);
+i18n.on('initialized', syncDocumentLanguage);
+syncDocumentLanguage();
 
 export default i18n;

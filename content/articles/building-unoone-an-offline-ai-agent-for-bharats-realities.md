@@ -1,8 +1,10 @@
-# Building UnoOne: An Offline AI Agent for Bharat
+> **Content correction — 16 November 2026:** Historical Android development article first published 14 July 2026. UnoOne now denotes the PAI ecosystem: Power (Windows) and Mobile (Android). Model names and architecture here record that development account, not a current qualified-device specification. Current Mobile planner activation, migrations and language/device coverage remain under validation. Sensitive-action wording is corrected below.
+
+# Building UnoOne Mobile: A Historical Android Development Note
 
 When I started InBharat.ai, my goal was clear: build AI that works for India's realities. That means AI that doesn't demand perfect internet, isn't English-only, and respects privacy and cost. UnoOne is my answer to that challenge.
 
-UnoOne is an offline-first Android AI agent, built from the ground up for Bharat. It combines local reasoning, offline voice, secure smartphone control, private memory, and a unique feature I call 'Blind Vision' for visually impaired users. This isn't just another chatbot; it's an AI agent designed to live on your phone, understand instructions, 'see' through the camera, speak back, and operate approved smartphone functions without constant cloud dependence.
+This article’s Android project is now described as UnoOne Mobile, an offline-first Android AI agent, built from the ground up for Bharat. It combines local reasoning, offline voice, secure smartphone control, private memory, and a unique feature I call 'Blind Vision' for visually impaired users. This isn't just another chatbot; it's an AI agent designed to live on your phone, understand instructions, 'see' through the camera, speak back, and operate approved smartphone functions without constant cloud dependence.
 
 ## Why UnoOne Matters for Bharat
 
@@ -10,18 +12,18 @@ For millions across India, the smartphone is their primary, often only, computer
 
 UnoOne addresses these gaps by integrating:
 
-*   **Local AI Planning:** Powered by Google Gemma 4 E2B for on-device intelligence.
+*   **Local AI Planning:** The historical development account named Gemma 4 E2B through LiteRT-LM; the current activation path remains under device validation.
 *   **Offline Voice:** Speech recognition and responses that work without internet.
 *   **Smartphone Control:** Safe interaction with Android apps and system functions.
 *   **Blind Vision:** Camera-based assistance for text and object recognition.
 *   **Private Local Memory:** Notes, preferences, and task outcomes stored securely on the device.
 *   **Secure Browser Assistance:** Gated help for web tasks, prioritizing user safety.
 
-Our design principle is clear: the AI suggests, but UnoOne's safety system decides what actions are permitted. This ensures user control and data privacy, a critical concern for many Indian users. We've seen how important data privacy is, especially with tools like our JAK Shield for scam detection, where trust is paramount.
+Our design principle is clear: the AI suggests, but UnoOne's safety system decides what actions are permitted. This is intended to support user control and data privacy, a critical concern for many Indian users. We've seen how important data privacy is, especially with tool-use risk controls such as JAK Shield, where trust is paramount.
 
-## Powered by Google Gemma 4 E2B, On-Device
+## The Historical Model Plan: Gemma Through LiteRT-LM
 
-UnoOne V2 uses Google Gemma 4 E2B, running through LiteRT-LM, as its core local planning engine. Simple commands are handled by fixed rules; complex instructions go to Gemma for structured planning. This hybrid approach ensures efficiency and robustness.
+The July development account described Google Gemma 4 E2B through LiteRT-LM as its intended local planning engine; this is not a current benchmark or compatibility promise. Simple commands are handled by fixed rules; complex instructions go to Gemma for structured planning. The intended benefit was to keep simple commands bounded while evaluating model-assisted plans separately.
 
 Here's how it works:
 
@@ -38,7 +40,7 @@ Running intelligence locally significantly reduces reliance on internet connecti
 
 Blind Vision is a cornerstone of UnoOne's accessibility features. It's designed to help blind and visually impaired users understand their surroundings through the smartphone camera. It combines CameraX, on-device object detection, OCR, spoken guidance, haptic feedback, and Android accessibility services.
 
-Imagine pointing your phone at a sign, a medicine label, or a document. UnoOne processes what the camera sees and provides information via speech and vibration. This capability is intended to assist with:
+Imagine pointing your phone at a sign or a document. Camera/OCR output can be wrong and must not be relied on for medication decisions, hazard detection or navigation safety. UnoOne processes what the camera sees and provides information via speech and vibration. This capability is intended to assist with:
 
 *   Detecting objects in the environment.
 *   Reading printed text on labels and documents.
@@ -64,7 +66,7 @@ UnoOne is designed to use approved Android intents and accessibility actions to 
 
 Because accessibility permissions are powerful, UnoOne never allows unrestricted device control. Every action passes through our approved tool registry and safety layer. The user is always aware of what UnoOne is attempting and can confirm or deny actions.
 
-Similarly, our browser assistant is safety-gated. It supports approved HTTPS domains and requires native authorization. Sensitive actions like payments, password entry, OTPs, CAPTCHA completion, and uploads always require manual user confirmation. UnoOne assists, but sensitive authority always remains with the user. This approach mirrors the security-first mindset we apply to our TestsPrep platform for exam security, ensuring integrity and trust.
+Similarly, our browser assistant is safety-gated. It supports approved HTTPS domains and requires native authorization. Payment, OTP, password-entry and auto-send actions are blocked for the agent, not unlocked by confirmation. A person must complete sensitive steps manually outside the agent. CAPTCHA challenges are likewise for the person, not automated bypass. Desktop confirmation-gated form uploads are a separate capability and do not establish Android upload support. These boundaries must be tested in the actual build; they are not evidence of separate TestsPrep security certification.
 
 ## Private Local Memory: You Are Not The Product
 
@@ -74,7 +76,7 @@ A personal AI agent should work for the user. The user should never become the p
 
 ## Current Development Status
 
-UnoOne V2 is a working development build. It features a native Kotlin and Jetpack Compose Android architecture, Gemma 4 E2B planning, rule-based command processing, a controlled tool registry, safety validation, local memory, offline speech, Blind Vision foundations, and secure browser architecture. Our automated Android and distribution pipelines are passing.
+The original article described UnoOne V2 as a development build; the current product is an Android alpha. The historical build account listed Kotlin/Jetpack Compose, a Gemma planning path, rule-based processing, a controlled tool registry, local memory, speech and accessibility foundations. Those implementation entries are not equivalent to current device qualification. The current shared product page reports internal automated test results separately from physical-device qualification.
 
 However, it's not a finished consumer product. Remaining work includes extensive physical-device qualification, Gemma performance testing, battery and thermal measurement, speech benchmarking, Assamese language qualification, Blind Vision testing with real users, browser-security validation, and preparing for signed public releases.
 
@@ -85,12 +87,12 @@ Bharat needs AI that truly understands and adapts to its unique conditions – b
 **FAQ**
 
 **Q: What makes UnoOne different from other AI assistants?**
-A: UnoOne is offline-first, designed for Indian languages and network conditions, and prioritizes on-device privacy and accessibility, especially with its unique 'Blind Vision' feature for visually impaired users. Most assistants are cloud-dependent and less integrated with device control.
+A: The Android work now called UnoOne Mobile is designed for local planning, Indian language needs and accessibility, including its proposed 'Blind Vision' accessibility feature for visually impaired users. Most assistants are cloud-dependent and less integrated with device control.
 
 **Q: How does UnoOne ensure user privacy?**
-A: All personal memory, notes, and preferences are stored locally on the device. Critical AI planning also happens on-device with Gemma. Sensitive actions like payments or password entry are always human-gated and require explicit user confirmation, ensuring data never leaves your phone without your consent.
+A: The design stores personal memory locally and implements on-device planning. Current Mobile planner activation and device migrations remain under validation; see the Mobile capability page. Payment, OTP, password-entry and auto-send are blocked agent actions. The user completes such steps manually outside the agent. Optional online research and external app actions can transmit permitted data; local memory is not a no-network guarantee.
 
 **Q: When will UnoOne be available to the public?**
-A: UnoOne is currently in active development and undergoing rigorous physical device testing, performance benchmarking, and user validation, especially for Blind Vision and language support. We are working towards a public release, but our priority is ensuring stability, safety, and accuracy for Bharat's diverse needs.
+A: UnoOne Mobile is an Android alpha with no public installer. Device, language and accessibility validation remain open; this article does not establish completed user studies. We are working towards a public release, but our priority is ensuring stability, safety, and accuracy for Bharat's diverse needs.
 
 #UnoOne #InBharatAI #Gemma4 #GoogleAI #LiteRTLM #OfflineAI #BlindVision #AccessibilityAI #AIForBharat

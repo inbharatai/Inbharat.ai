@@ -1,4 +1,6 @@
-> "It looks fine to me." This casual phrase is the death knell for reliable AI features. In India, where we build for a billion users across diverse languages, network conditions, and device types, shipping an AI feature without rigorous, systematic evaluation is a gamble we simply cannot afford. At InBharat AI, we learned early on that relying on intuition or a quick demo is not an evaluation. We need concrete metrics, golden datasets, and regression testing before every single deploy.
+> **Content correction — 16 November 2026:** The pipeline and language examples describe recommended practices, not an audited claim that every InBharat feature passes them. Evaluation samples cannot prove reliability for every user; benchmark and clinical-performance claims require defined evidence.
+
+> AI evaluations measure defined tasks on representative test cases and help detect regressions. Golden sets, human review, adversarial tests and production monitoring serve different purposes. Passing a sample does not establish universal quality, and this guide is not an audit of every InBharat product’s release gates.
 
 ## The Problem: "Feels Good" Isn't Good Enough
 
@@ -23,7 +25,7 @@ Think of it like this: for traditional software, you write unit tests and integr
 
 ## The Core Components of an Eval System
 
-At InBharat AI, our eval system relies on two critical components:
+A practical eval system can begin with two components:
 
 ### 1. Golden Datasets
 
@@ -34,7 +36,7 @@ For example, if you're building a feature that extracts entities (like names, lo
 *   **Input:** "On 15th August, Reeturaj Goswami visited the InBharat AI office in Pune."
 *   **Expected Output:** `{"date": "15th August", "person": "Reeturaj Goswami", "organization": "InBharat AI", "location": "Pune"}`
 
-We build golden sets for every critical AI feature. These sets are not static; they grow and evolve as we discover new edge cases or expand our product's capabilities. For instance, when we added support for more regional Indian languages in UniAssist, our golden sets expanded to include examples in Tamil, Bengali, and Gujarati, ensuring our models understood the nuances.
+Build and version golden sets for critical tasks, then expand them as new failure modes appear. Language coverage needs cases per language and modality; adding translations or passing a small sample does not establish full support.
 
 ### 2. Regression Evals
 
@@ -44,7 +46,7 @@ Here’s a simplified flow:
 
 
 
-We automate this process. Before any AI feature goes live, it must pass its regression evals with a predefined accuracy threshold. If a change causes a drop in performance on the golden set, the deployment is blocked. This is non-negotiable.
+Automate regression checks and define blocking thresholds for the project. Record the revision and results. This article does not establish that every product already uses this pipeline.
 
 ## Types of Evals Beyond Golden Sets
 
@@ -77,7 +79,18 @@ Starting small is key. Don't try to build the perfect system overnight.
 
 ## Bottom Line
 
-Shipping AI features without a robust evaluation system is akin to driving a car without a speedometer or fuel gauge. You might get where you're going, but you're constantly at risk of running out of gas or crashing. For us at InBharat AI, golden sets and regression evals are non-negotiable. They are the guardrails that ensure our AI products, from UniAssist to Sahayaak Seva, actually deliver on their promise, consistently and reliably, for every user in India. Don't rely on "it looks fine to me"; build a system that *proves* it's fine. For more on how we build reliable AI, check out our insights on [What Agentic AI Really Means](https://www.inbharat.ai/learn-ai-with-reeturaj/agentic-ai).
+Shipping AI features without a robust evaluation system is akin to driving a car without a speedometer or fuel gauge. You might get where you're going, but you're constantly at risk of running out of gas or crashing. For us at InBharat AI, golden sets and regression evals are non-negotiable. They provide evidence about tested cases, not a guarantee of performance for every user or a certification of any product. Don't rely on "it looks fine to me"; build a system that measures defined outcomes and exposes failures. For more on how we build reliable AI, check out our insights on [What Agentic AI Really Means](https://www.inbharat.ai/learn-ai-with-reeturaj/agentic-ai).
 
 ---
 Author: Reeturaj Goswami #AIEvals #ProductManagement #InBharatAI #TechInIndia #LLMEvals
+
+## Frequently Asked Questions
+
+**What is a 'golden dataset' in AI evaluations?**
+A golden dataset is a collection of human-verified inputs and their corresponding, correct outputs. It serves as the 'ground truth' to measure how accurately an AI system performs against desired behavior. Representative cases help measure language and cultural coverage; they do not prove universal understanding.
+
+**Why can't I just manually test my AI feature before shipping?**
+Manual testing is insufficient for AI because AI models, especially LLMs, can be non-deterministic, have vast numbers of edge cases, and can suffer from subtle regressions that are hard to spot without systematic checks. A quick demo can't cover the breadth of real-world scenarios, particularly in a market as diverse as India.
+
+**How do AI evaluations help with the unique challenges of deploying AI in India?**
+AI evaluations are crucial for India due to its vast linguistic diversity, varying network conditions (4G/5G), and range of user devices. Evals help measure accuracy across sampled languages and dialects, inference speed and cost efficiency for a price-sensitive market, directly addressing the 'Desh Ka AI' challenge.

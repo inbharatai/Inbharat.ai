@@ -1,10 +1,12 @@
-> Retrieval-Augmented Generation (RAG) grounds an LLM's answers in your own documents. Instead of answering from training data, RAG first retrieves relevant chunks from a vector database using semantic search, then feeds them to the LLM so it generates a response based on real evidence—not memory. This is what stops hallucinations in production.
+> **Content correction — 16 November 2026:** RAG can reduce unsupported answers but does not stop hallucinations. Retrieval can use keywords, vectors or hybrid methods. Company anecdotes and handling-time claims have not been established as benchmarks; compliance needs current sources and human review.
+
+> Retrieval-Augmented Generation supplies retrieved sources to a model at inference time. It can improve grounding and citations but does not eliminate hallucinations, stale information or access-control failures. Retrieval may use keyword, vector or hybrid search; evaluate source relevance and answer faithfulness separately.
 
 Large language models hallucinate. They state confidently incorrect facts. They cite sources that don't exist. They generate plausible but wrong answers.
 
 This isn't a bug that will be patched. It's a fundamental characteristic of how these models work. They're pattern generators, not knowledge databases. Ask GPT about your company's internal policies, and it'll generate a confident, well-written, completely fabricated answer.
 
-Retrieval-Augmented Generation—RAG—solves this. And for Indian companies building AI products, it's the most important architecture pattern you can learn right now.
+Retrieval-Augmented Generation—RAG—can help address this. And for Indian companies building AI products, it's the most important architecture pattern you can learn right now.
 
 ## What RAG Is and Why It Matters
 
@@ -24,7 +26,7 @@ The architecture has three components.
 
 **2. Retrieval.** When a user asks a question, the question is also converted into an embedding. The vector database finds the document chunks whose embeddings are most similar to the question embedding. This isn't keyword search. It's semantic search. "What are the penalties for late GST filing?" will match documents about GST compliance even if they don't contain the exact phrase "penalties for late filing."
 
-**3. Generation.** The retrieved chunks are combined with the user's question into a prompt. This prompt is sent to the LLM, which generates a response that's grounded in the retrieved information. The model answers based on evidence, not memory.
+**3. Generation.** The retrieved chunks are combined with the user's question into a prompt. This prompt is sent to the LLM, which generates a response that's grounded in the retrieved information. The model receives evidence but can still rely on learned patterns or misread sources.
 
 The quality of each component matters independently. Bad chunking means relevant information might be split across chunks and never retrieved together. Bad embeddings mean semantically related questions won't match relevant documents. A weak LLM means even with perfect retrieval, the generated response may be poor.
 
@@ -37,7 +39,7 @@ These are the two main ways to specialize an LLM, and they solve different probl
 | What it changes | The context the model sees at query time | The model's internal weights |
 | Best for | Facts that change, citations, source control | Fixed style, tone, task behaviour |
 | Knowledge freshness | Update the vector DB — instant | Requires retraining |
-| Hallucination risk | Low (grounded in retrieved docs) | Higher (baked into weights) |
+| Hallucination risk | Still present; test retrieval and answer faithfulness | Still present; test the task and knowledge limits |
 | Cost to update | Cheap (re-embed new docs) | Expensive (GPU retraining) |
 
 Many production teams use both: fine-tune for voice/style, RAG for facts.
@@ -46,7 +48,7 @@ Many production teams use both: fine-tune for voice/style, RAG for facts.
 
 I see four areas where RAG is transforming how Indian companies operate.
 
-Customer support is the most immediate application. Indian companies handle millions of customer queries in multiple languages. RAG-powered systems retrieve relevant support documentation, policy details, and FAQ answers, then generate responses in the user's language. A telecom company I consulted for reduced their average customer support handling time from 8 minutes to 3 minutes using RAG-based agent assistance.
+Customer support is the most immediate application. Indian companies handle millions of customer queries in multiple languages. RAG-powered systems retrieve relevant support documentation, policy details, and FAQ answers, then generate responses in the user's language. Measure handling time and answer quality on a defined support workload before claiming an improvement; the earlier telecom anecdote had no reviewable source.
 
 Legal and compliance is huge in India's regulatory environment. Lawyers spend hours searching through case law, statutes, and regulatory notifications. RAG systems can retrieve relevant legal text and generate summaries. A legaltech startup in Delhi built a RAG system over Indian case law that lets lawyers ask questions in natural language and receive answers with citations to specific judgments.
 
@@ -77,13 +79,13 @@ Build your knowledge. Build your retrieval. Build AI that tells the truth.
 ## Frequently Asked Questions
 
 **What does RAG stand for and what problem does it solve?**
-Retrieval-Augmented Generation. It solves LLM hallucination by retrieving relevant text from your knowledge base first, then generating an answer grounded in that text rather than the model's training memory.
+Retrieval-Augmented Generation. It can reduce unsupported answers by retrieving relevant text from your knowledge base first, then generating an answer grounded in that text rather than the model's training memory.
 
 **How does RAG work step by step?**
 Three stages—ingestion (chunk documents, embed them, store in a vector DB), retrieval (embed the question, find the most similar chunks via semantic search), and generation (send the retrieved chunks + question to the LLM to answer from evidence).
 
 **Why does RAG matter for Indian companies?**
-Indian tax law, state regulations, company policies, and Indian-language terminology are absent from general models. RAG connects LLMs to the actual Indian knowledge—legal, compliance, support, government schemes—they need.
+Indian tax law, state regulations, company policies, and Indian-language terminology may be incomplete or outdated in general models. RAG connects LLMs to the actual Indian knowledge—legal, compliance, support, government schemes—they need.
 
 **RAG vs fine-tuning—when to use which?**
 Use RAG when facts change often or you need citations and source control. Use fine-tuning when you need a fixed style, tone, or task behaviour. Many teams use both: fine-tune for style, RAG for facts.

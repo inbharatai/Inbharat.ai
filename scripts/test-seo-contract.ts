@@ -51,7 +51,8 @@ assert.equal(organization?.["@id"], `${SITE.url}/#organization`);
 assert.equal(person?.["@id"], `${SITE.url}/#founder-reeturaj-goswami`);
 assert.equal(website?.["@id"], `${SITE.url}/#website`);
 assert.equal(founderPerson["@id"], person?.["@id"]);
-assert.deepEqual(founderPerson.sameAs, [SITE.social.linkedin]);
+assert.deepEqual(founderPerson.sameAs, [SITE.social.linkedin, SITE.social.twitter]);
+assert.ok(!(organization?.sameAs as string[]).includes(SITE.social.linkedin), 'founder identity is not organization identity');
 
 const article = buildTechArticle(ARTICLES[0], SITE, founderPerson);
 assert.equal(article.mainEntityOfPage, `${SITE.url}/learn-ai-with-reeturaj/${ARTICLES[0].slug}`);

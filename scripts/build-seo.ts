@@ -30,7 +30,15 @@ import { ROUTES, SITE, GLOBAL_SCHEMA, SUPPORTED_LANGS } from '../seo.config';
 import type { SeoRoute } from '../seo.config';
 import { ARTICLES, articlePath, articleVisualPath } from '../content/articles.meta';
 import { computeRouteLastmod } from '../lib/growth/sitemap-lastmod';
-import { execSync } from 'node:child_process';
+import { formatArticleDate, compareArticleRecency } from '../lib/article-display';
+import { articleLastmod } from '../content/article-lifecycle';
+import { execSync, execFileSync } from 'node:child_process';
+import { createCanonicalSnapshot, CANONICAL_MANIFEST_PATH } from '../lib/growth/canonical-article-sync';
+import { UNOONE_PAGES } from '../content/privateAI';
+import { DEEP_TECH_PROJECTS } from '../content/deepTech';
+import { prepareArticleMarkdown, normalizeArticleHeadings } from '../lib/article-rendering';
+import { SEO_JSONLD_ATTRIBUTE, serializeInlineJson, replaceManagedRoot, renderStaticFaqs, NOT_FOUND_RENDERING_SEO } from '../lib/rendering-contract';
+import { renderPrivateAiStaticContent } from '../lib/private-ai-static-rendering';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -120,6 +128,7 @@ function buildHeadInjection(
   globalSchema: Schema[],
   supportedLangs: readonly string[],
 ): string {
+  if (route.multilingual) throw new Error(`Localized canonical routes must be implemented before enabling hreflang: ${route.path}`);
   const fullUrl = site.url + (route.path === '/' ? '/' : route.path);
   const ogImage = route.ogImage ? site.url + route.ogImage : site.url + site.ogImage;
   // Google Search Console ownership verification token (build-time env). When
@@ -145,7 +154,7 @@ function buildHeadInjection(
   const schemaScripts = [...globalSchema, ...(route.extraSchema ?? [])]
     .map(
       (obj) =>
-        `    <script type="application/ld+json">${JSON.stringify(obj)}</script>`,
+        `    <script type="application/ld+json" ${SEO_JSONLD_ATTRIBUTE}="true">${serializeInlineJson(obj)}</script>`,
     )
     .join('\n');
 
@@ -169,7 +178,7 @@ function buildHeadInjection(
     route.noIndex
       ? `    <meta name="robots" content="noindex, nofollow" />`
       : `    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />`,
-    `    <link rel="canonical" href="${escapeAttr(fullUrl)}" />`,
+    route.noIndex ? '' : `    <link rel="canonical" href="${escapeAttr(fullUrl)}" />`,
     `    <meta property="og:type" content="website" />`,
     `    <meta property="og:url" content="${escapeAttr(fullUrl)}" />`,
     `    <meta property="og:title" content="${escapeAttr(route.title)}" />`,
@@ -190,32 +199,7 @@ function buildHeadInjection(
     .join('\n');
 }
 
-/**
- * Build the crawlable body section for a shell. The React app mounts into
- * #root, so non-JS / AI-search crawlers (Perplexity, ChatGPT, CCBot, …) that
- * don't execute JS would otherwise see an empty page. This injects a
- * visually-hidden, screen-reader-skipped (aria-hidden) <section> with a
- * faithful H1 + summary of what the app renders — no cloaking. JS-rendering
- * crawlers (Googlebot) see the real React content instead.
- */
-/**
- * Strip the leading `>` blockquote run from an article markdown body. The
- * article files open with the abstract as a blockquote (also surfaced as the
- * on-page direct-answer callout + schema abstract + seoBody paragraph 1), so
- * removing it here keeps the abstract from appearing twice in the crawlable
- * shell. Mirrors stripLeadingBlockquote in pages/ArticlePage.tsx.
- */
-function stripLeadingBlockquote(md: string): string {
-  const lines = md.split('\n');
-  let i = 0;
-  while (i < lines.length && lines[i].trim() === '') i++;
-  if (i >= lines.length || !lines[i].trimStart().startsWith('>')) return md;
-  while (i < lines.length && lines[i].trimStart().startsWith('>')) i++;
-  if (i < lines.length && lines[i].trim() === '') i++;
-  return lines.slice(i).join('\n');
-}
-
-const markdownProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype);
+const markdownProcessor = unified().use(remarkParse).use(remarkGfm).use(normalizeArticleHeadings).use(remarkRehype);
 
 /**
  * Render an article markdown body to safe HTML for the crawlable shell.
@@ -229,21 +213,13 @@ async function renderArticleBody(slug: string): Promise<string> {
   try {
     md = await fs.readFile(file, 'utf8');
   } catch {
-    // Missing/stale .md must NOT kill the whole build (sitemap + og-image + all
-    // other shells). Degrade to empty — the shell still emits the h1 + abstract
-    // seoBody, and verify-shell-crawl will flag a silently-empty body for rag.
-    // eslint-disable-next-line no-console
-    console.warn(`[build-seo] article body missing for "${slug}" — shell will use seoBody only`);
-    return '';
+    throw new Error(`[build-seo] article body missing for "${slug}"; refusing an incomplete published shell`);
   }
-  const mdast = markdownProcessor.parse(stripLeadingBlockquote(md));
+  if (!md.trim()) throw new Error(`[build-seo] article body empty for "${slug}"`);
+  const article = ARTICLES.find((item) => item.slug === slug);
+  const mdast = markdownProcessor.parse(prepareArticleMarkdown(md, article?.abstract, article?.faq.map((faq) => faq.q)));
   const hast = await markdownProcessor.run(mdast);
-  let rendered = toHtml(hast);
-  // The article's canonical H1 is the seoBody <h1> (the article title). A
-  // markdown body that starts with `# Title` would render a SECOND <h1> —
-  // demote every <h1> in the body to <h2> so each article page has exactly
-  // one H1 (correct heading hierarchy + avoids the multiple-H1 SEO flag).
-  rendered = rendered.replace(/<h1/g, '<h2').replace(/<\/h1>/g, '</h2>');
+  const rendered = toHtml(hast);
   // Indent each line by 4 spaces so it nests cleanly inside the <section>.
   return rendered
     .split('\n')
@@ -251,27 +227,7 @@ async function renderArticleBody(slug: string): Promise<string> {
     .join('\n');
 }
 
-/**
- * Crawlable internal-link nav, emitted into every shell.
- *
- * WHY THIS EXISTS (the "Discovered – currently not indexed" fix)
- * Search Console showed 23 URLs stuck in "Discovered – currently not indexed",
- * every one with `Last crawled: N/A` — Google knew the URLs existed but had
- * never fetched them. The cause was not thin content or a broken shell: the
- * shells are fine (/learn-ai-with-reeturaj serves ~9.7k chars of real text).
- * The cause was that `https://www.inbharat.ai/` served **zero** `<a href>`
- * links. The nav and footer are client-rendered React, so the homepage — the
- * highest-authority page on the domain — was a crawl dead-end. Every other URL
- * was reachable only from sitemap.xml, and sitemap-only URLs with no internal
- * links are exactly what Google deprioritises indefinitely.
- *
- * So: bake the site's own link graph into every prerendered shell. The homepage
- * additionally links the most recent articles so article discovery is seeded
- * from the strongest page rather than depending on the hub being crawled first.
- *
- * Not cloaking: the React app renders the same navigation to the same URLs.
- * This is the identical rationale as the sr-only seoBody block below.
- */
+/** Normal, accessible navigation in the no-JS fallback. Not a ranking guarantee. */
 const HOMEPAGE_ARTICLE_LINKS = 12;
 
 function buildInternalLinkNav(route: SeoRoute): string {
@@ -286,9 +242,7 @@ function buildInternalLinkNav(route: SeoRoute): string {
   // Seed article discovery straight from the homepage, newest first.
   if (route.path === '/') {
     const recent = [...ARTICLES]
-      .sort((a, b) =>
-        a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0,
-      )
+      .sort(compareArticleRecency)
       .slice(0, HOMEPAGE_ARTICLE_LINKS);
     for (const a of recent) {
       links.push(
@@ -303,29 +257,26 @@ function buildInternalLinkNav(route: SeoRoute): string {
 
 function buildBodyInjection(route: SeoRoute, bodyHtml: string): string {
   const nav = buildInternalLinkNav(route);
-  // A route with no seoBody still needs the link graph, otherwise it stays a
-  // crawl dead-end — which is the whole bug this function now guards against.
-  if (!route.seoBody) {
-    if (!nav) return '';
-    return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${nav}\n  </section>\n`;
-  }
-  // The hub route's visible H1 comes from buildHubCardGrid (injected into #root
-  // as real, non-aria-hidden HTML). Emitting a seoBody <h1> too would give the
-  // page two H1s — skip it for the hub; the crawlable summary paragraphs remain.
-  const skipH1 = route.path === '/learn-ai-with-reeturaj';
-  const parts = [
-    ...(skipH1 ? [] : [`    <h1>${escapeText(route.seoBody.h1)}</h1>`]),
-    ...route.seoBody.paragraphs.map((p) => `    <p>${escapeText(p)}</p>`),
+  const privateAiPage = UNOONE_PAGES.find((page) => page.path === route.path);
+  const article = route.articleSlug ? ARTICLES.find((item) => item.slug === route.articleSlug) : undefined;
+  const parts = privateAiPage ? [renderPrivateAiStaticContent(privateAiPage)] : [
+    `<h1>${escapeText(route.seoBody?.h1 ?? route.title)}</h1>`,
+    ...(route.seoBody?.paragraphs ?? [route.description]).map((p) => `<p>${escapeText(p)}</p>`),
+    bodyHtml,
+    article ? renderStaticFaqs(article.faq) : '',
   ];
-  if (bodyHtml) parts.push(bodyHtml);
+  if (route.path === '/' || route.path === '/about') {
+    parts.push('<section><h2>Research and product sources</h2><ul>' + DEEP_TECH_PROJECTS.map((project) =>
+      `<li><a href="${escapeAttr(project.publicUrl)}">Explore ${escapeText(project.name)}</a> · <a href="${escapeAttr(project.repository)}">${project.id === 'pai' ? 'Historical portable research source' : 'SILT research source'}</a></li>`
+    ).join('') + '</ul></section>');
+  }
   if (nav) parts.push(nav);
-  const joined = parts.join('\n');
-  // Visually-hidden (sr-only) inline style so no CSS dependency; aria-hidden so
-  // screen-reader users don't hear a duplicate of the React app. The full
-  // rendered article body is included so non-JS / AI-search crawlers (Perplexity,
-  // ChatGPT, CCBot) see the real content — the React app renders the same
-  // markdown, so this is not cloaking.
-  return `  <section aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">\n${joined}\n  </section>\n`;
+  // Scoped CSS is carried by (and retired with) the managed fallback. No changes
+  // to the mounted React design or global styles; readable even if CSS fails.
+  return `<main id="main-content" data-static-fallback="seo" style="min-height:100vh;background:#030508;color:#e8eef8;padding:48px max(24px,calc((100% - 960px)/2));font:16px/1.75 system-ui,sans-serif;overflow-wrap:anywhere">
+<style>[data-static-fallback="seo"] h1{font-size:2.4rem;line-height:1.2;margin:0 0 24px}[data-static-fallback="seo"] h2{font-size:1.7rem;margin:32px 0 16px}[data-static-fallback="seo"] h3{font-size:1.2rem;margin:24px 0 12px}[data-static-fallback="seo"] p{margin:12px 0}[data-static-fallback="seo"] a{color:#f5b76f;text-decoration:underline}[data-static-fallback="seo"] pre{overflow:auto;padding:16px;background:#111a2e}[data-static-fallback="seo"] img{max-width:100%;height:auto}[data-static-fallback="seo"] details{padding:16px 0}[data-static-fallback="seo"] summary{font-weight:700;cursor:pointer}[data-static-fallback="seo"] ul,[data-static-fallback="seo"] ol{padding-left:24px;list-style:revert}</style>
+${parts.filter(Boolean).join('\n')}
+</main>`;
 }
 
 // Tiny inline lucide-style icons (12px, currentColor stroke) for the static
@@ -335,11 +286,7 @@ const SVG_CLOCK = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12
 const SVG_CAL = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>';
 const SVG_ARROW = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
 
-function fmtArticleDate(iso: string): string {
-  // Mirror the React grid: en-IN, month short + year, UTC.
-  const d = new Date(iso + 'T00:00:00Z');
-  return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'UTC' });
-}
+
 
 /**
  * Build a VISIBLE, fully-styled article grid as static HTML for the
@@ -358,18 +305,18 @@ function fmtArticleDate(iso: string): string {
  * category filters) — no flash, since the static cards are visually identical.
  * On any mount failure, the static cards remain. This breaks the "blank on
  * mobile" failure mode regardless of its cause. Not cloaking: the React app
- * renders the same cards, and crawlers already get the sr-only seoBody above.
+ * renders the same cards. This fallback is retired on the first React commit.
  */
 function buildHubCardGrid(): string {
   const cards = [...ARTICLES]
-    .sort((a, b) => (a.datePublished < b.datePublished ? 1 : a.datePublished > b.datePublished ? -1 : 0))
+    .sort(compareArticleRecency)
     .map((a) => {
       const href = escapeAttr(articlePath(a.slug));
       const img = escapeAttr(articleVisualPath(a));
       const title = escapeText(a.title);
       const desc = escapeText(a.description);
       const cat = escapeText(a.category);
-      const date = escapeText(fmtArticleDate(a.datePublished));
+      const date = escapeText(formatArticleDate(a.datePublished, true));
       const mins = escapeText(String(a.readMinutes));
       return [
         `      <article class="group transition-transform duration-300 hover:-translate-y-1.5">`,
@@ -434,18 +381,15 @@ async function rewriteShell(
     /<meta\s+name=["']twitter:[^"']+["'][^>]*>\s*/gi,
     /<link\s+rel=["']alternate["'][^>]*hreflang=[^>]*>\s*/gi,
     /<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>\s*/gi,
-    // The crawlable seoBody <section aria-hidden> injected in step 4 below. Without
-    // this, build-seo is NOT idempotent: re-running it on an already-built dist
-    // (e.g. `npm run build:seo` without a fresh `vite build` first) would inject a
-    // SECOND seoBody before #root, duplicating the H1. The clip-style prefix
-    // targets exactly the injected block (no other <section> uses this style).
+    // Migration cleanup for shells produced by the old hidden-body builder.
+    // New fallbacks live exclusively in #root and are replaced idempotently.
     /<section\s+aria-hidden="true"\s+style="position:absolute;width:1px;[\s\S]*?<\/section>\s*/gi,
   ];
   for (const pat of stripPatterns) html = html.replace(pat, '');
 
   // 2. Inject the new SEO block right before </head>.
   const injection = buildHeadInjection(route, site, globalSchema, supportedLangs);
-  html = html.replace(/<\/head>/i, `\n${injection}\n  </head>`);
+  html = html.replace(/<\/head>/i, () => `\n${injection}\n  </head>`);
 
   // 3. Make sure manifest is linked (added once on the root shell, repeated everywhere).
   if (!/rel=["']manifest["']/i.test(html)) {
@@ -455,24 +399,13 @@ async function rewriteShell(
     );
   }
 
-  // 4. Inject crawlable body content before #root so non-JS / AI-search
-  //    crawlers see real text (H1 + summary) instead of an empty shell. For
-  //    article routes, the full rendered markdown body is included so AI-search
-  //    crawlers see the complete article (the React app renders the same
-  //    markdown — no cloaking).
+  // Static content lives exclusively INSIDE the root owned by React. createRoot
+  // replaces it on commit; no duplicate or stale body survives SPA navigation.
   const bodyHtml = route.articleSlug ? await renderArticleBody(route.articleSlug) : '';
-  const bodyInjection = buildBodyInjection(route, bodyHtml);
-  if (bodyInjection) {
-    html = html.replace(/<div id="root">/i, `${bodyInjection}  <div id="root">`);
-  }
-
-  // 5. For the founder hub route only, inject a visible, fully-styled static
-  //    article grid INSIDE #root so the cards render in pure HTML before the
-  //    SPA mounts (and remain visible if it never does). See buildHubCardGrid.
-  if (route.path === '/learn-ai-with-reeturaj') {
-    const grid = buildHubCardGrid();
-    html = html.replace(/<div id="root">\s*<\/div>/i, `<div id="root">\n${grid}\n    </div>`);
-  }
+  const fallback = route.path === '/learn-ai-with-reeturaj'
+    ? buildHubCardGrid()
+    : buildBodyInjection(route, bodyHtml);
+  html = replaceManagedRoot(html, fallback);
 
   return html;
 }
@@ -487,11 +420,10 @@ function buildSitemap(
   supportedLangs: readonly string[],
 ): string {
   const today = new Date().toISOString().slice(0, 10);
-  // slug → datePublished, so article <url> entries get a truthful lastmod
-  // (the article's publish date) instead of the build date. Non-article routes
-  // keep the build date as lastmod (they have no per-content date).
-  const articleLastmod = new Map<string, string>(
-    ARTICLES.map((a) => [a.slug, a.datePublished]),
+  // Share article date validation with TechArticle schema. Unknown/future
+  // dates are omitted rather than replaced with today's build timestamp.
+  const articleDates = new Map<string, string | null>(
+    ARTICLES.map((a) => [a.slug, articleLastmod(a, today)]),
   );
   const urls = routes
     // Defensive: exclude both noIndex and excludeFromSitemap. Today every
@@ -501,12 +433,10 @@ function buildSitemap(
     .filter((r) => !r.noIndex && !r.excludeFromSitemap)
     .map((r) => {
       const loc = site.url + (r.path === '/' ? '/' : r.path);
-      // Truthful lastmod: articles → manifest datePublished; non-article routes →
-      // last git commit touching the route's backing source files (see
-      // lib/growth/sitemap-lastmod.ts ROUTE_LASTMOD_SOURCE); fallback today.
+      // Non-article dates use available source history; missing history stays unknown.
       const lastmod = computeRouteLastmod(
         r,
-        r.articleSlug ? articleLastmod.get(r.articleSlug) ?? null : null,
+        r.articleSlug ? articleDates.get(r.articleSlug) ?? null : null,
         gitLastmod,
         today,
       );
@@ -527,7 +457,7 @@ function buildSitemap(
       return [
         '  <url>',
         `    <loc>${escapeText(loc)}</loc>`,
-        `    <lastmod>${lastmod}</lastmod>`,
+        lastmod ? `    <lastmod>${lastmod}</lastmod>` : '',
         `    <changefreq>${r.changefreq}</changefreq>`,
         `    <priority>${r.priority.toFixed(1)}</priority>`,
         alts,
@@ -677,11 +607,41 @@ async function main() {
     shellsWritten++;
   }
 
+  // Static-host 404 fallback: no homepage entities or indexable canonical.
+  // HTTP status is controlled by the host, not this document.
+  const notFound = await rewriteShell(baseHtml, NOT_FOUND_RENDERING_SEO, SITE, [], SUPPORTED_LANGS);
+  await fs.writeFile(path.join(DIST, '404.html'), notFound, 'utf8');
+
   const sitemap = buildSitemap(ROUTES as SeoRoute[], SITE, SUPPORTED_LANGS);
   await fs.writeFile(path.join(DIST, 'sitemap.xml'), sitemap, 'utf8');
 
   await buildOgImage();
   await buildSceneWebPs();
+
+  // Hash exact final on-disk HTML, after all shell rendering. Public content only.
+  // A local, dirty, uncommitted, preview or unidentified build cannot authorize sync.
+  const sourceCommitSha = process.env.VERCEL_GIT_COMMIT_SHA;
+  let cleanSource = false;
+  try {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    cleanSource = head === sourceCommitSha && status === '';
+  } catch { /* No Git evidence means ineligible, never guess a source revision. */ }
+  const bodies: Record<string, string> = {};
+  const finalHtml: Record<string, string> = {};
+  for (const article of ARTICLES) {
+    bodies[article.slug] = await fs.readFile(path.join(ROOT, 'content', 'articles', `${article.slug}.md`), 'utf8');
+    finalHtml[article.slug] = await fs.readFile(path.join(DIST, articlePath(article.slug), 'index.html'), 'utf8');
+  }
+  const snapshot = createCanonicalSnapshot({ articles: ARTICLES, bodies, html: finalHtml,
+    builtAt: new Date().toISOString(), sourceCommitSha, cleanSource,
+    productionBuild: process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production' });
+  const serialized = JSON.stringify(snapshot);
+  await fs.mkdir(path.join(DIST, 'article-publication'), { recursive: true });
+  // Immutable content-addressed artifact plus current canonical pointer (same bytes).
+  await fs.writeFile(path.join(DIST, 'article-publication', `${snapshot.snapshotId}.json`), serialized, 'utf8');
+  await fs.writeFile(path.join(DIST, CANONICAL_MANIFEST_PATH.slice(1)), serialized, 'utf8');
+  console.log(`[build-seo] publication snapshot ${snapshot.snapshotId}; automatedSyncEligible=${snapshot.automatedSyncEligible}`);
 
   console.log(
     `[build-seo] wrote ${shellsWritten} HTML shell(s), sitemap.xml, og-image.png, and WebP siblings.`,

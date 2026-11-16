@@ -170,7 +170,7 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
 
   // 8. published — published_articles (website) + linkedin + instagram published drafts
   {
-    const webItems: PipelineCard[] = publishedArticles.map((a) => ({
+    const webItems: PipelineCard[] = publishedArticles.rows.map((a) => ({
       id: a.slug, title: a.title, slug: a.slug, url: a.canonical_url, platform: "inbharat", status: "published", createdAt: a.publish_date,
     }));
     const liItems: PipelineCard[] = linkedinPublished.map((d) => ({
@@ -182,7 +182,8 @@ export async function getPipelineBoard(filters: PipelineBoardFilters = {}): Prom
     let items = [...webItems, ...liItems, ...igItems];
     if (platform) items = items.filter((it) => it.platform === platform);
     const c = capItems(items, cardCap);
-    stages.push({ stage: "published", count: c.count, items: c.items, overflow: c.overflow });
+    stages.push({ stage: "published", count: c.count, items: c.items, overflow: c.overflow,
+      note: publishedArticles.note ?? "Website rows were observed live after promotion; this is not search-index confirmation." });
   }
 
   // 9. measured — outcomes with measured_at (LinkedIn only — honest)
@@ -285,17 +286,18 @@ async function fetchSyndication(platformFilter: string | null): Promise<Syndicat
   }
 }
 
-async function fetchPublishedArticles(): Promise<PublishedRow[]> {
+async function fetchPublishedArticles(): Promise<{ rows: PublishedRow[]; note?: string }> {
   try {
     const { data, error } = await supabaseAdmin!
       .from("published_articles")
       .select("slug,title,canonical_url,publish_date")
+      .eq("publication_state", "live")
       .order("publish_date", { ascending: false })
       .limit(200);
-    if (error || !Array.isArray(data)) return [];
-    return data as PublishedRow[];
+    if (error || !Array.isArray(data)) return { rows: [], note: "Website publication verification unavailable — check the lifecycle migration and production reconciliation. Zero verified rows is not proof that nothing is live." };
+    return { rows: data as PublishedRow[] };
   } catch {
-    return [];
+    return { rows: [], note: "Website publication verification unavailable; this is not a confirmed empty live site." };
   }
 }
 

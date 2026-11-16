@@ -1551,12 +1551,11 @@ console.log("\nSitemap lastmod (truthful per-route modification date):");
   const homeRoute = ROUTES.find((r) => r.path === "/")!;
   const homeMax = computeRouteLastmod(homeRoute, null, (f) => (f === "pages/Landing.tsx" ? "2026-06-01" : f === "seo.config.ts" ? "2026-07-15" : null), today);
   check("non-article route lastmod = max git date of sources", homeMax === "2026-07-15", `got ${homeMax}`);
-  // No git dates → caller fallback (today), preserving old behavior.
+  // Unknown dates stay omitted instead of asserting a content update today.
   const noGit = computeRouteLastmod(homeRoute, null, () => null, today);
-  check("non-article route with no git → fallback today", noGit === today, `got ${noGit}`);
-  // Malformed git dates are ignored (only YYYY-MM-DD accepted).
+  check("non-article route with no git → unknown", noGit === null, `got ${noGit}`);
   const malformed = computeRouteLastmod(homeRoute, null, () => "not-a-date", today);
-  check("malformed git date ignored → fallback", malformed === today, `got ${malformed}`);
+  check("malformed git date ignored → unknown", malformed === null, `got ${malformed}`);
   // Coverage: every indexable non-article route must have a lastmod source so
   // no route silently falls back to the build date. Catches a new route added
   // to ROUTES without a ROUTE_LASTMOD_SOURCE entry.
@@ -1569,7 +1568,7 @@ console.log("\nSitemap lastmod (truthful per-route modification date):");
   const staleSources = Object.keys(ROUTE_LASTMOD_SOURCE).filter((p) => !routePaths.has(p));
   check("ROUTE_LASTMOD_SOURCE has no stale route entries", staleSources.length === 0, `stale: ${staleSources.join(",")}`);
   // Sanity: datePublished on every article is a valid YYYY-MM-DD (it feeds lastmod + schema).
-  check("every article datePublished is YYYY-MM-DD", ARTICLES.every((a) => dateRe.test(a.datePublished)), ARTICLES.filter((a) => !dateRe.test(a.datePublished)).map((a) => a.slug).join(","));
+  check("known article datePublished is YYYY-MM-DD; unknown omitted", ARTICLES.every((a) => a.datePublished === undefined || dateRe.test(a.datePublished)), ARTICLES.filter((a) => a.datePublished !== undefined && !dateRe.test(a.datePublished)).map((a) => a.slug).join(","));
 }
 
 console.log("\nSearch-engine submission lane (sitemap → GSC + IndexNow, pure + injected fetch):");
@@ -1592,6 +1591,7 @@ console.log("\nSearch-engine submission lane (sitemap → GSC + IndexNow, pure +
   const host = "https://www.inbharat.ai";
   const good = m.buildIndexNowPayload(host, INDEXNOW_KEY, [`${host}/`, `${host}/unoone`, "https://evil.example.com/steal"]);
   check("buildIndexNowPayload drops non-host urls", !("error" in good) && (good as { urlList: string[] }).urlList.length === 2, JSON.stringify(good).slice(0, 140));
+  check("buildIndexNowPayload uses protocol hostname, not origin", !("error" in good) && good.host === "www.inbharat.ai");
   check("buildIndexNowPayload includes the keyLocation", !("error" in good) && (good as { keyLocation: string }).keyLocation === `${host}/${INDEXNOW_KEY}.txt`);
   check("buildIndexNowPayload rejects a bad key shape", "error" in m.buildIndexNowPayload(host, "short", [`${host}/`]));
 
@@ -1818,18 +1818,23 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
     { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/rag"], clicks: 30, impressions: 300, ctr: 0.1, position: 4 }, // 30→50 rising
     { keys: ["https://www.inbharat.ai/learn-ai-with-reeturaj/what-are-ai-agents"], clicks: 50, impressions: 500, ctr: 0.1, position: 8 }, // 50→20 falling
   ];
-  const withPrev = generateInsights({ snapshot: snap, previousGscPages: prev, now: Date.parse("2026-07-04") });
+  const articleInventory: import('../lib/growth/analyticsInsights.js').ArticleObservationInventory = {
+    status: 'available', articles: [{ slug: 'verified-article-fixture', title: 'Fixture', publicationState: 'live',
+      firstVerifiedAt: '2026-05-01T00:00:00Z', verifiedAt: '2026-07-01T00:00:00Z',
+      verificationMethod: 'canonical_snapshot', canonicalSnapshotId: 'a'.repeat(64), sourceCommitSha: 'b'.repeat(40) }],
+  };
+  const withPrev = generateInsights({ snapshot: snap, articleInventory, previousGscPages: prev, now: Date.parse("2026-07-04") });
   const rising = withPrev.find((i) => i.type === "rising_page");
   const falling = withPrev.find((i) => i.type === "falling_page");
   check("rising_page detected (clicks up vs prev)", !!rising && rising.linkedArticleSlug === "rag" && (rising.metrics.delta as number) > 0, JSON.stringify(rising));
   check("falling_page detected (clicks down vs prev)", !!falling && falling.linkedArticleSlug === "what-are-ai-agents" && (falling.metrics.delta as number) < 0, JSON.stringify(falling));
   check("rising_page action mentions syndicate/update", !!rising && /update|syndicat/i.test(rising.recommendedAction));
 
-  // 10) no_traffic_page: a published article ≥30d old absent from GSC pages.
+  // 10) no_traffic_page: observed-live article age >=30d, limited-report gap only.
   //     The summary must report the ACTUAL window (snapshot.range.days), not a
   //     hardcoded "28 days" — a manual 90d sync would otherwise fabricate "28d".
   const noTraffic = withPrev.find((i) => i.type === "no_traffic_page");
-  check("no_traffic_page for un-indexed published article", !!noTraffic && !!noTraffic.linkedArticleSlug, JSON.stringify(noTraffic));
+  check("limited-report gap for observed-live article (not proof of zero traffic)", !!noTraffic && !!noTraffic.linkedArticleSlug, JSON.stringify(noTraffic));
   check("no_traffic_page summary uses actual window days", !!noTraffic && /last \d+ days/.test(noTraffic.summary ?? "") && !/in 28 days/.test(noTraffic.summary ?? ""), noTraffic?.summary ?? "");
 
   // 11) KB mapping: performance insight → type 'performance'; query insight → 'keyword'.
@@ -1879,18 +1884,18 @@ console.log("\nGrowth Analytics Inbox (GA4 + GSC insights, pure logic):");
     ...snap,
     gsc: { ...snap.gsc!, topPages: [], pagesOk: false },
   };
-  const failedInsights = generateInsights({ snapshot: failedPages, previousGscPages: prev, now: Date.parse("2026-07-04") });
+  const failedInsights = generateInsights({ snapshot: failedPages, articleInventory, previousGscPages: prev, now: Date.parse("2026-07-04") });
   check("pagesOk:false → no no_traffic_page flood", !failedInsights.some((i) => i.type === "no_traffic_page"), `got ${failedInsights.filter((i) => i.type === "no_traffic_page").length} no_traffic`);
   check("pagesOk:false → no rising_page", !failedInsights.some((i) => i.type === "rising_page"));
   check("pagesOk:false → no falling_page", !failedInsights.some((i) => i.type === "falling_page"));
-  // pagesOk:true with empty topPages is LEGIT absence (HTTP 200, zero rows) →
-  // no_traffic DOES fire. This is the honest "refresh or archive" signal.
+  // A successful limited report plus verified inventory permits investigation,
+  // not a measured-zero claim or an automatic archive recommendation.
   const emptyButOk: AnalyticsSnapshot = {
     ...snap,
     gsc: { ...snap.gsc!, topPages: [], pagesOk: true },
   };
-  const okEmptyInsights = generateInsights({ snapshot: emptyButOk, now: Date.parse("2026-07-04") });
-  check("pagesOk:true + empty topPages → no_traffic fires (legit absence)", okEmptyInsights.some((i) => i.type === "no_traffic_page"));
+  const okEmptyInsights = generateInsights({ snapshot: emptyButOk, articleInventory, now: Date.parse("2026-07-04") });
+  check("pagesOk:true + verified inventory → limited-report investigation", okEmptyInsights.some((i) => i.type === "no_traffic_page"));
 }
 
 console.log("\nGrowth Analytics — performance.ts config + sync (no creds → not configured):");

@@ -10,6 +10,7 @@
 import { load } from "cheerio";
 import type { PageMeta } from "./types.js";
 import { isDomainAuthorized } from "./authorization.js";
+import { schemaNodes, schemaTypes as collectSchemaTypes } from "./seo-contracts.js";
 
 const CTA_TEXT = /\b(get started|book|book a demo|try|contact|demo|sign up|signup|start|request|talk to|whatsapp|call)\b/i;
 
@@ -53,13 +54,17 @@ export function parsePage(html: string, url: string): PageMeta {
     if (alt === undefined || alt.trim() === "") imagesWithoutAlt++;
   });
 
-  // Word count (visible text only). cheerio's `.text()` includes the raw text
-  // inside <script>/<style>/<noscript> (JS source, CSS, fallback markup), which
-  // would inflate the word count and risk false GEO-signal matches (e.g. "faq"
-  // appearing inside an inline script). Clone the body, strip those subtrees,
-  // then read visible text. Rough, but honest — the article body dominates.
-  const bodyClone = $("body").clone();
-  bodyClone.find("script, style, noscript, template").remove();
+  // Static main-content estimate, NOT computed browser visibility. Exclude
+  // explicit hidden blocks and navigation boilerplate; external CSS still
+  // requires a rendered browser audit. Never treat keyword matches as proof.
+  const contentRoot = $("main").first().length ? $("main").first() : $("body");
+  const bodyClone = contentRoot.clone();
+  bodyClone.find('script, style, noscript, template, nav, footer, [hidden], [aria-hidden="true"]').remove();
+  if (!$("main").length) bodyClone.children('header').remove();
+  bodyClone.find('[style]').each((_, el) => {
+    if (/display\s*:\s*none|visibility\s*:\s*hidden|clip\s*:\s*rect/i.test($(el).attr("style") || "")) $(el).remove();
+  });
+  bodyClone.find('p, h1, h2, h3, h4, h5, h6, li, td, th, pre, blockquote, summary, section, article, div, br').each((_, el) => { $(el).after(' '); });
   const bodyText = bodyClone.text().replace(/\s+/g, " ").trim();
   const wordCount = bodyText ? bodyText.split(" ").filter(Boolean).length : 0;
 
@@ -69,10 +74,8 @@ export function parsePage(html: string, url: string): PageMeta {
     const txt = $(el).text() || "";
     try {
       const parsed = JSON.parse(txt);
-      const objs = Array.isArray(parsed) ? parsed : [parsed];
-      for (const o of objs) {
-        const t = o?.["@type"];
-        if (t) schemaTypes.push(Array.isArray(t) ? t.join(",") : String(t));
+      for (const type of collectSchemaTypes(schemaNodes(parsed))) {
+        if (!schemaTypes.includes(type)) schemaTypes.push(type);
       }
     } catch {
       // malformed JSON-LD — ignore

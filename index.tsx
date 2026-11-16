@@ -108,6 +108,9 @@ if (!rootElement) {
   throw new Error('Could not find root element to mount to');
 }
 
+// This is replacement rendering, not hydration. The visible static fallback
+// lives inside #root and is retired atomically by React's first commit. Never
+// pre-clear it: if the bundle fails before mounting, it remains readable.
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>

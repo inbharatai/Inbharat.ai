@@ -7,6 +7,15 @@
  * Run: npx tsx scripts/verify-shell-crawl.ts
  */
 import { readFileSync } from "node:fs";
+import { load } from "cheerio";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkGfm from "remark-gfm";
+import remarkRehype from "remark-rehype";
+import { toHtml } from "hast-util-to-html";
+import { prepareArticleMarkdown } from "../lib/article-rendering";
+import { UNOONE_PAGES } from "../content/privateAI";
+import { SITE } from "../seo.config";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePage } from "../lib/growth/crawler.js";
@@ -27,8 +36,8 @@ console.log("wordCount:    ", meta.wordCount);
 console.log("h2Count:      ", meta.h2Count);
 console.log("canonical:    ", meta.canonical);
 console.log("schemaTypes:  ", meta.schemaTypes?.join(", "));
-console.log("SEO score:    ", seo.score);
-console.log("GEO score:    ", geo.score);
+console.log("SEO heuristic score (not ranking):", seo.score);
+console.log("GEO heuristic score (not AI visibility):", geo.score);
 console.log("SEO issues:   ", seo.issues.length);
 console.log("GEO issues:   ", geo.issues.length);
 
@@ -46,13 +55,12 @@ assert("canonical set to https://www.inbharat.ai/ (www-canonical)", meta.canonic
 assert("Organization + WebSite schema present", (meta.schemaTypes ?? []).some((t) => t.includes("Organization")) && (meta.schemaTypes ?? []).some((t) => t.includes("WebSite")));
 assert("FAQPage schema present", (meta.schemaTypes ?? []).some((t) => t.includes("FAQ")));
 assert("ItemList (product suite) schema present", (meta.schemaTypes ?? []).some((t) => t.includes("ItemList")));
-assert("SEO score improved over empty-shell baseline (was ~54)", seo.score >= 60);
-assert("GEO score improved over empty-shell baseline (was ~52)", geo.score >= 58);
+assert("homepage fallback is inside managed root", load(html)("#root h1").length === 1);
+assert("no off-root hidden SEO section", load(html)('body > section[aria-hidden="true"]').length === 0);
 assert("No 'Missing H1' SEO issue", !seo.issues.some((i) => i.field === "h1"));
-// "thin content" is the HIGH-severity <300-word flag. A low-severity "light
-// content" advisory (300–600 words) is legitimate guidance, not a defect —
-// the auditor correctly distinguishes thin vs light vs healthy.
-assert("No HIGH-severity 'thin content' issue (<300 words)", !seo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
+// Word count and scores remain diagnostics, not evidence of completeness.
+const normalized = (value: string) => value.replace(/\s+/g, " ").trim();
+const markdownProcessor = unified().use(remarkParse).use(remarkGfm).use(remarkRehype);
 
 // ─── Built article shells (dist/learn-ai-with-reeturaj/<slug>/index.html) ───
 // The build bakes the full rendered article body into the crawlable <section>
@@ -81,8 +89,19 @@ for (const a of ARTICLES) {
   assert(`[${a.slug}] exactly one canonical`, (aMeta.canonicalCount ?? 0) === 1, `got ${aMeta.canonicalCount}`);
   assert(`[${a.slug}] TechArticle schema present`, (aMeta.schemaTypes ?? []).some((t) => t.includes("TechArticle")));
   assert(`[${a.slug}] BreadcrumbList schema present`, (aMeta.schemaTypes ?? []).some((t) => t.includes("Breadcrumb")));
-  assert(`[${a.slug}] body baked (wordCount ≥ 600 — full content crawlable)`, (aMeta.wordCount ?? 0) >= 600, `got ${aMeta.wordCount}`);
-  assert(`[${a.slug}] no HIGH-severity thin-content issue`, !aSeo.issues.some((i) => i.field === "wordCount" && i.severity === "high"));
+  const source = readFileSync(resolve(__dirname, "..", "content", "articles", `${a.slug}.md`), "utf8");
+  const tree = await markdownProcessor.run(markdownProcessor.parse(prepareArticleMarkdown(source, a.abstract, a.faq.map((faq) => faq.q))));
+  const expectedText = normalized(load(toHtml(tree)).text());
+  const actualText = normalized(load(articleHtml)("#root main").text());
+  // Derive the correction independently of the preparation function, which once
+  // silently stripped it while a shared-parser comparison still passed.
+  const correction = source.split(/\r?\n/)[0].replace(/^>\s*/, '').replace(/\*\*/g, '');
+  assert(`[${a.slug}] correction notice retained`, actualText.includes(normalized(correction)));
+  assert(`[${a.slug}] complete source body in readable managed main`, expectedText.length > 0 && actualText.includes(expectedText));
+  for (const faq of a.faq || []) {
+    assert(`[${a.slug}] static FAQ question exactly once`, actualText.split(normalized(faq.q)).length - 1 === 1);
+    assert(`[${a.slug}] static FAQ answer exactly once`, actualText.split(normalized(faq.a)).length - 1 === 1);
+  }
   // Detailed readout for the first article (rag) — keeps the original sample log.
   if (firstArticle) {
     firstArticle = false;
@@ -95,6 +114,18 @@ for (const a of ARTICLES) {
     console.log("schemaTypes:  ", aMeta.schemaTypes?.join(", "));
     console.log("SEO score:    ", aSeo.score);
   }
+}
+
+// Every product capability/evidence/limit must reach the non-JS textual page.
+for (const page of UNOONE_PAGES) {
+  const shell = readFileSync(resolve(__dirname, "..", "dist", page.path.slice(1), "index.html"), "utf8");
+  const text = normalized(load(shell)("#root main").text());
+  assert(`[${page.path}] readable definition`, text.includes(normalized(page.description)));
+  for (const capability of page.capabilities) {
+    assert(`[${page.path}] capability ${capability.name}`, text.includes(normalized(capability.name)));
+    if (capability.evidence) assert(`[${page.path}] evidence ${capability.name}`, text.includes(normalized(capability.evidence)));
+  }
+  assert(`[${page.path}] canonical origin`, shell.includes(SITE.url + page.path));
 }
 
 // ─── Admin console shells (private: noindex + excluded from sitemap) ───

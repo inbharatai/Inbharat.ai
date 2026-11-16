@@ -35,17 +35,18 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
   const { fetchJson } = useAdminApi();
   const [items, setItems] = useState<PublishedMemoryItem[]>([]);
   const [configured, setConfigured] = useState<boolean>(true);
+  const [selection, setSelection] = useState<'live' | 'history' | 'unverified' | 'removed'>('live');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await fetchJson<MemResp>("/api/growth/published-memory?limit=200");
+    const { data, error } = await fetchJson<MemResp>(`/api/growth/published-memory?limit=200&selection=${selection}`);
     setError(error);
     setItems(data?.items ?? []);
     setConfigured(data?.configured ?? false);
     setLoading(false);
-  }, [fetchJson]);
+  }, [fetchJson, selection]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -55,10 +56,15 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[#7a9ab8]">Published Memory · what&apos;s published where</h2>
         <button onClick={load} className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[11px] font-semibold text-[#c0cfe0] hover:bg-white/[0.06]">Refresh</button>
       </div>
+      <label className="mt-3 flex items-center gap-2 text-[12px] text-[#9fb2c6]">Website state
+        <select aria-label="Website publication state" value={selection} onChange={(event) => setSelection(event.target.value as typeof selection)} className="min-h-11 rounded-md border border-white/10 bg-[#0a0f18] px-3">
+          <option value="live">Observed live</option><option value="history">All history</option><option value="unverified">Unverified</option><option value="removed">Removed</option>
+        </select>
+      </label>
       {!configured && <p className="mt-3 text-[11px] text-amber-300">Database not configured — no published memory yet. Wire Supabase env (see Settings).</p>}
       {loading && <p className="mt-3 text-[12px] text-[#7a9ab8]">Loading…</p>}
       {error && <p className="mt-3 text-[12px] text-rose-300">Failed to load: {error}</p>}
-      {!loading && !error && configured && items.length === 0 && <p className="mt-3 text-[12px] text-[#7a9ab8]">No published articles yet.</p>}
+      {!loading && !error && configured && items.length === 0 && <p className="mt-3 text-[12px] text-[#7a9ab8]">No matching verified publication records. History may contain unverified or removed articles; check production reconciliation before concluding the site is empty.</p>}
 
       {items.length > 0 && (
         <div className="mt-4 overflow-x-auto rounded-xl border border-white/[0.06]">
@@ -85,6 +91,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
                     <td className="max-w-[260px] px-3 py-2">
                       <p className="truncate font-semibold text-[#dde6f2]">{it.title}</p>
                       <p className="truncate text-[10px] text-[#5f7c98]">{it.slug}</p>
+                      <p className="text-[10px] text-[#7a9ab8]">Last verified: {it.verifiedAt ? new Date(it.verifiedAt).toLocaleString("en-IN") : "not recorded"}</p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1">
                         {sym.deposited && <span className="rounded bg-sky-500/15 px-1 py-0.5 text-[9px] font-bold uppercase text-sky-300">cross-posted · {sym.platforms.length}</span>}
                         {chips.cluster && <span className="rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-300">{chips.cluster}</span>}
@@ -93,8 +100,8 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
                         {chips.measured && <span className="rounded bg-emerald-500/10 px-1 py-0.5 text-[9px] text-emerald-300">{chips.measured}</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2"><PlatCell url={it.canonicalUrl} status="live" label="live" /></td>
-                    <td className="px-3 py-2"><PlatCell url={null} status={it.linkedin.status} manualLabel="posted manually" /></td>
+                    <td className="px-3 py-2"><PlatCell url={it.canonicalUrl} status={it.publicationState ?? "unverified"} /></td>
+                    <td className="px-3 py-2"><PlatCell url={it.linkedin.url} status={it.linkedin.status} manualLabel="posted manually" /></td>
                     <td className="px-3 py-2"><PlatCell url={it.instagram?.url ?? null} status={it.instagram?.status ?? null} /></td>
                     <td className="px-3 py-2 text-[10px] text-[#7a9ab8]">{it.publishDate ? new Date(it.publishDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—"}</td>
                   </tr>
@@ -106,7 +113,7 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
       )}
       {items.length > 0 && (
         <p className="mt-2 text-[10px] text-[#5f7c98]">
-          {items.length} article{items.length === 1 ? "" : "s"}. LinkedIn shows &quot;posted manually&quot; — the share-template flow never persists the post URL. Instagram shows the permalink when available.
+          {items.length} article{items.length === 1 ? "" : "s"}. Website states reflect the latest recorded observation, not search indexing. History preserves removed and unverified records. Social permalinks appear only when stored.
           {items.some((i) => i.measuredAt) ? " measured_at = LinkedIn outcomes only." : ""}
         </p>
       )}
@@ -116,8 +123,8 @@ const PublishedMemoryTable: React.FC<{ onSelectItem: (item: PublishedMemoryItem)
 
 const PlatCell: React.FC<{ url: string | null; status: string | null | undefined; label?: string; manualLabel?: string }> = ({ url, status, label, manualLabel }) => {
   if (!status && !label) return <span className="text-[10px] text-[#5f7c98]">—</span>;
-  const isOk = label === "live" || status === "published" || status === "draft" || status === "manual";
-  const display = label ?? (status === "manual" && manualLabel ? manualLabel : status ?? "—");
+  const isOk = status === "live" || status === "published" || status === "manual";
+  const display = label ?? (status === "live" ? "observed live" : status === "manual" && manualLabel ? manualLabel : status ?? "—");
   const inner = (
     <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${isOk ? "bg-emerald-500/15 text-emerald-300" : status === "failed" ? "bg-rose-500/15 text-rose-300" : "bg-slate-500/15 text-slate-300"}`}>
       {display}

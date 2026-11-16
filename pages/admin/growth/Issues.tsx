@@ -422,7 +422,7 @@ const Issues: React.FC = () => {
     notifyDraftsUpdated();
   }
 
-  /** Redesign the cover of any PUBLISHED article (the "Published articles" section).
+  /** Redesign the cover of any PUBLISHED article (the "Repository articles" section).
    *  Uses /api/growth/cover/generate — purpose-built for published articles (it
    *  looks the slug up in ARTICLES, clears pending/approved/rejected cover drafts
    *  for the URL, and force-creates a new pending one over an existing published
@@ -743,7 +743,7 @@ const Issues: React.FC = () => {
     // main → Vercel auto-rebuilds → the article goes live. It also ships the
     // companion cover if one is approved. Confirm before this outward-facing
     // change (a stray click used to push straight to main with no gate).
-    if (!confirm(`Publish this article to the live site?\n\n${d.title || d.url || d.id}\n\nIt commits the article + its meta entry to GitHub main (and ships the companion cover if one is approved), then Vercel rebuilds and it goes live.`)) return;
+    if (!confirm(`Commit this approved article for deployment?\n\n${d.title || d.url || d.id}\n\nIt commits the article + its meta entry to GitHub main (and ships the companion cover if one is approved), then deployment and live verification must succeed separately.`)) return;
     setPublishingId(d.id);
     setDraftMsg(null);
     setPublishError(null);
@@ -765,7 +765,7 @@ const Issues: React.FC = () => {
       return;
     }
     // Surface the companion cover outcome from the bundled publish (article + cover
-    // ship together on one click). The article is already live regardless of the
+    // ship together on one click). The article is repository-published regardless of the
     // cover result, so a cover failure is reported as a next-step, not a failure.
     // When no companion cover existed, the server auto-drafts a pending cover
     // (coverDrafted) so the article is never left coverless — surface that here.
@@ -776,21 +776,21 @@ const Issues: React.FC = () => {
     let coverLine = "";
     if (rg) {
       coverLine = rg.ok
-        ? ` A stale cover was regenerated and shipped — ${rg.filename} (png ${rg.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${rg.fileUrl}.`
-        : ` Cover regeneration failed (article is still live): ${rg.error}${rg.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
+        ? ` A stale cover was regenerated and shipped — ${rg.filename} (png ${rg.pngCommitSha?.slice(0, 7) ?? "?"}). Intended URL after deployment: ${rg.fileUrl}.`
+        : ` Cover regeneration failed (article is committed; live deployment unverified): ${rg.error}${rg.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
     } else if (!c) {
       coverLine = data.coverDrafted
         ? ` No companion cover existed, so a fresh cover draft was auto-created — ${data.coverDrafted.note}.`
-        : " No companion cover draft, and none could be auto-created (cover model not configured or monthly budget exhausted) — generate one from the Published articles section when able.";
+        : " No companion cover draft, and none could be auto-created (cover model not configured or monthly budget exhausted) — generate one from the Repository articles section when able.";
     } else if (c.ok) {
-      coverLine = ` Cover shipped too — ${c.filename} (png ${c.pngCommitSha?.slice(0, 7) ?? "?"}). Live at ${c.fileUrl}.`;
+      coverLine = ` Cover shipped too — ${c.filename} (png ${c.pngCommitSha?.slice(0, 7) ?? "?"}). Intended URL after deployment: ${c.fileUrl}.`;
     } else {
-      coverLine = ` Cover did NOT ship (article is still live): ${c.error}${c.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
+      coverLine = ` Cover did NOT ship (article is committed; live deployment unverified): ${c.error}${c.needsToken ? " — set GITHUB_TOKEN (contents:write) in Vercel env." : ""}`;
     }
     const msg =
-      `Article published — ${data.slug} committed to GitHub (md ${data.mdCommitSha?.slice(0, 7) ?? "?"}${
+      `Article committed — ${data.slug} saved to GitHub (md ${data.mdCommitSha?.slice(0, 7) ?? "?"}${
         data.metaCommitSha ? `, meta ${data.metaCommitSha.slice(0, 7)}` : ""
-      }). Vercel will auto-rebuild; it goes live at ${data.fileUrl ?? "the hub"}.${coverLine}`;
+      }). Deployment and live verification are pending. Intended URL: ${data.fileUrl ?? "the hub"}.${coverLine}`;
     setPublishOk({ draftId: d.id, message: msg });
     setJustPublished((m) => ({ ...m, [d.id]: d }));
     setDraftMsg(msg);
@@ -827,7 +827,8 @@ const Issues: React.FC = () => {
     <div>
       <h1 className="text-2xl font-bold text-white">Issues</h1>
       <p className="mt-2 max-w-2xl text-[14px] leading-[1.7] text-[#9fb2c6]">
-        Latest audited pages with SEO + GEO scores and prioritized recommendations.
+        Latest audited pages with internal SEO + GEO checklist scores and prioritized recommendations.
+        These heuristics do not measure rankings, index coverage, AI citations, or the truth of product claims.
       </p>
 
       <div className="mt-5">
@@ -1476,15 +1477,15 @@ const Issues: React.FC = () => {
         </>
       )}
 
-      {/* Published articles — the canonical "redesign any cover" surface. Every
+      {/* Repository articles — the canonical "redesign any cover" surface. Every
           published article gets a Redesign cover button (the audited-pages list
           only shows pages that have been crawled). */}
       {tab === "published" && (
         <section className="mt-6 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
-          <h2 className="text-[15px] font-bold text-white">Published articles ({ARTICLES.length})</h2>
+          <h2 className="text-[15px] font-bold text-white">Repository articles ({ARTICLES.length})</h2>
           <p className="mt-1 text-[12px] text-[#9fb2c6]">
-            Redesign the cover of any published article. A fresh pending cover draft lands in the review queue above —
-            approve it, then Publish cover to ship it live. The site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
+            This list comes from the repository manifest, not a live-deployment check. Redesign a cover to create a pending draft in the review queue above —
+            approve it, then Publish cover to commit it for deployment. After successful deployment, the site hero + LinkedIn <code className="text-[#f59f4f]">og:image</code> both update (LinkedIn uses the article cover).
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-2">

@@ -1,4 +1,6 @@
-> India has over 22 official languages and hundreds of dialects. If your AI app only understands English, you're missing a significant portion of the market. Building for Bharat means embracing linguistic diversity, and that requires a concrete strategy for multilingual LLMs that goes beyond simple translation APIs. It's about respecting local context, handling mixed scripts, and managing costs effectively.
+> **Content correction — 16 November 2026:** Corrected the scheduled-language count and removed unsupported “every output reviewed” and superior-accuracy promises. UI translation, text-model performance, speech recognition and speech synthesis require separate coverage records; no company-wide support matrix is established here.
+
+> Multilingual AI requires evaluation of translation, code-switching, task accuracy and cost in each intended language. Translation APIs, direct multilingual prompting and fine-tuning have different trade-offs. A language selector or model language list does not establish complete UI or speech support, and sensitive outputs require appropriately scoped review.
 
 ## The Multilingual Challenge in India
 
@@ -33,7 +35,7 @@ The simplest approach is to translate user input to English, process it with an 
 
 ## Strategy 2: In-Language Prompting (Multilingual LLMs)
 
-Many modern LLMs, like Google's Gemini or Meta's Llama, are inherently multilingual. They are trained on vast datasets that include multiple languages, allowing them to understand and generate text directly in various languages without explicit translation steps. This approach is crucial for fostering global inclusion and accessibility, as [Crystal Hues](https://crystalhues.com/) and [Unite.AI](https://unite.ai/) highlight [1, 2].
+Many modern LLMs, like Google's Gemini or Meta's Llama, are inherently multilingual. They are trained on vast datasets that include multiple languages, allowing them to understand and generate text directly in various languages without explicit translation steps. This approach is crucial for fostering global inclusion and accessibility, as [Crystal Hues](https://crystalhues.com/) and [Unite.AI](https://unite.ai/) discuss.
 
 **How it works:**
 
@@ -56,7 +58,7 @@ Many modern LLMs, like Google's Gemini or Meta's Llama, are inherently multiling
 
 ## Strategy 3: Fine-tuning for Specific Indic Languages
 
-For critical applications where accuracy and specific domain knowledge in a particular Indian language are paramount, fine-tuning a base multilingual LLM with your own high-quality, domain-specific data is the most powerful approach. This is what we consider for our vertical AI agents, like those in TestsPrep or Sahayaak Seva, where precision in medical or educational terminology is non-negotiable.
+For critical applications where accuracy and specific domain knowledge in a particular Indian language are paramount, fine-tuning a base multilingual LLM with your own high-quality, domain-specific data is one approach to compare against prompting and retrieval using held-out evaluation. This is what we consider for our vertical AI agents, like those in TestsPrep or Sahayaak Seva, where precision in medical or educational terminology is non-negotiable.
 
 **How it works:**
 
@@ -65,7 +67,7 @@ For critical applications where accuracy and specific domain knowledge in a part
 3.  **Deployment:** Deploy the fine-tuned model for inference.
 
 **Pros:**
-*   **Highest Accuracy & Relevance:** Tailored to your specific domain and language, leading to superior performance.
+*   **Potential task adaptation:** Fine-tuning can improve a defined task but may regress other cases; superiority needs a benchmark.
 *   **Deep Contextual Understanding:** The model learns the nuances, idioms, and specific vocabulary of the target language within your domain.
 *   **Reduced Hallucinations:** With relevant fine-tuning data, the model is less likely to generate irrelevant or incorrect information.
 
@@ -92,7 +94,7 @@ While 5G is expanding, a significant portion of India still relies on 4G or even
 
 ### 4. Human-in-the-Loop for Quality
 
-Regardless of the strategy, a human-gated safety net is crucial, especially for sensitive domains like healthcare (Sahayaak Seva) or education (TestsPrep). Nothing auto-publishes at InBharat. Every AI output is reviewed, especially for multilingual content, to catch nuances or errors that models might miss. This aligns with our overall approach to [What Agentic AI Really Means — and Why It Matters for India’s Future](https://www.inbharat.ai/learn-ai-with-reeturaj/agentic-ai).
+Regardless of the strategy, a human-gated safety net is crucial, especially for sensitive domains like healthcare (Sahayaak Seva) or education (TestsPrep). Define human review for consequential outputs and evaluate language quality with qualified reviewers. This is a recommended safeguard, not evidence that every output across InBharat products is manually reviewed. This aligns with our overall approach to [What Agentic AI Really Means — and Why It Matters for India’s Future](https://www.inbharat.ai/learn-ai-with-reeturaj/agentic-ai).
 
 ## Choosing the Right Approach
 

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SILT Studio — Start here</title>
+<meta name="description" content="SILT Studio is a research tool interface for connecting to and inspecting a local SILT service.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://silt.inbharat.ai/studio">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
   :root{

@@ -19,8 +19,10 @@
 import crypto from "node:crypto";
 import { insertKnowledge } from "./knowledge.js";
 import { logError } from "./authorization.js";
+import { getArticleObservationInventory } from "./publishedMemory.js";
 import {
   generateInsights,
+  publicationInsightCoverage,
   insightToKnowledge,
   summarizeSnapshot,
   type AnalyticsSnapshot,
@@ -388,6 +390,7 @@ export async function getAnalyticsSnapshot(days = 28): Promise<AnalyticsSnapshot
 // ─── KB sync ────────────────────────────────────────────────────────────────
 
 export interface AnalyticsSyncResult {
+  publicationCoverage?: ReturnType<typeof publicationInsightCoverage>;
   ok: boolean;
   configured: boolean;
   synced: number;
@@ -429,7 +432,10 @@ export async function syncAnalyticsToKB(days = 28): Promise<AnalyticsSyncResult>
     void logError("analytics-sync-prev-fail", "gsc", (e as Error).message).catch(() => undefined);
   }
 
-  const insights = generateInsights({ snapshot, previousGscPages, now: Date.now() });
+  const articleInventory = await getArticleObservationInventory();
+  const now = Date.now();
+  const publicationCoverage = publicationInsightCoverage(articleInventory, now);
+  const insights = generateInsights({ snapshot, previousGscPages, now, articleInventory });
   let synced = 0;
   let errors = 0;
   for (const ins of insights) {
@@ -448,7 +454,8 @@ export async function syncAnalyticsToKB(days = 28): Promise<AnalyticsSyncResult>
     synced,
     insights: insights.length,
     errors,
-    summary: summarizeSnapshot(snapshot),
+    summary: `${summarizeSnapshot(snapshot)} ${publicationCoverage.summary}`,
+    publicationCoverage,
     top: insights.slice(0, 10),
     snapshot,
     error: snapshot.error,

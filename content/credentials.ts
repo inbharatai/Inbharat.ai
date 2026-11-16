@@ -93,7 +93,7 @@ export const CREDENTIALS: Credential[] = [
     period: '2026',
     description:
       'Selected for Stanford Seed Spark 2026, a Stanford Graduate School of Business programme supporting founders building businesses in emerging economies.',
-    short: 'Stanford Seed Spark ’26',
+    short: 'Stanford Seed Spark · Selected',
     featured: true,
   },
   {
@@ -105,7 +105,7 @@ export const CREDENTIALS: Credential[] = [
     period: '2026',
     description:
       'Member of the OpenAI Partner Network, with partner onboarding completed in 2026.',
-    short: 'OpenAI Partner Network',
+    short: 'OpenAI Partner Network · Member',
     featured: true,
   },
   {
@@ -117,7 +117,7 @@ export const CREDENTIALS: Credential[] = [
     period: '2026',
     description:
       'Participant in the Google Cloud Gen AI Academy, APAC Cohort 3 (2026), covering applied generative AI and production deployment on Google Cloud.',
-    short: 'Google Cloud Gen AI Academy',
+    short: 'Google Gen AI · Participant',
     featured: true,
   },
   {
@@ -128,7 +128,7 @@ export const CREDENTIALS: Credential[] = [
     holder: 'person',
     period: '2026',
     description:
-      'Founding member of the Hyperagent Founding 500 cohort, building agentic AI workflows in production.',
+      'Founding member of the Hyperagent Founding 500 cohort, focused on agentic AI workflows.',
     short: 'Hyperagent Founding 500',
     featured: true,
   },
@@ -141,14 +141,14 @@ export const CREDENTIALS: Credential[] = [
     period: '2026',
     description:
       'Participant in the Sarvam Startup Program, building on Indic-language AI models for Bharat-first voice and text products.',
-    short: 'Sarvam Startup Program',
+    short: 'Sarvam Program · Participant',
     featured: true,
   },
   {
     id: 'google-5day-ai-agents',
     title: '5-Day AI Agents: Intensive Vibe Coding Course with Google',
     issuer: 'Google Developer Program',
-    category: 'certification',
+    category: 'program',
     holder: 'person',
     period: '2026',
     description:
@@ -170,7 +170,7 @@ export const CREDENTIALS: Credential[] = [
     id: 'google-developer-premium',
     title: 'Google Developer Program — Premium Tier',
     issuer: 'Google for Developers',
-    category: 'badge',
+    category: 'program',
     holder: 'person',
     period: '2026',
     description:
@@ -181,7 +181,7 @@ export const CREDENTIALS: Credential[] = [
     id: 'google-nvidia-community',
     title: 'Google Cloud & NVIDIA Community Member',
     issuer: 'Google for Developers',
-    category: 'badge',
+    category: 'program',
     holder: 'person',
     period: '2026',
     description: 'Member of the Google Cloud and NVIDIA developer community.',
@@ -244,7 +244,7 @@ export const FEATURED_CREDENTIALS = CREDENTIALS.filter((c) => c.featured);
 
 export const CATEGORY_LABEL: Record<CredentialCategory, string> = {
   recognition: 'Government Recognition',
-  program: 'Programs & Cohorts',
+  program: 'Programs, Cohorts & Memberships',
   certification: 'Certifications',
   badge: 'Developer Badges',
 };
@@ -252,10 +252,11 @@ export const CATEGORY_LABEL: Record<CredentialCategory, string> = {
 /**
  * schema.org `EducationalOccupationalCredential` nodes for the `hasCredential`
  * property of a Person or Organization. Split by holder so the DPIIT
- * recognition attaches to the company and the rest attach to Reeturaj.
+ * only course/completion credentials are emitted; recognition, programme
+ * participation and memberships stay in the visible factual register.
  */
 export function credentialSchemaNodes(holder: 'org' | 'person') {
-  return CREDENTIALS.filter((c) => c.holder === holder).map((c) => ({
+  return CREDENTIALS.filter((c) => c.holder === holder && c.category === 'certification').map((c) => ({
     '@type': 'EducationalOccupationalCredential',
     name: c.title,
     credentialCategory: CATEGORY_LABEL[c.category],
@@ -265,7 +266,9 @@ export function credentialSchemaNodes(holder: 'org' | 'person') {
   }));
 }
 
-/** schema.org `award` strings — a flat, human-readable list. */
+/** No records in this register are classified as competitive awards. API retained for callers. */
 export function awardStrings(holder: 'org' | 'person'): string[] {
-  return CREDENTIALS.filter((c) => c.holder === holder).map((c) => `${c.title} — ${c.issuer}`);
+  // Recognitions, course completions, memberships and participation are not awards.
+  void holder;
+  return [];
 }

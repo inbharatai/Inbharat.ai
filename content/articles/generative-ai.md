@@ -1,8 +1,10 @@
-> Generative AI creates new content—text, images, audio, code, video, 3D—by learning patterns from massive datasets and predicting what comes next. It doesn't analyze or predict existing data; it produces things that didn't exist before. For India, it's the key to creating personalized education, healthcare, and agricultural content at billion-person scale.
+> **Content correction — 16 November 2026:** Corrected the claims that generative AI is not prediction, cannot memorize and automatically keeps learning after deployment. The educational and health examples are possible applications, not verified reach or clinical performance.
+
+> Generative AI produces text, images, audio, code and other content using learned statistical patterns. Methods differ by modality; generation can involve prediction and does not guarantee originality or truth. Models can memorize data, and deployed inference does not automatically retrain them. Health and other consequential uses need domain-specific validation.
 
 Generative AI is everywhere. In your messaging app. In the code editor. In your email. But I think most people—even people building with it—don't quite understand what it is or why it matters so much.
 
-Let me be direct: generative AI isn't analysis. It's not prediction. It's creation. It takes patterns it's learned from massive datasets and creates something genuinely new. Text. Images. Audio. Code. Video. Things that didn't exist before, pulled into being by mathematical patterns.
+Let me be direct: generative AI focuses on producing content. Prediction is part of many generative methods, and the same model may also be used for analysis. It takes patterns it's learned from massive datasets and creates something genuinely new. Text. Images. Audio. Code. Video. Things that didn't exist before, pulled into being by mathematical patterns.
 
 The thing that blows my mind about it is the mechanism. It doesn't think like a human. It predicts what comes next. The next word. The next pixel. The next line of code. That prediction, repeated billions of times, creates something coherent. Something useful. Sometimes something beautiful.
 
@@ -10,11 +12,11 @@ The thing that blows my mind about it is the mechanism. It doesn't think like a 
 
 There's a process, and understanding it matters if you're going to use this technology responsibly.
 
-**First comes training.** Massive models absorb terabytes of data. Code repositories. Books. Images. Videos. Whatever domain they're meant to work in. A model for code learns from millions of real programs. A model for images learns from millions of real photographs. The model doesn't memorize—it learns the underlying patterns. The structures. The relationships. How code flows. How visual composition works. How language patterns build on each other.
+**First comes training.** Massive models absorb terabytes of data. Code repositories. Books. Images. Videos. Whatever domain they're meant to work in. A model for code learns from millions of real programs. A model for images learns from millions of real photographs. The model learns patterns, but may also memorize parts of its training data. The structures. The relationships. How code flows. How visual composition works. How language patterns build on each other.
 
 **Then comes tuning.** A general model that's been trained on everything gets specialized. You take it and further train it on domain-specific data. A legal AI gets trained on contracts and court documents. A medical AI gets trained on medical journals and patient records. That refinement makes it better at the specific thing you need it to do.
 
-**Then it's deployed.** You ask it a question. You give it a prompt. And it responds with contextually relevant output. But the learning doesn't stop there. Reinforcement learning—which is just fancy language for learning from feedback—keeps improving the outputs. Humans tell the system when it's doing well and when it's not. And it gets better.
+**Then it's deployed.** You ask it a question. You give it a prompt. And it responds with contextually relevant output. Ordinary inference does not update the model weights. Developers may collect permitted feedback and run separate training or reinforcement-learning stages, followed by evaluation; improvement is not automatic or guaranteed.
 
 ## What It Can Actually Do
 
@@ -34,7 +36,7 @@ There's a process, and understanding it matters if you're going to use this tech
 
 I think about what generative AI means in the Indian context. We have 1.4 billion people. We have challenges in education, healthcare, agriculture, manufacturing—domains where content creation at scale is a bottleneck.
 
-Want to create personalized tutoring content for 500 million students? Generative AI can help. Want to generate diagnostic decision support for doctors in rural areas who don't have specialists nearby? Generative AI. Want to create farming guidance in regional languages, customized to local soil conditions and water availability? Generative AI.
+Want to create personalized tutoring content for large numbers of learners? Generative AI can help. Want to generate diagnostic decision support for doctors in rural areas who don't have specialists nearby? Generative AI. Want to create farming guidance in regional languages, customized to local soil conditions and water availability? Generative AI.
 
 I've seen generative AI used to create documentation in Hindi, Tamil, Telugu, Kannada. Not translations. Actual content written in those languages, understanding the nuances of how people in different regions think about technology.
 
@@ -65,16 +67,16 @@ That gap is an opportunity. It's a gap we can fill.
 ## Frequently Asked Questions
 
 **What is generative AI?**
-AI that creates new content—text, images, audio, code, video, or 3D—by learning patterns from large datasets and predicting the next word, pixel, or line. It's creation, not analysis or prediction.
+AI that creates new content—text, images, audio, code, video, or 3D—by learning patterns from large datasets and predicting the next word, pixel, or line. It focuses on generation, often using predictive methods; factuality and originality are not guaranteed.
 
 **How does generative AI work?**
-Training (absorb terabytes of domain data, learn patterns), tuning (specialize on domain-specific data), deployment (respond to prompts), and reinforcement learning (improve from human feedback).
+Training (absorb terabytes of domain data, learn patterns), tuning (specialize on domain-specific data), deployment (respond to prompts), and optional separate feedback-based training. Inference alone does not continuously train the model.
 
 **What can generative AI actually produce?**
 Text (docs, articles, chat), images (mockups, concept art, synthetic training data), code (scaffolding, tests), audio/music, video, and 3D models for VR, prototypes, and digital twins.
 
 **Why does generative AI matter for India?**
-Content creation is the bottleneck across education (500M students), rural healthcare, and agriculture. GenAI creates tutoring content, diagnostic support, and farming guidance in regional languages—not translations, native content.
+Content creation is the bottleneck across education, rural healthcare, and agriculture. GenAI creates tutoring content, diagnostic support, and farming guidance in regional languages—not translations, native content.
 
 **What are the real costs and risks?**
 Significant GPU/cloud infrastructure, terabyte-scale data (with privacy and bias risks—biased training data amplifies bias), ethics (deepfakes, misinformation), unresolved copyright questions, and large energy/climate costs.

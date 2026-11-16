@@ -28,27 +28,13 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "cheerio";
-import { ROUTES, SITE } from "../seo.config";
+import { ROUTES, SITE, GLOBAL_SCHEMA } from "../seo.config";
 import type { SeoRoute } from "../seo.config";
 import { parsePage, extractInternalLinks } from "../lib/growth/crawler";
+import { validateJsonLd, validateSitemapXml, hasPublicAnchor, schemaNodes, schemaTypes } from "../lib/growth/seo-contracts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(__dirname, "..", "dist");
-
-/* ── JSON-LD required-field rules (per @type) ─────────────────────────── */
-const SCHEMA_REQUIRED: Record<string, string[]> = {
-  TechArticle: ["headline", "author", "datePublished"],
-  Article: ["headline", "author", "datePublished"],
-  BlogPosting: ["headline", "author", "datePublished"],
-  NewsArticle: ["headline", "author", "datePublished"],
-  BreadcrumbList: ["itemListElement"],
-  Organization: ["name", "url"],
-  WebSite: ["name", "url"],
-  FAQPage: ["mainEntity"],
-  Person: ["name"],
-  ItemList: ["itemListElement"],
-  SoftwareApplication: ["name", "applicationCategory"],
-};
 
 type Failing = { path: string; check: string; detail: string };
 
@@ -69,79 +55,12 @@ const SILT_LANDING = "https://silt.inbharat.ai";
 const SILT_REPO = "https://github.com/inbharatai/SILT";
 const POCKETAI_REPO = "https://github.com/inbharatai/PAI.V2";
 
-/* ── Load sitemap locs once ───────────────────────────────────────────── */
+/* Validate expected set, exact origins, duplicate locs and dates. */
 const sitemapPath = join(DIST, "sitemap.xml");
-const sitemapLocs = new Set<string>();
-if (existsSync(sitemapPath)) {
-  const xml = readFileSync(sitemapPath, "utf8");
-  for (const m of xml.matchAll(/<loc>([^<]+)<\/loc>/g)) {
-    const loc = m[1].trim();
-    sitemapLocs.add(loc);
-  }
-}
-if (sitemapLocs.size === 0) {
-  console.error("audit-seo: no sitemap locs found — run `npm run build` first.");
-  process.exit(1);
-}
-
-// Sitemap hygiene: no query strings, no /api /admin /silt locs.
-for (const loc of sitemapLocs) {
-  if (loc.includes("?")) {
-    failures.push({ path: loc, check: "sitemap no query strings", detail: `sitemap loc contains query string` });
-  }
-  try {
-    const pathname = new URL(loc).pathname;
-    if (pathname.startsWith("/api") || pathname.startsWith("/admin") || pathname.startsWith("/silt")) {
-      failures.push({ path: loc, check: "sitemap forbidden path", detail: `sitemap loc under ${pathname.split("/")[1]}` });
-    }
-  } catch {
-    failures.push({ path: loc, check: "sitemap valid URL", detail: `sitemap loc is not a valid URL` });
-  }
-}
-
-/** Extract + validate JSON-LD blocks from a shell. Returns error list. */
-function validateJsonLd(html: string): string[] {
-  const errs: string[] = [];
-  const $ = load(html);
-  const objects: Record<string, unknown>[] = [];
-  $('script[type="application/ld+json"]').each((_, el) => {
-    try {
-      const parsed = JSON.parse($(el).text() || "");
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      for (const o of arr) if (o && typeof o === "object") objects.push(o);
-    } catch {
-      errs.push("malformed JSON-LD block (invalid JSON)");
-    }
-  });
-  // Regression guard: no obsolete SearchAction anywhere (Gap 1).
-  for (const o of objects) {
-    const t = (o as Record<string, unknown>)["@type"];
-    const types = Array.isArray(t) ? t : [t];
-    if (types.includes("SearchAction")) {
-      errs.push("obsolete SearchAction present (Google retired sitelinks search box Nov 2024)");
-    }
-    const pa = (o as Record<string, unknown>).potentialAction;
-    if (pa && typeof pa === "object") {
-      const pt = (pa as Record<string, unknown>)["@type"];
-      const ptypes = Array.isArray(pt) ? pt : [pt];
-      if (ptypes.includes("SearchAction")) {
-        errs.push("obsolete SearchAction in potentialAction");
-      }
-    }
-  }
-  // Required fields per @type.
-  for (const o of objects) {
-    const t = o["@type"];
-    const types = Array.isArray(t) ? t.map(String) : [String(t)];
-    for (const ty of types) {
-      const req = SCHEMA_REQUIRED[ty];
-      if (!req) continue; // unknown/unmapped type — don't fail
-      const missing = req.filter((f) => !(f in o) || o[f] === null || o[f] === "");
-      if (missing.length) errs.push(`${ty} missing required field(s): ${missing.join(", ")}`);
-    }
-  }
-  return errs;
-}
+const expectedSitemap = ROUTES.filter((r) => !r.noIndex && !r.excludeFromSitemap).map((r) => expectedCanonical(r.path));
+const sitemap = validateSitemapXml(existsSync(sitemapPath) ? readFileSync(sitemapPath, "utf8") : "", SITE.url, expectedSitemap);
+for (const detail of sitemap.errors) failures.push({ path: "/sitemap.xml", check: "sitemap contract", detail });
+const sitemapLocs = new Set(sitemap.locs);
 
 /* ── Audit every indexable route ──────────────────────────────────────── */
 const indexable = (ROUTES as SeoRoute[]).filter((r) => !r.noIndex && !r.excludeFromSitemap);
@@ -149,7 +68,7 @@ const seenCanonicals = new Set<string>();
 
 // Map of every built shell path (for internal-link reachability + sitemap cross-check).
 const builtPaths = new Set<string>();
-for (const r of indexable) {
+for (const r of ROUTES) {
   if (existsSync(shellFilePath(r.path))) builtPaths.add(r.path);
 }
 
@@ -196,8 +115,24 @@ for (const r of indexable) {
   // sitemap inclusion
   const inSitemap = sitemapLocs.has(expCanonical);
   if (!inSitemap) failures.push({ path, check: "in sitemap.xml", detail: `${expCanonical} not in sitemap` });
+  // Static content must be accessible and managed by React, not an offscreen
+  // competing document that survives route navigation.
+  const $ = load(html);
+  if ($('body > section[aria-hidden="true"]').length) {
+    failures.push({ path, check: "no permanent hidden SEO document", detail: "off-root aria-hidden section remains" });
+  }
+  if (!$("#root h1").length) failures.push({ path, check: "readable root content", detail: "H1 missing from managed static root" });
   // JSON-LD validity
-  const ldErrs = validateJsonLd(html);
+  const expectedTypes = schemaTypes(schemaNodes([...GLOBAL_SCHEMA, ...(r.extraSchema || [])]));
+  const ldErrs = validateJsonLd(html, expectedTypes, expCanonical);
+  for (const expected of schemaNodes(r.extraSchema || []).filter((node) => node["@type"] === "TechArticle")) {
+    const actual = $('script[type="application/ld+json"]').toArray().flatMap((el) => {
+      try { return schemaNodes(JSON.parse($(el).text())); } catch { return []; }
+    }).find((node) => node["@type"] === "TechArticle");
+    for (const field of ["headline", "description", "abstract", "datePublished", "dateModified", "mainEntityOfPage"]) {
+      if (JSON.stringify(actual?.[field]) !== JSON.stringify(expected[field])) ldErrs.push(`TechArticle ${field} differs from reviewed manifest`);
+    }
+  }
   for (const e of ldErrs) failures.push({ path, check: "JSON-LD valid", detail: e });
 
   rows.push({
@@ -231,13 +166,13 @@ for (const path of patentPaths) {
   if (!lowerText.includes("patent pending")) {
     failures.push({ path, check: "patent-pending language", detail: `missing "Patent Pending" language` });
   }
-  if (!html.includes(SILT_LANDING)) {
+  if (!hasPublicAnchor(html, SILT_LANDING, SITE.url)) {
     failures.push({ path, check: "SILT landing cross-link", detail: `missing link to ${SILT_LANDING}` });
   }
-  if (!html.includes(SILT_REPO)) {
+  if (!hasPublicAnchor(html, SILT_REPO, SITE.url)) {
     failures.push({ path, check: "SILT repo cross-link", detail: `missing link to ${SILT_REPO}` });
   }
-  if (!html.includes(POCKETAI_REPO)) {
+  if (!hasPublicAnchor(html, POCKETAI_REPO, SITE.url)) {
     failures.push({ path, check: "Pocket AI repo cross-link", detail: `missing link to ${POCKETAI_REPO}` });
   }
 }
@@ -245,9 +180,7 @@ for (const path of patentPaths) {
 /* ── Sitemap cross-check: no loc without a built shell ─────────────────── */
 const indexableByCanonical = new Map(indexable.map((r) => [expectedCanonical(r.path), r.path]));
 for (const loc of sitemapLocs) {
-  // Only check locs on our canonical host (the sitemap hygiene test already
-  // enforces no foreign/query/admin locs; here we confirm each maps to a shell).
-  if (!loc.startsWith(SITE.url)) continue;
+  // Foreign origins were rejected above; every entry still needs a known route.
   const path = indexableByCanonical.get(loc);
   if (path === undefined) {
     failures.push({ path: loc, check: "sitemap loc maps to a route", detail: "loc not in indexable ROUTES" });

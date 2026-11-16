@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { supportedLanguages } from '../lib/i18n';
+import { supportedLanguages, selectedUiLanguage, syncDocumentLanguage } from '../lib/i18n';
+import { localized, languageOfText, EnglishOnly } from '../lib/locale-text';
 import { useAuth } from '../lib/auth';
 import HeroGitaQuote from '../components/HeroGitaQuote';
 import HeroEdgeDepth from '../components/landing/HeroEdgeDepth';
@@ -81,15 +82,16 @@ const Reveal: React.FC<SectionProps> = ({ id, className = '', children }) => (
 );
 
 /* ── Word-by-word slide-up ── */
-const WordReveal: React.FC<{ text: string; className?: string; delay?: number }> = ({
+const WordReveal: React.FC<{ text: string; lang?: string; className?: string; delay?: number }> = ({
   text,
+  lang = 'en',
   className = '',
   delay = 0,
 }) => {
   const prefersReduced = useReducedMotion();
   const words = text.split(' ');
   return (
-    <span className={`inline ${className}`} aria-label={text}>
+    <span lang={lang} className={`inline ${className}`} aria-label={text}>
       {words.map((word, i) => (
         <motion.span
           key={i}
@@ -931,7 +933,7 @@ const PRODUCT_DEFS = [
   // ── Education & Career ──
   { name: 'UniAssist.ai', bucket: 'eduCareer', tagKey: 'landProdUniassistTag', descKey: 'landProdUniassistDesc', ctaKey: 'landProdUniassistCta', typeKey: 'landProdUniassistType', href: 'https://www.uniassist.ai', logo: '/uniassist-logo.png', internal: false, color: '#3b82f6', tech: ['React', 'Node.js', 'AI Matching'] },
   { name: 'TestsPrep.in', bucket: 'eduCareer', tagKey: 'landProdTestsprepTag', descKey: 'landProdTestsprepDesc', ctaKey: 'landProdTestsprepCta', typeKey: 'landProdTestsprepType', href: 'https://testsprep.in', logo: '/testsprep-logo.png', internal: false, color: '#f43f5e', tech: ['React', 'AI Analytics', 'Adaptive'] },
-  { name: 'UnoOne', bucket: 'consumer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: 'https://github.com/inbharatai/UnoOne-Local-Agent', logo: null, icon: Brain, internal: false, color: '#8b5cf6', tech: ['Android', 'Whisper STT', 'MMS TTS', 'Offline-first'] },
+  { name: 'UnoOne', bucket: 'consumer', tagKey: 'landProdUnooneTag', descKey: 'landProdUnooneDesc', ctaKey: 'landProdUnooneCta', typeKey: 'landProdUnooneType', href: '/unoone', logo: null, icon: Brain, internal: true, color: '#8b5cf6', tech: ['Windows', 'Android', 'Development builds', 'Local-first'] },
   { name: 'OpenClawFix', bucket: 'consumer', tagKey: 'landProdOpenclawTag', descKey: 'landProdOpenclawDesc', ctaKey: 'landProdOpenclawCta', typeKey: 'landProdOpenclawType', href: 'https://openclawfix.pro', logo: '/openclawfix-logo.png', internal: false, color: '#14b8a6', tech: ['Next.js', 'Docker', 'PayPal', 'Razorpay'] },
   // ── Health & Public Service ──
   { name: 'Sahayaak Seva', bucket: 'health', tagKey: 'landProdSahaayakSevaTag', descKey: 'landProdSahaayakSevaDesc', ctaKey: 'landProdSahaayakSevaCta', typeKey: 'landProdSahaayakSevaType', href: 'https://sahayaakseva.in', logo: null, icon: Users, internal: false, color: '#059669', tech: ['FastAPI', 'Next.js 14', 'GPT-4o Vision', 'WHO Data'] },
@@ -955,6 +957,10 @@ const BUCKETS: { key: ProductBucket; labelKey: string; descKey: string; roleKey:
 
 const Landing: React.FC = () => {
   const { t, i18n } = useTranslation();
+  useEffect(() => {
+    syncDocumentLanguage();
+    return () => { document.documentElement.lang = 'en'; };
+  }, [i18n.resolvedLanguage]);
   const { isSignedIn, user, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('#ecosystem');
@@ -1090,7 +1096,7 @@ const Landing: React.FC = () => {
   }, [navItems]);
 
   return (
-    <div ref={shellRef} className="landing-shell min-h-screen overflow-x-hidden bg-[#030508] text-[#e8eef8]">
+    <div lang="en" ref={shellRef} className="landing-shell min-h-screen overflow-x-hidden bg-[#030508] text-[#e8eef8]">
       {/* Atmospheric layers */}
       <div className="landing-atmosphere" aria-hidden="true" />
       <div className="landing-grid" aria-hidden="true" />
@@ -1123,7 +1129,7 @@ const Landing: React.FC = () => {
             </div>
             <div>
               <p className="text-[14px] font-bold tracking-tight text-white">InBharat.ai</p>
-              <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">{t('landBrandSub')}</p>
+              <p className="text-[9px] uppercase tracking-[0.25em] text-[#96b0c8]">{localized(t('landBrandSub'))}</p>
             </div>
           </Link>
 
@@ -1140,7 +1146,7 @@ const Landing: React.FC = () => {
                       : 'text-[#9aafc6] hover:text-[#b0c0d8]'
                   }`}
                 >
-                  {item.label}
+                  {localized(item.label)}
                   {activeSection === item.href && (
                     <motion.div
                       layoutId="nav-indicator"
@@ -1160,7 +1166,7 @@ const Landing: React.FC = () => {
                       : 'text-[#9aafc6] hover:text-[#b0c0d8]'
                   }`}
                 >
-                  {item.label}
+                  {localized(item.label)}
                   {activeSection === item.href && (
                     <motion.div
                       layoutId="nav-indicator"
@@ -1176,14 +1182,15 @@ const Landing: React.FC = () => {
 
           <div className="flex items-center gap-2.5">
             <select
-              value={i18n.language}
+              value={selectedUiLanguage()}
               onChange={(e) => void i18n.changeLanguage(e.target.value)}
               className="hidden rounded-full border border-white/10 bg-[#0a0f18] px-3 py-1.5 text-[11px] font-semibold text-[#c0cfe0] outline-none transition-colors hover:border-[#f59f4f]/40 hover:text-white sm:block"
               style={{ colorScheme: 'dark' }}
+              lang={languageOfText(t('langSwitcher'))}
               aria-label={t('langSwitcher')}
             >
               {supportedLanguages.map((lang) => (
-                <option key={lang.code} value={lang.code} className="bg-[#0a0f18] text-[#c0cfe0]">
+                <option lang={lang.code} key={lang.code} value={lang.code} className="bg-[#0a0f18] text-[#c0cfe0]">
                   {lang.native}
                 </option>
               ))}
@@ -1200,14 +1207,14 @@ const Landing: React.FC = () => {
             {isSignedIn ? (
               <>
                 <div className="hidden rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-[#7a8da8] md:block">
-                  {user?.email ?? t('guest')}
+                  {user?.email ?? localized(t('guest'))}
                 </div>
                 <button
                   type="button"
                   onClick={() => void signOut()}
                   className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
                 >
-                  {t('signOut')}
+                  {localized(t('signOut'))}
                 </button>
               </>
             ) : (
@@ -1215,7 +1222,7 @@ const Landing: React.FC = () => {
                 to="/app"
                 className="rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-5 py-1.5 text-[11px] font-bold text-[#0a0c10] shadow-[0_0_20px_rgba(245,159,79,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(245,159,79,0.4)]"
               >
-                {t('signIn')}
+                {localized(t('signIn'))}
               </Link>
             )}
 
@@ -1223,6 +1230,7 @@ const Landing: React.FC = () => {
               type="button"
               className="rounded-lg border border-white/8 p-1.5 text-[#b4c8de] transition-colors hover:bg-white/[0.06] hover:text-white lg:hidden"
               onClick={() => setMobileOpen((prev) => !prev)}
+              lang={languageOfText(t('openMenu'))}
               aria-label={t('openMenu')}
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -1262,7 +1270,7 @@ const Landing: React.FC = () => {
                       activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
                     }`}
                   >
-                    {item.label}
+                    {localized(item.label)}
                   </Link>
                 ) : (
                   <a
@@ -1272,21 +1280,22 @@ const Landing: React.FC = () => {
                       activeSection === item.href ? 'bg-white/[0.08] text-white' : 'text-[#b4c8de] hover:bg-white/[0.04] hover:text-white'
                     }`}
                   >
-                    {item.label}
+                    {localized(item.label)}
                   </a>
                 ),
               )}
             </div>
             <div className="mt-3 pt-3 border-t border-white/[0.06]">
               <select
-                value={i18n.language}
+                value={selectedUiLanguage()}
                 onChange={(e) => void i18n.changeLanguage(e.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-[#0a0f18] px-4 py-2.5 text-sm font-semibold text-[#c0cfe0] outline-none"
                 style={{ colorScheme: 'dark' }}
-                aria-label={t('langSwitcher')}
+                lang={languageOfText(t('langSwitcher'))}
+              aria-label={t('langSwitcher')}
               >
                 {supportedLanguages.map((lang) => (
-                  <option key={lang.code} value={lang.code} className="bg-[#0a0f18] text-[#c0cfe0]">
+                  <option lang={lang.code} key={lang.code} value={lang.code} className="bg-[#0a0f18] text-[#c0cfe0]">
                     {lang.native}
                   </option>
                 ))}
@@ -1309,7 +1318,7 @@ const Landing: React.FC = () => {
         />
 
         {/* Bhagavad Gita Quote — hero top */}
-        <HeroGitaQuote />
+        <div lang={selectedUiLanguage()}><HeroGitaQuote /></div>
 
         <motion.div
           className="relative z-10 mx-auto max-w-7xl px-5 sm:px-6 lg:px-10"
@@ -1328,9 +1337,11 @@ const Landing: React.FC = () => {
                   transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="inline-block h-1.5 w-1.5 rounded-full bg-[#f59f4f] shadow-[0_0_8px_rgba(245,159,79,0.5)]"
                 />
-                {t('landHeroBadge')}
+                {localized(t('landHeroBadge'))}
               </span>
             </motion.div>
+
+            <p data-locale-coverage className="mt-3 max-w-xl text-xs leading-relaxed text-[#96b0c8]">{localized(t('landLanguageCoverageNotice'))}</p>
 
             {/* Credential rail — featured recognitions & programmes */}
             <CredentialRail
@@ -1339,9 +1350,9 @@ const Landing: React.FC = () => {
 
             {/* Headline */}
             <h1 className="hero-headline mt-8 max-w-5xl text-white sm:mt-10">
-              <WordReveal text={t('landHeroTitle1')} delay={0.1} />
+              <WordReveal lang={languageOfText(t('landHeroTitle1'))} text={t('landHeroTitle1')} delay={0.1} />
               <span className="block mt-1 bg-gradient-to-r from-[#f59f4f] via-[#fde8d0] to-[#6fd3a3] bg-clip-text text-transparent">
-                <WordReveal text={t('landHeroTitle2')} delay={0.3} />
+                <WordReveal lang={languageOfText(t('landHeroTitle2'))} text={t('landHeroTitle2')} delay={0.3} />
               </span>
             </h1>
 
@@ -1352,7 +1363,7 @@ const Landing: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.55, ease }}
             >
-              {t('landHeroDesc')}
+              {localized(t('landHeroDesc'))}
             </motion.p>
 
             {/* CTAs */}
@@ -1367,7 +1378,7 @@ const Landing: React.FC = () => {
                 onClick={() => trackEvent('cta_hero_try_app')}
                 className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
               >
-                {t('landHeroCta1')}
+                {localized(t('landHeroCta1'))}
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -1375,7 +1386,7 @@ const Landing: React.FC = () => {
                 onClick={() => trackEvent('cta_hero_meet_pai')}
                 className="group inline-flex items-center gap-2.5 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-[#c0cfe0] backdrop-blur-sm transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
               >
-                {t('landHeroCta2')}
+                {localized(t('landHeroCta2'))}
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
               </Link>
             </motion.div>
@@ -1399,7 +1410,7 @@ const Landing: React.FC = () => {
                   <p className="metric-num bg-gradient-to-br from-white to-[#c8d8ea] bg-clip-text text-transparent">
                     <CountUp target={metric.value} reduceMotion={reduceMotion} />
                   </p>
-                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#96b0c8]">{metric.label}</p>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-[#96b0c8]">{localized(metric.label)}</p>
                 </div>
               ))}
             </motion.div>
@@ -1416,12 +1427,12 @@ const Landing: React.FC = () => {
       <Reveal id="pai" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landPaiEyebrow')}</p>
+            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{localized(t('landPaiEyebrow'))}</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
-              {t('landPaiHeading')}
+              {localized(t('landPaiHeading'))}
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.75] text-[#9aafc6] sm:text-[15px]">
-              {t('landPaiBody')}
+              {localized(t('landPaiBody'))}
             </p>
           </div>
 
@@ -1446,14 +1457,14 @@ const Landing: React.FC = () => {
                 >
                   <item.icon size={22} style={{ color: item.color }} />
                 </div>
-                <h3 className="mt-6 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{item.text}</p>
+                <h3 className="mt-6 text-lg font-semibold text-white">{localized(item.title)}</h3>
+                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{localized(item.text)}</p>
               </motion.article>
             ))}
           </div>
 
           <p className="mt-10 text-center text-sm font-semibold tracking-[0.18em] text-[#96b0c8]">
-            {t('landPaiLayersHeading')}
+            {localized(t('landPaiLayersHeading'))}
           </p>
         </div>
       </Reveal>
@@ -1462,7 +1473,7 @@ const Landing: React.FC = () => {
 
       {/* ═══════════════ ONE AGENT · TWO DEVICES ═══════════════ */}
       <Reveal id="devices" className="relative z-10 py-20 sm:py-28">
-        <UnoOneDevices showCards />
+        <EnglishOnly><UnoOneDevices showCards /></EnglishOnly>
       </Reveal>
 
       <div className="landing-seam" aria-hidden="true" />
@@ -1473,9 +1484,9 @@ const Landing: React.FC = () => {
       <Reveal id="why" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{t('landNavAbout')}</p>
+            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{localized(t('landNavAbout'))}</p>
             <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
-              {t('landWhy1Title')}
+              {localized(t('landWhy1Title'))}
             </h2>
           </div>
 
@@ -1500,8 +1511,8 @@ const Landing: React.FC = () => {
                 >
                   <item.icon size={22} style={{ color: item.color }} />
                 </div>
-                <h3 className="mt-6 text-lg font-semibold text-white">{item.title}</h3>
-                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{item.text}</p>
+                <h3 className="mt-6 text-lg font-semibold text-white">{localized(item.title)}</h3>
+                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{localized(item.text)}</p>
               </motion.article>
             ))}
           </div>
@@ -1512,7 +1523,7 @@ const Landing: React.FC = () => {
 
 
       {/* ═══════════════ FOUNDATIONAL DEEP TECH SPOTLIGHT ═══════════════ */}
-      <DeepTechSpotlight />
+      <EnglishOnly><DeepTechSpotlight /></EnglishOnly>
 
       <div className="landing-seam" aria-hidden="true" />
 
@@ -1539,7 +1550,7 @@ const Landing: React.FC = () => {
                       <ShieldCheck size={22} className="text-[#ef4444]" />
                     </div>
                     <span className="rounded-full border border-[#ef4444]/30 bg-[#ef4444]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#f87171]">
-                      {t('landJakBadge')}
+                      {localized(t('landJakBadge'))}
                     </span>
                     <span className="rounded-full border border-amber-500/30 bg-amber-500/8 px-3 py-1 text-[10px] font-bold text-amber-400">
                       Evidence Engine
@@ -1547,24 +1558,25 @@ const Landing: React.FC = () => {
                   </div>
 
                   <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    {t('landJakTitle')}
+                    {localized(t('landJakTitle'))}
                     <br />
                     <span className="bg-gradient-to-r from-[#f87171] via-[#fca5a5] to-[#fecaca] bg-clip-text text-transparent">
-                      {t('landJakTitle2')}
+                      {localized(t('landJakTitle2'))}
                     </span>
                   </h2>
 
                   <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    {t('landJakDesc')}
+                    {localized(t('landJakDesc'))}
+                    <span className="mt-3 block text-sm">{localized(t('landSafetyNotice'))}</span>
                   </p>
 
                   {/* Stats */}
                   <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {([
-                      { val: '6', label: t('landJakStat1') },
-                      { val: '100%', label: t('landJakStat2') },
-                      { val: '0', label: t('landJakStat3') },
-                      { val: '1', label: t('landJakStat4') },
+                      { val: t('landJakControl1'), label: t('landJakStat1') },
+                      { val: t('landJakControl2'), label: t('landJakStat2') },
+                      { val: t('landJakControl3'), label: t('landJakStat3') },
+                      { val: t('landJakControl4'), label: t('landJakStat4') },
                     ] as const).map((stat, i) => (
                       <motion.div
                         key={stat.label}
@@ -1575,8 +1587,8 @@ const Landing: React.FC = () => {
                         viewport={{ once: true }}
                         className="rounded-xl border border-[#ef4444]/15 bg-[#ef4444]/[0.05] p-3.5 text-center"
                       >
-                        <p className="text-2xl font-bold leading-none text-white">{stat.val}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{stat.label}</p>
+                        <p className="break-words text-lg font-bold leading-snug text-white sm:text-2xl">{localized(stat.val)}</p>
+                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{localized(stat.label)}</p>
                       </motion.div>
                     ))}
                   </div>
@@ -1592,7 +1604,7 @@ const Landing: React.FC = () => {
                         key={feat}
                         className="rounded-full border border-[#ef4444]/20 bg-[#ef4444]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#fca5a5]"
                       >
-                        {feat}
+                        {localized(feat)}
                       </span>
                     ))}
                   </div>
@@ -1600,7 +1612,7 @@ const Landing: React.FC = () => {
                   {/* Use cases callout */}
                   <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-2.5 text-sm text-amber-300">
                     <Target size={14} className="flex-shrink-0 text-amber-500" />
-                    {t('landJakUseCases')}
+                    {localized(t('landJakUseCases'))}
                   </div>
 
                   {/* CTAs */}
@@ -1611,13 +1623,13 @@ const Landing: React.FC = () => {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded-full bg-[#ef4444] px-6 py-3 text-sm font-bold text-[#1a0606] shadow-[0_0_30px_rgba(239,68,68,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#f87171] hover:shadow-[0_0_40px_rgba(239,68,68,0.4)]"
                     >
-                      {t('landJakCta2')}
+                      {localized(t('landJakCta2'))}
                       <Github size={14} />
                     </a>
                   </div>
                 </div>
 
-                {/* Right: JAK Swarm Flow Graph — live closed-loop pipeline visualization */}
+                {/* Right: JAK Swarm Flow Graph — illustrative pipeline, not telemetry */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96 }}
                   whileInView={{ opacity: 1, scale: 1 }}
@@ -1626,6 +1638,7 @@ const Landing: React.FC = () => {
                   className="relative overflow-hidden rounded-2xl border border-[#ef4444]/15 bg-[#030608] min-h-[400px] lg:min-h-0 lg:self-stretch"
                 >
                   <JakSwarmFlowGraph reduceMotion={reduceMotion} />
+                  <p className="absolute bottom-3 inset-x-3 text-center text-[10px] text-[#9aafc6]">{localized(t('landJakIllustration'))}</p>
                 </motion.div>
               </div>
             </div>
@@ -1641,9 +1654,9 @@ const Landing: React.FC = () => {
           <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landEcoLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{localized(t('landEcoLabel'))}</p>
               <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
-                {t('landEcoTitle')}
+                {localized(t('landEcoTitle'))}
               </h2>
 
               <div className="mt-10 space-y-4">
@@ -1669,8 +1682,8 @@ const Landing: React.FC = () => {
                         <item.icon size={18} style={{ color: item.color }} />
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-white">{item.title}</h3>
-                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{item.desc}</p>
+                        <h3 className="text-base font-semibold text-white">{localized(item.title)}</h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{localized(item.desc)}</p>
                       </div>
                     </div>
                   </motion.div>
@@ -1686,7 +1699,7 @@ const Landing: React.FC = () => {
                   t('landEcoPulse4'),
                 ].map((line) => (
                   <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
-                    {line}
+                    {localized(line)}
                   </div>
                 ))}
               </div>
@@ -1713,9 +1726,9 @@ const Landing: React.FC = () => {
         <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{t('landProdLabel')}</p>
-              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{t('landProdTitle')}</h2>
-              <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[#96b0c8]">{t('landProdSub')}</p>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">{localized(t('landProdLabel'))}</p>
+              <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl gsap-header">{localized(t('landProdTitle'))}</h2>
+              <p className="mt-3 max-w-2xl text-[14px] leading-relaxed text-[#96b0c8]">{localized(t('landProdSub'))}</p>
             </div>
             <a
               href="https://github.com/inbharatai"
@@ -1724,7 +1737,7 @@ const Landing: React.FC = () => {
               className="inline-flex items-center gap-2 self-start rounded-full border border-white/[0.1] bg-white/[0.03] px-4 py-2 text-[11px] font-semibold text-[#b4c8de] transition-all hover:border-white/20 hover:text-white sm:self-auto"
             >
               <Github size={14} />
-              {t('landProdGithub')}
+              {localized(t('landProdGithub'))}
             </a>
           </div>
 
@@ -1744,7 +1757,7 @@ const Landing: React.FC = () => {
                   className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12px] font-semibold transition-all duration-200 ${active ? 'border-white/20 bg-white/[0.07] text-white shadow-[0_0_24px_-8px_rgba(255,255,255,0.25)]' : 'border-white/[0.08] bg-white/[0.02] text-[#96b0c8] hover:border-white/15 hover:text-white'}`}
                 >
                   <bucket.icon size={14} color={bucket.color} />
-                  <span>{t(bucket.labelKey)}</span>
+                  <span>{localized(t(bucket.labelKey))}</span>
                   <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${active ? 'bg-white/10 text-white' : 'bg-white/[0.04] text-[#7a9ab8]'}`}>{count}</span>
                 </button>
               );
@@ -1788,11 +1801,11 @@ const Landing: React.FC = () => {
                         <ProductLogo logo={p.logo as string | null} name={p.name} color={p.color} icon={p.iconComp} />
                       </div>
                       <div className="min-w-0">
-                        <TypeBadge color={p.color}>{p.type}</TypeBadge>
+                        <TypeBadge color={p.color}>{localized(p.type)}</TypeBadge>
                         <h3 className="mt-1 truncate text-xl font-bold text-white sm:text-2xl">{p.name}</h3>
                       </div>
                     </div>
-                    <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de] line-clamp-2">{p.desc}</p>
+                    <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de]">{localized(p.desc)}</p>
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {p.tech.slice(0, 4).map((tech) => (
                         <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>
@@ -1801,11 +1814,11 @@ const Landing: React.FC = () => {
                     <div className="mt-6">
                       {p.internal ? (
                         <Link to={p.href} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
-                          {p.cta} <ArrowRight size={16} />
+                          {localized(p.cta)} <ArrowRight size={16} />
                         </Link>
                       ) : (
                         <a href={p.href} target={isHttp ? '_blank' : undefined} rel={isHttp ? 'noopener noreferrer' : undefined} className="inline-flex items-center gap-2 rounded-xl border border-[#f59f4f]/40 bg-[#f59f4f]/10 px-5 py-3 text-[14px] font-bold text-white transition-all hover:bg-[#f59f4f]/20">
-                          {p.cta} {isHttp ? <ExternalLink size={16} /> : <ArrowRight size={16} />}
+                          {localized(p.cta)} {isHttp ? <ExternalLink size={16} /> : <ArrowRight size={16} />}
                         </a>
                       )}
                     </div>
@@ -1831,8 +1844,8 @@ const Landing: React.FC = () => {
                         ? ALL_PRODUCTS.filter((pp) => pp.bucket !== 'core')
                         : products;
                       if (toolProducts.length === 0) return null;
-                      const title = isCore ? t('landModEcoTitle') : `${t(bucketDef.labelKey)} ${t('landModToolsLabel')}`;
-                      const sub = isCore ? t('landModEcoSub') : `${toolProducts.length} ${t('landModToolsLabel').toLowerCase()}`;
+                      const title = isCore ? localized(t('landModEcoTitle')) : <>{localized(t(bucketDef.labelKey))} {localized(t('landModToolsLabel'))}</>;
+                      const sub = isCore ? localized(t('landModEcoSub')) : <>{toolProducts.length} {localized(t('landModToolsLabel'))}</>;
                       // Index of a product within its OWN vertical's filtered list —
                       // needed so the Core launcher can target a specific product when
                       // it switches verticals (selectVertical takes a per-bucket index).
@@ -1867,7 +1880,7 @@ const Landing: React.FC = () => {
                                   </span>
                                   <span className="min-w-0">
                                     <span className={`block truncate text-[11px] font-bold ${sel ? 'text-white' : 'text-[#c8d6e8]'} group-hover:text-white`}>{prod.name}</span>
-                                    <span className="block truncate text-[10px] text-[#7a9ab8]">{prod.tagline}</span>
+                                    <span className="block truncate text-[10px] text-[#7a9ab8]">{localized(prod.tagline)}</span>
                                   </span>
                                 </button>
                               );
@@ -1886,8 +1899,8 @@ const Landing: React.FC = () => {
                       gradient; clicking a vertical switches the main tab. */}
                   <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4">
                     <div className="mb-3 flex items-baseline justify-between">
-                      <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">{t('landEcoPanelTitle')}</h4>
-                      <span className="text-[10px] text-[#7a9ab8]">{t('landEcoPanelSub')}</span>
+                      <h4 className="text-[12px] font-bold uppercase tracking-[0.2em] text-white">{localized(t('landEcoPanelTitle'))}</h4>
+                      <span className="text-[10px] text-[#7a9ab8]">{localized(t('landEcoPanelSub'))}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-1.5">
                       {BUCKETS.map((b) => {
@@ -1914,10 +1927,10 @@ const Landing: React.FC = () => {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <span className={`truncate text-[12px] font-bold ${active ? 'text-white' : 'text-[#c8d6e8]'}`}>{t(b.labelKey)}</span>
-                                <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-white/[0.05] text-[#7a9ab8]'}`}>{count}</span>
+                                <span className={`truncate text-[12px] font-bold ${active ? 'text-white' : 'text-[#c8d6e8]'}`}>{localized(t(b.labelKey))}</span>
+                                <span data-product-count className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${active ? 'bg-white/15 text-white' : 'bg-white/[0.05] text-[#7a9ab8]'}`}>{count}</span>
                               </div>
-                              <p className={`mt-0.5 truncate text-[10px] ${active ? 'text-[#b4c8de]' : 'text-[#7a9ab8]'}`}>{t(b.roleKey)}</p>
+                              <p className={`mt-0.5 truncate text-[10px] ${active ? 'text-[#b4c8de]' : 'text-[#7a9ab8]'}`}>{localized(t(b.roleKey))}</p>
                             </div>
                           </button>
                         );
@@ -1946,12 +1959,12 @@ const Landing: React.FC = () => {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Mission */}
             <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 sm:p-9">
-              <p className="eyebrow-line text-[#96b0c8]">{t('landMissionLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8]">{localized(t('landMissionLabel'))}</p>
               <h2 className="mt-4 text-2xl font-bold leading-[1.1] text-white sm:text-3xl">
-                {t('landMissionTitle')}
+                {localized(t('landMissionTitle'))}
               </h2>
               <p className="mt-5 text-sm leading-[1.7] text-[#9aafc6]">
-                {t('landMissionDesc')}
+                {localized(t('landMissionDesc'))}
               </p>
               <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
                 {[
@@ -1961,7 +1974,7 @@ const Landing: React.FC = () => {
                   t('landMissionBullet4'),
                 ].map((line) => (
                   <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[13px] text-[#b4c8de]">
-                    {line}
+                    {localized(line)}
                   </div>
                 ))}
               </div>
@@ -1969,7 +1982,7 @@ const Landing: React.FC = () => {
 
             {/* Trust */}
             <div className="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-[#0a1020]/80 to-[#060810]/80 p-7 sm:p-9">
-              <p className="eyebrow-line text-[#96b0c8]">{t('landTrustLabel')}</p>
+              <p className="eyebrow-line text-[#96b0c8]">{localized(t('landTrustLabel'))}</p>
               <CredentialTrustList className="mt-6" />
             </div>
           </div>
@@ -1986,19 +1999,19 @@ const Landing: React.FC = () => {
 
             <div className="relative grid gap-8 p-7 sm:p-10 lg:grid-cols-[1.15fr_0.85fr] lg:p-12">
               <div>
-                <p className="eyebrow-line text-[#96b0c8]">{t('landChatLabel')}</p>
+                <p className="eyebrow-line text-[#96b0c8]">{localized(t('landChatLabel'))}</p>
                 <h2 className="mt-4 text-2xl font-bold text-white sm:text-3xl lg:text-4xl">
-                  {t('landChatTitle')}
+                  {localized(t('landChatTitle'))}
                 </h2>
                 <p className="mt-5 max-w-2xl text-sm leading-[1.7] text-[#9aafc6]">
-                  {t('landChatDesc')}
+                  {localized(t('landChatDesc'))}
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     to="/app"
                     className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-6 py-3 text-sm font-bold text-[#0a0c10] shadow-[0_0_28px_rgba(245,159,79,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_40px_rgba(245,159,79,0.4)]"
                   >
-                    {t('landChatCta1')}
+                    {localized(t('landChatCta1'))}
                     <ArrowRight size={15} />
                   </Link>
                   <a
@@ -2007,7 +2020,7 @@ const Landing: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-6 py-3 text-sm font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
                   >
-                    {t('landChatCta2')}
+                    {localized(t('landChatCta2'))}
                     <ExternalLink size={14} />
                   </a>
                 </div>
@@ -2027,7 +2040,7 @@ const Landing: React.FC = () => {
                     transition={{ duration: 0.5, delay: i * 0.08 }}
                     className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-4 text-sm leading-relaxed text-[#b4c8de]"
                   >
-                    {point}
+                    {localized(point)}
                   </motion.div>
                 ))}
               </div>
@@ -2042,12 +2055,12 @@ const Landing: React.FC = () => {
       <Reveal id="faq" className="relative z-10 py-24 sm:py-32">
         <div className="mx-auto max-w-4xl px-5 sm:px-6 lg:px-10">
           <div className="text-center">
-            <p className="eyebrow-line justify-center text-[#96b0c8]">{t('landFaqLabel')}</p>
+            <p className="eyebrow-line justify-center text-[#96b0c8]">{localized(t('landFaqLabel'))}</p>
             <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px]">
-              {t('landFaqTitle')}
+              {localized(t('landFaqTitle'))}
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-[15px] leading-[1.7] text-[#9aafc6]">
-              {t('landFaqDesc')}
+              {localized(t('landFaqDesc'))}
             </p>
           </div>
 
@@ -2059,7 +2072,7 @@ const Landing: React.FC = () => {
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
                   <span className="text-[15px] font-semibold text-white sm:text-[16px]">
-                    {t(`faqQ${n}` as const)}
+                    {localized(t(`faqQ${n}` as const))}
                   </span>
                   <ChevronDown
                     size={18}
@@ -2068,7 +2081,7 @@ const Landing: React.FC = () => {
                   />
                 </summary>
                 <p className="mt-3 text-[14px] leading-[1.7] text-[#b4c8de]">
-                  {t(`faqA${n}` as const)}
+                  {localized(t(`faqA${n}` as const))}
                 </p>
               </details>
             ))}
@@ -2086,12 +2099,12 @@ const Landing: React.FC = () => {
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_600px_300px_at_50%_-10%,rgba(245,159,79,0.1),transparent_55%)]" />
 
             <div className="relative">
-              <p className="eyebrow-line justify-center text-[#96b0c8]">{t('landContactLabel')}</p>
+              <p className="eyebrow-line justify-center text-[#96b0c8]">{localized(t('landContactLabel'))}</p>
               <h2 className="mx-auto mt-4 max-w-3xl text-2xl font-bold leading-[1.1] text-white sm:text-3xl lg:text-4xl">
-                {t('landContactTitle')}
+                {localized(t('landContactTitle'))}
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.7] text-[#9aafc6]">
-                {t('landContactDesc')}
+                {localized(t('landContactDesc'))}
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <Link
@@ -2099,7 +2112,7 @@ const Landing: React.FC = () => {
                   onClick={() => trackEvent('cta_contact_try_app')}
                   className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-8 py-3.5 text-sm font-bold text-[#0a0c10] shadow-[0_0_40px_rgba(245,159,79,0.3)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(245,159,79,0.45)]"
                 >
-                  {t('landContactCta1')}
+                  {localized(t('landContactCta1'))}
                   <ArrowRight size={16} />
                 </Link>
                 <a
@@ -2109,7 +2122,7 @@ const Landing: React.FC = () => {
                   onClick={() => trackEvent('cta_contact_github')}
                   className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
                 >
-                  {t('landContactCta2')}
+                  {localized(t('landContactCta2'))}
                   <Github size={16} />
                 </a>
               </div>
@@ -2122,10 +2135,10 @@ const Landing: React.FC = () => {
       <div className="relative z-10 border-y border-white/[0.05] bg-[#030508]/90 py-3.5">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-x-7 gap-y-2 px-5 text-[11px] sm:px-6 lg:px-10">
           <span className="inline-flex items-center gap-2 font-semibold text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 status-pulse" />
-            {t('landStatusOperational')}
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            {localized(t('landStatusOperational'))}
           </span>
-          <span className="text-[#7a9ab8]">{supportedLanguages.length} Languages</span>
+          <span className="text-[#7a9ab8]">{localized(t('landLanguageCoverageNotice'))}</span>
           <span className="text-[#7a9ab8]">{ALL_PRODUCTS.length} Products</span>
         </div>
       </div>
@@ -2138,7 +2151,7 @@ const Landing: React.FC = () => {
               <img src="/inbharat-logo.svg" alt="InBharat.ai logo" className="h-5 w-5 object-contain" width={20} height={20} />
               <p className="text-[12px] font-semibold tracking-tight text-[#9aafc6]">InBharat.ai</p>
             </div>
-            <p className="text-[11px] text-[#7a9ab8] sm:text-center">{t('landFooterTagline')}</p>
+            <p className="text-[11px] text-[#7a9ab8] sm:text-center">{localized(t('landFooterTagline'))}</p>
             <div className="flex items-center gap-2 text-[#96b0c8]">
               <a
                 href={SITE.social.instagram}
@@ -2164,7 +2177,7 @@ const Landing: React.FC = () => {
                 href={SITE.social.twitter}
                 target="_blank"
                 rel="noopener noreferrer me"
-                aria-label="InBharat on X"
+                aria-label="Reeturaj Goswami on X"
                 onClick={() => trackEvent('footer_social_x')}
                 className="rounded-full p-2 transition-colors hover:bg-white/[0.04] hover:text-white"
               >
@@ -2183,16 +2196,16 @@ const Landing: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-white/[0.04] pt-5 text-[11px] text-[#7a9ab8]">
-            <Link to="/unoone" className="transition-colors hover:text-white">{t('landNavUnoOne')}</Link>
-            <Link to="/unoone/power" className="transition-colors hover:text-white">{t('landDevicesPower')}</Link>
-            <Link to="/unoone/mobile" className="transition-colors hover:text-white">{t('landDevicesMobile')}</Link>
-            <Link to="/technology" className="transition-colors hover:text-white">{t('landNavDeepTech')}</Link>
-            <Link to="/enterprise-ai" className="transition-colors hover:text-white">{t('landNavSystems')}</Link>
-            <Link to="/about" className="transition-colors hover:text-white">{t('navAbout')}</Link>
-            <Link to="/contact" className="transition-colors hover:text-white">{t('navContact')}</Link>
-            <Link to="/privacy" className="transition-colors hover:text-white">{t('navPrivacy')}</Link>
-            <Link to="/terms" className="transition-colors hover:text-white">{t('navTerms')}</Link>
-            <Link to="/app" className="transition-colors hover:text-white">{t('landFooterInbharat')}</Link>
+            <Link to="/unoone" className="transition-colors hover:text-white">{localized(t('landNavUnoOne'))}</Link>
+            <Link to="/unoone/power" className="transition-colors hover:text-white">{localized(t('landDevicesPower'))}</Link>
+            <Link to="/unoone/mobile" className="transition-colors hover:text-white">{localized(t('landDevicesMobile'))}</Link>
+            <Link to="/technology" className="transition-colors hover:text-white">{localized(t('landNavDeepTech'))}</Link>
+            <Link to="/enterprise-ai" className="transition-colors hover:text-white">{localized(t('landNavSystems'))}</Link>
+            <Link to="/about" className="transition-colors hover:text-white">{localized(t('navAbout'))}</Link>
+            <Link to="/contact" className="transition-colors hover:text-white">{localized(t('navContact'))}</Link>
+            <Link to="/privacy" className="transition-colors hover:text-white">{localized(t('navPrivacy'))}</Link>
+            <Link to="/terms" className="transition-colors hover:text-white">{localized(t('navTerms'))}</Link>
+            <Link to="/app" className="transition-colors hover:text-white">{localized(t('landFooterInbharat'))}</Link>
             <span className="text-[#5a738f]">©  InBharat AI</span>
           </div>
         </div>

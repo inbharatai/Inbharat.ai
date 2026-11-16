@@ -157,10 +157,9 @@ async function main() {
     title: article.title,
     description: article.description,
     category: article.category,
-    // Today's date — the old hardcoded "2026-06-27" stamped every generated
-    // article with the same stale publish date. This is a standalone tsx script
-    // (not a Workflow script), so new Date() is fine here.
-    datePublished: new Date().toISOString().slice(0, 10),
+    // Draft generation is not first publication. An operator may record a
+    // known first-live date later; never manufacture it during generation.
+    repositoryRecordedAt: new Date().toISOString(),
     readMinutes: Math.max(5, Math.round(article.bodyMarkdown.split(/\s+/).length / 200)),
     abstract: article.abstract,
     faq: article.faq,

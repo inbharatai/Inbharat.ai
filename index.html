@@ -16,10 +16,9 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <!-- ─── Base SEO (per-route values are injected at build time by scripts/build-seo.mjs) ─── -->
+    <!-- ─── Base SEO (per-route values are injected at build time by scripts/build-seo.ts) ─── -->
     <title>InBharat.ai | Private Agentic AI for a Private World</title>
     <meta name="description" content="Meet PAI — one personal private AI agent, implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Local models, permission-controlled tools, encrypted personal memory." />
-    <meta name="keywords" content="InBharat AI, AI tools India, agentic search Bharat, voice AI India, multilingual AI, chatbot India, AI for Indian languages, Hindi AI, Tamil AI, Telugu AI" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <meta name="author" content="InBharat AI" />
     <link rel="canonical" href="https://www.inbharat.ai/" />
@@ -43,55 +42,9 @@
     <meta name="twitter:description" content="Meet PAI — one personal private AI agent, implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Local models, permission-controlled tools, encrypted personal memory." />
     <meta name="twitter:image" content="https://www.inbharat.ai/og-image.png" />
 
-    <!-- Default hreflang for the homepage; build script adds the full set per shell -->
-    <link rel="alternate" hreflang="en" href="https://www.inbharat.ai/" />
-    <link rel="alternate" hreflang="x-default" href="https://www.inbharat.ai/" />
-
-    <!-- ── JSON-LD: Organization (with sameAs to official socials) ── -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "InBharat AI",
-      "alternateName": "InBharat",
-      "url": "https://www.inbharat.ai",
-      "logo": "https://www.inbharat.ai/inbharat-logo-1024.png",
-      "description": "Deep-tech artificial intelligence company building private agentic AI for a private world. Flagship PAI — one personal private AI agent — implemented through UnoOne Power (desktop) and UnoOne Mobile (Android); research includes SILT (patent pending, application 202631101454). Engineered in Bharat for the world.",
-      "areaServed": "IN",
-      "sameAs": [
-        "https://www.instagram.com/unigurus/",
-        "https://www.linkedin.com/in/reeturaj-goswami",
-        "https://x.com/reetur_aj",
-        "https://github.com/inbharatai",
-        "https://jakswarm.com",
-        "https://www.kathakitaab.com",
-        "https://testsprep.in",
-        "https://silt.inbharat.ai",
-        "https://github.com/inbharatai/SILT",
-        "https://github.com/inbharatai/PAI.V2"
-      ],
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer support",
-        "email": "info@inbharat.ai",
-        "availableLanguage": ["English","Hindi","Bengali","Tamil","Telugu","Marathi","Gujarati","Kannada","Malayalam","Odia","Assamese"]
-      }
-    }
-    </script>
-    <!-- ── JSON-LD: WebSite. The obsolete sitelinks SearchAction was removed
-         after Google retired that result feature in November 2024. Keep the
-         retired query template out of shipped HTML so crawlers cannot
-         rediscover it from comments. ── -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "InBharat AI",
-      "url": "https://www.inbharat.ai",
-      "description": "Deep-tech artificial intelligence company building private agentic AI for a private world",
-      "inLanguage": ["en","hi","bn","te","mr","ta","gu","kn","ml","or","as"]
-    }
-    </script>
+    <!-- Structured data comes from seo.config.ts only: the build emits the
+         managed set and useDocumentHead replaces it on client navigation.
+         No hreflang until real translated canonical pages exist. -->
 
     <!-- Icons & manifest -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">

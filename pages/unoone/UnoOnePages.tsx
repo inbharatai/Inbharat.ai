@@ -3,11 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, CircleDashed, Clock4, ShieldCheck, Mail } from 'lucide-react';
 import UnoOneDevices from '../../components/landing/UnoOneDevices';
 import { trackEvent } from '../../lib/analytics';
-import { UNOONE_PAGES, pageByPath, type PrivateAiPage, type Readiness } from '../../content/privateAI';
+import { UNOONE_PAGES, pageByPath, PRIVATE_AI_EVIDENCE_SCOPE, READINESS_LABELS, type PrivateAiPage, type Readiness } from '../../content/privateAI';
 
 const READYNESS_META: Record<Readiness, { label: string; className: string; icon: React.ReactNode }> = {
   working: {
-    label: 'Working',
+    label: READINESS_LABELS.working,
     className: 'border-[#91e7ae]/40 bg-[#91e7ae]/[0.08] text-[#91e7ae]',
     icon: <CheckCircle2 size={12} />,
   },
@@ -16,6 +16,8 @@ const READYNESS_META: Record<Readiness, { label: string; className: string; icon
     className: 'border-[#f8b76a]/40 bg-[#f8b76a]/[0.08] text-[#f8b76a]',
     icon: <Clock4 size={12} />,
   },
+  research: { label: 'Research', className: 'border-white/20 bg-white/[0.05] text-[#9ab0c3]', icon: <CircleDashed size={12} /> },
+  historical: { label: 'Historical', className: 'border-white/20 bg-white/[0.05] text-[#9ab0c3]', icon: <CircleDashed size={12} /> },
   planned: {
     label: 'Planned',
     className: 'border-white/20 bg-white/[0.05] text-[#9ab0c3]',
@@ -164,6 +166,7 @@ const PrivateAiPageView: React.FC<{ page: PrivateAiPage; pageKey?: string }> = (
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#f59f4f]">{page.audienceTitle ?? 'Built for real work'}</p>
           <h2 className="mt-4 max-w-2xl text-3xl font-semibold sm:text-4xl">{page.capabilitiesHeading ?? 'Capabilities, with honest readiness'}</h2>
           <p className="mt-5 max-w-3xl leading-8 text-[#b4c8de]">{page.audience}</p>
+          <p className="mt-3 max-w-3xl text-xs leading-6 text-[#89a1b5]">{PRIVATE_AI_EVIDENCE_SCOPE}</p>
           <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {page.capabilities.map((cap) => {
               const meta = READYNESS_META[cap.readiness];
@@ -183,7 +186,7 @@ const PrivateAiPageView: React.FC<{ page: PrivateAiPage; pageKey?: string }> = (
                   <p className="mt-3 text-sm leading-6 text-[#b4c8de]">{cap.what}</p>
                   {cap.evidence ? (
                     <p className="mt-3 border-t border-white/5 pt-3 text-xs leading-5 text-[#89a1b5]">
-                      <span className="text-[#6fd3a3]">Verified:</span> {cap.evidence}
+                      <span className="text-[#6fd3a3]">Evidence / validation scope:</span> {cap.evidence}
                     </p>
                   ) : null}
                 </article>

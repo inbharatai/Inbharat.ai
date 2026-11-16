@@ -1,60 +1,102 @@
 # InBharat AI
 
-> InBharat is an independent AI product studio building private agentic AI for a
-> private world, plus affordable, voice-first, multilingual AI tools for Bharat.
-> Its flagship is PAI (pronounced "Pi") — one personal private AI agent,
-> implemented through the UnoOne ecosystem: UnoOne Power (desktop) and
-> UnoOne Mobile (Android). Products also span agentic search, coding assistants,
-> education, healthcare and business automation across 11 Indian languages:
-> English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam,
-> Odia and Assamese.
+> InBharat.ai builds private agentic AI and practical tools for Bharat.
+> Its flagship is PAI (pronounced “Pi”), one personal private AI agent,
+> implemented through UnoOne Power for Windows and UnoOne Mobile for Android.
+> The InBharat AI web console is a separate browser product, not UnoOne.
 
-Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP, a
-DPIIT-recognised startup (Artificial Intelligence & Machine Learning sector,
-Government of India).
+Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP.
+
+## Readiness and data boundaries — content reviewed 16 November 2026
+
+- UnoOne Power: Windows development builds; scoped internal verification on one
+  engineering test environment, not broad release qualification.
+- UnoOne Mobile: Android alpha. Current planner activation, device migrations and
+  hardware coverage remain under validation. Earlier device-run results are not
+  proof of every current build; see the per-capability evidence on its page.
+- No public UnoOne installer is offered. Contact the team for pilot discussions;
+  no public UnoOne price or free offer is established here.
+- Sync: pairing protocol designed and unit-tested. No physical phone–desktop
+  round trip is qualified, manual or automatic. Each device has its own encrypted
+  local store, not one automatically shared physical vault.
+- Personal memory is local and core inference is local. Optional searches, mail
+  connectors, website navigation, confirmed form submissions and uploads can
+  send requests, queries, form fields or selected files to external services.
+  Website sessions have normal authentication traffic; the agent does not type
+  passwords. Local storage is not a claim that all network traffic stays local.
+- Mobile blocks payment, OTP, password-entry and auto-send agent actions.
+  Confirmation does not unlock them; the person completes sensitive steps
+  manually outside the agent. Messaging is drafts-never-sends.
+- Language selection includes English, Hindi, Bengali, Telugu, Marathi, Tamil,
+  Gujarati, Kannada, Malayalam, Odia and Assamese. Translations are partial with
+  English fallback. UI, text-model, speech-recognition and speech-synthesis
+  coverage are separate; a public product/language/modality matrix is pending.
+- SILT is research, not demonstrated AGI or autonomous self-improvement.
+  Historical Pocket AI removable-drive research is not the current consumer
+  product. Recorded patent applications do not certify runtime capabilities or
+  establish coverage of all newer UnoOne features.
 
 ## Recognitions and programmes
 
-- DPIIT-Recognised Startup, AI & ML — Department for Promotion of Industry and
-  Internal Trade, Government of India. Held by Uni Guru Technologies LLP.
-- Stanford Seed Spark 2026 — Stanford Seed, Stanford Graduate School of Business.
-- OpenAI Partner Network — member, partner onboarding completed 2026.
-- Google Cloud Gen AI Academy, APAC Cohort 3 (2026) — Google Cloud.
-- Hyperagent Founding 500, founding member.
-- Sarvam Startup Program — Sarvam AI.
-- Google Developer Program: Premium tier; Gemini Enterprise Agent Ready badge;
-  5-Day AI Agents intensive.
-- Anthropic Education: Introduction to Model Context Protocol; AI Fluency for
-  Educators (both July 2026).
-- Microsoft Education: AI tools for educators modules.
+The site retains owner-supplied recognition and participation records. These are
+not all awards or educational credentials, and do not endorse or certify products.
+Public verification links are included where available; absent links do not imply
+revocation. Current issuer records and permission to publish them remain owner-held.
+
+- DPIIT startup recognition in AI & ML: held by Uni Guru Technologies LLP.
+- Stanford Seed Spark 2026: founder selection.
+- OpenAI Partner Network: organisation membership, onboarding recorded in 2026.
+- Google Cloud Gen AI Academy APAC Cohort 3: founder participation.
+- Hyperagent Founding 500: founding membership.
+- Sarvam Startup Program: organisation participation.
+- Google Developer Program: programme participation, badges and memberships.
+- Anthropic Education and Microsoft Education: recorded course/module completions.
 
 ## Key pages
 
-- [Home](https://www.inbharat.ai/): private agentic AI for a private world — PAI and the UnoOne ecosystem.
-- [PAI](https://www.inbharat.ai/private-ai): the definition and engineering principles behind PAI, one personal private AI agent.
-- [UnoOne](https://www.inbharat.ai/unoone): the software ecosystem for PAI — one personal private AI agent on two devices.
-- [UnoOne Power](https://www.inbharat.ai/unoone/power): the desktop personal AI agent — local models, permissions, encrypted memory.
-- [UnoOne Mobile](https://www.inbharat.ai/unoone/mobile): the Android personal AI agent — on-device planning, offline speech, drafts-never-sends.
-- [UnoOne Sync](https://www.inbharat.ai/unoone/sync): cross-device continuity — what works today and what is on the roadmap.
-- [Enterprise AI](https://www.inbharat.ai/enterprise-ai): JAK Swarm and JAK Shield — governance-built agentic AI for organisations.
-- [Technology](https://www.inbharat.ai/technology): the engineering under PAI and UnoOne, plus SILT research and patent-pending history.
-- [About](https://www.inbharat.ai/about): who InBharat is and how it works.
-- [Learn AI with Reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj): founder-led practical AI articles for Bharat.
-- [Contact](https://www.inbharat.ai/contact): how to reach the team.
+- [Home](https://www.inbharat.ai/): PAI, UnoOne and the fifteen-product directory.
+- [PAI](https://www.inbharat.ai/private-ai): definition, permissions and data flows.
+- [UnoOne](https://www.inbharat.ai/unoone): Power and Mobile development ecosystem.
+- [Power](https://www.inbharat.ai/unoone/power): Windows capability/validation scope.
+- [Mobile](https://www.inbharat.ai/unoone/mobile): Android alpha and action boundaries.
+- [Sync](https://www.inbharat.ai/unoone/sync): unit-tested design, unqualified round trip.
+- [Enterprise AI](https://www.inbharat.ai/enterprise-ai): JAK Swarm/Shield components;
+  scoped engagement, no certified compliance or verified institutional deployments.
+- [Technology](https://www.inbharat.ai/technology): implementation, research and history.
+- [Web console](https://www.inbharat.ai/app): separate browser search/chat product.
+- [About](https://www.inbharat.ai/about): company and product taxonomy.
+- [Learn AI](https://www.inbharat.ai/learn-ai-with-reeturaj): educational articles,
+  including dated corrections and explicitly historical research proposals.
+- [Contact](https://www.inbharat.ai/contact): pilots, support and research enquiries.
+- [Privacy](https://www.inbharat.ai/privacy): website/console privacy information;
+  do not treat UnoOne local inference as a blanket policy for every product.
 
-## Products
+## Other product entry points
 
-- [KathaKitaab](https://www.kathakitaab.com): AI storytelling and interactive learning.
-- [JAK Swarm](https://jakswarm.com): agentic automation and multi-agent orchestration.
-- [UniAssist.ai](https://www.uniassist.ai): AI guidance for students and study-abroad.
-- [TestsPrep](https://testsprep.in): AI-powered test preparation.
-- [Sahayaak Seva](https://sahayaakseva.in): AI healthcare and field-assistance workflows.
-- [OpenClawFix](https://openclawfix.pro): developer tooling.
+Listing a site or repository is not proof of live service health, clinical
+validation, government use or availability of every described feature.
 
-## Notes for AI crawlers
+- [KathaKitaab](https://www.kathakitaab.com): stories and interactive learning.
+- [JAK Swarm](https://jakswarm.com): agent workflows and orchestration.
+- [JAK Shield](https://github.com/inbharatai/jak-shield): tool-use risk controls.
+- [Sahayaak AI](https://github.com/inbharatai/sahaayak-ai-public): personal AI workspace.
+- [UniAssist.ai](https://www.uniassist.ai): admissions guidance.
+- [TestsPrep](https://testsprep.in): exam preparation.
+- [UniBot](https://www.inbharat.ai/#chatbot): conversational support.
+- [Sahayaak Seva](https://sahayaakseva.in): field-assistance project.
+- [SwasthyaScore AI](https://swasthyascore-ai.vercel.app): health-screening project,
+  not a diagnosis or validated substitute for clinical measurement.
+- [Phoring](https://github.com/inbharatai/phoring): decision-intelligence simulations.
+- [Agent Arcade](https://github.com/inbharatai/agent-arcade-gateway): observability.
+- [SocialFlow](https://github.com/inbharatai/SocialFlow): social publishing automation;
+  publishing and cloud generation transmit configured content externally.
+- [OpenClawFix](https://openclawfix.pro): developer setup tooling.
 
-- All public pages are crawlable; see https://www.inbharat.ai/robots.txt.
-- Canonical host is https://www.inbharat.ai (the apex redirects here).
-- Full article text is present in the served HTML, so pages can be read without
-  executing JavaScript.
+## Crawler references
+
+- Canonical host: https://www.inbharat.ai
+- Robots directives: https://www.inbharat.ai/robots.txt
 - Sitemap: https://www.inbharat.ai/sitemap.xml
+- Public article HTML is intended to include full text without JavaScript.
+  Deployment/rendering must be checked independently; this file is not an
+  indexing, ranking or live-availability guarantee.

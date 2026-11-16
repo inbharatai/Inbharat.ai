@@ -34,7 +34,8 @@ export interface DraftedArticle {
   title: string;
   description: string;
   category: ArticleCategory;
-  datePublished: string;
+  /** Draft creation only; never a claim of first publication. */
+  generatedAt: string;
   readMinutes: number;
   abstract: string;
   bodyMd: string;
@@ -314,7 +315,7 @@ export async function draftArticle(topic: string, instruction?: string, suggeste
     title: parsed.title,
     description: parsed.description,
     category: parsed.category,
-    datePublished: todayIso(),
+    generatedAt: new Date().toISOString(),
     readMinutes: estimateReadMinutes(finalBody),
     abstract: parsed.abstract,
     bodyMd: finalBody,
@@ -423,12 +424,6 @@ function safeParseArticle(raw: string): ArticleParseResult {
   return { parsed: { slug, title, description: description.slice(0, 160), category, abstract, bodyMd, faq, hashtags }, reason: "ok", missing: [], raw };
 }
 
-/** Today's ISO date (YYYY-MM-DD). Server runtime only (Date is fine here —
- *  this is NOT a workflow script). */
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * Stage 2 slug-collision guard. Returns a slug unique across (a) published
  * ARTICLES and (b) pending/approved 'article' drafts in growth_drafts, appending
@@ -497,7 +492,7 @@ async function persistArticleDraft(topic: string, instruction: string | undefine
           slug: a.slug,
           description: a.description,
           category: a.category,
-          datePublished: a.datePublished,
+          generatedAt: a.generatedAt,
           readMinutes: a.readMinutes,
           abstract: a.abstract,
           faq: a.faq,

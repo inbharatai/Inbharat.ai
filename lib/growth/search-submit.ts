@@ -60,17 +60,52 @@ export function parseSitemap(xml: string): SitemapEntry[] {
   return entries;
 }
 
-/** Pure: IndexNow submission payload. urls must be this host's own URLs. */
-export function buildIndexNowPayload(host: string, key: string, urls: string[]): Record<string, unknown> | { error: string } {
-  if (!/^https?:\/\//.test(host) || !/^[a-f0-9]{8,128}$/.test(key)) return { error: "bad input" };
-  const clean = urls.filter((u) => u.startsWith(`${host}/`) || u === host);
-  if (!clean.length) return { error: "no same-host urls" };
-  return { host, key, keyLocation: `${host}/${key}.txt`, urlList: clean };
+export interface IndexNowPayload {
+  host: string;
+  key: string;
+  keyLocation: string;
+  urlList: string[];
+}
+
+/** Input is our canonical origin; the protocol's `host` is a bare hostname. */
+export function buildIndexNowPayload(origin: string, key: string, urls: string[]): IndexNowPayload | { error: string } {
+  let base: URL;
+  try { base = new URL(origin); } catch { return { error: "bad origin" }; }
+  if (!/^https?:$/.test(base.protocol) || base.username || base.password || base.port ||
+      base.pathname !== "/" || base.search || base.hash || !/^[a-f0-9]{8,128}$/.test(key)) {
+    return { error: "bad input" };
+  }
+  const clean = [...new Set(urls.filter((value) => {
+    try {
+      const url = new URL(value);
+      return url.origin === base.origin && !url.username && !url.password && !url.hash;
+    } catch { return false; }
+  }))];
+  if (!clean.length) return { error: "no same-origin urls" };
+  if (clean.length > 10000) return { error: "batch exceeds IndexNow 10000 URL limit" };
+  return { host: base.hostname, key, keyLocation: `${base.origin}/${key}.txt`, urlList: clean };
+}
+
+/** Require the explicitly configured GSC property, never guess a different one. */
+export function gscPropertyCoversSite(property: string, origin: string): boolean {
+  try {
+    const site = new URL(origin);
+    if (property.startsWith("sc-domain:")) {
+      const domain = property.slice("sc-domain:".length);
+      return /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i.test(domain) &&
+        (site.hostname === domain.toLowerCase() || site.hostname.endsWith(`.${domain.toLowerCase()}`));
+    }
+    const scope = new URL(property);
+    return scope.origin === site.origin && scope.pathname === "/" && !scope.search &&
+      !scope.hash && !scope.username && !scope.password;
+  } catch { return false; }
 }
 
 /** Pure: GSC "resubmit sitemap" endpoint for the sitemap PUT. */
 export function gscSitemapUrl(siteUrl: string, feedpath: string): string {
-  const encodedSite = encodeURIComponent(siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl);
+  // URL-prefix properties include their registered trailing slash; domain
+  // properties use sc-domain:. Preserve the exact configured identifier.
+  const encodedSite = encodeURIComponent(siteUrl);
   return `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps/${encodeURIComponent(feedpath)}`;
 }
 
@@ -89,6 +124,7 @@ export async function submitSitemapToGsc(
     const res = await fetchLike(gscSitemapUrl(siteUrl, feedpath), {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(15000),
     });
     if (res.status >= 200 && res.status < 300) {
       return { channel: "gsc-sitemap", status: "submitted", detail: `sitemap PUT accepted (${feedpath})`, httpStatus: res.status };
@@ -119,11 +155,14 @@ export async function submitIndexNow(
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
     });
     // IndexNow returns 200/202 accepted; 4xx are client problems (bad key,
     // wrong key file) and 5xx means retry-later — reported as failed, not swallowed.
     if (res.status >= 200 && res.status < 300) {
-      return { channel: "indexnow", status: "submitted", detail: "IndexNow batch accepted", urls: urls.length, httpStatus: res.status };
+      return { channel: "indexnow", status: "submitted", detail: res.status === 202
+        ? "URL batch received; key validation pending. Indexing is not confirmed."
+        : "URL batch received. Indexing is not confirmed.", urls: payload.urlList.length, httpStatus: res.status };
     }
     return { channel: "indexnow", status: "failed", detail: `IndexNow responded ${res.status}${res.status === 400 || res.status === 403 ? " (check key/keyLocation)" : ""}`, urls: urls.length, httpStatus: res.status };
   } catch (e) {

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getRequestId, isAdminErr, requireAdmin } from "../lib/requireAdmin.js";
 import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { listPublishedMemory } from "../../lib/growth/publishedMemory.js";
+import { listPublishedMemory, type PublishedMemoryFilters } from "../../lib/growth/publishedMemory.js";
 
 /**
  * GET /api/growth/published-memory — the cockpit's "what's published where" table.
@@ -38,7 +38,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : NaN;
   const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(Math.round(limitRaw), 500)) : undefined;
 
+  const selection = typeof req.query.selection === 'string' ? req.query.selection : 'live';
+  if (!['live', 'history', 'unverified', 'removed'].includes(selection)) {
+    return res.status(400).json({ ok: false, code: 'INVALID_INPUT', error: 'Invalid publication selection', requestId });
+  }
   const items = await listPublishedMemory({
+    selection: selection as PublishedMemoryFilters['selection'],
     platform: platform && PLATFORMS.has(platform) ? (platform as "linkedin" | "instagram") : undefined,
     status,
     since,

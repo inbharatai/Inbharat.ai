@@ -37,7 +37,8 @@ import {
 import { groundedSearch } from "./search.js";
 import { getAnalyticsSnapshot, syncAnalyticsToKB } from "./performance.js";
 import { listAnalyticsInsights } from "./knowledge.js";
-import { generateInsights, summarizeSnapshot, inferProduct, type Insight } from "./analyticsInsights.js";
+import { getArticleObservationInventory } from "./publishedMemory.js";
+import { generateInsights, publicationInsightCoverage, summarizeSnapshot, inferProduct, type Insight } from "./analyticsInsights.js";
 import { discoverTopics, DISCOVERY_PRODUCTS, type ProductId } from "./topicDiscovery.js";
 import { ARTICLES, ARTICLE_CATEGORIES, type ArticleCategory } from "../../content/articles.meta.js";
 import { logInfo } from "./authorization.js";
@@ -703,17 +704,19 @@ async function readAnalyticsTool(args: Args): Promise<ToolResult> {
     };
   }
   const stored = await listAnalyticsInsights(30);
-  // Re-derive live insights (no previous-period fetch on read — rising/falling
-  // come from the last sync's stored rows to keep reads cheap). For low_ctr /
-  // top_pages / top_queries we use the live snapshot directly.
-  const liveInsights = generateInsights({ snapshot, now: Date.now() });
+  // Re-derive insights without a previous-period fetch on reads. Stored trends
+  // remain historical context only; current coverage uses DB observation evidence.
+  const articleInventory = await getArticleObservationInventory();
+  const now = Date.now();
+  const publicationCoverage = publicationInsightCoverage(articleInventory, now);
+  const liveInsights = generateInsights({ snapshot, now, articleInventory });
   const filterInsights = (arr: Insight[]) => {
     let out = arr;
     if (product) out = out.filter((i) => !i.relatedProduct || i.relatedProduct === product);
     if (country) out = out.filter((i) => (i.country ?? "").toLowerCase().includes(country.toLowerCase()));
     return out;
   };
-  const payload: Record<string, unknown> = { configured: true, days, summary: summarizeSnapshot(snapshot) };
+  const payload: Record<string, unknown> = { configured: true, days, summary: `${summarizeSnapshot(snapshot)} ${publicationCoverage.summary}`, publicationCoverage };
   // Product / country filters scope the views the system prompt promises they
   // scope ("show traffic for JAK Shield / from India"). Without these the tool
   // would return ALL pages/queries/countries regardless of the filter and the
@@ -739,8 +742,13 @@ async function readAnalyticsTool(args: Args): Promise<ToolResult> {
   const needsUpdate = filterInsights([
     ...liveInsights.filter((i) => i.type === "no_traffic_page"),
     ...liveInsights.filter((i) => i.type === "falling_page"),
-    ...stored.filter((s) => s.type === "performance" && /refresh|archive|update/i.test(s.summary ?? "")).slice(0, 8).map((s) => ({ type: "no_traffic_page" as const, source: "Search Console" as const, page: s.sourceUrl ?? undefined, summary: s.title, recommendedAction: s.summary ?? "", priority: s.intentScore ?? 0, metrics: {}, linkedArticleSlug: s.linkedArticleId ?? undefined, relatedProduct: s.relatedProduct ?? undefined })),
   ]);
+  // Stored KB rows lack lifecycle/report-coverage provenance. Preserve access as
+  // historical context only; never relabel them as current no-traffic evidence.
+  payload.historicalInsights = stored.slice(0, 8).map((s) => ({
+    title: s.title, summary: s.summary, sourceUrl: s.sourceUrl,
+    verification: "Historical recommendation; current lifecycle and URL-level traffic must be rechecked. Legacy zero-traffic claims are not verified.",
+  }));
   const recs = filterInsights(liveInsights.slice(0, 12));
 
   let message = summarizeSnapshot(snapshot);
@@ -754,7 +762,7 @@ async function readAnalyticsTool(args: Args): Promise<ToolResult> {
     message = lowCtr.length ? `${lowCtr.length} page(s) with high impressions but low CTR — improve their titles/meta.` : "No low-CTR opportunities above the noise threshold right now.";
     payload.lowCtr = lowCtr.map(insightToLight);
   } else if (view === "needs_update") {
-    message = needsUpdate.length ? `${needsUpdate.length} article(s) need a refresh or archive.` : "No articles flagged for refresh right now.";
+    message = needsUpdate.length ? `${needsUpdate.length} article(s) warrant investigation; check URL-level coverage before refresh/archive decisions.` : "No articles flagged for refresh right now.";
     payload.needsUpdate = needsUpdate.map(insightToLight);
   } else if (view === "recommendations") {
     message = recs.length ? `${recs.length} content recommendations from the live snapshot.` : "No recommendations yet — try 'sync analytics' first.";
@@ -782,6 +790,7 @@ async function syncAnalyticsTool(args: Args): Promise<ToolResult> {
     synced: result.synced,
     errors: result.errors,
     summary: result.summary,
+    publicationCoverage: result.publicationCoverage,
     message: `Synced analytics for the last ${days}d — ${result.insights} insights generated, ${result.synced} saved to the knowledge base (${result.errors} errors). ${result.summary}${result.error ? ` (partial: ${result.error})` : ""}`,
     top: result.top.map(insightToLight),
   };

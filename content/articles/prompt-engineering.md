@@ -1,4 +1,6 @@
-> Prompt engineering is the discipline of writing precise instructions that guide an AI model to accurate, useful output. It's not about being polite to a machine—a prompt is a specification. Techniques like context setting, few-shot examples, chain-of-thought, and role specification turn AI from a frustrating black box into a reliable development partner.
+> **Content correction — 16 November 2026:** A precise prompt can improve a draft, but does not make generated authentication code production-ready or a generated policy legally compliant. Salary/time-saving anecdotes are not benchmark evidence. Tests and specialist review remain necessary.
+
+> Prompt engineering specifies context, task boundaries, examples and output requirements to improve model responses. Better prompts can help, but cannot guarantee correct, secure or compliant output. Evaluate prompts against representative cases, and apply code review, tests and domain expertise before consequential use.
 
 "Just ask it nicely." That was the advice a product manager gave our team when AI-generated responses were coming back wrong. I wish I were joking.
 
@@ -8,7 +10,7 @@ This skill is becoming as important as knowing how to write clean code. And most
 
 ## What Prompt Engineering Actually Involves
 
-A prompt isn't just a question. It's a specification. The quality of your AI output is directly proportional to the quality of your input. If you give a model vague instructions, you get vague results.
+A prompt isn't just a question. It's a specification. Output quality depends on the prompt, model, context and task; there is no direct proportionality guarantee. If you give a model vague instructions, you get vague results.
 
 Effective prompt engineering involves several techniques that I've seen transform how Indian teams work with AI tools.
 
@@ -16,7 +18,7 @@ Effective prompt engineering involves several techniques that I've seen transfor
 
 **Few-shot learning** is powerful. Instead of describing what you want in abstract terms, you show examples. "Given this input, produce this output. Given this other input, produce this other output. Now handle this new input." I've watched this technique turn mediocre AI code generation into highly accurate generation for Indian-specific use cases like GST invoice parsing.
 
-**Chain-of-thought prompting** makes AI models think step by step. Instead of asking for a final answer, you ask the model to reason through the problem. "First analyze the requirements. Then identify the edge cases. Then write the implementation. Then write the tests." This produces dramatically better results for complex engineering tasks.
+**Chain-of-thought prompting** makes AI models think step by step. Instead of asking for a final answer, you ask the model to reason through the problem. "First analyze the requirements. Then identify the edge cases. Then write the implementation. Then write the tests." This can help on some tasks; evaluate it on the target model and request concise rationale, checks or testable intermediate outputs rather than assuming longer reasoning is better.
 
 **Role specification** tells the model what expertise to apply. "Act as a senior backend developer with experience in payment processing for Indian markets" produces very different—and often better—code than a generic prompt. The model activates relevant patterns from its training when you specify the role.
 
@@ -24,7 +26,7 @@ Effective prompt engineering involves several techniques that I've seen transfor
 
 The difference between a well-prompted and poorly-prompted AI interaction isn't marginal. It's transformative.
 
-A developer in my team asked an AI to "write authentication code." The result was a basic implementation with hardcoded credentials and no error handling. The same developer, after learning prompt engineering, asked: "Write a Django authentication middleware that handles JWT tokens with refresh token rotation, implements rate limiting for failed attempts at 5 per minute, logs all authentication events for audit compliance, and returns proper HTTP 401/403 responses with descriptive error codes." The result was production-ready code that required minimal modification.
+A developer in my team asked an AI to "write authentication code." The result was a basic implementation with hardcoded credentials and no error handling. The same developer, after learning prompt engineering, asked: "Write a Django authentication middleware that handles JWT tokens with refresh token rotation, implements rate limiting for failed attempts at 5 per minute, logs all authentication events for audit compliance, and returns proper HTTP 401/403 responses with descriptive error codes." The result was a more detailed draft, still requiring security review, tests and validation before production.
 
 Same AI. Same model. Dramatically different results. The variable was the prompt.
 
@@ -38,7 +40,7 @@ Most prompt engineering guides are written for developers building apps for Amer
 
 Multilingual requirements are one. If your app needs to handle Hindi, Tamil, Marathi, and English simultaneously, your prompts need to specify this explicitly. "Generate input validation that handles Devanagari script characters in name fields" produces very different code than "generate input validation for name fields."
 
-Indian regulatory context is another. "Generate a privacy policy page" gives you generic GDPR-focused content. "Generate a privacy policy page compliant with India's Digital Personal Data Protection Act 2023 for a fintech app processing UPI transactions" gives you something actually useful.
+Indian regulatory context is another. "Generate a privacy policy page" gives you generic GDPR-focused content. "Generate a privacy policy page compliant with India's Digital Personal Data Protection Act 2023 for a fintech app processing UPI transactions" can produce a more relevant draft, not a legal compliance determination.
 
 Scale considerations matter too. "Generate a database schema for user accounts" doesn't account for the fact that your Indian app might need to handle 50 lakh users scaling to 5 crore. Adding "design for horizontal scaling to 50 million users with sharding strategy" changes the output fundamentally.
 
@@ -73,7 +75,7 @@ No. A prompt is a specification. Vague input gives vague output; precise context
 Context setting (stack, requirements, error patterns), few-shot learning (input/output examples), chain-of-thought (reason step by step), and role specification ("act as a senior backend dev for Indian payments").
 
 **Why does prompt engineering matter for Indian developers?**
-The same model gives hardcoded, insecure code from a vague prompt versus production-ready code from a precise one. At ₹40k–1.5L/developer/month, getting usable output on the first try recovers hours daily across a team.
+The same model gives hardcoded, insecure code from a vague prompt versus a more relevant draft from a precise one; neither should bypass review. Measure time to a reviewed result rather than assuming a fixed salary-based saving.
 
 **How should teams adopt prompt engineering?**
 Build a shared, searchable prompt library tagged by use case, review prompts like code, track iterations-to-usable-output (aim under 2), and update practices as model capabilities change.

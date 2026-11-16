@@ -15,6 +15,8 @@ import { loadArticleBody } from '../content/articles.body';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
 import Mermaid from '../components/Mermaid';
+import { formatArticleDate } from '../lib/article-display';
+import { prepareArticleMarkdown, normalizeArticleHeadings, safeArticleUrl } from '../lib/article-rendering';
 
 /**
  * "Build AI with Reeturaj" article page. Lazy-loaded (see index.tsx) so the
@@ -25,53 +27,7 @@ import Mermaid from '../components/Mermaid';
  * reading experience + fires an article_view event.
  */
 
-const formatDate = (iso: string): string => {
-  const d = new Date(iso + 'T00:00:00Z');
-  return d.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  });
-};
 
-/**
- * The article markdown body starts with the abstract as a `>` blockquote (also
- * surfaced as the on-page direct-answer callout + schema abstract). Strip that
- * leading blockquote so the abstract isn't rendered twice.
- */
-function stripLeadingBlockquote(md: string): string {
-  const lines = md.split('\n');
-  let i = 0;
-  while (i < lines.length && lines[i].trim() === '') i++;
-  if (i >= lines.length || !lines[i].trimStart().startsWith('>')) return md;
-  while (i < lines.length && lines[i].trimStart().startsWith('>')) i++;
-  if (i < lines.length && lines[i].trim() === '') i++;
-  return lines.slice(i).join('\n');
-}
-
-/**
- * The article markdown body ends with a `## Frequently Asked Questions` section
- * (Q/A prose) that is ALSO rendered on-page as the meta.faq `<details>` accordion
- * (and baked into the crawlable shell + FAQPage schema). Strip the markdown FAQ
- * section from the client-rendered body so the FAQ isn't shown twice — the
- * `<details>` accordion is the on-page source; the shell + schema carry the
- * crawlable FAQ text. Keeps the `---` author sign-off + hashtags that follow.
- */
-function stripFaqSection(md: string): string {
-  const lines = md.split('\n');
-  const faqIdx = lines.findIndex((l) => /^##\s+Frequently Asked Questions/i.test(l.trim()));
-  if (faqIdx === -1) return md;
-  let dashIdx = -1;
-  for (let i = faqIdx + 1; i < lines.length; i++) {
-    if (/^---\s*$/.test(lines[i].trim())) {
-      dashIdx = i;
-      break;
-    }
-  }
-  const out = dashIdx === -1 ? lines.slice(0, faqIdx) : [...lines.slice(0, faqIdx), ...lines.slice(dashIdx)];
-  return out.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
-}
 
 /** Convert a YouTube watch URL to an embed URL; pass other URLs through. */
 function toEmbedUrl(url: string): string {
@@ -134,7 +90,9 @@ const markdownComponents: React.ComponentProps<typeof ReactMarkdown>['components
 const ArticlePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const meta = slug ? getArticleBySlug(slug) : undefined;
-  const [body, setBody] = useState<string | null>(null);
+  const [articleBody, setArticleBody] = useState<{ slug: string; markdown: string | null } | null>(null);
+  const isCurrentArticle = articleBody?.slug === meta?.slug;
+  const body = isCurrentArticle ? articleBody?.markdown : null;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -147,12 +105,12 @@ const ArticlePage: React.FC = () => {
     loadArticleBody(meta.slug)
       .then((md) => {
         if (cancelled) return;
-        setBody(md);
+        setArticleBody({ slug: meta.slug, markdown: md });
         setLoading(false);
       })
       .catch(() => {
         if (cancelled) return;
-        setBody(null);
+        setArticleBody({ slug: meta.slug, markdown: null });
         setLoading(false);
       });
     return () => {
@@ -243,7 +201,7 @@ const ArticlePage: React.FC = () => {
             </h1>
             <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#9ab2c9]">
               <span className="inline-flex items-center gap-1.5">
-                <CalendarDays size={14} className="text-[#f59f4f]" /> {formatDate(meta.datePublished)}
+                <CalendarDays size={14} className="text-[#f59f4f]" /> {formatArticleDate(meta.datePublished)}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Clock size={14} className="text-[#f59f4f]" /> {meta.readMinutes} min read
@@ -264,11 +222,11 @@ const ArticlePage: React.FC = () => {
 
           {/* Body */}
           <div className="prose prose-invert prose-orange mt-8 max-w-none text-[#e6edf3] prose-p:leading-[1.75] prose-headings:scroll-mt-24 prose-headings:text-white prose-a:text-[#f5b76f] prose-strong:text-white prose-code:before:hidden prose-code:after:hidden">
-            {loading ? (
+            {loading || !isCurrentArticle ? (
               <p className="text-[#9fb6cc]">Loading article…</p>
             ) : body ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {stripFaqSection(stripLeadingBlockquote(body))}
+              <ReactMarkdown remarkPlugins={[remarkGfm, normalizeArticleHeadings]} urlTransform={(url, key) => safeArticleUrl(url, key === 'src')} components={markdownComponents}>
+                {prepareArticleMarkdown(body, meta.abstract, meta.faq.map((faq) => faq.q))}
               </ReactMarkdown>
             ) : (
               <p className="text-[#9fb6cc]">This article&apos;s content is unavailable.</p>

@@ -60,7 +60,7 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
     category: 'Foundational Deep Tech',
     tagline: 'One Personal Private AI Agent',
     description:
-      'PAI (pronounced "Pi") is one personal private AI agent: a persistent, permission-controlled assistant implemented through the UnoOne ecosystem — UnoOne Power for desktop and UnoOne Mobile for Android — with local models, permission-controlled tool execution and encrypted personal memory that survives model changes. Its architecture began as a portable host-adaptive design whose removable drive held the canonical state (the host computes, the drive remains the authoritative store) — preserved as historical prior research, not a marketed product.',
+      'PAI (pronounced "Pi") is one personal private AI agent: a persistent, permission-controlled assistant implemented through the UnoOne ecosystem — UnoOne Power for desktop and UnoOne Mobile for Android — with local models, permission-controlled tool execution and encrypted personal memory that survives model changes. Its architecture began as a portable host-adaptive design whose removable drive held the canonical state (the host computes, the drive remains the authoritative store) — preserved as historical prior research, not a marketed product. The historical filing does not establish patent coverage of every current UnoOne feature.',
     patentStatus: 'Patent Pending',
     jurisdiction: 'India',
     applicationNo: '202631102427',
@@ -78,10 +78,10 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
       'Offline-first design',
     ],
     limitations: [
-      'Development-stage software — verified builds, not release-qualified',
-      'Cross-device continuity is in development (manual pairing designed)',
+      'Development-stage software — internal scoped tests, not release-qualified',
+      'Cross-device continuity is in development (pairing unit-tested; physical round trip not qualified)',
       'The removable-drive formulation in the patent filing is retired as a marketed product',
-      'No claims of autonomous self-improvement',
+      'No claims of autonomous self-improvement or AGI; historical filing does not establish coverage of every current feature',
     ],
   },
 ] as const;

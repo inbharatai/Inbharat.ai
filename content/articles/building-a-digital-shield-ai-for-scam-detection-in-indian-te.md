@@ -1,3 +1,5 @@
+> **Content correction — 16 November 2026:** This is a proposed document-review use case, not a certified or deployed fraud detector. Document appearance and AI classification cannot establish authenticity; independently verify consequential instructions through the official source.
+
 # Building a Digital Shield: AI for Scam Detection in Indian Tenders
 
 Every day, countless small businesses, NGOs, and government contractors in India face a silent threat: sophisticated digital scams. Fake tenders, cloned websites, forged documents, and AI-generated messages are becoming so convincing that even seasoned professionals can be deceived. I've seen firsthand how a single fraudulent document can waste precious time, erode trust, or lead to significant financial losses for an MSME in a Tier-2 city.
@@ -13,7 +15,7 @@ At InBharat, we envision an AI scam detection system that doesn't just flag, but
 *   **Source Consistency:** Verify if the sender, domain, and document source align with established, trusted patterns. For instance, does the email domain match the official government portal, or is it a subtle variation?
 *   **Suspicious Language & Instructions:** Identify payment instructions or urgency cues that deviate from standard protocols. A tender asking for an immediate UPI payment to a personal account, for example, is a clear red flag.
 *   **Procurement Pattern Matching:** Assess if the tender structure aligns with typical government procurement patterns and official guidelines. Does it follow the standard e-procurement portal format, or does it look like a hastily put-together PDF?
-*   **Document Integrity:** Detect forged, copied, or inconsistent details within the document itself. This could involve checking for mismatched fonts, altered logos, or conflicting dates.
+*   **Document Integrity:** Flag potentially inconsistent or altered details for independent verification; appearance alone cannot prove forgery. This could involve checking for mismatched fonts, altered logos, or conflicting dates.
 *   **External Risk Assessment:** Evaluate external links, attachments, or contact details for potential risks. A link redirecting to a non-government domain or an attachment with an unusual file type needs scrutiny.
 *   **Action Recommendation:** Beyond just flagging, the system should suggest the next safe step: block the document, send it for human review, or allow it to proceed with a low-risk assessment.
 
@@ -25,7 +27,7 @@ A scam detector for Bharat shouldn't just say "safe" or "unsafe." It needs to ex
 
 ## The Bigger Picture for Digital Bharat
 
-AI safety isn't just about protecting AI systems; it's fundamentally about protecting people who use digital systems. For India, this is paramount because many real risks arrive through everyday channels: PDFs, WhatsApp messages, emails, online forms, websites, and public-looking documents. A practical AI review layer can become the crucial first line of defense, preventing a human from making a costly decision. This is how we build trust and resilience in our digital infrastructure. To understand more about how AI is enhancing business operations, you might find my article on How AI is Transforming Due Diligence for Indian Businesses insightful.
+AI safety isn't just about protecting AI systems; it's fundamentally about protecting people who use digital systems. For India, this is paramount because many real risks arrive through everyday channels: PDFs, WhatsApp messages, emails, online forms, websites, and public-looking documents. A practical AI review layer can become the crucial first line of defense, helping a human identify questions to verify before a consequential decision. This is how we build trust and resilience in our digital infrastructure. To understand more about how AI is enhancing business operations, you might find my article on How AI is Transforming Due Diligence for Indian Businesses insightful.
 
 ## FAQ
 

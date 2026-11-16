@@ -1,8 +1,10 @@
+> **Content correction — 16 November 2026:** Corrected UniAssist’s product identity, SSE connection limits and the implication that tokens are separate API calls. Timings are illustrative, not measured production results. Streaming changes display timing, not necessarily model generation speed or token price.
+
 ## Streaming LLM Responses: The UX Illusion and Real-World Costs for Indian AI
 
 Imagine a user in a Tier-2 city on a 4G connection. If they ask an LLM a question and the UI just shows a spinner for 10 seconds, they might assume the app is broken or slow. But if the answer starts appearing character by character within 200-500ms, even if the *total* time to receive the full response is the same, the user perceives it as much faster and more responsive . This is the core benefit of streaming: it manages cognitive load by providing continuous feedback, making the wait feel shorter .
 
-At InBharat, we've seen this play out with UniAssist, our AI assistant for field workers. For complex queries, a full response might take 8-10 seconds. Streaming means the field worker gets immediate feedback, even if they're on a patchy network in a rural area. This keeps them engaged and productive, rather than frustrated.
+As an illustrative admissions-guidance interaction, a UniAssist-style answer might take several seconds. Streaming can show useful partial output earlier, but network interruptions and model latency still matter. UniAssist is student/admissions guidance, not the field-health app.
 
 ## Batch vs. Streaming: Architectural Choices
 
@@ -17,12 +19,12 @@ SSE is a one-way communication protocol where the server pushes updates to the c
 
 **Pros:**
 *   Simpler to implement than WebSockets for server-to-client communication.
-*   Uses standard HTTP/2, so less overhead with proxies and firewalls.
+*   Uses HTTP; behaviour depends on HTTP version and intermediary buffering.
 *   Automatic reconnection by the browser if the connection drops.
 
 **Cons:**
 *   Unidirectional (server to client only). Not suitable if the client also needs to send continuous data back.
-*   Limited to ~6 open connections per browser tab (though this is rarely an issue for a single LLM stream).
+*   Under HTTP/1.x, browsers commonly limit connections per origin across tabs; HTTP/2 stream limits are negotiated and differ.
 
 ### WebSockets
 
@@ -37,7 +39,7 @@ WebSockets provide full-duplex (two-way) communication over a single, long-lived
 *   Requires dedicated WebSocket servers and can be more challenging with load balancers and proxies.
 *   Higher resource consumption for maintaining persistent connections.
 
-For most LLM response streaming, where the client sends a prompt once and receives a continuous stream of tokens, SSE is often the simpler and more efficient choice. Redis, for example, highlights how streaming changes your app architecture, pushing you towards SSE for its simplicity .
+For most LLM response streaming, where the client sends a prompt once and receives a continuous stream of tokens, SSE is often the simpler and more efficient choice. Choose the transport based on directionality, reconnection behaviour, authentication and deployment support.
 
 Here’s a simplified view of the architectural shift:
 
@@ -47,7 +49,7 @@ Here’s a simplified view of the architectural shift:
 
 This is where things get interesting for Indian AI products. While streaming *feels* faster, it doesn't always translate to lower operational costs.
 
-1.  **Increased API Calls/Connections:** Each token sent in a stream is effectively a small data packet. While the LLM API might charge per token, the underlying network infrastructure (load balancers, API gateways) might incur costs per connection or per request. If a single batched response is one HTTP request, a streamed response might involve many smaller packets over a longer-lived connection. For very short responses, the overhead of establishing and maintaining the stream might outweigh the benefit.
+1.  **Longer-lived connections:** A token or event is not a separate API request; one streamed response usually uses a single connection. While the LLM API might charge per token, the underlying network infrastructure (load balancers, API gateways) might incur costs per connection or per request. If a single batched response is one HTTP request, a streamed response might involve many smaller packets over a longer-lived connection. For very short responses, the overhead of establishing and maintaining the stream might outweigh the benefit.
 
 2.  **Server-Side Resource Usage:** Maintaining open SSE or WebSocket connections consumes server resources (memory, CPU). While modern servers can handle thousands of concurrent connections, at Indian scale (think 10 lakh users during a peak event), this can add up. If your backend service is proxying the LLM stream, it needs to hold that connection open for the duration of the response.
 
@@ -62,7 +64,7 @@ Consider a scenario with a short, factual query where the LLM generates a 20-tok
 I generally recommend streaming for:
 
 *   **Longer, generative responses:** Where the user benefit of seeing content appear immediately outweighs the marginal increase in connection overhead. Think creative writing, detailed explanations, or code generation.
-*   **Interactive chatbots:** Where the user expects a conversational flow and continuous feedback. For example, our UniAssist product uses streaming to maintain a natural conversation flow with field workers.
+*   **Interactive chatbots:** Where the user expects a conversational flow and continuous feedback. For example, an admissions-guidance conversation could benefit from incremental display; this is not a verified UniAssist performance claim.
 *   **High-latency networks:** Where perceived speed is critical due to actual network slowness.
 
 Conversely, batch processing is often better for:
@@ -108,3 +110,14 @@ Streaming LLM responses is a powerful UX enhancement, especially crucial for Ind
 
 ---
 Reeturaj | #LLM #AI #Streaming #UX #InBharatAI
+
+## Frequently Asked Questions
+
+**Does streaming LLM responses always make my app faster?**
+Streaming makes your app *feel* faster by reducing the 'time to first token' (TTFT), meaning the user sees output sooner. However, the total time to receive the *full* response might not be faster, and in some cases, the overhead of streaming could even slightly increase overall latency for very short responses.
+
+**When should I use Server-Sent Events (SSE) versus WebSockets for streaming?**
+For most LLM response streaming, where the client sends a single request and receives a continuous stream of data from the server, SSE is often simpler and more efficient. WebSockets are better suited for full-duplex, real-time interactive applications where both the client and server need to send continuous data.
+
+**Can streaming LLM responses increase my costs?**
+Yes, streaming can sometimes increase costs. Maintaining open connections for longer periods consumes server resources, and the aggregate network overhead of many small packets (tokens) can be higher than a single large batched response, especially for very short LLM outputs. It's a trade-off between perceived UX and actual infrastructure costs.

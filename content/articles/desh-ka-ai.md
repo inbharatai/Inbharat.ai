@@ -1,4 +1,6 @@
-> Desh Ka AI means AI built in India, for India, by Indians—trained on Indian data, in Indian languages, for Indian constraints, and owned by Indians. It's not "sovereign AI" (closed, government-controlled) but open, private-sector-led, and globally competitive: solving Indian problems so well that the solutions export to the Global South.
+> **Content correction — 16 November 2026:** This is a statement of product-building priorities, not evidence that every model is trained on Indian data or that all processing occurs in India. Corrected the scheduled-language/script distinction and the characterization of sovereign AI; removed an unsourced market estimate and population-based model-quality comparison.
+
+> Desh Ka AI expresses an India-first product-building philosophy: attend to local language needs, infrastructure, cost and context while collaborating globally. It is not a training-data provenance, national superiority or India-only processing guarantee. Sovereign AI can also involve open and private-sector systems; the terms are not strict opposites.
 
 I need to define a term because I use it a lot and people sometimes misunderstand what I mean.
 
@@ -14,21 +16,21 @@ It means understanding that Bharat—the Hindi term for India that's more expans
 
 I used to use "sovereign" and I've moved away from it. Here's why:
 
-Sovereign implies closed. Implies restriction. Implies fortress mentality. That's not what I'm arguing for.
+Sovereign AI concerns control and autonomy over AI capability and infrastructure; it need not be closed. My emphasis here is open collaboration and product relevance.
 
 Desh Ka AI is open. It collaborates globally. It's designed for export. Companies built on Desh Ka AI will compete globally. They'll export. They'll be better than American alternatives for certain problems.
 
-Sovereign implies government-controlled. Desh Ka AI is private-sector-led. The government supports it. Sets the framework. But private companies build it. Innovate on it. Compete on it.
+Sovereign AI can involve government, private-sector or mixed approaches. Desh Ka AI is private-sector-led. The government supports it. Sets the framework. But private companies build it. Innovate on it. Compete on it.
 
-Sovereign implies an alternative to American AI. Desh Ka AI is a complement. You use American AI when it's best. You use Indian AI when it's best. Most of the time for Indian problems, Indian AI is better.
+National capability need not exclude global tools. Desh Ka AI is a complement. You use American AI when it's best. You use Indian AI when it's best. The right choice should follow task-specific evidence, not nationality alone.
 
 "Desh Ka AI" is more precise. It's not about sovereignty. It's about identification. Whose AI? Desh's. Country's. India's.
 
 ## What Makes AI Desh Ka
 
-It's built with Indian data. Not stolen. Not translated. Indian data about how Indians live, work, transact, learn, farm, create.
+It's built with Indian data. Lawfully obtained, representative and evaluated; translated data can also be useful when its quality is checked. Indian data about how Indians live, work, transact, learn, farm, create.
 
-It's in Indian languages. Hindi is the most widely spoken, but there are 22 official languages in India. AI that works in Tamil is different from AI that works in Hindi. Both are necessary. Both are Desh Ka.
+It's in Indian languages. Hindi is the most widely spoken, but there are 22 constitutionally scheduled languages in India. AI that works in Tamil is different from AI that works in Hindi. Both are necessary. Both are Desh Ka.
 
 It's designed for Indian constraints. Indian internet infrastructure. Indian payment systems. Indian regulatory frameworks. Indian climate. Indian agriculture. Indian healthcare. Indian manufacturing. Built from the ground up for how India actually works.
 
@@ -40,11 +42,11 @@ It's designed for India's users. Not as an afterthought. Not as a secondary mark
 
 Problems American AI doesn't touch because there's no market there.
 
-How do you deliver healthcare in a country with one doctor per 1,000 people? How do you teach 200 million children when you don't have enough teachers? How do you optimize agriculture for monsoon dependency? How do you build financial systems for 500 million people with no formal credit history? How do you process language with 22 official scripts?
+How do you support healthcare where access is limited? Help teachers serve more learners? Support monsoon-dependent agriculture and people with limited formal credit histories? How do you process language with multiple scripts across the 22 scheduled languages?
 
 These are Indian problems. They require Indian solutions. They require understanding that's built on Indian experience, not American generalization.
 
-When you solve these problems well, you create extraordinary value. A company that solves rural healthcare for 500 million Indians is worth more than a company that solves healthcare for 500,000 wealthy Americans.
+When you solve these problems well, you create extraordinary value. Serving underserved communities can create substantial value, but population counts alone do not establish a business valuation or clinical impact.
 
 ## What Makes It Competitive Globally
 
@@ -52,7 +54,7 @@ Here's what people get wrong: they think Desh Ka AI is just for India. That it's
 
 But the companies that build Desh Ka AI are building global companies. Because when you solve problems for India at scale, those solutions export.
 
-A language model trained on 1.4 billion people's worth of data is going to be more capable than a model trained on 330 million Americans. A healthcare AI trained on Indian patients is going to be better for understanding tropical diseases, for understanding resource-constrained settings, for understanding how medicine works for billions of people at lower cost.
+Population size alone does not determine model capability; data quality, consent, representativeness, training and evaluation matter. Representative Indian clinical data may help evaluate relevant use cases, but better outcomes require ethical data access, appropriate studies and clinical validation.
 
 An agricultural AI built for monsoons and small farms is better for Africa. For Southeast Asia. For a billion people who farm in similar conditions.
 
@@ -70,7 +72,7 @@ But they're optimized for American markets. They speak English. They assume Amer
 
 That's fine. But it means there's a gap. Everything else in the world that isn't America. That gap is where Desh Ka AI lives.
 
-For India, that gap represents $126 billion in opportunity by 2030. For the Global South, it's much larger. There are 6 billion people outside of America and Europe. And the AI that serves them best will be built for them, not for America.
+For India, that gap presents opportunities whose size depends on adoption and market assumptions; this article provides no verified market forecast. For the Global South, it's much larger. Many communities beyond India face comparable constraints. And the AI that serves them best will be built for them, not for America.
 
 That's Desh Ka AI.
 
@@ -88,7 +90,7 @@ Not people who build in America and adapt for India. People who think India-firs
 
 This is foundational to everything we do. We're not building a company that happens to be in India. We're building Desh Ka AI.
 
-Every product is designed for India. Every system is built locally. Every model is trained on Indian data. Every engineering decision starts with "what does India need?"
+Our product direction starts with Indian user needs. That does not mean every underlying model was trained by us or exclusively on Indian data, or that every provider processes data in India.
 
 This means sometimes we're slower than American companies. We're not moving at Silicon Valley speed. We're moving at India speed. Building for India's infrastructure. India's data. India's users.
 
@@ -116,13 +118,13 @@ That's Desh Ka AI.
 "Country's AI"—AI built in India, for India, by Indians: trained on Indian data, in Indian languages, designed for Indian constraints (payments, regulation, climate, infrastructure), and owned by Indians, with India as the primary market.
 
 **How is Desh Ka AI different from "sovereign AI"?**
-Sovereign implies closed, government-controlled, and an alternative to American AI. Desh Ka AI is open, private-sector-led, collaborates globally, and is a complement—you use Indian AI when it's best for Indian problems, American AI when it's best.
+Sovereign AI refers to control and autonomy and can include open systems and private companies. Desh Ka AI is open, private-sector-led, collaborates globally, and is a complement—you use Indian AI when it's best for Indian problems, American AI when it's best.
 
 **What makes AI genuinely "Desh Ka"?**
-Built with Indian data (not translated), in Indian languages (22 official scripts), for Indian constraints (UPI, DPDP Act, monsoon farming, one doctor per 1,000 people), owned by Indians, and designed for Indian users as the primary market—not an afterthought.
+Built with relevant, lawfully obtained data, in Indian languages (multiple scripts across the 22 scheduled languages), for Indian constraints (UPI, DPDP Act, monsoon farming, uneven access to care), owned by Indians, and designed for Indian users as the primary market—not an afterthought.
 
 **Is Desh Ka AI only for India?**
-No—it's a global advantage. A model trained on 1.4 billion people, a healthcare AI for tropical and resource-constrained settings, an agricultural AI for monsoon farming—these solve problems for billions across the Global South that American AI doesn't touch.
+No—it's a global advantage. Tools evaluated on representative local contexts, a healthcare AI for tropical and resource-constrained settings, an agricultural AI for monsoon farming—these solve problems for billions across the Global South that American AI doesn't touch.
 
 **Why is Desh Ka AI defensible?**
 It's built for problems American companies don't understand and won't prioritize. Solving rural healthcare or no-credit-history finance for hundreds of millions of Indians creates value and expertise that's hard to replicate—and exports to similar markets worldwide.

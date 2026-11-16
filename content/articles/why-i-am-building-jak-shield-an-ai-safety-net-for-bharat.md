@@ -1,3 +1,5 @@
+> **Content correction — 16 November 2026:** This founder vision is not a universal security guarantee or a claim of government/healthcare deployment. Risk gates mitigate defined actions within configured integrations; no complete detection benchmark is supplied.
+
 # Why I Am Building JAK Shield: An AI Safety Net for Bharat
 
 Imagine a new employee, incredibly smart, who can access your files, send emails, browse the internet, and even approve payments. Sounds powerful, right? Now imagine this employee occasionally misunderstands instructions, or worse, gets tricked into doing something harmful. This isn't a hypothetical HR problem; it's the emerging reality of AI agents, and it's why I'm building JAK Shield.
@@ -14,7 +16,7 @@ We're moving beyond AI that just answers questions. Modern AI agents can act. Th
 *   **Deepfake & Scam Proliferation:** Agents could be manipulated to generate convincing deepfakes or spread scam links, making it harder for users to distinguish real from fake.
 *   **Manipulative Workflows:** An agent might be nudged into approving a workflow that seems legitimate but has underlying malicious intent.
 
-For the average user in India, who might interact with AI through a simple WhatsApp interface for Sahayaak Seva, or a government portal, these technical nuances are invisible. They need protection that works silently in the background, much like an antivirus, without requiring them to become AI security experts.
+For the average user in India, who might encounter AI in a hypothetical field-assistance interface or public-service portal, these technical nuances are invisible. They need protection that works silently in the background, much like an antivirus, without requiring them to become AI security experts.
 
 ## Introducing JAK Shield: Your AI Risk Firewall
 
@@ -26,7 +28,7 @@ This is where JAK Shield comes in. My vision is to create a universal AI risk fi
 4.  **Approval Workflow:** For high-risk actions, it can pause the agent and ask for explicit user approval, ensuring human oversight where it matters most.
 5.  **Audit Trail:** Every action, every detected risk, and every approval is logged, creating a transparent audit trail for accountability and future analysis.
 
-Think of JAK Shield as a vigilant gatekeeper. It ensures that while AI agents are empowered to be productive, they always operate within defined safety parameters, keeping the user firmly in control. This isn't about stifling AI innovation; it's about enabling it responsibly. For a deeper dive into how we approach AI safety, you might find my article on Securing AI Models: A Practical Guide for Indian Startups insightful.
+Think of JAK Shield as a vigilant gatekeeper. Its purpose is to enforce defined action policies and preserve user control. Bugs, incomplete policies and unsupported integrations can still create risk. This isn't about stifling AI innovation; it's about enabling it responsibly. For a deeper dive into how we approach AI safety, you might find my article on Securing AI Models: A Practical Guide for Indian Startups insightful.
 
 ## The India Deployment Reality
 
@@ -43,10 +45,10 @@ Our goal is to make AI safety as ubiquitous and easy to use as UPI payments. Jus
 ## FAQ
 
 **Q: How is JAK Shield different from existing AI safety features within models?**
-A: While many models have internal guardrails, JAK Shield acts as an external, universal firewall. It provides an independent layer of verification and control *before* an action is executed, regardless of the underlying model. This allows for consistent policy enforcement and auditability across different AI agents and models.
+A: While many models have internal guardrails, JAK Shield acts as an external action-policy layer for supported integrations. It provides an independent layer of verification and control *before* an action is executed, regardless of the underlying model. This allows for consistent policy enforcement and auditability across different AI agents and models.
 
 **Q: Can JAK Shield protect against all types of AI risks?**
-A: Our aim is comprehensive protection, but like any security system, it's an ongoing battle. JAK Shield is designed to detect and mitigate a wide range of known and emerging risks, including prompt injection, data leaks, and unsafe tool calls. We continuously update its capabilities to adapt to new threats, much like antivirus software.
+A: Our aim is comprehensive protection, but like any security system, it's an ongoing battle. JAK Shield is designed to detect and mitigate a wide range of known and emerging risks, including prompt injection, data leaks, and unsafe tool calls. New threats require continued testing and policy updates; no universal coverage or update-service guarantee is established here.
 
 **Q: Is JAK Shield only for developers, or can end-users benefit?**
 A: Both. Developers can integrate JAK Shield into their AI applications for robust security. Crucially, end-users will benefit from a safer, more reliable AI experience without needing to understand the underlying technical complexities. It's designed to be a transparent safety net.

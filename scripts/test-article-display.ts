@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { formatArticleDate, compareArticleRecency } from '../lib/article-display.ts';
+assert.equal(formatArticleDate(undefined), 'Publication date not recorded');
+assert.equal(formatArticleDate('2026-02-30'), 'Publication date not recorded');
+assert.equal(formatArticleDate('2099-01-01'), 'Publication date not recorded');
+assert.match(formatArticleDate('2026-01-01'), /2026/);
+const articles = [{ slug: 'unknown' }, { slug: 'older', datePublished: '2025-01-01' }, { slug: 'new-record', repositoryRecordedAt: '2026-01-01T00:00:00.000Z' }];
+assert.deepEqual(articles.sort(compareArticleRecency).map(a => a.slug), ['new-record', 'older', 'unknown']);
+assert.equal(formatArticleDate(articles[0].datePublished), 'Publication date not recorded');
+assert.ok(compareArticleRecency({ slug: 'a' }, { slug: 'b' }) < 0);
+console.log('article-display: unknown/impossible/future dates and stable ordering passed; no publication date fabricated');
