@@ -280,7 +280,7 @@ try {
   else process.env.GEMINI_API_KEY = origGeminiKey;
 }
 
-// ─── authorizeCron (Vercel signature | CRON_SECRET | admin | local-dev) ───
+// ─── authorizeCron (CRON_SECRET | admin | explicit local-dev) ───
 // Pure, hermetic: requireAdmin returns early (no network) when supabaseAdmin is
 // null (no SUPABASE env in the test process), so the admin/local-dev branches
 // are exercised without any real Supabase call.
@@ -292,11 +292,11 @@ const origCronSecret = process.env.CRON_SECRET;
 const origLocalPort = process.env.LOCAL_API_PORT;
 const origNodeEnv = process.env.NODE_ENV;
 try {
-  // 1. Vercel scheduled cron sends BOTH the vercel-cron user-agent AND the
-  //    x-vercel-cron-schedule header. We require BOTH (not either alone) so a
+  // 1. Both scheduling headers are attacker-controlled and must never grant
+  //    authorization. A configured secret or verified admin is required; a
   //    single spoofed client header isn't enough to bypass the secret.
   let r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0", "x-vercel-cron-schedule": "0 6 * * *" }));
-  check("vercel-cron UA + schedule header allowed", r.ok === true && !isCronAuthErr(r) && r.source === "vercel-cron", JSON.stringify(r));
+  check("spoofable vercel-cron UA + schedule headers denied", r.ok === false, JSON.stringify(r));
 
   // 2. UA alone is NOT enough (spoofable single header) — denied.
   r = await authorizeCron(fakeReq({ "user-agent": "vercel-cron/1.0" }));

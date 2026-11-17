@@ -6,6 +6,7 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
   const layerRef = useRef<HTMLDivElement>(null);
   const exclusionsRef = useRef<SVGGElement>(null);
   const [paused, setPaused] = useState(false);
+  const [enhanced, setEnhanced] = useState(false);
 
   useEffect(() => {
     const layer = layerRef.current;
@@ -52,6 +53,7 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
         fragment.append(r);
       }
       exclusions.replaceChildren(fragment);
+      layer.querySelector('[data-static-edge-mask]')?.remove();
       lastGeometry = geometryKey();
       layer.dataset.ready = entranceComplete ? 'true' : 'false';
     };
@@ -103,6 +105,7 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
         void Promise.all(entrances.map(animation => animation.finished.catch(() => undefined))).then(() => {
           if (disposed) return;
           entranceComplete = true;
+          setEnhanced(true);
           align();
         });
       });
@@ -123,11 +126,11 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
 
   return (
     <>
-      <div ref={layerRef} className="hero-edge-depth" aria-hidden="true" data-paused={paused}>
+      <div ref={layerRef} className="hero-edge-depth" aria-hidden="true" data-ready="true" data-paused={paused || !enhanced}>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1360" preserveAspectRatio="none" focusable="false">
           <defs>
             <linearGradient id={`${id}-side-mask`}><stop stopColor="white" /><stop offset=".13" stopColor="white" stopOpacity=".6" /><stop offset=".23" stopColor="black" /><stop offset=".77" stopColor="black" /><stop offset=".87" stopColor="white" stopOpacity=".6" /><stop offset="1" stopColor="white" /></linearGradient>
-            <mask id={`${id}-quiet-centre`}><rect width="1440" height="1360" fill={`url(#${id}-side-mask)`} /><g ref={exclusionsRef} data-text-exclusions="true" /></mask>
+            <mask id={`${id}-quiet-centre`}><rect width="1440" height="1360" fill={`url(#${id}-side-mask)`} />{/* Conservative edge-only mask before geometry can be measured; no text overlay. */}<rect data-static-edge-mask x="48" width="1344" height="1360" fill="black" /><g ref={exclusionsRef} data-text-exclusions="true" /></mask>
             <linearGradient id={`${id}-saffron-metal`} x1="0" x2="1" y2="1"><stop stopColor="#f59f4f" stopOpacity=".20" /><stop offset=".34" stopColor="#fde8d0" stopOpacity=".10" /><stop offset=".65" stopColor="#18202e" stopOpacity=".12" /><stop offset="1" stopColor="#f59f4f" stopOpacity=".015" /></linearGradient>
             <linearGradient id={`${id}-slate-metal`} x1="1" x2="0" y2="1"><stop stopColor="#7d9cc5" stopOpacity=".19" /><stop offset=".52" stopColor="#6fd3a3" stopOpacity=".075" /><stop offset="1" stopColor="#213755" stopOpacity=".03" /></linearGradient>
           </defs>
@@ -147,7 +150,7 @@ const HeroEdgeDepth: React.FC<{ language: string }> = ({ language }) => {
           </g>
         </svg>
       </div>
-      <button type="button" className="hero-edge-pause" lang="en" aria-pressed={paused} onClick={() => setPaused(value => !value)}>
+      <button type="button" className="hero-edge-pause" disabled={!enhanced} lang="en" aria-pressed={paused} onClick={() => setPaused(value => !value)}>
         {paused ? 'Resume edge motion' : 'Pause edge motion'}
       </button>
     </>

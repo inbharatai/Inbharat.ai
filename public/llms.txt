@@ -1,21 +1,20 @@
 # InBharat AI
 
 > InBharat.ai builds private agentic AI and practical tools for Bharat.
-> Its flagship is PAI (pronounced “Pi”), one personal private AI agent,
-> implemented through UnoOne Power for Windows and UnoOne Mobile for Android.
+> Its flagship brand is UnoOne: local-first AI software, with UnoOne Power for
+> Windows and UnoOne Mobile for Android. InBharat.ai is the company behind it.
 > The InBharat AI web console is a separate browser product, not UnoOne.
 
 Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP.
 
 ## Readiness and data boundaries — content reviewed 16 November 2026
 
-- UnoOne Power: Windows development builds; scoped internal verification on one
-  engineering test environment, not broad release qualification.
-- UnoOne Mobile: Android alpha. Current planner activation, device migrations and
-  hardware coverage remain under validation. Earlier device-run results are not
-  proof of every current build; see the per-capability evidence on its page.
-- No public UnoOne installer is offered. Contact the team for pilot discussions;
-  no public UnoOne price or free offer is established here.
+- UnoOne Power is the Windows workspace; UnoOne Mobile is the Android product.
+  Source implementation, current-build enablement, device qualification and public
+  release approval are separate. See /status for dated evidence and /get-started
+  for the applicable platform's actual approved-package availability and setup.
+- The intended launch is release-ready; this is not proof that development files
+  are release installers. No public price, free offer or store approval is implied.
 - Sync: pairing protocol designed and unit-tested. No physical phone–desktop
   round trip is qualified, manual or automatic. Each device has its own encrypted
   local store, not one automatically shared physical vault.
@@ -24,9 +23,12 @@ Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP.
   send requests, queries, form fields or selected files to external services.
   Website sessions have normal authentication traffic; the agent does not type
   passwords. Local storage is not a claim that all network traffic stays local.
-- Mobile blocks payment, OTP, password-entry and auto-send agent actions.
-  Confirmation does not unlock them; the person completes sensitive steps
-  manually outside the agent. Messaging is drafts-never-sends.
+- Financial-transaction automation is outside Mobile's product policy. Sensitive
+  browser steps such as credentials, OTP and final submissions remain manual.
+  Ordinary email/WhatsApp routes open drafts; separate native Google-provider
+  code supports explicitly reviewed operations. Provider configuration alone is
+  not live qualification. The inspected release variant excludes development-only
+  cross-app Accessibility automation. See /unoone/mobile for the exact scope.
 - Language selection includes English, Hindi, Bengali, Telugu, Marathi, Tamil,
   Gujarati, Kannada, Malayalam, Odia and Assamese. Translations are partial with
   English fallback. UI, text-model, speech-recognition and speech-synthesis
@@ -35,6 +37,15 @@ Founded by Reeturaj Goswami. Operated by Uni Guru Technologies LLP.
   Historical Pocket AI removable-drive research is not the current consumer
   product. Recorded patent applications do not certify runtime capabilities or
   establish coverage of all newer UnoOne features.
+
+## Engineering evidence
+
+The founder-authored UnoOne Power technical preprint (14 November 2026) describes
+a Windows development workspace, local models, model-independent encrypted memory,
+permission-scoped tools and reusable specialists. It is not peer-reviewed or independently
+security-audited. Experimental offline adaptation requires separate consent; both
+reported candidate adapters failed the full quality gate. The supplied product demo
+is a team demonstration, not a universal model/hardware benchmark.
 
 ## Recognitions and programmes
 
@@ -54,11 +65,15 @@ revocation. Current issuer records and permission to publish them remain owner-h
 
 ## Key pages
 
-- [Home](https://www.inbharat.ai/): PAI, UnoOne and the fifteen-product directory.
-- [PAI](https://www.inbharat.ai/private-ai): definition, permissions and data flows.
-- [UnoOne](https://www.inbharat.ai/unoone): Power and Mobile development ecosystem.
+- [Home](https://www.inbharat.ai/): UnoOne, the product demonstration and the company portfolio.
+- [Private AI](https://www.inbharat.ai/private-ai): UnoOne principles, permissions and data flows.
+- [UnoOne](https://www.inbharat.ai/unoone): the Power and Mobile product family.
+- [Get UnoOne](https://www.inbharat.ai/get-started): platform requirements, setup and actual availability.
+- [Status](https://www.inbharat.ai/status): dated evidence, compatibility and release boundaries.
+- [Demo](https://www.inbharat.ai/unoone/demo): dated walkthrough, chapters, captions and transcript.
+- [Ecosystem](https://www.inbharat.ai/ecosystem): 15 distinct company products, not implied UnoOne integrations.
 - [Power](https://www.inbharat.ai/unoone/power): Windows capability/validation scope.
-- [Mobile](https://www.inbharat.ai/unoone/mobile): Android alpha and action boundaries.
+- [Mobile](https://www.inbharat.ai/unoone/mobile): Android local intelligence, native tools and action boundaries.
 - [Sync](https://www.inbharat.ai/unoone/sync): unit-tested design, unqualified round trip.
 - [Enterprise AI](https://www.inbharat.ai/enterprise-ai): JAK Swarm/Shield components;
   scoped engagement, no certified compliance or verified institutional deployments.
@@ -77,7 +92,7 @@ Listing a site or repository is not proof of live service health, clinical
 validation, government use or availability of every described feature.
 
 - [KathaKitaab](https://www.kathakitaab.com): stories and interactive learning.
-- [JAK Swarm](https://jakswarm.com): agent workflows and orchestration.
+- [JAK Swarm](https://github.com/inbharatai/jak-swarm): agent workflows and orchestration.
 - [JAK Shield](https://github.com/inbharatai/jak-shield): tool-use risk controls.
 - [Sahayaak AI](https://github.com/inbharatai/sahaayak-ai-public): personal AI workspace.
 - [UniAssist.ai](https://www.uniassist.ai): admissions guidance.

@@ -22,6 +22,10 @@ import {
 } from './content/articles.meta.js';
 import { buildArticleSchemas } from './content/article-schema.js';
 import { deepTechById } from './content/deepTech.js';
+import en from './locales/en.json' with { type: 'json' };
+import { UNOONE_LANDING, UNOONE_DEMO } from './content/unooneLanding.js';
+import { PRODUCT_REGISTRY } from './content/productRegistry.js';
+import { LAUNCH_PAGES, UNOONE_RELEASES, UNOONE_STATUS, releaseAvailability } from './content/unooneRelease.js';
 import { UNOONE_PAGES, PRIVATE_AI_EVIDENCE_SCOPE, READINESS_LABELS, type PrivateAiPage } from './content/privateAI.js';
 import { awardStrings, credentialSchemaNodes } from './content/credentials.js';
 import { ADMIN_GROWTH_PATHS as ADMIN_GROWTH_PATHS_FROM_ROUTER } from './lib/growth/adminRoutes.js';
@@ -34,7 +38,7 @@ export const SITE = {
   name: 'InBharat AI',
   shortName: 'InBharat',
   description:
-    'InBharat.ai is a deep-tech artificial intelligence company building private agentic AI for a private world. Its flagship is PAI — one personal private AI agent — implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Research includes SILT, patent pending in India. Engineered in Bharat for the world.',
+    'InBharat.ai is a deep-tech artificial intelligence company building private agentic AI for a private world. Its flagship brand is UnoOne: local-first AI software, with UnoOne Power for Windows and UnoOne Mobile for Android. Research includes SILT, patent pending in India. Engineered in Bharat for the world.',
   themeColor: '#0d1117',
   ogImage: '/og-image.png',
   twitterCard: 'summary_large_image' as const,
@@ -87,9 +91,8 @@ export type SeoRoute = {
   /** Extra schema.org JSON-LD objects to inject on this shell (Organization + WebSite always present). */
   extraSchema?: Array<Record<string, unknown>>;
   /**
-   * Crawlable body content injected into the static shell (visually hidden,
-   * screen-reader available) so non-JS and AI-search crawlers see real text
-   * instead of an empty #root. MUST stay a faithful summary of what the React
+   * Readable route content in the managed static shell; the landing uses its real
+   * shared React tree, while other pages use accessible route content. MUST stay a faithful summary of what the React
    * app renders (no cloaking). `h1` anchors the page for AI answers.
    */
   seoBody?: { h1: string; paragraphs: string[] };
@@ -126,7 +129,7 @@ const baseOrganization = {
   url: SITE.url,
   logo: `${SITE.url}/inbharat-logo-1024.png`,
   description:
-    'Deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including PAI through UnoOne, agent security and hardware-aware AI. SILT and the historical Pocket AI portable architecture have recorded Indian patent applications. Engineered in Bharat for the world.',
+    'Deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI — including UnoOne, agent security and hardware-aware AI. SILT and the historical Pocket AI portable architecture have recorded Indian patent applications. Engineered in Bharat for the world.',
   areaServed: 'IN',
   sameAs: ORG_SAMEAS,
   contactPoint: {
@@ -211,63 +214,25 @@ const homepageFAQ = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
   mainEntity: [
-    {
-      '@type': 'Question',
-      name: 'What is InBharat AI?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "InBharat.ai builds private agentic AI. Its flagship is PAI, one personal private AI agent implemented through UnoOne Power (Windows development build) and UnoOne Mobile (Android alpha). SILT and the historical Pocket AI portable architecture are research projects with recorded Indian patent applications, not product certifications.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'What is PAI and UnoOne?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "PAI (pronounced “Pi”) is our personal private AI agent. UnoOne implements it through Power for Windows and Mobile for Android. Both are in development; no public installer is offered, and phone–desktop continuity is not yet qualified end to end. The InBharat AI web console is separate.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does PAI send my data to the cloud?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Personal memory is encrypted in each device’s local store and core inference is local. Optional searches, mail connectors, browser navigation, confirmed form submissions and uploads can send queries, requests, fields or selected files to external services. Permissions bound these actions; local storage does not mean all network traffic stays on-device.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Which Indian languages does InBharat AI support?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "The language selector lists English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia and Assamese. Translations are partial, with English fallback. This does not establish complete UI, model or speech support in every product; a public product-by-language-by-modality matrix is still pending.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is InBharat AI free to try?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Yes. You get a few free messages on the InBharat AI console before signing in. No credit card required.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Does InBharat AI work on mobile?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "The website and separate web console work in mobile browsers. UnoOne Mobile is an Android alpha, not a broadly released app; hardware, Android permissions and per-feature validation determine compatibility.",
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'How do I contact the InBharat team?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: "Email us, or reach out on LinkedIn, X, Instagram, or GitHub. All channels are listed on the contact page.",
-      },
-    },
+    ...([1, 2, 3, 4, 5, 6, 7] as const).map((index) => ({ '@type': 'Question', name: en[`faqQ${index}`],
+      acceptedAnswer: { '@type': 'Answer', text: en[`faqA${index}`] } })),
   ],
+};
+
+// Describes the supplied walkthrough, not an independent benchmark. Do not
+// invent uploadDate before the hosted video has actually been published.
+const unooneDemoSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoObject',
+  '@id': SITE.url + '/unoone/demo#video',
+  mainEntityOfPage: SITE.url + '/unoone/demo',
+  name: UNOONE_DEMO.title,
+  description: UNOONE_DEMO.description,
+  duration: UNOONE_DEMO.duration,
+  inLanguage: 'en',
+  thumbnailUrl: SITE.url + UNOONE_DEMO.poster,
+  contentUrl: SITE.url + UNOONE_DEMO.video,
+  publisher: { '@id': ORGANIZATION_ID },
 };
 
 const softwareApplication = {
@@ -318,7 +283,7 @@ export const founderPerson = {
 const deepTechSuite = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: 'InBharat AI foundational deep-tech',
+  name: 'InBharat.ai research records',
   itemListElement: [
     {
       '@type': 'ListItem',
@@ -344,19 +309,7 @@ const deepTechSuite = {
         identifier: '202631102427',
       },
     },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      item: {
-        '@type': 'SoftwareApplication',
-        name: 'UnoOne',
-        url: SITE.url + '/unoone',
-        description:
-          'The software ecosystem that implements PAI, one personal private AI agent — UnoOne Power for Windows desktop and laptop, and UnoOne Mobile for Android — with local models, permission-controlled tools and encrypted personal memory.',
-        applicationCategory: 'BusinessApplication',
-        operatingSystem: 'Windows, Android',
-      },
-    },
+
   ],
 };
 
@@ -368,177 +321,26 @@ const deepTechSuite = {
 const productSuite = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: 'InBharat AI product suite',
-  itemListElement: [
-    {
-      '@type': 'ListItem',
-      position: 1,
-      item: {
-        '@type': 'WebApplication',
-        name: 'InBharat AI',
-        url: SITE.url + '/app',
-        description:
-          "A separate web console for agentic search and chat, with specialist modes for coding, education, research, shopping and enterprise work. Not the UnoOne local agent.",
-      },
+  '@id': SITE.url + '/ecosystem#products',
+  name: 'InBharat.ai product directory',
+  numberOfItems: PRODUCT_REGISTRY.length,
+  itemListElement: PRODUCT_REGISTRY.map((product, index) => ({
+    '@type': 'ListItem', position: index + 1,
+    item: {
+      '@type': 'Thing', name: product.name,
+      ...(product.id === 'unoone' ? { '@id': SITE.url + '/unoone#software' } : {}),
+      url: product.href.startsWith('/') ? SITE.url + product.href : product.href,
+      description: product.description,
     },
-    {
-      '@type': 'ListItem',
-      position: 2,
-      item: {
-        '@type': 'WebApplication',
-        name: 'KathaKitaab',
-        url: 'https://www.kathakitaab.com',
-        description:
-          'Interactive storybook platform that brings Indian epics to life as living books with verb-aware AI animation and Indian-language narration.',
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 3,
-      item: {
-        '@type': 'WebApplication',
-        name: 'JAK Swarm',
-        url: 'https://jakswarm.com',
-        description:
-          'Open-source, self-hostable closed-loop company OS — evidence graph, drift detection, executable specs, and risk-gated agent approvals with audit trails.',
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 4,
-      item: {
-        '@type': 'WebApplication',
-        name: 'Phoring',
-        url: 'https://github.com/inbharatai/phoring',
-        description:
-          'Decision-intelligence engine: documents to knowledge graph to multi-agent simulation to source-cited forecasts.',
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 5,
-      item: {
-        '@type': 'WebApplication',
-        name: 'Agent Arcade',
-        url: 'https://github.com/inbharatai/agent-arcade-gateway',
-        description:
-          "Agent observability tooling with dashboard, session replay and cost analytics. Supported integrations and model pricing depend on the repository version.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 6,
-      item: {
-        '@type': 'WebApplication',
-        name: 'Sahayaak AI',
-        url: 'https://github.com/inbharatai/sahaayak-ai-public',
-        description:
-          "A personal AI workspace project for Indian users: chat, voice, document reading, translation, notes and information workflows. Language and feature availability depend on the build.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 7,
-      item: {
-        '@type': 'WebApplication',
-        name: 'Sahayaak Seva',
-        url: 'https://sahayaakseva.in',
-        description:
-          "Field-assistance project for Anganwadi workflows, including growth records, document reading and scheme lookup. Not a claim of government deployment or clinically validated diagnosis; access and validation are scoped per engagement.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 8,
-      item: {
-        '@type': 'WebApplication',
-        name: 'UniAssist.ai',
-        url: 'https://www.uniassist.ai',
-        description:
-          "AI-assisted international admissions planning, university matching and scholarship discovery. Guidance, not a guarantee of admission, immigration status or scholarships.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 9,
-      item: {
-        '@type': 'WebApplication',
-        name: 'TestsPrep.in',
-        url: 'https://testsprep.in',
-        description:
-          'AI exam-prep platform — focused pathways, practice tests, performance analytics, and adaptive learning.',
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 10,
-      item: {
-        '@type': 'WebApplication',
-        name: 'UniBot',
-        url: SITE.url + '/#chatbot',
-        description:
-          "WhatsApp-oriented conversational support for student queries, admissions guidance and helpdesk workflows. Ask the team about access and the supported language set.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 11,
-      item: {
-        '@type': 'WebApplication',
-        name: 'SocialFlow',
-        url: 'https://github.com/inbharatai/SocialFlow',
-        description:
-          "AI social-media automation with local encrypted credential storage. Generation providers and publishing platforms receive the data required by the actions you configure; local storage does not mean all data stays on-device.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 12,
-      item: {
-        '@type': 'WebApplication',
-        name: 'OpenClawFix',
-        url: 'https://openclawfix.pro',
-        description:
-          "Setup tooling for OpenClaw via Docker, with gateway and AI-provider configuration. Setup time and compatibility depend on the host and selected provider.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 13,
-      item: {
-        '@type': 'SoftwareApplication',
-        name: 'UnoOne',
-        url: SITE.url + '/unoone',
-        applicationCategory: 'BusinessApplication',
-        operatingSystem: 'Windows, Android',
-        description:
-          "PAI through UnoOne Power (Windows development build) and UnoOne Mobile (Android alpha). Local models, per-device encrypted memory and permission-controlled tools. No public installer; cross-device sync remains unqualified.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 14,
-      item: {
-        '@type': 'WebApplication',
-        name: 'SwasthyaScore AI',
-        url: 'https://swasthyascore-ai.vercel.app',
-        description:
-          "Personal health-screening project exploring questionnaires, camera-based vital estimation, lab-report reading and voice input. Not a medical diagnosis or validated replacement for clinical measurement.",
-      },
-    },
-    {
-      '@type': 'ListItem',
-      position: 15,
-      item: {
-        '@type': 'WebApplication',
-        name: 'JAK Shield',
-        url: 'https://github.com/inbharatai/jak-shield',
-        description:
-          'Universal agent security layer — risk-based approvals, PII detection, sandboxed execution, and tamper-evident audit trails for AI agents. Open-source and self-hostable.',
-      },
-    },
-  ],
+  })),
 };
+
+const unooneSoftware = (name: string, route: string, operatingSystem: string, description: string) => ({
+  '@context': 'https://schema.org', '@type': 'SoftwareApplication',
+  '@id': SITE.url + route + '#software', name, url: SITE.url + route,
+  applicationCategory: 'ProductivityApplication', operatingSystem, description,
+  publisher: { '@id': ORGANIZATION_ID },
+});
 
 const founderLearningPage = {
   '@context': 'https://schema.org',
@@ -610,22 +412,56 @@ const unooneFaqSchema = (page: PrivateAiPage) => ({
   })),
 });
 
+const UNOONE_TITLES: Record<string, string> = {
+  '/private-ai': 'Private AI with UnoOne — Principles & Boundaries',
+  '/unoone': 'UnoOne — Your Local-First AI Workspace | InBharat.ai',
+  '/unoone/power': 'UnoOne Power — Private AI for Windows | InBharat.ai',
+  '/unoone/mobile': 'UnoOne Mobile — Local Intelligence for Android | InBharat.ai',
+  '/unoone/sync': 'UnoOne Continuity — In Development | InBharat.ai',
+  '/technology': 'UnoOne Technology — Capabilities & Limits | InBharat.ai',
+};
+
 const privateAiRoutes: SeoRoute[] = UNOONE_PAGES.map((page) => {
   const tuning = UNOONE_PRIORITY[page.path] ?? { priority: 0.6, changefreq: 'monthly' as const };
   return {
     path: page.path,
-    title: `${page.h1} | InBharat.ai`,
+    title: UNOONE_TITLES[page.path] ?? `${page.h1} | InBharat.ai`,
+    ...(page.path !== '/enterprise-ai' ? { ogImage: '/unoone/og-image.png' } : {}),
     description: page.description,
     priority: tuning.priority,
     changefreq: tuning.changefreq,
     multilingual: false,
-    extraSchema: [breadcrumb(page.eyebrow, page.path), unooneFaqSchema(page)],
+    extraSchema: [breadcrumb(page.eyebrow, page.path), unooneFaqSchema(page),
+      ...(['/unoone', '/unoone/power', '/unoone/mobile'].includes(page.path)
+        ? [unooneSoftware(page.path === '/unoone' ? 'UnoOne' : page.path === '/unoone/power' ? 'UnoOne Power' : 'UnoOne Mobile', page.path,
+          page.path === '/unoone' ? 'Windows, Android' : page.path === '/unoone/power' ? 'Windows' : 'Android', page.description)] : []),
+    ],
     seoBody: {
       h1: page.h1,
       paragraphs: [page.description, page.status, page.audience, PRIVATE_AI_EVIDENCE_SCOPE, ...page.capabilities.map((cap) => `${cap.name} — ${READINESS_LABELS[cap.readiness]}. ${cap.what}${cap.evidence ? ` Evidence / validation scope: ${cap.evidence}` : ''}`), ...page.sections.map((section) => `${section.title}: ${section.body}`), ...page.faqs.map((faq) => `${faq.q} ${faq.a}`)],
     },
   };
 });
+
+/** Same shared content and entities as the visible launch-route trees. */
+const launchRoutes: SeoRoute[] = Object.entries(LAUNCH_PAGES).map(([path, page]) => ({
+  path, title: `${path === '/get-started' ? 'Get UnoOne — Platforms & Setup' : path === '/status' ? 'UnoOne Status & Compatibility' : path === '/ecosystem' ? 'InBharat.ai Ecosystem — All 15 Products' : 'Watch UnoOne — Full Walkthrough, Chapters & Transcript'} | InBharat.ai`,
+  description: page.description, ogImage: '/unoone/og-image.png', priority: 0.8,
+  changefreq: 'monthly', multilingual: false,
+  extraSchema: [breadcrumb(page.eyebrow, path),
+    ...(path === '/ecosystem' ? [productSuite] : []),
+    ...(path === '/unoone/demo' ? [unooneDemoSchema] : []),
+  ],
+  seoBody: {
+    h1: page.title,
+    paragraphs: [page.description,
+      ...(path === '/get-started' ? UNOONE_RELEASES.flatMap(release => [release.name, releaseAvailability(release), ...release.requirements, ...release.setup]) : []),
+      ...(path === '/status' ? [UNOONE_STATUS.reviewLabel, UNOONE_STATUS.sourceNote, ...UNOONE_STATUS.rows.map(row => `${row.name}: ${row.state}. ${row.detail}`), ...UNOONE_STATUS.releaseGates] : []),
+      ...(path === '/ecosystem' ? PRODUCT_REGISTRY.map(product => `${product.name}: ${product.description}`) : []),
+      ...(path === '/unoone/demo' ? [UNOONE_DEMO.visibleContext, UNOONE_DEMO.description] : []),
+    ],
+  },
+}));
 
 /**
  * One SeoRoute per article: TechArticle + FAQPage + BreadcrumbList schema
@@ -681,9 +517,10 @@ const adminGrowthRoutes: SeoRoute[] = ADMIN_GROWTH_PATHS.map((path) => ({
 export const ROUTES: SeoRoute[] = [
   {
     path: '/',
+    ogImage: '/og-image.png',
     title: 'InBharat.ai | Private Agentic AI for a Private World',
     description:
-      'Meet PAI — one personal private AI agent, implemented through UnoOne Power (desktop) and UnoOne Mobile (Android). Local models, permission-controlled tools, encrypted personal memory. Try the InBharat AI console free in your browser.',
+      'InBharat.ai builds private agentic AI and practical products for Bharat. Explore UnoOne Power and Mobile, research and the wider company portfolio.',
     priority: 1.0,
     changefreq: 'weekly',
     // hreflang disabled until real localized route shells (/hi/, /bn/ …) exist:
@@ -691,22 +528,22 @@ export const ROUTES: SeoRoute[] = [
     // added GSC "alternate page with proper canonical tag" noise. The 11-language
     // UI switch still works via ?lang= — it's a UX feature, not an SEO one.
     multilingual: false,
-    extraSchema: [homepageFAQ, deepTechSuite, productSuite],
+    extraSchema: [homepageFAQ, deepTechSuite, productSuite, unooneDemoSchema, unooneSoftware('UnoOne', '/unoone', 'Windows, Android', UNOONE_LANDING.definition)],
     seoBody: {
       // Aligned to the visible React hero H1 (landHeroTitle1 + landHeroTitle2 =
-      // "Your AI. Your devices. Your control.") so the crawler sr-only H1
-      // and the on-page H1 match exactly. Branding stays in <title>/OG.
-      h1: 'Your AI. Your devices. Your control.',
+      // the shared UnoOne headline). The actual homepage prerenders the same React
+      // tree as the interactive version, not an auxiliary hidden/text page.
+      h1: `${en.landHeroTitle1} ${en.landHeroTitle2}`,
       paragraphs: [
-        'InBharat.ai is a deep-tech artificial intelligence company building private agentic AI for a private world. Our flagship is PAI — one personal private AI agent, pronounced "Pi" — a persistent, permission-controlled personal AI experience, not a chatbot wrapper.',
-        'PAI is brought to life through the UnoOne ecosystem: UnoOne Power, your desktop personal AI agent, and UnoOne Mobile, your Android personal AI agent — one agent experience spanning two devices, under your control. The model can change; your personal memory and permissions stay yours.',
-        'How PAI is engineered: local models admitted by a measured memory budget on your own hardware; tool execution behind explicit, revocable permissions with approval cards; personal memory stored encrypted outside the model so context survives model switches; and bounded actions checked against their intended outcome with real receipts.',
+        UNOONE_LANDING.definition,
+        UNOONE_LANDING.familyIntro,
+        UNOONE_LANDING.networkBoundary,
         `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description} SILT is patent pending in India (application 202631101454); the Pocket AI portable architecture is preserved as a historical patent-pending filing (application 202631102427).`,
         'The InBharat product suite applies this foundation to real problems: JAK Swarm, an open-source self-hostable agentic company OS with evidence graphs, drift detection, and JAK Shield risk gating; JAK Shield, a universal agent security layer; KathaKitaab, AI-powered interactive storybooks in Indian languages; TestsPrep, AI-driven adaptive test-preparation analytics; UniAssist.ai, university guidance for international admissions; and the InBharat AI console, a voice-first agentic search platform.',
-        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes. The language selector includes English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia and Assamese; translations are partial and speech coverage varies by product and build. You can try it free on the web with a few messages before signing in — no credit card required.',
-        'Status, stated honestly: UnoOne Power is working development-stage software verified on a Windows test system; UnoOne Mobile is an Android alpha with green local test gates and device validation in progress; cross-device continuity is designed with tests and marked as in development until a full round trip is qualified. Evidence is scoped internal reporting, not independent certification or release qualification.',
+        'The InBharat AI console offers voice-first agentic search and multi-modal AI with research, coding, education, executive, and shopper modes. The language selector includes English, Hindi, Bengali, Telugu, Marathi, Tamil, Gujarati, Kannada, Malayalam, Odia and Assamese; translations are partial and speech coverage varies by product and build. Guest limits and account availability are separate from UnoOne development access.',
+        UNOONE_LANDING.evidenceNote,
         'InBharat.ai is founded by Reeturaj Goswami, on a mission to make private AI infrastructure accessible across Indian languages, devices, and workflows — not a wrapper around a single model, but deep-tech systems designed so intelligence, memory and controlled action stay close to their owner.',
-        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for early access, pilots, partnerships, or research collaboration on PAI, UnoOne and SILT.`,
+        `Contact the InBharat team at ${SITE.url}/contact or email ${SITE.contactEmail} for UnoOne early access, pilots, or research collaboration.`,
       ],
     },
   },
@@ -731,7 +568,7 @@ export const ROUTES: SeoRoute[] = [
     path: '/about',
     title: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
     description:
-      'InBharat.ai is a deep-tech AI company building foundational systems for trustworthy, private and local-first AI — with PAI implemented through UnoOne Power (Windows) and UnoOne Mobile (Android), alongside SILT research.',
+      'InBharat.ai is a deep-tech AI company building foundational systems for trustworthy, private and local-first AI — with UnoOne Power (Windows) and UnoOne Mobile (Android), alongside SILT research.',
     priority: 0.7,
     changefreq: 'monthly',
     multilingual: false,
@@ -739,13 +576,14 @@ export const ROUTES: SeoRoute[] = [
     seoBody: {
       h1: 'About InBharat.ai — Deep-Tech AI Infrastructure for Bharat',
       paragraphs: [
-        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its flagship is PAI, implemented through UnoOne Power (Windows development build) and UnoOne Mobile (Android alpha). Research includes SILT and the historical Pocket AI portable architecture. Alongside it are applied AI infrastructure (JAK Shield, JAK Swarm and InBharat Audio) and separate practical products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).',
+        'InBharat.ai is a deep-tech artificial intelligence company building foundational systems for trustworthy, private and local-first AI. Its flagship brand is UnoOne, with UnoOne Power (Windows development build) and UnoOne Mobile (Android alpha). Research includes SILT and the historical Pocket AI portable architecture. Alongside it are applied AI infrastructure (JAK Shield, JAK Swarm and InBharat Audio) and separate practical products (InBharat AI Console, UniAssist.ai, TestsPrep.in, KathaKitaab, and Sahayaak).',
         `SILT: ${deepTechById.silt.description} Pocket AI: ${deepTechById.pai.description} Both technologies are patent pending in India — applications 202631101454 (SILT) and 202631102427 (Pocket AI).`,
         'InBharat.ai was founded by Reeturaj Goswami and is engineered in Bharat for the world. The studio builds affordable AI tools for Bharat, including agentic search, coding assistants, education platforms, and business automation, while publishing open-source AI infrastructure so teams keep control of their data.',
       ],
     },
   },
   ...privateAiRoutes,
+  ...launchRoutes,
   {
     path: '/learn-ai-with-reeturaj',
     title: 'Learn AI with Reeturaj Goswami — Founder-Led Practical AI | InBharat AI',
@@ -801,7 +639,8 @@ export const ROUTES: SeoRoute[] = [
       h1: 'Privacy Policy — InBharat AI',
       paragraphs: [
         'How InBharat AI handles your data, what we store, what we do not, and how authentication and chat history work.',
-        'InBharat collects as little as possible: account email and auth state if you sign in, chat history if signed in, a language preference in your browser, and short-lived server logs. We do not sell your data, train models on your chat content, or run third-party advertising trackers.',
+        'This policy covers the website and separate cloud-backed web console, not a claim that UnoOne uses cloud-model APIs by default. Account and signed-in chat features depend on configuration. Guest requests still reach configured providers; language preferences can accompany AI or speech requests. Operational retention depends on the hosting and provider policies, not one verified universal period.',
+        'The website policy states that we do not sell data, train models on web-console chat content, or run third-party advertising trackers.',
       ],
     },
   },

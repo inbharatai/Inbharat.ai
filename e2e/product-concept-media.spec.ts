@@ -8,14 +8,14 @@ test('crawlable copy includes the same precise product boundaries', async ({ req
     expect(response.status()).toBe(200);
     const html = await response.text();
     expect(html).toContain('Default packet transfer leaves receiver weights unchanged');
-    expect(html).toContain('one personal private AI agent');
+    expect(html).toContain('202631101454');
     expect(html).toContain('202631102427');
   }
   // The retired removable-drive formulation is stated as historical prior
   // research in the /about crawlable body.
   const about = await request.get('/about');
   const aboutHtml = await about.text();
-  expect(aboutHtml).toContain('the drive remains the authoritative store');
+  expect(aboutHtml).toContain('not a current removable-drive consumer offer');
 });
 async function enter(page: Page) {
   await page.locator(cards).first().scrollIntoViewIfNeeded();
@@ -85,7 +85,7 @@ for (const width of [1440, 390, 320]) {
     });
     await expect.poll(uncovered).toEqual([]);
     await expect(first.locator('h3')).toHaveText('SILT');
-    await expect(page.locator(cards).nth(1).locator('h3')).toHaveText('PAI');
+    await expect(page.locator(cards).nth(1).locator('h3')).toHaveText('Pocket AI research');
     await expect(first.getByRole('link', { name: 'Explore SILT' })).toHaveAttribute('href', 'https://silt.inbharat.ai');
     await expect(first.getByText(/Patent Pending/)).toBeVisible();
     const note = await first.locator('.product-concept-note').boundingBox();

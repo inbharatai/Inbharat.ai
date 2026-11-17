@@ -168,7 +168,7 @@ export function useVoiceOutput(): VoiceOutput {
     } catch { /* ignore */ }
   }, [supported]);
 
-  useEffect(() => () => { try { supported && window.speechSynthesis.cancel(); } catch { /* ignore */ } }, [supported]);
+  useEffect(() => () => { try { if (supported) window.speechSynthesis.cancel(); } catch { /* ignore */ } }, [supported]);
 
   return { supported, speaking, speak, cancel };
 }

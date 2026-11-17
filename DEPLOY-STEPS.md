@@ -1,234 +1,133 @@
-# InBharat AI — Deploy from Git to Hosting (A to Z)
+# Deployment runbook
 
-Complete step-by-step from first commit to live app at inbharat.ai. Uses **free Supabase** (no custom domain). Frontend and API host on **Vercel**; domain **inbharat.ai** points to Vercel via **GoDaddy**.
+Deploy the public site and API runtime to **Vercel**, with **Supabase** for identity/database features. This is an operator checklist, not evidence that credentials, migrations, integrations or cron execution are already configured. See [README](README.md) for setup and [DOCS](DOCS.md) for architecture/configuration.
 
----
+## 1. Choose the target and review the change
 
-## A. Before you start
+- Confirm the intended repository, Vercel project, Supabase project and production domain with the owner. Do not reuse a project identifier from an old document.
+- Use the Node engine range in `package.json` and the committed lockfile. Install with `npm ci` in a clean checkout.
+- Review source changes and generated/public content. Separate claims about code, tests, product readiness and deployed behavior.
+- Use least-privilege credentials, environment-specific scopes and an approved maintenance/rollback plan. Do not inspect or paste secret values into tickets or chat.
 
-- Code is ready: local dev works with `npm run dev:local`, chat and search work.
-- You have:
-  - A GitHub (or GitLab) account and a **remote repo** for this project.
-  - A **Vercel** account; the project can be linked to the repo now or in step D.
-  - A **Supabase** account; project **yxyikhnlevqioaqksevy** is the one you use.
-  - **GoDaddy** access for the domain **inbharat.ai**.
-- Never commit `.env`. It is in `.gitignore`; your secrets stay in `.env` locally and in Vercel Environment Variables in production.
+Before committing, inspect the exact change set:
 
----
+```sh
+git status --short
+git diff --check
+git diff --stat
+npm run audit:secrets
+```
 
-## B. Git: commit and push
+Stage only reviewed paths (`git add <reviewed-paths>`), inspect `git diff --cached`, and commit/push using the project's approved branch/review workflow. Do not default to `git add .`, forced branch updates or empty commits to trigger deployment. Never stage `.env*` values, local logs or reports; `.env.example` must remain placeholders only. A current-tree scan does not clear Git history or revoke leaked credentials.
 
-**B1. Check nothing secret is staged**
+## 2. Validate before release
 
-- Open a terminal in the project root.
-- Run: `git status`
-- Ensure `.env` does **not** appear in the list of files to be committed. If it appears, it is not ignored; fix `.gitignore` so `.env` is listed there and try again.
+Run in a checkout without real environment files or production write credentials:
 
-**B2. Stage and commit**
+```sh
+npm run lint
+npm run test:growth
+npm run ci:build
+npm audit
+```
 
-- Run: `git add .`
-- Run: `git status` again and review the list. Confirm only source code and config (no `.env`, no keys) are staged.
-- Run: `git commit -m "Prep for deploy: InBharat AI with Supabase auth and chat storage"`  
-  (Or use your own message.)
+`ci:build` includes the moderate-and-above **production** dependency gate, build, built-output audits, Chromium installation and Playwright. The final `npm audit` also reviews development tooling; investigate its full output rather than assuming a production-only pass covers it. Do not run `npm audit fix --force` blindly. Native/browser dependencies may need explicit host setup; review failures rather than hiding them.
 
-**B3. Push to the remote**
+Do not claim a hosted CI pass unless the workflow actually started and completed for the release revision. A workflow that did not start, a local pass and a provider deployment are three different observations. Keep npm lifecycle scripts enabled when relying on the build hooks. Do not inject `GITHUB_ACTIONS`/`GITHUB_JOB` into Vercel to force local CI behavior.
 
-- If you have not added a remote yet:  
-  `git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git`  
-  (Replace with your actual repo URL.)
-- Run: `git push -u origin main`  
-  (If your default branch is `master`, use `git push -u origin master`.)
+## 3. Configure Supabase and schema deliberately
 
-After this, your code is on GitHub/GitLab. If Vercel is already connected to this repo, a deploy may start automatically; it will not work fully until you complete the steps below (env vars and Supabase).
+1. Confirm the intended project and its current migration history. Back up or otherwise establish the approved recovery path before schema changes.
+2. Enable the desired Auth providers (Email, optionally Google). Set the production Site URL and explicit redirect allowlist for local development and approved hosted environments. The usual local Vite URL is `http://localhost:5173/app`; use the port actually printed by your server.
+3. Configure browser public URL/anon key and the separate server URL/service-role key through secure environment settings. The service-role key bypasses RLS and must never enter a client bundle.
+4. Review **all applicable pending migrations in order** from `supabase/migrations/`. Apply through the project's authorized migration workflow or SQL Editor only after checking prerequisites and existing schema. Do not assume every migration is safe to replay or that an old aggregate SQL helper is current.
+5. Verify table RLS, function grants, ownership and expected schema on the target. A successful SQL command alone does not prove application permissions are correct.
 
----
+The original chat schema is in `20250219000000_chat_sessions_messages.sql`; later migrations add other application and Growth functionality. Applying only that first file does not provision the complete app. Social inbox/order/schema work includes `20260810000001_drop_syndication_platforms.sql` and `20260810000002_social_publishing.sql`, with earlier prerequisites. Publication activation separately requires the two November migrations below.
 
-## C. Supabase: Auth and database (free project, default URL)
+There is no automatic migration application during build/deploy. Do not place database writes in a build hook. If an earlier draft schema was applied outside the migration history, stop and review an upgrade plan rather than blindly rerunning a replacement migration.
 
-Use the **default** project URL: `https://yxyikhnlevqioaqksevy.supabase.co`. No custom domain, no paid plan required.
+## 4. Configure Vercel
 
-**C1. Open the project**
+Import/link the intended repository and use the repo root, **Build Command `npm run build`**, **Output Directory `dist`**, and a compatible Node version. Keep `vercel.json` under review: it defines schedules, function duration limits, headers and routing. Account plan/platform constraints must support the configured schedules and durations; a checked-in schedule alone is not execution proof.
 
-- Go to: https://supabase.com/dashboard/project/yxyikhnlevqioaqksevy
+Use [`.env.example`](.env.example) and [the configuration reference](DOCS.md#configuration-reference). Configure only the integrations required for the environment:
 
-**C2. Authentication — Providers**
+| Capability | Minimum relevant configuration |
+| --- | --- |
+| Auth/persistence | Browser `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`; server `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; schema and Auth settings |
+| Web-console AI | `OPENAI_API_KEY`; `SERPER_API_KEY` for live search/news |
+| Growth admin/drafting | `GEMINI_API_KEY`; approved `GROWTH_ADMIN_USER_IDS` or Supabase admin role; Growth schema |
+| Scheduled jobs | `CRON_SECRET` and verified secret/admin authorization; never a spoofable user-agent shortcut |
+| Repository article/cover publication | `GITHUB_TOKEN` with scoped repository Contents write permission; read-only discovery tokens cannot publish |
+| GA browser tracking | `VITE_GA_MEASUREMENT_ID`, followed by rebuild and runtime verification |
+| GA4/GSC reports | `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY`, `GA4_PROPERTY_ID`, `GSC_SITE_URL`, correct API/property grants |
+| Contact | `RESEND_API_KEY`, verified `RESEND_FROM`, intended `CONTACT_NOTIFY_TO` |
+| Social | Channel credentials/permissions from [social publishing](docs/social-publishing.md) |
 
-- In the left sidebar: **Authentication** → **Providers**.
-- Enable **Email** (sign in with email/password).
-- If you want “Continue with Google”, enable **Google** and follow Supabase/Google Cloud instructions to add client ID and secret; otherwise leave it disabled.
+Do not copy production write credentials into Preview by default. Leave `LOCAL_API_PORT` unset on hosted environments. Platform provenance variables (`VERCEL`, `VERCEL_ENV`, `VERCEL_GIT_COMMIT_SHA`) must describe the actual build/runtime; do not invent them to bypass publication eligibility. Automatic reconciliation requires **no Vercel API token**.
 
-**C3. Authentication — URL configuration**
+### Cron authentication release check
 
-- Go to **Authentication** → **URL Configuration**.
-- **Site URL:** set to `https://www.inbharat.ai`
-  (Or your live app URL if different, e.g. `https://your-app.vercel.app`.)
-- **Redirect URLs:** add these one by one (plus any others you need):
-  - `https://www.inbharat.ai/app`
-  - `https://YOUR_VERCEL_APP.vercel.app/app`  
-    (Replace `YOUR_VERCEL_APP` with your actual Vercel project subdomain.)
-  - `http://localhost:5173/app`  
-    (For local testing.)
+Vercel uses `Authorization: Bearer <CRON_SECRET>` for scheduled calls when configured. External schedulers can use the supported shared-secret path; admin “Run now” actions use verified admin identity. Configure the secret securely and verify missing/wrong credentials fail. **User-agent and schedule headers are caller-controlled, not signatures.** Review `api/lib/requireAdmin.ts` and `npm run test:publication-cron-auth`; the shared guard now rejects header-only impersonation. Do not weaken that guard to make an unconfigured scheduled job appear successful.
 
-**C4. API keys (for Vercel env in step D)**
+### Preview protection
 
-- Go to **Project Settings** (gear icon) → **API**.
-- Note:
-  - **Project URL:** `https://yxyikhnlevqioaqksevy.supabase.co`
-  - **anon public** key (safe for browser).
-  - **service_role** key (secret; server-only, never in client code).
+Keep deployment protection enabled for private previews unless the owner explicitly approves public access. A protected preview returning 401 does not prove an application routing bug. Use an authorized preview session or approved protection-bypass mechanism for testing; never publish the bypass value. Public production crawling must be tested on the canonical production host. Do not disable preview protection as a routine favicon fix.
 
-**C5. Database — run migration once**
+## 5. Deploy and configure the domain
 
-- Go to **SQL Editor**.
-- Create a new query.
-- Open the file `supabase/migrations/20250219000000_chat_sessions_messages.sql` in your project, copy its **entire** contents, and paste into the SQL Editor.
-- Click **Run** (or Execute).
-- Ensure it runs without errors. This creates `chat_sessions` and `chat_messages` and sets up RLS so each user only sees their own data.
+Deploy the reviewed commit through the approved Git integration or Vercel workflow. Confirm **Ready**, exact source revision and intended environment. A ready deployment is not automatically the canonical production alias or a working database integration.
 
-Supabase is now configured for auth and chat storage. No DNS or custom domain is required.
+For the production domain, use the DNS records shown by the current Vercel project, not fixed IP/CNAME examples copied from an old runbook. Apply them through the authorized DNS provider (GoDaddy or the actual registrar/DNS host). Preserve unrelated mail and verification records; do not delete historical records without confirming their purpose. Supabase can use its default project URL and does not need a custom domain for this setup.
 
----
+The main site's canonical origin is configured in `seo.config.ts` as `https://www.inbharat.ai`. Confirm redirects, TLS and the apex/www relationship on the actual deployment. SILT's subdomain has dedicated middleware behavior; test it separately if included in the release. Forks/domain changes require coordinated source/routing updates, not DNS alone.
 
-## D. Vercel: project, env vars, and deploy
+## 6. Verify the promoted site
 
-**D1. Link the project (if not already linked)**
+Run the read-only production audit from the matching reviewed checkout:
 
-- Go to https://vercel.com and sign in.
-- **Add New** → **Project** (or open the existing project if you already use it).
-- Import the repo that contains InBharat AI (e.g. from GitHub).
-- Use the recommended settings: **Framework Preset** Vite, **Build Command** `npm run build`, **Output Directory** `dist`. Root directory is the repo root unless you use a monorepo.
-- Do **not** add env vars yet; add them in D2, then deploy.
+```sh
+npm run audit:deployment
+```
 
-**D2. Environment variables**
+It checks the configured canonical site, sitemap/public route set, HTML/schema/canonical/robots contracts, missing-page/article/asset HTTP 404s and noindex routes. It does not log in, submit search URLs, change the database or prove search-engine indexing.
 
-- In the Vercel project, go to **Settings** → **Environment Variables**.
-- Add each variable below. Apply to **Production** (and **Preview** if you want preview deploys to work the same).
-- **Do not** add `VITE_OPENAI_API_KEY`: the OpenAI key must stay server-only. Use only `OPENAI_API_KEY`. If `VITE_OPENAI_API_KEY` exists, remove it.
+Also verify, with appropriate authorization:
 
-| Name | Value | Notes |
-|------|--------|--------|
-| `OPENAI_API_KEY` | Your OpenAI API key | Server-only; required for chat. |
-| `SERPER_API_KEY` | Your Serper API key | Server-only; optional, for search/news. |
-| `VITE_SUPABASE_URL` | `https://yxyikhnlevqioaqksevy.supabase.co` | Exact; no trailing slash. |
-| `VITE_SUPABASE_ANON_KEY` | The anon public key from Supabase (C4) | From Project Settings → API. |
-| `SUPABASE_URL` | `https://yxyikhnlevqioaqksevy.supabase.co` | Same as VITE_SUPABASE_URL. |
-| `SUPABASE_SERVICE_ROLE_KEY` | The service_role key from Supabase (C4) | Secret; server-only. |
+- Known pages and static assets return expected status/content type; unknown paths do not silently serve an indexable homepage.
+- Admin pages remain noindex and out of the sitemap; admin APIs reject unauthorized callers. Noindex is not security.
+- `/api/health` has the intended revision and expected presence flags. Inspect JSON `ok`; the handler can return HTTP 200 with `ok: false`. It may call OpenAI when configured, and it does not verify all integrations or schema.
+- Sign-in, configured redirects, sign-out and scoped chat persistence work with a test account. Test guest behavior separately; do not assume every API has the same authentication policy.
+- Browser analytics, if enabled, sends to the intended measurement ID. Skipped local GA tests are not live tracking verification.
+- Contact/social/repository publication tests cause external effects: perform them only with explicit approval, controlled test content and the intended destination. Do not use a read-only smoke test as authority to send mail or publish posts.
 
-Save each variable. After adding all six, trigger a new deploy (see D3).
+A good HTTP audit supports crawlability and correctness of the tested responses. It does not prove rankings, indexing, citations, field Core Web Vitals, clinical outcomes or UnoOne release readiness.
 
-**D2b. (Optional) Growth Agent — syndication + advanced keys**
+## Activate publication reconciliation separately
 
-Only if you run the Growth Agent surface (`/admin/growth`). All are server-only and **optional** — each feature degrades honestly (logs "not configured" / skips) when its key is absent, so the site + chat work without them. Add only what you use:
+**Currently deferred by the owner:** Supabase is inactive and will be reactivated later. Do not execute this section, remove the integration, or open protected routes until that reactivation is explicitly authorized. Public login UI stays off by default (`VITE_PUBLIC_LOGIN_ENABLED=false`).
 
-| Name | Value | Notes |
-|------|--------|--------|
-| `GEMINI_API_KEY` | Gemini key for the growth model router | Gemini-only; no separate OpenAI growth key needed. |
-| `GITHUB_TOKEN` | GitHub PAT | For audit PR creation; read-only is fine. |
-| `CRON_SECRET` | A shared secret | Authenticates the scheduled daily cron + external schedulers. |
-Note: DEV.to, Hashnode, and Medium syndication channels have been removed. No DEVTO_API_KEY, HASHNODE_TOKEN, HASHNODE_PUBLICATION_ID, or GROWTH_OPENAI_API_KEY keys are needed.
 
-Social publishing (Instagram + LinkedIn) is optional and off until configured. Set `IG_USER_ID` + `META_ACCESS_TOKEN` and `LINKEDIN_ACCESS_TOKEN` + `LINKEDIN_AUTHOR_URN` in Vercel to enable API publishing; until then both channels report `not_configured` and LinkedIn falls back to the manual share deep-link via /api/growth/publish. Setup walkthrough: `docs/social-publishing.md`.
+**Review checkpoint, 16 November 2026:** the observed public snapshot identified source `10a6e8b745e7cb83054564f1904492f99b3c5ccd` but reported `automatedSyncEligible: false`. The precise build-side reason was not yet established. Hosted Supabase had not been verified and these migrations had not been applied in the review. This is **not a live activation claim**.
 
-Apply migrations 20260810000001 and 20260810000002 (or `supabase/APPLY_PENDING_MIGRATIONS.sql`) before using the social composer — the Inbox ordering/alt-text columns and the instagram_* view columns arrive there.
+1. Review/apply the existing publication schema prerequisites and **both**:
+   - [`20261116000001_article_publication_lifecycle.sql`](supabase/migrations/20261116000001_article_publication_lifecycle.sql)
+   - [`20261116000002_article_publication_read_models.sql`](supabase/migrations/20261116000002_article_publication_read_models.sql)
+2. Verify the service-role-only reconciliation RPC, grants/RLS and live/unverified/removed read-model behavior on the intended database. Local `npm run test:publication-sql` runs real SQL in isolated PGlite; it is not this hosted verification.
+3. Promote a normal committed production build and inspect the **public** `/article-publication.json`. Require `automatedSyncEligible: true`, the expected full `sourceCommitSha` and valid snapshot identity. Do not hand-edit eligibility or infer its cause from the flag alone. Review build provenance and build logs when it is false.
+4. Ensure production runtime provenance, server Supabase configuration and cron authentication are correct. The automatic endpoint runs at minutes 19 and 49 each hour. Do not call it in a read-only audit: a successful run writes the publication mirror.
+5. After an authorized scheduled/admin execution, require a successful `status: "reconciled"` response/record with snapshot identity, count and observation time; inspect the corresponding database state. `unconfigured`, skipped work, rejected verification or an HTTP error are not success.
+6. Verify consumers use the intended current-live read models and preserve historical/removed records. Check rollback/removal behavior through the approved test plan before relying on it operationally.
 
-**D2c. Supabase migrations — run once**
+The cron validates exact canonical final HTML bytes and snapshot/source identity, rechecks the snapshot, then uses one atomic RPC; there is no build-time or per-row fallback. A source commit, successful build, deployment timestamp or first observation must not be substituted for an unknown original publication date. Cover operations can remain separate best-effort work after article acceptance.
 
-The growth + SEO migrations do **not** auto-apply on deploy. After the first deploy, run each pending migration once via the Supabase SQL Editor (paste the file's contents) **or** `supabase db push` / the HTTPS Management API (the DB is not directly reachable; use the Management API). Pending migrations:
+See [publication lifecycle](docs/article-publication-lifecycle.md) for protocol details and the optional stronger operator CLI. That CLI needs separately authorized Vercel API credentials and is **not required** for automatic operation. Never wire it into build/postbuild.
 
-- `supabase/migrations/20260702120000_published_articles.sql` — SEO article mirror.
-- `supabase/migrations/20260702130000_growth_hygiene.sql` — Stage 1 hygiene (indexes + constraints).
-- `supabase/migrations/20260703120000_growth_retention.sql` — Stage 2 `prune_growth_tables` (called by the daily cron).
-- `supabase/migrations/20260703130000_growth_syndication.sql` — Stage 3 syndication ledger.
+## Rollback and troubleshooting
 
-Each is idempotent (`CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS` / `CREATE OR REPLACE FUNCTION`), so re-running is safe.
-
-**D3. Deploy**
-
-- Go to **Deployments**.
-- If a deploy was triggered by your push but failed or is missing env: click the **…** on the latest deployment → **Redeploy** (with “Use existing Build Cache” unchecked if you want a clean build).
-- Or push an empty commit to trigger a new deploy:  
-  `git commit --allow-empty -m "Trigger deploy"` then `git push origin main`.
-- Wait until the deployment status is **Ready**. Note the deployment URL (e.g. `https://your-project.vercel.app`).
-
-**D4. (Optional) Add custom domain inbharat.ai in Vercel**
-
-- In the same project: **Settings** → **Domains**.
-- Add `inbharat.ai` (and `www.inbharat.ai` if you want).
-- Vercel will show the DNS records you need (e.g. A record or CNAME). You will add these in GoDaddy in step E.
-
-At this point the app runs on the default Vercel URL. If you added inbharat.ai in D4, it will work on that domain after you complete step E.
-
----
-
-## E. GoDaddy: point inbharat.ai to Vercel
-
-This step only makes your **website** (frontend) load at inbharat.ai. Supabase stays on its default URL; you do **not** add any DNS records for Supabase.
-
-**E1. Open DNS for inbharat.ai**
-
-- Go to https://dcc.godaddy.com/ (or your GoDaddy dashboard), sign in.
-- Find the domain **inbharat.ai** and open **DNS** / **Manage DNS**.
-
-**E2. Records for the app (Vercel)**
-
-- In Vercel → Project → **Settings** → **Domains**, you see what to add for `inbharat.ai` (and `www.inbharat.ai`).
-- In GoDaddy, add or update:
-  - For **root** (`@`): usually an **A** record with the value Vercel gives (e.g. `76.76.21.21`), or a **CNAME** if Vercel says so.
-  - For **www**: usually a **CNAME** with value `cname.vercel-dns.com` (or what Vercel shows).
-- Remove or do not add any **Clerk**-related CNAME/TXT records if they still exist.
-- Save. DNS can take a few minutes to a few hours to propagate.
-
-**E3. No Supabase records**
-
-- Do **not** add a CNAME for `api` or any TXT for `_acme-challenge.api`. Those are only for a custom Supabase domain; you are using the free default URL.
-
-After propagation, visiting `https://www.inbharat.ai` (and `https://www.inbharat.ai` if configured) will show your Vercel-hosted app.
-
----
-
-## F. Verify end-to-end
-
-**F1. App and auth**
-
-- Open `https://www.inbharat.ai` (or your Vercel URL if the domain is not ready yet).
-- Go to `https://www.inbharat.ai/app` (or `https://your-project.vercel.app/app`).
-- Try the guest flow: send a few messages without signing in.
-- Click **Sign in**, create an account (email + password), and sign in.
-- Send a message; then refresh the page. The conversation should still be there (Supabase storage).
-
-**F2. Health check**
-
-- Open: `https://www.inbharat.ai/api/health` (or `https://your-project.vercel.app/api/health`).
-- You should see JSON with `ok: true` and flags for OPENAI, SERPER, SUPABASE_ADMIN. No secrets should appear.
-
-**F3. Optional**
-
-- Try Research mode (if SERPER_API_KEY is set).
-- Try signing out and signing in again; confirm redirects and session.
-
----
-
-## G. Quick reference
-
-**Order of operations**
-
-1. Git: commit and push (B).
-2. Supabase: Auth providers and URL config (C1–C3), copy API keys (C4), run migration (C5).
-3. Vercel: link repo (D1), add all 6 env vars (D2), deploy (D3), optionally add domain inbharat.ai (D4).
-4. GoDaddy: point inbharat.ai (and www) to Vercel (E); no records for Supabase.
-5. Test app and health (F).
-
-**Env vars (names only)**
-
-- Client (Vite): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-- Server (Vercel): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `SERPER_API_KEY` (optional)
-
-**URLs**
-
-- App: `https://www.inbharat.ai` and `https://www.inbharat.ai/app` (after DNS and Vercel domain).
-- Supabase (free): `https://yxyikhnlevqioaqksevy.supabase.co` (no custom domain).
-- Health: `https://www.inbharat.ai/api/health`.
-
----
-
-End of deploy steps. If something fails, check: (1) env vars in Vercel, (2) Supabase redirect URLs and Site URL, (3) DNS in GoDaddy for inbharat.ai, (4) migration run in Supabase SQL Editor.
+- Preserve the previous known deployment and migration history. App rollback does not automatically roll back SQL or external posts.
+- For publication verification failure, check canonical identity/status/type/hash, running SHA, eligibility and schema/auth prerequisites. Do not weaken verification, manufacture timestamps or force the mirror to match a desired outcome.
+- An intentional production rollback can be observed/reconciled as a newer observation of an older snapshot; it is not permission to hand-edit the checkpoint.
+- For preview 401, check approved protection/access settings; for missing API routes locally, check the shim route map; for auth failures, check provider and redirect configuration; for schema errors, check migration history and permissions.
+- Share sanitized errors and revision IDs, never raw environment dumps, private keys, browser credentials or privileged API responses. Keep troubleshooting reports out of Git.

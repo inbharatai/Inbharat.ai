@@ -15,15 +15,15 @@ export const DeepTechSpotlight: React.FC = () => {
       <div className="mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-10">
         <div className="max-w-3xl">
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#f59f4f]">
-            Foundational Deep Tech
+            Company research
           </p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">
-            Original AI infrastructure, not just applications.
+            Engineering and research, with clear boundaries.
           </h2>
           <p className="mt-5 max-w-2xl text-sm leading-7 text-[#9ab2c9] sm:text-base">
-            InBharat is building foundational systems for how AI learns, where
-            intelligence lives, how agentic systems are secured, and how local
-            hardware can participate in advanced AI workflows.
+            InBharat.ai explores trust-gated learning and portable intelligence.
+            These research records are separate from the UnoOne development-build
+            evidence above; a filing or concept is not a product certification.
           </p>
         </div>
 

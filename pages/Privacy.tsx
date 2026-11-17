@@ -8,14 +8,16 @@ const Privacy: React.FC = () => (
     eyebrow="Legal"
     title="Privacy Policy"
     description="What InBharat AI collects, what it doesn't, and how authentication and chat history work."
-    updated="2026-05-12"
+    updated="2026-11-16"
   >
     <section>
       <h2 className="text-xl font-bold text-white">Who we are</h2>
       <p>
         InBharat AI (&ldquo;InBharat&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) operates this
         website and the InBharat AI console at <code>{SITE.url}</code>. This page explains what
-        data we collect and how we handle it. If you have a question about it, email{' '}
+        data these web services handle. The separate UnoOne desktop and Android products have different
+        local-storage and network boundaries; this web-console policy is not a claim that UnoOne uses
+        cloud-model APIs by default. If you have a question, email{' '}
         <a className="text-[#f59f4f] underline-offset-4 hover:underline" href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a>.
       </p>
     </section>
@@ -32,16 +34,19 @@ const Privacy: React.FC = () => (
         <li>
           <strong>Chat history</strong>, if you are signed in: the messages you send and the
           responses you receive, so we can show them to you in your sidebar. Guests can use a small
-          number of free messages without an account; nothing about guest sessions is stored on our
-          servers beyond what your browser keeps in <code>localStorage</code>.
+          number of preview messages without an account when the services are configured. Guest sessions
+          are not saved as signed-in account history, but requests still reach the configured AI/search
+          providers and may appear in operational logs. Browser state also uses <code>localStorage</code>.
         </li>
         <li>
           <strong>Language preference</strong>: stored in your browser&apos;s <code>localStorage</code>{' '}
-          under <code>appLanguage</code>. Never sent anywhere except to render translated UI.
+          under <code>appLanguage</code>. The selected language can also be sent with AI or speech requests
+          so the configured service can respond in that language.
         </li>
         <li>
           <strong>Technical request data</strong>: server logs (IP, user agent, timestamps) for
-          operational debugging and abuse prevention, kept for a short window and then discarded.
+          operational debugging and abuse prevention. Retention depends on the configured hosting and
+          provider policies; the repository does not establish one verified retention period for every service.
         </li>
       </ul>
     </section>

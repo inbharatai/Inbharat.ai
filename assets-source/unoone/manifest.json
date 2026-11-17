@@ -1,5 +1,5 @@
 {
-  "description": "Illustrative interface mockups of the UnoOne Power (desktop) and UnoOne Mobile (Android) agent UI, reconstructed from the approved internal investor deck. AI-generated conceptual UI illustrations - NOT live product screenshots or physical devices. Labels on site must read Illustrative interface.",
+  "description": "UnoOne release media: owner-supplied logo and product walkthrough/poster/captions, plus separately labelled illustrative device UI images. The walkthrough is a team-supplied demonstration, not independent certification or a universal hardware benchmark.",
   "created": "2026-10-21",
   "assets": [
     {
@@ -11,6 +11,47 @@
       "filename": "mobile-ui.png",
       "bytes": 52108,
       "sha256": "5046f13c20735c4c950c485d2f910e406c07fa7312a1694aba2ea2d2ba06cbfe"
+    },
+    {
+      "filename": "unoone-logo.png",
+      "bytes": 12438,
+      "sha256": "8b800572d78ee689238196c5f9372d83d607dafbd728efd4e613dbaa564fbdfc",
+      "description": "Original owner-supplied UnoOne logo. Image pixels and PNG bytes are unchanged."
+    },
+    {
+      "filename": "unoone-demo.mp4",
+      "bytes": 8700308,
+      "sha256": "31ce6945844d879326099a264775129bb209dc1b5a88840b18d4ce15ecbaf572",
+      "description": "Owner-supplied UnoOne product walkthrough, transcoded to web H.264/AAC without cutting or rearranging footage; original resolution retained."
+    },
+    {
+      "filename": "unoone-demo-poster.jpg",
+      "bytes": 130109,
+      "sha256": "ba16b60300e0b05b4510dda29c929631b574a89f6fa1689e06519f8e7243603c",
+      "description": "Still frame at 00:25 from the owner-supplied product demo; not a generated UI."
+    },
+    {
+      "filename": "unoone-demo-en.vtt",
+      "bytes": 2996,
+      "sha256": "a1517ded2e6fa4f2b6cc9b71f4d1613652b014367ec866732dfbaed2db970e87",
+      "description": "English captions converted from the demo's embedded subtitle track; not an invented transcript."
+    },
+    {
+      "filename": "unoone-logo-dark.png",
+      "bytes": 8441,
+      "sha256": "191b20660f82bcbfdb24430383ca589a56675ab0b8a14e025fe502f28e85bb22",
+      "description": "Owner-requested dark-site derivative, 17 November 2026: white matte removed, neutral lettering/outline lightened; original violet pupil and catchlight retained. Original glyph geometry and spacing preserved; transparent outer margins trimmed with 2px safety padding. Original PNG remains unchanged.",
+      "sourceSha256": "8b800572d78ee689238196c5f9372d83d607dafbd728efd4e613dbaa564fbdfc",
+      "dimensions": [
+        227,
+        82
+      ],
+      "sourceCrop": [
+        46,
+        51,
+        273,
+        133
+      ]
     }
   ]
 }

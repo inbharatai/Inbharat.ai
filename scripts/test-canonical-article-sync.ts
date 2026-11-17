@@ -47,6 +47,24 @@ await test('local, preview, uncommitted and missing-SHA builds are ineligible', 
     await rejectsBeforeWrite({ manifest: () => json(s) });
   }
 });
+await test('additive v1 provenance is identity-covered; legacy ineligible artifacts stay ineligible', async () => {
+  const sourceProvenance = { version: 1 as const, eligible: true, method: 'public_commit_tree' as const,
+    reason: 'VERIFIED_PUBLIC_TREE' as const, trackedFiles: 2, verifiedFiles: 2, verifiedBytes: 123 };
+  const s = createCanonicalSnapshot({ ...input, sourceProvenance });
+  assert.equal(s.version, 1); assert(s.automatedSyncEligible); assert.notEqual(s.snapshotId, snapshot.snapshotId);
+  assert.equal(validateCanonicalSnapshot(s, sha, new Date().toISOString()).snapshotId, s.snapshotId);
+  assert.equal((await run({ manifest: () => json(s) })).writes, 1);
+  await rejectsBeforeWrite({ manifest: () => json({ ...s, sourceProvenance: { ...sourceProvenance, verifiedBytes: 124 } }) });
+  for (const proof of [{ ...sourceProvenance, eligible: false }, { ...sourceProvenance, verifiedFiles: 1 }]) {
+    assert.equal(createCanonicalSnapshot({ ...input, sourceProvenance: proof }).automatedSyncEligible, false);
+    await rejectsBeforeWrite({ manifest: () => json(rehash({ ...s, sourceProvenance: proof })) });
+  }
+  const legacyLocal = createCanonicalSnapshot({ ...input, productionBuild: false });
+  assert.equal(legacyLocal.sourceProvenance, undefined); assert.equal(legacyLocal.automatedSyncEligible, false);
+  await rejectsBeforeWrite({ manifest: () => json(legacyLocal) });
+  await rejectsBeforeWrite({ manifest: () => json(s), sha: 'b'.repeat(40) });
+  await rejectsBeforeWrite({ manifest: () => json(s), page: () => page(html + '\n') });
+});
 await test('complete verification, second manifest check, exactly one atomic write; no Vercel dependency', async () => {
   const r = await run(); assert.equal(r.error, null); assert.equal(r.writes, 1);
   assert.equal(r.requests.length, 3); assert.equal(r.requests.at(-1), `${SITE.url}${CANONICAL_MANIFEST_PATH}`);
@@ -130,7 +148,10 @@ await test('cron/build wiring source contract ONLY: real auth, production gate, 
   assert(cron.includes("process.env.VERCEL_ENV !== 'production'")); assert(cron.includes("rpc('reconcile_production_articles'"));
   assert(cron.includes('AbortSignal.timeout(30000)')); assert(!cron.includes('VERCEL_TOKEN'));
   const build = readFileSync(new URL('../scripts/build-seo.ts', import.meta.url), 'utf8');
-  assert(build.includes('createCanonicalSnapshot')); assert(build.includes("'--porcelain'")); assert(!build.includes('SUPABASE_SERVICE_ROLE_KEY'));
+  assert(build.includes('createCanonicalSnapshot')); assert(build.includes('verifySourceProvenance'));
+  assert(build.includes('JSON.stringify(sourceProvenance)')); assert(!build.includes('SUPABASE_SERVICE_ROLE_KEY'));
+  const provenance = readFileSync(new URL('../lib/growth/source-provenance.ts', import.meta.url), 'utf8');
+  assert(provenance.includes("'--porcelain'")); assert(provenance.includes("credentials: 'omit'"));
   const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
   assert(config.crons.some((c: { path: string }) => c.path === '/api/growth/cron/publication-sync'));
   assert.equal(config.functions['api/growth/cron/publication-sync.ts'].maxDuration, 300);

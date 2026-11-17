@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { SITE } from '../../seo.config.js';
 import { buildMirrorRows, type SyncArticle, type MirrorRow } from './production-article-sync.js';
 import { validArticleDate } from '../../content/article-lifecycle.js';
+import type { SourceProvenance } from './source-provenance.js';
 
 export const CANONICAL_MANIFEST_PATH = '/article-publication.json';
 export const SYNC_LIMITS = { articles: 1000, manifestBytes: 4 * 1024 * 1024, htmlBytes: 4 * 1024 * 1024, requestMs: 15000, runMs: 240000 } as const;
@@ -17,6 +18,8 @@ export type CanonicalArticle = { row: MirrorRow; bodySha256: string; bodyBytes: 
 export type CanonicalSnapshot = {
   version: 1; origin: string; builtAt: string; sourceCommitSha: string | null;
   automatedSyncEligible: boolean; articles: CanonicalArticle[]; snapshotId: string;
+  /** Optional v1 extension, identity-covered. Legacy artifacts retain their original eligibility. */
+  sourceProvenance?: SourceProvenance;
 };
 export type CanonicalPayload = {
   verification_method: 'canonical_snapshot'; snapshot_id: string; snapshot_built_at: string;
@@ -25,10 +28,17 @@ export type CanonicalPayload = {
 };
 const iso = (v: unknown): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v;
 export function snapshotIdentity(snapshot: Omit<CanonicalSnapshot, 'snapshotId'>): string { return sha256(stable(snapshot)); }
+function verifiedProvenance(p: SourceProvenance): boolean {
+  return p?.version === 1 && p.eligible === true
+    && ((p.method === 'local_git' && p.reason === 'VERIFIED_LOCAL_GIT') || (p.method === 'public_commit_tree' && p.reason === 'VERIFIED_PUBLIC_TREE'))
+    && Number.isSafeInteger(p.trackedFiles) && p.trackedFiles > 0 && p.verifiedFiles === p.trackedFiles
+    && Number.isSafeInteger(p.verifiedBytes) && p.verifiedBytes >= 0;
+}
 /** Build output only: no network, database, credentials or guessed live dates. */
 export function createCanonicalSnapshot(input: {
   articles: SyncArticle[]; bodies: Record<string, string>; html: Record<string, string>;
   builtAt: string; sourceCommitSha?: string; productionBuild: boolean; cleanSource: boolean;
+  sourceProvenance?: SourceProvenance;
 }): CanonicalSnapshot {
   if (!iso(input.builtAt)) throw new Error('Invalid build timestamp');
   const rows = buildMirrorRows(input.articles, input.bodies, input.builtAt.slice(0, 10));
@@ -40,7 +50,9 @@ export function createCanonicalSnapshot(input: {
   });
   const sourceCommitSha = COMMIT.test(input.sourceCommitSha ?? '') ? input.sourceCommitSha! : null;
   const core = { version: 1 as const, origin: SITE.url, builtAt: input.builtAt, sourceCommitSha,
-    automatedSyncEligible: input.productionBuild && input.cleanSource && !!sourceCommitSha, articles };
+    automatedSyncEligible: input.productionBuild && input.cleanSource && !!sourceCommitSha
+      && (!input.sourceProvenance || verifiedProvenance(input.sourceProvenance)), articles,
+    ...(input.sourceProvenance ? { sourceProvenance: input.sourceProvenance } : {}) };
   const snapshot = { ...core, snapshotId: snapshotIdentity(core) };
   if (Buffer.byteLength(JSON.stringify(snapshot)) > SYNC_LIMITS.manifestBytes) throw new Error('Canonical snapshot exceeds manifest size limit');
   return snapshot;
@@ -63,6 +75,7 @@ export function validateCanonicalSnapshot(raw: unknown, runningSha: string, now:
   const s = raw as CanonicalSnapshot;
   const { snapshotId, ...core } = s;
   if (s.version !== 1 || s.origin !== SITE.url || s.automatedSyncEligible !== true || s.sourceCommitSha !== runningSha
+    || (s.sourceProvenance !== undefined && !verifiedProvenance(s.sourceProvenance))
     || !iso(s.builtAt) || Date.parse(s.builtAt) > Date.parse(now) || !SHA.test(snapshotId ?? '') || snapshotIdentity(core) !== snapshotId
     || !Array.isArray(s.articles) || s.articles.length === 0 || s.articles.length > SYNC_LIMITS.articles) throw new Error('Ineligible, corrupt or wrong-deployment canonical snapshot');
   const seen = new Set<string>();

@@ -14,6 +14,7 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import { toHtml } from "hast-util-to-html";
 import { prepareArticleMarkdown } from "../lib/article-rendering";
+import en from "../locales/en.json";
 import { UNOONE_PAGES } from "../content/privateAI";
 import { SITE } from "../seo.config";
 import { resolve, dirname } from "node:path";
@@ -48,7 +49,7 @@ const assert = (name: string, cond: boolean, detail?: string) => {
 };
 
 console.log("\n=== Accuracy assertions ===");
-assert("H1 present and correct", !!meta.h1 && meta.h1 === "Your AI. Your devices. Your control.");
+assert("H1 present and correct", !!meta.h1 && meta.h1 === `${en.landHeroTitle1} ${en.landHeroTitle2}`);
 assert("wordCount > 0 (body content crawlable)", (meta.wordCount ?? 0) > 50);
 assert("title present", !!meta.title);
 assert("canonical set to https://www.inbharat.ai/ (www-canonical)", meta.canonical === "https://www.inbharat.ai/");

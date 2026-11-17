@@ -16,7 +16,7 @@
     "dev:vite": "vite",
     "dev:api": "tsx server/local-api.ts",
     "dev:local": "concurrently -n api,vite \"npm run dev:api\" \"npm run dev:vite:proxy\"",
-    "dev:vite:proxy": "cross-env API_PROXY_TARGET=http://localhost:3001 vite",
+    "dev:vite:proxy": "cross-env API_PROXY_TARGET=http://127.0.0.1:3001 vite",
     "prebuild": "tsx scripts/ci-checks.ts prebuild",
     "build": "npm run build:app",
     "postbuild": "tsx scripts/ci-checks.ts postbuild",
@@ -45,7 +45,7 @@
     "test:rendering-contract": "tsx scripts/test-rendering-contract.ts",
     "test:article-lifecycle": "tsx scripts/test-article-lifecycle.ts",
     "test:seo-audit-contracts": "tsx scripts/test-seo-audit-contracts.ts",
-    "test:seo-hardening": "npm run test:search-submission && npm run test:rendering-contract && npm run test:article-lifecycle && npm run test:seo-audit-contracts && npm run test:article-display && npm run test:content-accuracy && npm run test:canonical-article-sync && npm run test:article-render-safety && npm run test:publication-read-models && npm run test:publication-sql && npm run test:locale-boundaries && npm run test:publication-cron-auth",
+    "test:seo-hardening": "npm run test:search-submission && npm run test:rendering-contract && npm run test:article-lifecycle && npm run test:seo-audit-contracts && npm run test:article-display && npm run test:content-accuracy && npm run test:canonical-article-sync && npm run test:article-render-safety && npm run test:publication-read-models && npm run test:publication-sql && npm run test:locale-boundaries && npm run test:publication-cron-auth && npm run test:source-provenance && npm run test:landing-ssr && npm run test:toolchain-compat && npm run test:unoone-release && npm run test:unoone-logo",
     "audit:deployment": "tsx scripts/audit-production-seo.ts",
     "test:article-display": "tsx scripts/test-article-display.ts",
     "test:content-accuracy": "tsx scripts/test-content-accuracy.mjs",
@@ -54,10 +54,15 @@
     "test:publication-read-models": "tsx scripts/test-publication-read-models.ts",
     "test:publication-sql": "node scripts/test-publication-sql.mjs",
     "test:locale-boundaries": "tsx scripts/test-locale-boundaries.tsx",
-    "test:publication-cron-auth": "tsx scripts/test-publication-cron-auth.ts"
+    "test:publication-cron-auth": "tsx scripts/test-publication-cron-auth.ts",
+    "test:source-provenance": "tsx scripts/test-source-provenance.ts",
+    "test:landing-ssr": "tsx --test e2e/landing-ssr.contract.ts",
+    "test:toolchain-compat": "node scripts/test-toolchain-compat.mjs",
+    "test:unoone-release": "tsx scripts/test-unoone-release.ts",
+    "test:unoone-logo": "tsx scripts/test-unoone-logo.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "2.97.0",
     "cheerio": "^1.2.0",
     "gsap": "^3.14.2",
     "i18next": "^25.8.14",
@@ -82,12 +87,12 @@
     "@tailwindcss/postcss": "^4.2.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
     "@vercel/edge": "^1.3.3",
-    "@vercel/node": "^12.0.0",
+    "@vercel/node": "^31.0.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "concurrently": "^9.2.4",
+    "concurrently": "^9.2.5",
     "cross-env": "^7.0.3",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.0",
@@ -97,12 +102,12 @@
     "png-to-ico": "^3.0.1",
     "postcss": "^8.5.28",
     "remark-rehype": "^11.1.2",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.2.0",
     "tsx": "^4.19.2",
     "typescript": "~5.8.2",
-    "vercel": "^59.11.2",
-    "vite": "^6.4.3"
+    "vercel": "^65.16.0",
+    "vite": "^6.4.6"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
@@ -111,6 +116,14 @@
     "tar": "7.5.22",
     "dompurify": "3.4.18",
     "katex": "0.18.2",
-    "undici": "7.30.2"
+    "undici": "7.30.2",
+    "ajv@^8.0.0": "8.20.0",
+    "glob@>=9 <14.0.2": "14.0.6",
+    "minimatch@>=7 <11.0.1": "11.0.8",
+    "js-yaml@^4.0.0": "4.3.2",
+    "path-to-regexp@^6.0.0": "6.3.0",
+    "path-to-regexp@^8.0.0": "8.4.2",
+    "smol-toml": "1.9.1",
+    "zod@>=4 <4.6.6": "4.6.7"
   }
 }

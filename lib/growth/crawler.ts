@@ -25,7 +25,7 @@ export function parsePage(html: string, url: string): PageMeta {
   const canonicalCount = $('link[rel="canonical"]').length;
   const canonical = $('link[rel="canonical"]').attr("href")?.trim() || undefined;
   const h1Count = $("h1").length;
-  const h1 = ($("h1").first().text() || "").trim() || undefined;
+  const h1 = ($("h1").first().text() || "").replace(/\s+/g, " ").trim() || undefined;
   const h2Count = $("h2").length;
   const h3Count = $("h3").length;
 

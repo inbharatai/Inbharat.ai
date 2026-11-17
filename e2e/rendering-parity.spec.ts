@@ -16,8 +16,10 @@ for (const product of UNOONE_PAGES) {
     const context = await browser.newContext({ javaScriptEnabled: false, baseURL: test.info().project.use.baseURL });
     const page = await context.newPage();
     await page.goto(product.path);
-    const main = page.locator('#root main[data-static-fallback="seo"]');
+    const main = page.locator('#root main');
+    await expect(main).toHaveCount(1);
     await expect(main).toBeVisible();
+    await expect(page.locator('[data-static-fallback], [data-seo-body]')).toHaveCount(0);
     await expect(main.locator('h1')).toHaveText(product.h1);
     for (const text of [product.description, product.status, product.audience, PRIVATE_AI_EVIDENCE_SCOPE,
       ...product.capabilities.flatMap((cap) => [cap.name, cap.what, READINESS_LABELS[cap.readiness], ...(cap.evidence ? [cap.evidence] : [])]),
@@ -25,7 +27,12 @@ for (const product of UNOONE_PAGES) {
       ...product.faqs.flatMap((faq) => [faq.q, faq.a])]) {
       await expect(main).toContainText(text);
     }
-    for (const answer of await main.locator('details p').all()) await expect(answer).toBeVisible();
+    // The actual React tree uses native disclosures, operable without JS.
+    for (const disclosure of await main.locator('details').all()) {
+      if (!(await disclosure.evaluate(el => (el as HTMLDetailsElement).open))) await disclosure.locator('summary').click();
+      await expect(disclosure.locator('p')).toBeVisible();
+    }
+    expect(await main.locator('h1').evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(24);
     await expect(page.locator('h1')).toHaveCount(1);
     await assertSchema(page, product.path);
     await context.close();
@@ -45,7 +52,7 @@ test('Power → Mobile → contact retires static body and replaces the entire o
     tag.textContent = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Thing', name: 'independent' });
     document.head.appendChild(tag);
   });
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Mobile', exact: true }).click();
+  await page.locator('footer a[href="/unoone/mobile"]').click();
   await expect(page.locator('h1')).toHaveText(mobile.h1);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.locator('[data-static-fallback]')).toHaveCount(0);
@@ -57,7 +64,7 @@ test('Power → Mobile → contact retires static body and replaces the entire o
     await expect(disclosure.locator('p')).toHaveText(faq.a);
   }
   for (const cap of mobile.capabilities) await expect(page.locator('main')).toContainText(cap.what);
-  await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Contact', exact: true }).click();
+  await page.locator('footer a[href="/contact"]').click();
   await expect(page).toHaveURL(/\/contact$/);
   await assertSchema(page, '/contact');
   await expect(page.locator('#independent-schema-fixture')).toHaveCount(1);

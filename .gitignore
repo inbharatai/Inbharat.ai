@@ -49,3 +49,7 @@ test-results/
 .agents/
 .mcp.json
 skills-lock.json
+
+# New UnoOne release media is materialized from checksummed base64 sources.
+# The two historical UI PNGs already tracked in Git are left unchanged.
+public/unoone/

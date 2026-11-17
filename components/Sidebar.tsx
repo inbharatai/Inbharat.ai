@@ -1,3 +1,4 @@
+import { PUBLIC_LOGIN_ENABLED } from '../lib/publicLogin';
 
 import React from 'react';
 import {
@@ -109,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               if (!isSignedIn) return;
               void signOut();
             }}
-            title={isSignedIn ? t('signOut') : t('signInToChat')}
+            title={isSignedIn ? t('signOut') : (PUBLIC_LOGIN_ENABLED ? t('signInToChat') : 'Guest preview')}
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 bg-gradient-to-br from-[#FF9933] to-[#138808] rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 shadow-lg group-hover:scale-105 transition-transform">
@@ -121,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </span>
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[10px] font-semibold text-gray-500 truncate">
-                    {isSignedIn ? (user?.email ?? "user") : t('signInToChat')}
+                    {isSignedIn ? (user?.email ?? "user") : (PUBLIC_LOGIN_ENABLED ? t('signInToChat') : 'Guest preview')}
                   </span>
                   <TricolourStar size={10} />
                 </div>

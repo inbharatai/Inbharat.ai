@@ -8,13 +8,13 @@ const About: React.FC = () => (
   <StaticLayout
     eyebrow="About"
     title="Foundational AI infrastructure, engineered in Bharat."
-    description="InBharat.ai is a deep-tech artificial intelligence company building trustworthy, private and local-first AI — with PAI implemented through UnoOne Power (Windows) and UnoOne Mobile (Android), alongside SILT research."
+    description="InBharat.ai is a deep-tech artificial intelligence company building trustworthy, private and local-first AI — with UnoOne Power (Windows) and UnoOne Mobile (Android), alongside SILT research."
   >
     <section>
       <h2 className="text-xl font-bold text-white">What we do</h2>
       <p>
         InBharat.ai builds the foundational systems that make trustworthy, private and local-first AI
-        practical. Our flagship is PAI, one personal private AI agent, implemented through UnoOne Power
+        practical. Our flagship software family is UnoOne: a personal private AI workspace, with UnoOne Power
         (Windows) and UnoOne Mobile (Android). Research includes SILT and the historical Pocket AI
         portable architecture. Alongside this are applied infrastructure (JAK Shield, JAK Swarm,
         and InBharat Audio) and practical

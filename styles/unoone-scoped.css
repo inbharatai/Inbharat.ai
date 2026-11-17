@@ -1,0 +1,80 @@
+/* Only the two owner-authorized product regions. No company/header/theme overrides. */
+#pai .unoone-product-section { max-width:1280px; margin:auto; padding-inline:20px; }
+#pai .unoone-product-grid { display:grid; gap:38px; align-items:center; }
+#pai .unoone-product-copy > .unoone-logo { width:128px; height:auto; object-fit:contain; margin:22px 0 14px; }
+#pai .unoone-product-copy h2 { margin:0; color:#f59f4f; font-size:12px; font-weight:700; letter-spacing:.2em; }
+#pai .unoone-product-headline { margin:15px 0 22px; color:#fff; font-size:clamp(30px,3.2vw,44px); font-weight:700; line-height:1.15; letter-spacing:-.035em; }
+#pai .unoone-product-headline span { color:#c8d8ea; }
+#pai .unoone-product-copy > p:not(.unoone-product-headline):not(.eyebrow-line) { color:#9aafc6; font-size:15px; line-height:1.75; max-width:560px; }
+#pai .unoone-product-copy > .unoone-product-boundary { margin-top:14px; font-size:12px!important; }
+#pai .unoone-product-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px 19px; margin-top:25px; }
+#pai .unoone-product-actions a { display:inline-flex; align-items:center; gap:8px; min-height:44px; font-size:12px; font-weight:600; color:#c0cfe0; }
+#pai .unoone-product-actions .unoone-product-primary { padding:12px 22px; border-radius:999px; background:linear-gradient(110deg,#f59f4f,#f5b76f); color:#0a0c10; box-shadow:0 0 24px #f59f4f20; }
+#pai .unoone-product-features { display:grid; gap:20px; margin-top:40px; }
+#pai .unoone-product-features article { border:1px solid #ffffff0f; border-radius:20px; background:linear-gradient(#ffffff08,transparent); padding:25px; }
+#pai .unoone-feature-icon { display:flex; align-items:center; justify-content:center; height:44px; width:44px; border-radius:14px; border:1px solid #ffffff14; background:#ffffff03; }
+#pai .unoone-product-features h3 { margin:19px 0 10px; color:#fff; font-size:17px; font-weight:600; }
+#pai .unoone-product-features p { font-size:13px; line-height:1.75; color:#9aafc6; }
+#pai .unoone-product-evidence { margin-top:22px; color:#96b0c8; font-size:11px; line-height:1.8; }
+#pai .unoone-product-evidence a { display:inline-flex; align-items:center; gap:5px; color:#f8c791; text-decoration:underline; text-underline-offset:3px; }
+#pai .unoone-demo { min-width:0; margin:0; }
+#pai .unoone-video-frame { border:1px solid #ffffff14; border-radius:18px; overflow:hidden; background:#080d16; }
+#pai .unoone-video-frame video { display:block; width:100%; height:auto; }
+#pai .unoone-demo-caption h2 { font-size:19px; line-height:1.3; }
+#pai .unoone-demo-caption p { font-size:12px; }
+#pai a:focus-visible, #pai summary:focus-visible { outline:2px solid #f59f4f; outline-offset:4px; }
+#ecosystem .unoone-capability-map { width:100%; min-width:0; color:#9aafc6; container-type:inline-size; container-name:unooneOrbit; }
+#ecosystem .unoone-map-caption { color:#f8c791; font-size:11px; font-weight:700; letter-spacing:.12em; }
+#ecosystem .unoone-map-caption span { display:block; margin-top:6px; color:#96b0c8; font-size:10px; font-weight:400; letter-spacing:.02em; }
+#ecosystem .unoone-map-instructions { font-size:11px; line-height:1.6; margin-top:10px; max-width:460px; }
+#ecosystem .unoone-orbit-scroll { width:100%; border-radius:20px; overflow:visible; }
+#ecosystem .unoone-orbit-stage { position:relative; width:100%; min-width:0; aspect-ratio:1; isolation:isolate; }
+#ecosystem .unoone-orbit-rings { position:absolute; inset:50px; width:calc(100% - 100px); height:calc(100% - 100px); }
+#ecosystem .unoone-orbit-rings[data-replay="true"] { animation:unoone-scoped-ring-highlight 3s ease-in-out 3; }
+#ecosystem .unoone-orbit-core { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; justify-content:center; align-items:center; width:80px; height:80px; border-radius:50%; border:1px solid #ffffff26; background:#080d16; box-shadow:0 0 60px #f59f4f2e,0 0 120px #3b82f614; }
+#ecosystem .unoone-orbit-core .inbharat-orbit-mark { width:32px; height:32px; object-fit:contain; }
+@media(min-width:640px) { #ecosystem .unoone-orbit-core .inbharat-orbit-mark { width:40px; height:40px; } }
+#ecosystem .unoone-orbit-pill { position:absolute; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; gap:5px; width:94px; min-height:44px; padding:5px 3px; border:1px solid #ffffff1a; border-radius:12px; background:rgba(12,20,34,.95); color:#e8eef8; font-size:9px; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px #0003; cursor:pointer; }
+#ecosystem .unoone-orbit-pill > span { flex:none; width:6px; height:6px; border-radius:50%; }
+#ecosystem .unoone-orbit-pill:hover, #ecosystem .unoone-orbit-pill[aria-pressed="true"] { background:#142134; box-shadow:0 0 20px #f59f4f12; }
+#ecosystem .unoone-orbit-replay { display:inline-flex; align-items:center; gap:7px; color:#96b0c8; min-height:44px; font-size:11px; padding:8px 0; cursor:pointer; }
+#ecosystem .unoone-capability-detail { padding:20px; border:1px solid #ffffff14; border-radius:16px; background:#ffffff05; }
+#ecosystem .unoone-capability-platform { color:#6fd3a3; font-size:10px; font-weight:600; line-height:1.6; }
+#ecosystem .unoone-capability-detail h3, #ecosystem .unoone-capability-list h3 { margin:8px 0; font-size:17px; color:#fff; font-weight:600; }
+#ecosystem .unoone-capability-detail p:not(.unoone-capability-platform), #ecosystem .unoone-capability-list li > p:not(.unoone-capability-platform) { font-size:12px; line-height:1.7; }
+#ecosystem .unoone-capability-detail .unoone-capability-boundary { margin-top:10px; color:#96b0c8; }
+#ecosystem .unoone-capability-detail a, #ecosystem .unoone-capability-list a { display:inline-flex; align-items:center; gap:6px; min-height:44px; color:#f8c791; font-size:11px; text-decoration:underline; text-underline-offset:3px; }
+#ecosystem .unoone-capability-list { margin-top:12px; border:1px solid #ffffff0f; border-radius:12px; padding:0 16px; }
+#ecosystem .unoone-capability-list summary { cursor:pointer; padding-block:14px; min-height:44px; font-size:12px; color:#c0cfe0; }
+#ecosystem .unoone-capability-list ul { padding:0; list-style:none; }
+#ecosystem .unoone-capability-list li { padding:14px 0; border-top:1px solid #ffffff0f; }
+#ecosystem .unoone-map-source { margin-top:16px; font-size:10px; line-height:1.7; color:#96b0c8; }
+#ecosystem .unoone-map-source a { color:#f8c791; text-decoration:underline; text-underline-offset:3px; }
+#ecosystem .unoone-capability-map :is(button,a,summary,[tabindex]):focus-visible { outline:2px solid #f59f4f; outline-offset:3px; }
+@keyframes unoone-scoped-ring-highlight { 0%,100% { opacity:1; } 50% { opacity:.42; } }
+@media(min-width:640px) { #pai .unoone-product-section { padding-inline:24px; } #pai .unoone-product-features { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(min-width:1024px) { #pai .unoone-product-section { padding-inline:40px; } #pai .unoone-product-grid { grid-template-columns:1fr 1.15fr; gap:48px; } }
+@media(prefers-reduced-motion:reduce) { #pai .unoone-product-section *, #ecosystem .unoone-capability-map * { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
+/* Preserve the full circular composition on narrow screens; do not crop it into
+   a horizontally scrolling strip. Small labels are an illustration, not tiny
+   touch targets: the separate full-size native controls operate the same panel. */
+#ecosystem .unoone-orbit-mobile-label,#ecosystem .unoone-mobile-choices { display:none; }
+@container unooneOrbit (max-width:479px) {
+ #ecosystem .unoone-orbit-rings { inset:0; width:100%; height:100%; }
+ #ecosystem .unoone-orbit-desktop-control { display:none; }
+ #ecosystem .unoone-orbit-mobile-label { display:flex; left:var(--orbit-x)!important; top:var(--orbit-y)!important; transform:translate(-50%,-50%) scale(.65); font-size:13px; line-height:1.15; white-space:normal; text-align:center; pointer-events:none; }
+ #ecosystem .unoone-mobile-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:18px 0 8px; }
+ #ecosystem .unoone-mobile-choices button { min-height:44px; min-width:0; padding:10px 9px; display:flex; align-items:center; gap:7px; border:1px solid #ffffff18; border-radius:10px; color:#c0cfe0; background:#0c1422; font-size:12px; text-align:left; }
+ #ecosystem .unoone-mobile-choices button[aria-pressed="true"] { border-color:#f59f4f; color:#fff; }
+ #ecosystem .unoone-mobile-choices button > span { width:6px; height:6px; border-radius:50%; flex:none; }
+}
+
+/* Reflow at narrow widths / enlarged text. Preserve the original columns and
+   type sizes; prevent grid min-content sizing from pushing text into clipping
+   ancestors. These rules never reach the protected upper company presentation. */
+#ecosystem .grid > *, #products .grid > * { min-width:0; }
+#ecosystem h2, #ecosystem .unoone-capability-map,
+#ecosystem .unoone-capability-detail, #products p.max-w-xl {
+  min-width:0;
+  overflow-wrap:anywhere;
+}

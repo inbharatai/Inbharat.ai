@@ -1,325 +1,153 @@
-# InBharat AI — Desh Ka AI
+# InBharat.ai
 
-<div align="center">
+The InBharat.ai company website, including UnoOne product information, a separate cloud-backed AI console, learning hub and protected Growth administration. This repository is the website/web application—not the Windows or Android runtime source.
 
-**AI Intelligence for Bharat**
+[MIT license](LICENSE) · [Maintainer documentation](DOCS.md) · [Deployment runbook](DEPLOY-STEPS.md) · [Contributing](CONTRIBUTING.md)
 
-Agentic search, voice-first interaction, multilingual AI, and a founder-authored
-learning hub — built for every Indian.
+## What this repository contains
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-138808.svg)](LICENSE)
-[![React](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite)](https://vitejs.dev/)
+- **Public product and research pages.** **InBharat.ai is the master brand. UnoOne is a portfolio product**, with Power for Windows and Mobile for Android. The launch experience leads to `/get-started`; actual download availability is controlled by owner-approved artifact records, not by changing a development label. `/status` separates current evidence from public release approval. PAI remains in explanatory and historical research context. This repository is the website; its web console is a **separate cloud-API application**, not the private on-device runtime.
+- **A separate 15-entry company directory across six verticals**, preserving its original category/selector design. The homepage's existing three-ring visualization now explains **12 UnoOne capabilities**, not company-product integrations. Its names come from `content/unooneCapabilities.ts`; the company catalog and portfolio schema remain separate. The complete company list is available without JavaScript, while the enhanced view retains the original selector. An entry does not certify availability or validation.
+- **The “Learn AI with Reeturaj” hub.** The current source has **31 article metadata records and 31 Markdown bodies**, with crawlable HTML, article schema, FAQs and internal links generated at build time.
+- **The web console at `/app`.** Chat modes, image context, microphone input and speech features depend on the relevant browser capabilities, APIs and configuration. OpenAI serves the chat/voice path; Serper supplies optional web/news search.
+- **Partial interface localization.** Eleven locale resources (English plus ten Indian languages) do not establish complete translation, model quality or speech support in those languages. English fallback and explicit content-language boundaries are intentional; articles are not eleven translated editions.
+- **Growth administration at `/admin/growth`.** A separate Gemini-backed drafting, audit, knowledge, analytics and social-publishing system. Configuration, authorization, migrations and external permissions are prerequisites, not implied by the presence of its UI.
 
-</div>
+### Product claims and readiness
 
----
+Use [the claim/evidence register](content/claim-review.md), [private-AI page data](content/privateAI.ts) and [research data](content/deepTech.ts) when editing public claims. Source implementation, unit tests, historical device runs and release qualification are different evidence levels. In particular:
 
-## Overview
+- SILT is research. The USB/removable-drive Pocket AI architecture is **historical patent-filing research**, not the current UnoOne consumer offer or proof that newer features are covered by a patent.
+- Pairing protocol tests do not establish a qualified physical phone–desktop round trip. Local inference, encrypted storage and optional network actions have different privacy boundaries.
+- No public UnoOne installer, free UnoOne offer, blanket clinical validation or portfolio-wide India-only processing guarantee is established here.
+- [Credentials](content/credentials.ts) distinguish recognition, participation, membership, badges and course completions. DPIIT recognition belongs to **Uni Guru Technologies LLP**. Only completion credentials are emitted as educational credentials; the register does not turn participation into competitive awards or endorsement.
 
-**InBharat.ai** is a deep-tech artificial intelligence company building foundational
-systems for trustworthy, private and local-first AI. The public site, the InBharat
-AI agentic-search console, and the founder-authored learning hub are the visible
-layer of that work. The company is organised in three layers:
+## Current operating scope
 
-1. **Foundational deep tech** — SILT (trust-gated AI learning, patent pending India
-   `202631101454`) and Pocket AI (portable private AI, patent pending India
-   `202631102427`).
-2. **Applied AI infrastructure** — JAK Shield, JAK Swarm, UnoOne, and InBharat Audio.
-3. **Technology in application** — InBharat AI Console, UniAssist.ai, TestsPrep.in,
-   KathaKitaab, and Sahayaak.
+Supabase is intentionally inactive while the owner prepares reactivation. Its integration and data must remain intact: **do not apply migrations, activate services, remove authentication, or open admin routes as part of the landing-page work**. Public sign-in controls are hidden unless `VITE_PUBLIC_LOGIN_ENABLED=true`; the existing guest limit remains enforced and account-required actions report unavailability. Reactivation is a separate authorized operation.
 
-The public site combines:
+The landing uses the exact owner-supplied UnoOne logo and a captioned recorded product walkthrough. The film shows October 2026 captures; founder-authored Windows engineering evidence is dated 14 November 2026. These are not independent certification, universal hardware results, or proof of a public installer. The full technical preprint and investor film are not automatically published. See [UnoOne landing data](content/unooneLanding.ts) and [release-media provenance](assets-source/unoone/README.md).
 
-- **Multi-mode agents** — Research, Creative, Coder, Educator, Browser, Executive, Shopper, and standard Nexus
-- **Voice-first** — Speak in the search bar and listen to replies (TTS)
-- **Indian languages** — English + Indian languages (Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Odia, Assamese)
-- **Image context** — Upload images and get answers; Creative mode supports image generation
-- **Auth** — Supabase Auth (email/password + optional Google)
-- **15-product ecosystem** — InBharat AI + 14 sister products organized into 6 verticals (InBharat Core AI · Business & Ops · Consumer & Culture · Education & Careers · Health & Public Service · Growth & Publishing) on the landing page, browsable one vertical at a time via a tabbed product browser: KathaKitaab, JAK Swarm, JAK Shield, Agent Arcade, SocialFlow, Sahayaak AI, Phoring, UniBot, UniAssist.ai, TestsPrep.in, UnoOne, OpenClawFix, Sahayaak Seva, and SwasthyaScore AI
-- **"Learn AI with Reeturaj" hub** — 30 published practical-AI articles with world-class SEO/GEO/AI-citation shells, grown daily by the founder-authored "Build with Reeturaj" content calendar
-- **Growth Agent** — a Gemini-only function-calling agent loop (18 tools) that drafts one new article per day from a founder-edited content calendar, plus a sitemap-driven SEO/GEO auditor, a human-gated LinkedIn promotion loop, a high-intent web-search topic-discovery pipeline, an inbox-as-knowledge-base retrieval layer (FTS + token-Jaccard, no pgvector), and a private founder-only admin console. Publishing is always human-gated; an optional Auto Mode can pre-approve pending drafts (off by default) — nothing ever auto-publishes
-- **Social publishing (Instagram + LinkedIn)** — posts are composed from material dropped into the Growth Inbox: an uploaded folder becomes an ordered carousel and the assets themselves are the post visuals, with the model writing only captions and alt text. Instagram Graph API (single image, 2–10 carousel, Reels, 25-per-24h quota check, idempotent partial-carousel retry) and the LinkedIn Posts API (text, image, multi-image, video; personal or company URN). Human-gated through the same approvals queue as everything else — nothing auto-publishes, and both channels report `not_configured` until their env vars are set. See `docs/social-publishing.md`
-- **Credentials** — every recognition (DPIIT, Stanford Seed Spark, Google Cloud Gen AI Academy APAC, Hyperagent Founding 500, Sarvam, Google Developer Program, Anthropic, Microsoft) lives in `content/credentials.ts` as the single source of truth, rendered on the landing hero/trust card and the founder page, and emitted as `hasCredential` + `award` JSON-LD. The DPIIT recognition is attributed to Uni Guru Technologies LLP (`legalName`), not to the InBharat brand
-- **Contact** — a contact form (Resend) that emails the team + auto-replies the submitter, alongside the existing growth-leads capture
+**Current visual boundary:** keep all original company presentation above the lower MEET PAI section, including logo/colors, hero, shloka, buttons, statistics and ticker. Only the lower UnoOne section and existing orbit are visually revised. Earlier whole-site UnoOne-first previews are superseded.
 
----
+See [the launch maintenance guide](docs/unoone-launch.md) for the release-data contract and preservation requirements.
 
-## Features
-
-| Area | Description |
-|--------|-------------|
-| **Agent modes** | Standard (Nexus), Research, Creative, Coder, Educator, Browser, Executive, Shopper |
-| **Voice** | Mic input (speak-to-type), TTS on replies |
-| **Languages** | English + 10 Indian languages (locale files in `locales/`) |
-| **Images** | Upload from omnibox; image generation in Creative mode |
-| **Auth** | Supabase Auth (email/password + optional Google) |
-| **Landing** | Tabbed product browser across 6 verticals covering all 15 ecosystem products, with per-product CTAs |
-| **Learn AI hub** | `/learn-ai-with-reeturaj` — searchable article grid + per-article pages with hero, direct-answer callout, FAQ accordion, related/prev-next nav |
-| **SEO/GEO shells** | Pre-built per-route HTML shells (`scripts/build-seo.ts`) with route-specific JSON-LD (Organization, Person, WebSite, TechArticle, FAQPage, BreadcrumbList), sitemap.xml, OG image, a crawlable article body, and the site's internal link graph baked into every shell (see below) |
-| **Crawl path** | Every shell carries crawlable `<a href>` links to the other public routes, and the homepage additionally links the 12 newest articles. Without this the homepage served **zero** internal links (nav/footer are client-rendered React), so every other URL was reachable only from `sitemap.xml` — which is what left 23 URLs parked in Search Console as "Discovered – currently not indexed", never crawled |
-| **AI-search** | `public/llms.txt` summarises the studio, its recognitions and key pages for answer engines; `robots.txt` explicitly allows GPTBot, ClaudeBot, PerplexityBot, OAI-SearchBot, Google-Extended, CCBot and Applebot-Extended |
-| **Analytics** | GA4 baked into every shell (Measurement ID via `VITE_GA_ID`) |
-| **Contact** | `/api/contact` (Resend) — emails `info@inbharat.ai` + auto-replies the submitter; growth-leads captured separately |
-| **Growth Agent** | Gemini function-calling agent loop (18 tools) drafting one daily article from a founder content calendar (`/api/growth/cron/morning`, 8am IST) + sitemap SEO/GEO audit (`/api/growth/cron/daily`) + weekly high-intent topic discovery (`/api/growth/cron/topic-discovery`) + daily GA4/GSC analytics sync (`/api/growth/cron/analytics-sync`) + a 30-min Auto Mode pass (`/api/growth/auto`) + human-gated LinkedIn promotion + inbox-as-knowledge-base retrieval; admin review at `/admin/growth` |
-
----
+The homepage first paint is generated from the **same real React landing tree** used by the browser. Its styled content remains visible when JavaScript is delayed, disabled or fails. React replaces that tree atomically; this is not a separate plain-text splash page or hidden SEO body. The demo is poster-first, has native controls/captions/transcript and does not request its MP4 until a user action.
 
 ## Quick start
 
 ### Prerequisites
 
-- **Node.js** 20.19+ on the 20.x line, or 22.12+ (the GitHub Actions workflow uses the latest Node 20). The React Vite plugin sets this minimum; older Node 18/20 minors are not supported.
-- **Vercel CLI** for local serverless (`npm i -g vercel`) — optional but needed for `/api/*` locally
+Use a Node version satisfying [`package.json`](package.json). The Supabase client is pinned to the previously used Node-20-compatible SDK line rather than silently upgrading to a Node-22-only release. Runtime support is verified, not inferred only from an engine declaration. Supported range: **Node 20.19+ on the 20.x line, or Node 22.12+**. Use npm and the checked-in lockfile. The CI workflow currently selects Node 20; dependency support should be rechecked whenever the lockfile changes.
 
-### 1. Clone and install
-
-```bash
+```sh
 git clone https://github.com/inbharatai/Inbharat.ai.git
 cd Inbharat.ai
-npm install
-```
-
-### 2. Environment variables
-
-Create a `.env` file in the project root (see [Environment variables](#environment-variables)).
-The app runs without keys but disables dependent features (chat/voice without OpenAI, drafts without Gemini).
-
-### 3. Run
-
-```bash
-npx vercel login
-npx vercel link
-npm run dev          # vercel dev — serves /api/* + the SPA (port printed in the terminal)
-```
-
-If you can't (or don't want to) use Vercel CLI locally, run UI-only:
-
-```bash
-npm run dev:vite     # Vite only; /api/* will 404
-```
-
-Or run the local API + Vite together (no Vercel CLI needed):
-
-```bash
-npm run dev:local    # API on :3001, Vite on :5173 with /api proxied to :3001
-```
-
----
-
-## Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | `vercel dev` — full local dev (SPA + `/api/*`) |
-| `npm run dev:vite` | Vite only (UI; `/api/*` 404) |
-| `npm run dev:local` | Local API (`server/local-api.ts` :3001) + Vite (:5173) with `/api` proxy — no Vercel CLI |
-| `npm run build` | Runs `build:app` (`vite build && tsx scripts/build-seo.ts && tsx scripts/sync-published-articles.ts`) plus the CI-only lifecycle gates described below — emits `dist/` + per-route SEO shells + sitemap + OG image, then mirrors published articles into the `published_articles` SEO-memory table (non-fatal if Supabase is absent) |
-| `npm run build:seo` | Re-run only the SEO shell generator over the existing `dist/` |
-| `npm run preview` | Preview the production build locally (`vite preview`, :4173) |
-| `npm run lint` | ESLint (zero warnings), TypeScript validation, secret scan + negative controls, and CI routing controls; fails on the first failed gate |
-| `npm run lint:eslint` | ESLint only, zero warnings required |
-| `npm run typecheck` | Repository TypeScript validation under tsconfig.json; zero errors required |
-| `npm run audit:secrets` | Scanner controls, then high-signal scan of tracked text files; unreadable tracked files fail closed, matched values are never printed; not a history scan |
-| `npm run audit:prod` | `npm audit --omit=dev --audit-level=moderate`; production dependency gate (requires npm registry access) |
-| `npm run audit:seo` | Hermetic SEO audit of built `dist/` |
-| `npm run audit:shell` | Hermetic shell-crawl verification of built `dist/` |
-| `npm run ci:build` | Explicit local CI build equivalent: production audit, application build, SEO audit, shell crawl, Chromium install, Playwright |
-| `npm run test:growth` | 687 hermetic Growth Agent checks — cron auth, redaction, crawler, auditor, promoter, calendar topic picker, agent narration detection, article slug resolution, knowledge-base FTS/dedupe, topic-discovery scoring |
-| `npm run test:e2e` | 19 Playwright end-to-end checks against the built static shells; API-dependent flows use explicit mocks |
-
-### CI gates and local reproduction
-
-`.github/workflows/ci.yml` is unchanged. Its existing `npm run lint` now runs
-ESLint, `tsc --noEmit`, the secret audit (including synthetic negative controls),
-and CI routing controls. TypeScript uses the current `tsconfig.json`; this does
-not claim that TypeScript strict mode is enabled.
-
-Only when **both `GITHUB_ACTIONS=true` and `GITHUB_JOB=build`** are present,
-`npm run build` runs a production dependency audit via `prebuild`, then its
-existing application/SEO build, then installs Chromium with
-`playwright install --with-deps chromium` and runs the full Playwright suite via
-`postbuild`. The unchanged workflow runs its existing `audit:seo` and
-`verify-shell-crawl.ts` steps afterward. Generic `CI=true`, ordinary local builds,
-and normal Vercel builds do **not** activate these audit/browser lifecycle gates.
-Do not set the GitHub-specific variables on Vercel. Keep npm lifecycle scripts
-enabled (do not use `--ignore-scripts` to run CI build/lint gates).
-
-Run the same checks locally, without a Vercel login or deployment credentials:
-
-```bash
 npm ci
+cp .env.example .env
+```
+
+Fill only the variables needed for your work. The template has placeholders, not working credentials. Never commit local environment files. Public pages can be developed without provider keys; dependent features may be unavailable or return errors rather than silently becoming functional.
+
+Choose one development mode:
+
+```sh
+npm run dev:vite    # UI only; no serverless API handlers
+npm run dev:local   # local API shim :3001 + Vite proxy, normally :5173
+npm run dev         # vercel dev; CLI login/project linking may be required
+```
+
+The local shim supports **a subset** of API routes, not full Vercel parity. Check [its route map](server/local-api.ts) before testing an endpoint. It has development-only admin allowances: use an isolated development database, do not expose it to untrusted networks, and never set `LOCAL_API_PORT` in production. For Vercel CLI setup, run `npx vercel login` and `npx vercel link` only against the project you intend to use.
+
+## Environment variables
+
+[`.env.example`](.env.example) is the copyable template; [DOCS.md](DOCS.md#configuration-reference) explains the configuration boundaries.
+
+| Purpose | Variables | Boundary |
+| --- | --- | --- |
+| Public sign-in UI | `VITE_PUBLIC_LOGIN_ENABLED`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | UI switch defaults off while Supabase is inactive; it never relaxes server/admin authorization |
+| Server auth and database | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Service-role key is secret and bypasses RLS |
+| Web-console AI/search | `OPENAI_API_KEY`, optional `SERPER_API_KEY` | Server-only; not the UnoOne local runtime |
+| Growth | `GEMINI_API_KEY`, `GROWTH_ADMIN_USER_IDS`, `GROWTH_MONTHLY_BUDGET_USD` | Server-only; admin role metadata is an alternative to the ID allowlist |
+| Scheduled jobs | `CRON_SECRET` | Configure for authenticated scheduled execution; a user-agent/schedule header is not authentication |
+| Repository publishing | `GITHUB_TOKEN` (fallback `GH_TOKEN`) | Read access for discovery; scoped Contents write permission for article/cover commits |
+| Browser analytics | `VITE_GA_MEASUREMENT_ID` | Public, build-time GA4 ID; **not** `VITE_GA_ID` |
+| Search ownership | `GSC_SITE_VERIFICATION` | Public verification token injected into HTML at build time |
+| Analytics reporting | `GOOGLE_CLIENT_EMAIL`, `GOOGLE_PRIVATE_KEY`, `GA4_PROPERTY_ID`, `GSC_SITE_URL` | Private key is server-only; service-account grants required |
+| Contact | `RESEND_API_KEY`, `RESEND_FROM`, `CONTACT_NOTIFY_TO` | Server-side mail service and verified sender configuration |
+| Social APIs | `IG_USER_ID`, `META_ACCESS_TOKEN`, `LINKEDIN_ACCESS_TOKEN`, `LINKEDIN_AUTHOR_URN` | Optional external publishing credentials and permissions |
+
+Never use a `VITE_` prefix for provider keys, service-role keys, private keys or cron secrets: Vite exposes those variables to the client. Do not put production write credentials into routine local or CI builds.
+
+## Build and verification
+
+```sh
 npm run lint
 npm run test:growth
 npm run ci:build
 ```
 
-`ci:build` deliberately builds through `build:app` to avoid recursive lifecycle
-hooks, supplies the workflow's placeholder Supabase browser configuration, and
-passes only a small OS environment allowlist to subprocesses (no inherited API
-keys, remote Playwright URL, or deployment tokens). Use a checkout without real
-`.env*` files: Vite itself reads local environment files. Local Chromium install
-does not change OS packages; if Linux libraries are missing, explicitly run
-`npx playwright install --with-deps chromium` with the appropriate permissions.
-Only the GitHub build runner automatically uses `--with-deps`. Browser tests use
-a local Vite preview of `dist/`; API-dependent specs supply their own mocks.
-The current placeholder-environment validation on Node 20.20.2 ran 19 browser
-cases: **17 passed and 2 existing GA checks skipped** because `PLAYWRIGHT_GA_ID`
-was not set. The Growth suite passed **687 checks**. This is local evidence,
-not a claim that a hosted GitHub Actions run or live GA integration was verified.
+`ci:build` runs the production dependency audit, application build, SEO audit, shell crawl, Chromium installation and browser tests. Use a checkout without real `.env*` files: subprocess environment filtering does not stop Vite from reading files. Linux browser libraries may require an explicit, authorized `npx playwright install --with-deps chromium` setup step.
 
-Current dependency engine metadata supports Node 20.19+ for all required
-packages, including React Router 7, Sharp 0.35, Vercel 59 / `@vercel/node` 12,
-and the Vite React plugin. Rollup's optional Linux LZMA accelerator requires
-Node 22.20+ (or newer supported lines); npm skips it on Node 20. It is not a
-required build dependency, so it is not forced to an incompatible older binary.
+| Command | What it does |
+| --- | --- |
+| `npm run build` | Runs the application build and lifecycle hooks; creates `dist/`, SEO shells, sitemap, media and publication snapshots. **No publication database writes.** |
+| `npm run build:app` | Vite + SEO generation + the write-free publication-sync compatibility entrypoint; bypasses top-level build lifecycle gates |
+| `npm run build:seo` | Regenerates SEO output over an existing `dist/`; not a replacement for a complete release build |
+| `npm run preview` | Serves built `dist/` locally; no production API runtime |
+| `npm run lint` | ESLint, TypeScript, secret scanner/controls, CI controls, SEO contracts and the SEO-hardening suites |
+| `npm run test:growth` | Hermetic Growth checks, separate from `lint` |
+| `npm run test:seo-hardening` | Search submission, rendering, publication lifecycle, content accuracy, SQL, locale and cron-auth regression suites |
+| `npm run test:publication-sql` | Executes publication migrations/fixtures in isolated PGlite; not hosted Supabase verification |
+| `npm run audit:prod` | Production dependency audit at moderate severity and above; not an all-dependency audit |
+| `npm run audit:secrets` | Scanner controls and current tracked-text scan; not Git-history scanning or credential revocation |
+| `npm run audit:seo` / `npm run audit:shell` | Hermetic checks against built output |
+| `npm run test:e2e` | Chromium Playwright tests against local built output by default; API-dependent flows use mocks |
+| `npm run audit:deployment` | Read-only HTTP audit of the configured canonical production site after promotion |
 
-Keep local validation logs under ignored `reports/` and browser output under
-ignored `playwright-report/` / `test-results/`. Reports may contain sensitive
-historical evidence: never stage, commit, or publish them. A passing current-tree
-secret audit is not proof that Git history is secret-free or that old credentials
-have been revoked.
+See [`package.json`](package.json) for individual suites and the [dependency-security scope](docs/dependency-security.md) for the remaining upstream development-tool advisories. A clean production audit is not a clean full dependency graph. `build:vite-only` omits SEO/publication generation and is not release-equivalent. The legacy `arcade*` commands require a separate `agent-arcade` checkout that is not included here.
 
-### Production & preview check
+The [CI workflow](.github/workflows/ci.yml) has lint, build and Growth jobs. Automatic build-hook audit/browser work is restricted to **both** `GITHUB_ACTIONS=true` and `GITHUB_JOB=build`; ordinary local/Vercel builds and generic `CI=true` do not activate it. Do not set those GitHub flags on Vercel or disable npm lifecycle scripts when relying on these gates. Typechecking uses the actual repository configuration; it is not a claim of TypeScript strict mode.
 
-After deploying to Vercel, confirm static assets are public:
+### Evidence snapshot — 16 November 2026
 
-- **`/favicon.png`** should return **200** on both production (`https://www.inbharat.ai`) and the preview domain. If you see 401, disable Deployment Protection for Preview (Vercel → Project → Settings → Deployment Protection).
-- **`/learn-ai-with-reeturaj/rag`** should return **200** with `TechArticle` + `FAQPage` JSON-LD and a crawlable article body (non-JS crawlers see the full article).
+The review of source baseline `10a6e8b745e7cb83054564f1904492f99b3c5ccd` recorded a local Node 20.20.2 validation with all ten selected gates passing: Growth **700 checks**, Playwright **80 passed / 2 GA-dependent skips** (82 cases), and **16 PGlite SQL checks**. These are dated results, not permanent suite counts or proof of live integrations. A separate deployed HTTP audit passed 45 public routes, missing-route/asset 404 checks and private-route noindex checks. Neither result establishes indexing, rankings, field Core Web Vitals, AI citations or on-device product qualification.
 
----
+A hosted CI pass was **not established** for that review. Dependency-audit results are time- and lockfile-dependent; rerun both the production gate and an all-dependency audit before release rather than treating a historical count as a clean-bill-of-health guarantee.
 
-## Environment variables
+## Article publication: implementation is not activation
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `OPENAI_API_KEY` | Chat* | OpenAI key (server-only) for chat, TTS, STT. Set in Vercel env. |
-| `GEMINI_API_KEY` | Growth | Gemini key for the Growth Agent's draft model (Gemini-only; no separate OpenAI growth key). |
-| `GROWTH_MONTHLY_BUDGET_USD` | No | Growth Agent monthly model spend cap fallback (default 20). Overridden at runtime by the `growth_settings` row edited live from the admin dashboard — no redeploy. |
-| `GROWTH_ADMIN_USER_IDS` | Admin | Comma-separated Supabase user ids allowed to view `/admin/growth`. (Alternative: set the user's `app_metadata.role = "admin"` in Supabase — no env/redeploy.) |
-| `CRON_SECRET` | No | Optional shared secret for an external scheduler to authenticate the five growth crons (`/api/growth/cron/{daily,morning,topic-discovery,analytics-sync}` + `/api/growth/auto`). The Vercel scheduled crons (identified by their `vercel-cron` user-agent) and the admin "Run now" buttons work without it. |
-| `VITE_SUPABASE_URL` | Auth | Supabase project URL for browser auth. |
-| `VITE_SUPABASE_ANON_KEY` | Auth | Supabase anon key for browser auth. |
-| `SUPABASE_URL` | Auth | Supabase project URL for serverless auth verification. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Auth | Supabase service role key (server-only). |
-| `VITE_GA_ID` | No | GA4 Measurement ID (e.g. `G-XXXX`) baked into every SEO shell. |
-| `GSC_SITE_VERIFICATION` | No | Google Search Console verification token (baked into the home shell). |
-| `SERPER_API_KEY` | No | [Serper](https://serper.dev) for live web search in the **chat** Research/Browser mode + `/api/search` + `/api/news`. The Growth Agent's `web_search` tool, draft-time grounding, and weekly topic discovery use Gemini `google_search` grounding (reuses `GEMINI_API_KEY`, no Serper key). |
-| `GITHUB_TOKEN` | Growth | GitHub PAT (private-read) for the Growth Agent's repo discovery + drop-folder. |
-| `IG_USER_ID` | Social | Instagram Business/Creator account id for Graph API publishing. Without it (and the token) the Instagram channel reports `not_configured`. See `docs/social-publishing.md`. |
-| `META_ACCESS_TOKEN` | Social | Long-lived Meta token with `instagram_content_publish`. Server-only. |
-| `LINKEDIN_ACCESS_TOKEN` | Social | LinkedIn token with `w_member_social` (and `w_organization_social` to post as the company page). Without it the LinkedIn API path degrades to the manual share deep-link. |
-| `LINKEDIN_AUTHOR_URN` | Social | Person or organization URN — decides whether a post is authored personally or by the company page. |
-| `RESEND_API_KEY` | Contact | Resend API key for the `/api/contact` form (team email + submitter auto-reply). |
-| `RESEND_FROM` | Contact | Verified sender address for the contact form (e.g. `InBharat <notify@inbharat.ai>`). |
-| `CONTACT_NOTIFY_TO` | Contact | Inbox that receives contact submissions (e.g. `info@inbharat.ai`). |
-| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Analytics Inbox | Google service-account email for the GA4 + Search Console read API (the analytics-sync cron + `read_analytics`/`sync_analytics` tools). |
-| `GOOGLE_PRIVATE_KEY` | Analytics Inbox | Google service-account private key (server-only, **secret** — never paste in chat or commit). The service account must be added as a Viewer on the GA4 property and a Restricted user in Search Console, or the sync returns partial 403s (honest, surfaced). |
-| `GA4_PROPERTY_ID` | Analytics Inbox | GA4 property id (numeric; not secret) for the analytics-sync cron's totals + dimension report. |
-| `GSC_SITE_URL` | Analytics Inbox | Search Console site URL (not secret; e.g. `sc-domain:inbharat.ai`) for the GSC query report. |
+1. An article draft is generated; this is not publication.
+2. An authorized article publish commits its Markdown and manifest together in one non-force Git update. Repository acceptance is **not verified live publication**.
+3. The production-only `/api/growth/cron/publication-sync` verifies the canonical public snapshot, running source SHA and **exact final HTML byte hashes**, rechecks snapshot identity, then calls one atomic `reconcile_production_articles` RPC.
 
-\* Chat runs without `OPENAI_API_KEY` but shows warnings and disables chat/voice. The Growth Agent is fully separate and never uses the chat key. Contact vars are optional — each feature degrades honestly (returns `not_configured`) when its var is missing; the others still work.
+Every build remains write-free. Activation requires the existing database schema plus **both** publication migrations:
 
-> **Secrets:** never commit `.env`. Supabase service-role keys, OpenAI/Gemini keys, and `CRON_SECRET` are server-only — they are read in `/api/*` and `scripts/*`, never exposed to the browser bundle.
+- [`20261116000001_article_publication_lifecycle.sql`](supabase/migrations/20261116000001_article_publication_lifecycle.sql)
+- [`20261116000002_article_publication_read_models.sql`](supabase/migrations/20261116000002_article_publication_read_models.sql)
 
----
+The 16 November review had **not applied those migrations or verified the hosted database**. The observed [production snapshot](https://www.inbharat.ai/article-publication.json) identified the `10a6e8b` source baseline but reported `automatedSyncEligible: false`; the exact build-side cause had not been established. **Do not describe reconciliation as activated.** After owner-authorized Supabase reactivation, establish eligibility, schema/grants, authentication and a successful reconciliation separately. Do not perform that activation while the service is intentionally paused. See [deployment steps](DEPLOY-STEPS.md#activate-publication-reconciliation-separately) and the [lifecycle design](docs/article-publication-lifecycle.md).
 
-## Project structure
+Growth publishing also has important approval exceptions: Auto Mode (off by default) can approve this run’s LinkedIn/cover drafts when explicitly enabled. An admin-initiated article publish can regenerate, auto-approve and ship a stale companion cover. Do not claim that every asset always receives a separate human approval. Article commit, cover operations and deployment remain distinct outcomes; see [Growth operations](DOCS.md#growth-operations-and-approval-boundaries).
 
-```
-├── App.tsx                # Chat app: sessions, modes, auth gate
-├── index.tsx              # Entry: AuthProvider, router, lazy routes, RouteEffects
-├── index.html             # HTML shell (Vite)
-├── seo.config.ts          # Per-route SEO + JSON-LD definitions (ROUTES array)
-├── vite-env.d.ts          # Vite client types (import.meta.glob ?raw)
-├── types.ts               # AgentMode, ViewMode, Message, widgets
-├── content/
-│   ├── articles.meta.ts            # ArticleMeta[] (body-free, isomorphic) for the 30 published articles
-│   ├── credentials.ts              # Single source of truth for recognitions/certifications + hasCredential/award JSON-LD
-│   ├── articles.body.ts            # Lazy loadArticleBody() via import.meta.glob('?raw')
-│   ├── article-schema.ts           # TechArticle + FAQPage + BreadcrumbList JSON-LD builders
-│   ├── build-with-reeturaj-calendar.ts  # Founder-authored content calendar (next-up topics for the morning cron)
-│   └── articles/*.md               # The 18 article markdown bodies
-├── services/
-│   └── openaiService.ts   # NexusAgent: chat, TTS, STT, image, tools (chat backend — do not mix with Growth Agent)
-├── lib/
-│   ├── auth.tsx           # Supabase auth context
-│   ├── useDocumentHead.ts # Syncs per-route SEO head + JSON-LD client-side
-│   ├── analytics.ts       # GA4 gtag helpers (deduped page views)
-│   └── growth/            # Growth Agent: agent loop + tools, calendar, articleWriter, cover, gemini, model-router, promoter, critique, learning, crawler, auditor, redaction, syndication/ (ledger only), social/ (instagram, linkedin, media, captions)
-├── api/
-│   ├── chat.ts            # Chat endpoint (chat backend)
-│   ├── contact.ts         # Contact form (Resend) — team email + submitter auto-reply
-│   ├── lib/serverLLM.ts   # Chat LLM selection (chat backend)
-│   └── growth/            # Growth Agent endpoints: agent turn, inbox, issues/approvals, rules, strategy, leads, outcomes, publish, social (compose/preview/dryrun/publish/quota), insights, usage, budget, whoami, knowledge, cron/{daily,morning,topic-discovery,analytics-sync}, auto
-├── scripts/
-│   ├── build-seo.ts                # Build-time per-route HTML shells + sitemap + OG image + baked article bodies + internal link graph (admin shells are noindex)
-│   ├── sync-published-articles.ts  # Mirrors articles.meta.ts → published_articles SEO-memory table (non-fatal)
-│   ├── test-growth.ts              # 667 hermetic Growth Agent unit checks
-│   └── verify-shell-crawl.ts       # Accuracy check: crawler/auditor over built shells + admin noindex/sitemap hygiene
-├── components/            # Omnibox, ChatView, Sidebar, NewsFeed, SourceCard, AgentWidgets, Credentials, TricolourStar, growth/ (admin cockpit)
-├── pages/
-│   ├── Landing.tsx        # Landing: hero, credential rail, 15-product browser (PRODUCT_DEFS)
-│   ├── LearnAIWithReeturaj.tsx  # Article hub (searchable grid)
-│   ├── ArticlePage.tsx    # Per-article reading page (lazy)
-│   └── admin/growth/      # Growth Agent admin UI (Overview, Usage, Sites, Repos, Issues, Performance, Strategy, Learning, Rules, Inbox, Agent, Knowledge, Settings)
-├── locales/               # 10 Indian-language + English i18n bundles
-└── public/                # Static assets (logos, per-article visuals)
-```
+## Source map
 
----
+| Location | Responsibility |
+| --- | --- |
+| `index.tsx`, `App.tsx`, `pages/`, `components/` | Routing, public pages, web console and admin UI |
+| `content/privateAI.ts`, `content/deepTech.ts`, `content/claim-review.md` | Product/research descriptions and bounded evidence |
+| `content/articles.meta.ts`, `content/articles/*.md` | Article metadata and bodies |
+| `content/credentials.ts` | Recognition/completion register and schema classification |
+| `seo.config.ts`, `scripts/build-seo.ts` | Canonical route metadata and generated static shells |
+| `lib/`, `services/`, `api/` | Browser utilities, agent services and server endpoints |
+| `lib/growth/`, `api/growth/` | Growth orchestration, publishing and reconciliation |
+| `supabase/migrations/` | Reviewed, separately applied schema migrations |
+| `e2e/`, `scripts/test-*` | Browser, contract and hermetic regression tests |
+| `middleware.ts`, `vercel.json`, `vite.config.ts` | Host routing, deployment headers and local routing |
 
-## Growth Agent
+## Further reading
 
-A standalone content + SEO/GEO system that is **completely separate from the chat backend** (it uses `GEMINI_API_KEY` only, never the chat LLM path). It drafts articles, promotes them, audits the site, discovers high-intent topics, retrieves from an inbox-as-knowledge-base, and syncs GA4/GSC analytics. Publishing is always human-gated; an optional Auto Mode can pre-approve pending drafts (off by default) — the agent never publishes.
-
-- **Morning cron — "Build with Reeturaj" daily plan** (`/api/growth/cron/morning`, `vercel.json` schedule `30 2 * * *` = 02:30 UTC = 08:00 IST): picks the next unbuilt topic from the founder's content calendar (`content/build-with-reeturaj-calendar.ts`), then drives ONE `runAgentTurn` that calls `write_article → promote_article → generate_cover` to produce three human-gated pending drafts (article + LinkedIn caption + cover) in a single stable "Build with Reeturaj — Daily Plan" thread. The calendar slug is passed to `write_article` so the draft is filed under `slugifyTitle(topic)` — that's what the picker matches, so the calendar advances one topic per day instead of re-drafting the same topic. The calendar fallback is **3-tier**: (1) the founder-authored calendar file → (2) founder-approved topics in the knowledge base (`type='topic'`, `status='approved'`, ordered by `intent_score DESC`) → (3) a free-plan `web_search` for a fresh trending topic when both are exhausted.
-- **Agent loop** (`lib/growth/agent.ts` + `agentTools.ts`): Gemini function-calling with a bounded iteration cap (MAX_WORK=6 + MAX_RECOVERY=4, hard cap 10). The 18 tools are `list_recent_drafts`, `redraft_caption`, `review_text`, `generate_cover`, `list_inbox_folder`, `analyze_attachment`, `write_article`, `web_search`, `write_video_script`, `promote_article`, `save_knowledge`, `search_knowledge`, `list_knowledge`, `find_duplicate`, `find_high_intent_topics`, `read_analytics`, `sync_analytics`, `run_accuracy_gates`. (There is no `critique` tool — the critique pass runs *inside* `write_article`.) The loop recovers from two known Gemini failure modes — a malformed function call, and the model *narrating* a tool call in prose ("Called tool write_article(...)") instead of emitting a real `functionCall` — by nudging the model to actually invoke the tool. The morning cron surfaces the tool trail + an honest `ok` (the agent outcome, not a blanket true), so a zero-draft run is visible in the error feed, not buried as "success".
-- **Daily SEO/GEO audit cron** (`/api/growth/cron/daily`, `17 6 * * *`): audits every authorized domain via sitemap discovery (`fetchSitemapUrls`), enqueues a human-gated LinkedIn promotion draft for each article. Accepts **GET** (Vercel's scheduled cron, `vercel-cron` user-agent / `x-vercel-cron-schedule` header) **and** POST (admin "Run now"); an optional `CRON_SECRET` covers external schedulers. `authorizeCron` is the single auth path (Vercel signature | `CRON_SECRET` | authenticated admin).
-- **Auto Mode cron** (`/api/growth/auto?action=run`, `7,37 * * * *` — every 30 min): fills missing LinkedIn captions + covers for already-published articles and (when `autoApprove` is on, off by default) flips pending drafts to approved so they're ready for the founder's publish click. Never publishes. `autoApprove` is audited (`auto=true` in the action log) and stays off unless the founder turns it on in Settings.
-- **Topic-discovery cron** (`/api/growth/cron/topic-discovery`, `23 3 * * 1` — weekly Monday 03:23 UTC): runs `find_high_intent_topics` across the InBharat portfolio (7 products), scoring candidate topics 0–100 across 12 dimensions (intent strength, InBharat relevance, product fit, founder authority, SEO/GEO opportunity, lead/follower potential, freshness, competition difficulty, source availability, risk level) and storing them in the knowledge base as `type='topic'` (`status='needs_review'` for high-risk regulated topics — medical/legal/patent/visa/finance). No fabricated search volume — intent is labeled "estimated". Uses Gemini `google_search` grounding (reuses `GEMINI_API_KEY`, no Serper key).
-- **Analytics-sync cron** (`/api/growth/cron/analytics-sync`, `47 3 * * *` — daily 03:47 UTC): pulls GA4 totals + a top-pages dimension report + a GSC query report and writes them as `type='performance'` knowledge-base rows the agent retrieves before drafting. Honest about partial data — when the service account isn't a Viewer on the GA4 property / a Restricted user in Search Console (the default until the founder adds it), the sync records a partial-403 snapshot and the Performance page surfaces it as "GA4 data unavailable this window" instead of hiding behind a blank.
-- **Promotion loop** (`lib/growth/promoter.ts`): generates a LinkedIn caption + 2–3 internal-link suggestions (budget-capped via `growth_model_usage`, redaction-gated before any model call, idempotent so re-runs only draft new articles). Captions end with the article's hashtags. `canPublishDirectly` is false and `requiresHumanApproval` is true — nothing auto-publishes.
-- **Knowledge base** (`lib/growth/knowledge.ts` + `api/growth/knowledge.ts` + `pages/admin/growth/Knowledge.tsx`): the inbox-as-memory layer — sources, discovered topics, prior articles/posts, decisions, and performance signals the agent retrieves before drafting (FTS `tsvector` + token-Jaccard rerank, no pgvector). Cross-source dedupe by content-hash + token overlap (`find_duplicate`). The agent's `web_search` results, critiques, publishes, and outcomes all auto-save rows here; the founder reviews/approves in the Knowledge tab.
-- **Social publishing** (`lib/growth/social/` + `api/growth/social.ts`): Instagram and LinkedIn are the only distribution channels. Posts are composed from a Growth Inbox folder — the uploaded assets are the post visuals (ordered via `post_order`, described via `alt_text`), and the model writes only the caption and alt text. Actions: `compose` / `preview` / `dryrun` / `publish` / `quota`. Composed posts enter the normal pending-draft queue and require the same human approval as everything else. Instagram enforces the 25-posts/24h API limit and retries partial carousels idempotently; LinkedIn posts as a person or an organization depending on `LINKEDIN_AUTHOR_URN`. Both report `not_configured` until their env vars exist. See `docs/social-publishing.md`.
-- **Syndication ledger** (`lib/growth/syndication/`): `growth_syndication` is retained as the append-only cross-post ledger for LinkedIn and Instagram. The DEV.to, Hashnode and Medium channels were removed — historical rows are kept, and `/api/growth/syndicate` returns 410 Gone.
-- **Human gate**: an admin reviews pending drafts at `/admin/growth/issues` and approves/rejects via `/api/growth/approvals`. Publishing stays gated on `status='approved'` + admin auth; the agent never publishes. Auto Mode (above) can pre-approve pending drafts when explicitly turned on, but the publish click is still the founder's.
-- **Token efficiency**: idempotency bounds total model calls; `maxOutputTokens` caps completions (article drafts use 8192 — a full article-as-JSON was right at the 4096 ceiling); sibling-link candidates are trimmed to 8 and category-ranked.
-
-Authorization is deny-by-default (`lib/growth/authorization.ts`); only allow-listed domains may be crawled/audited/drafted.
-
-### Admin dashboard (`/admin/growth`) — private, founder-only
-
-A single private console for the founder to see **what's going on**, **which AI API is used where**, and **edit the monthly spend cap live**. Reachable only to the founder; the admin gate is **server-verified** (`api/lib/requireAdmin.ts` → `GROWTH_ADMIN_USER_IDS` env **or** Supabase `app_metadata.role === "admin"`), never a build-time client allowlist.
-
-- **Overview** — live ops snapshot from `GET /api/growth/insights`: last cron run, pages audited, open issues, pending drafts, this-month spend vs cap, integration-health dots (booleans only — secret values never leave the server), a recent-activity feed, and a **"Run daily audit now"** button that POSTs the cron on demand.
-- **Usage** (`GET /api/growth/usage?days=N`) — the centerpiece: this-month spend vs cap + projected + a live **budget editor** (`PATCH /api/growth/budget` → `growth_settings.monthly_budget_usd`, `$1–$500`, takes effect on the next `withinBudget()` check with **no redeploy**), a Gemini/OpenAI provider split, per-model / per-task / **where-used (per article)** tables, a 30-day spend bar chart, and a recent-calls table. `growth_model_usage` records `context_url` + `provider` so spend is attributable to the exact article and API.
-- **Sites / Repos / Issues / Performance / Strategy / Learning / Rules / Inbox / Agent / Knowledge / Settings** — the management views, now using the authenticated `useAdminApi` helper (`lib/growth/adminApi.ts`) so their calls no longer 401. **Agent** is the conversational drafting surface (with a "Run morning plan now" button + per-thread tool trail); **Inbox** is the media drop-folder and the social composer (order items, add alt text, compose an Instagram/LinkedIn post from a folder, preview the exact media order, dry-run the API calls); **Issues** is the approve/publish surface — including "Publish to Instagram" with the live 25/24h quota badge — and its Published tab holds per-article cover redesign; **Knowledge** is the inbox-as-knowledge-base browser (search/filter/approve discovered topics/mark outdated); **Rules** is the live-editable expert-CMO rule set; **Settings** shows live integration flags + the confirmed admin identity from `GET /api/growth/whoami`.
-
-Admin routes ship as prebuilt **noindex** shells (so the SPA boots and the `/admin/growth` 404 is fixed) and are **excluded from `sitemap.xml`** — verified by `scripts/verify-shell-crawl.ts`. The `20260625000001_growth_usage_context.sql` migration adds the `context_url`/`provider` columns and the `growth_settings` singleton table (RLS deny-all, service_role only).
-
----
-
-## Authentication (Supabase)
-
-- Sign in with email/password (and optionally Google).
-- Browser sends `Authorization: Bearer <access_token>` to `/api/*`.
-- Serverless routes verify tokens using `SUPABASE_SERVICE_ROLE_KEY` (server-only).
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE).
-
----
-
-## Links
-
-- **Repository:** [github.com/inbharatai/Inbharat.ai](https://github.com/inbharatai/Inbharat.ai)
-- **Live site:** [www.inbharat.ai](https://www.inbharat.ai) (apex `inbharat.ai` 308→www)
-- **Learn AI hub:** [www.inbharat.ai/learn-ai-with-reeturaj](https://www.inbharat.ai/learn-ai-with-reeturaj)
-- **Contact:** [www.inbharat.ai/contact](https://www.inbharat.ai/contact)
-- **Supabase:** [supabase.com](https://supabase.com)
-- **OpenAI:** [platform.openai.com](https://platform.openai.com)
+- [Maintainer documentation](DOCS.md) and [deployment runbook](DEPLOY-STEPS.md)
+- [Content claim review](content/claim-review.md) and [publication lifecycle](docs/article-publication-lifecycle.md)
+- [Social publishing](docs/social-publishing.md), [product concept media](docs/product-concept-media.md) and [redirect notes](docs/seo-redirects.md)
+- [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [MIT license](LICENSE)

@@ -28,6 +28,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "cheerio";
+import sharp from "sharp";
 import { ROUTES, SITE, GLOBAL_SCHEMA } from "../seo.config";
 import type { SeoRoute } from "../seo.config";
 import { parsePage, extractInternalLinks } from "../lib/growth/crawler";
@@ -65,6 +66,7 @@ const sitemapLocs = new Set(sitemap.locs);
 /* ── Audit every indexable route ──────────────────────────────────────── */
 const indexable = (ROUTES as SeoRoute[]).filter((r) => !r.noIndex && !r.excludeFromSitemap);
 const seenCanonicals = new Set<string>();
+const checkedImages = new Set<string>();
 
 // Map of every built shell path (for internal-link reachability + sitemap cross-check).
 const builtPaths = new Set<string>();
@@ -122,6 +124,22 @@ for (const r of indexable) {
     failures.push({ path, check: "no permanent hidden SEO document", detail: "off-root aria-hidden section remains" });
   }
   if (!$("#root h1").length) failures.push({ path, check: "readable root content", detail: "H1 missing from managed static root" });
+  // Declared share images must be real build assets, not merely URL strings.
+  const expectedImage = SITE.url + (r.ogImage ?? SITE.ogImage);
+  if ($('meta[property="og:image"]').attr('content') !== expectedImage ||
+      $('meta[name="twitter:image"]').attr('content') !== expectedImage) {
+    failures.push({ path, check: 'share-image identity', detail: 'OG/Twitter image differs from route configuration' });
+  }
+  if (!checkedImages.has(expectedImage)) {
+    checkedImages.add(expectedImage);
+    try {
+      const image = await sharp(join(DIST, new URL(expectedImage).pathname)).metadata();
+      if (!image.width || !image.height) throw new Error('image has no dimensions');
+      if (r.ogImage === '/unoone/og-image.png' && (image.width !== 1200 || image.height !== 630)) throw new Error('UnoOne share card must be 1200x630');
+    } catch {
+      failures.push({ path, check: 'share-image build asset', detail: 'missing, unreadable or wrong-size share image' });
+    }
+  }
   // JSON-LD validity
   const expectedTypes = schemaTypes(schemaNodes([...GLOBAL_SCHEMA, ...(r.extraSchema || [])]));
   const ldErrs = validateJsonLd(html, expectedTypes, expCanonical);

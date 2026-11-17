@@ -78,7 +78,7 @@ export const CredentialRail: React.FC<{
   return (
     <motion.ul
       aria-label={label}
-      initial={reduceMotion ? undefined : { opacity: 0, y: 12 }}
+      initial={false}
       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{ duration: 0.7, delay: 0.25, ease }}
       className={`flex list-none flex-wrap items-center gap-2 p-0 ${className}`}

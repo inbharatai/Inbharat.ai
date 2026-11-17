@@ -194,7 +194,7 @@ app.post("/api/growth/cron/morning", (req, res) => runHandler("/api/growth/cron/
 // 404 for other /api
 app.use("/api", (_, res) => res.status(404).json({ ok: false, code: "SERVER_ERROR" }));
 
-createServer(app).listen(PORT, () => {
+createServer(app).listen(PORT, "127.0.0.1", () => {
   console.log(`Local API server: http://localhost:${PORT}`);
   console.log("  POST /api/chat, POST /api/search, /api/growth/* (admin)");
   if (!process.env.OPENAI_API_KEY) console.warn("  OPENAI_API_KEY not set — chat will fail.");

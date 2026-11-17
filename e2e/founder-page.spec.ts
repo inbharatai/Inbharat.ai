@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("founder page is reachable from landing top navigation", async ({ page }) => {
+test("founder page is reachable from landing secondary navigation", async ({ page }) => {
   await page.goto("/");
 
   const founderCta = page.getByRole("link", { name: "Build with Reeturaj" });

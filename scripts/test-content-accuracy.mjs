@@ -1,4 +1,4 @@
-/** Pure source/content contract checks. Node 24 native TS stripping; no network or dependencies. */
+/** Pure source/content contract checks, executed by tsx on supported Node; no network. */
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +6,7 @@ import { ARTICLES } from '../content/articles.meta.ts';
 import { UNOONE_PAGES, READINESS_LABELS, PRIVATE_AI_REVIEWED_ON, PRIVATE_AI_EVIDENCE_SCOPE } from '../content/privateAI.ts';
 import { CREDENTIALS, FEATURED_CREDENTIALS, credentialSchemaNodes, awardStrings } from '../content/credentials.ts';
 import { DEEP_TECH_PROJECTS } from '../content/deepTech.ts';
+import { PRODUCT_REGISTRY, PRODUCT_CATEGORIES } from '../content/productRegistry.ts';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = (path) => readFileSync(root + path, 'utf8');
@@ -109,13 +110,21 @@ check(/cosine distance/.test(read('content/articles/embeddings-what-they-actuall
 check(/not MCP unless/.test(read('content/articles/mcp-servers-in-plain-english.md')), 'Generic HTTP API is not labelled MCP');
 
 const landing = read('pages/Landing.tsx');
-const productDefs = landing.split('const PRODUCT_DEFS = [')[1].split('] as const;')[0];
-same((productDefs.match(/\{ name:/g) || []).length, 15, 'Preserve all fifteen directory entries');
-check(/name: 'InBharat AI'.*href: '\/app'/.test(productDefs), 'Web console entry retained');
-check(/name: 'UnoOne'.*href: '\/unoone'.*internal: true/.test(productDefs), 'UnoOne entry links to current two-product ecosystem');
+same(PRODUCT_REGISTRY.length, 15, 'Preserve all fifteen directory entries');
+same(PRODUCT_CATEGORIES.length, 6, 'Preserve all six portfolio buckets');
+same(new Set(PRODUCT_REGISTRY.map(product => product.id)).size, 15, 'Stable unique product identities');
+same(PRODUCT_REGISTRY.map(product => product.name).sort(), ['InBharat AI', 'JAK Swarm', 'JAK Shield', 'Agent Arcade', 'SocialFlow', 'Sahayaak AI', 'KathaKitaab', 'UniBot', 'Phoring', 'UniAssist.ai', 'TestsPrep.in', 'UnoOne', 'OpenClawFix', 'Sahayaak Seva', 'SwasthyaScore AI'].sort(), 'Exact canonical product names retained');
+same(PRODUCT_REGISTRY.find(product => product.name === 'InBharat AI')?.href, '/app', 'Separate web console entry retained');
+same(PRODUCT_REGISTRY.find(product => product.name === 'UnoOne')?.href, '/unoone', 'UnoOne links to its own product guide');
+check(PRODUCT_REGISTRY.find(product => product.name === 'UnoOne')?.internal === true, 'UnoOne retains internal destination');
+for (const product of PRODUCT_REGISTRY) {
+  same(product.relation, product.name === 'UnoOne' ? 'flagship' : 'independent', `${product.name}: portfolio membership does not imply UnoOne integration`);
+  check(PRODUCT_CATEGORIES.some(category => category.key === product.bucket), `${product.name}: registered category`);
+  check(Boolean(product.description.trim()) && /^(?:\/(?!\/)|https:\/\/)/.test(product.href), `${product.name}: description and real destination`);
+}
 check(!/val: '100%'|val: '0'/.test(landing), 'No fabricated security percentages/counts');
 check(!landing.includes('status-pulse"'), 'Static product status is not animated live-health telemetry');
-check(landing.includes("t('landJakIllustration')"), 'Decorative pipeline is labelled illustrative');
+check(landing.includes("t('landJakIllustration')") && landing.includes("t('landSafetyNotice')"), 'Original JAK illustration retains visible illustration and safety boundaries');
 check(landing.includes('<HeroGitaQuote />'), 'Gita signature preserved');
 check(landing.includes('CredentialRail'), 'Credential rail preserved');
 check(!read('components/landing/UnoOneDevices.tsx').includes('ONE VAULT'), 'No one-physical-vault implication');
@@ -149,10 +158,12 @@ for (const filename of readdirSync(root + 'locales').filter((f) => f.endsWith('.
     for (const key of ['landProdOpenclawDesc', 'landProdUnooneDesc', 'landJakDesc']) check(!Object.hasOwn(locale, key), `${filename}: ${key} deliberately uses English fallback, not a mislabeled copy`);
   }
 }
-check(landing.includes('localized(t(`faqA${n}` as const))'), 'FAQ answers carry resource language');
-check(landing.includes('<EnglishOnly><UnoOneDevices showCards /></EnglishOnly>'), 'Mixed technical device composition is an explicit English-only island');
+check(/localized\(t\(`faqA\$\{n\}`(?: as const)?\)\)/.test(landing), 'FAQ answers carry resource language');
+check(/<main[^>]+lang="en"/.test(landing) && read('components/landing/UnoOneSection.tsx').includes('lang="en"'), 'Shared product/platform copy has an explicit English language boundary');
+check(landing.includes('<EnglishOnly><UnoOneDevices showCards /></EnglishOnly>'), 'Retained device illustration has explicit English boundary and adjacent sync caveat');
 check(landing.includes('data-locale-coverage'), 'Localized partial-coverage notice is near the hero');
-check(!landing.includes('line-clamp-2'), 'Product caveats are not clipped to two lines');
+check(!/line-clamp-[1-9]/.test(landing), 'Product caveats are not line-clamped');
+for (const filename of readdirSync(root + 'locales').filter(f => f.endsWith('.json'))) same(JSON.parse(read(`locales/${filename}`)).faqA5, english.faqA5, `${filename}: account pause is accurate English fallback, not old free/sign-in availability`);
 const vibe = read('content/articles/vibe-coding.md');
 check(!/months to hours|₹5.?10 lakhs|over a weekend/.test(vibe), 'No categorical MVP time or cost premise');
 const fineTuning = read('content/articles/fine-tuning-vs-rag-when-to-use-each-for-your-indian-ai-produ.md');
@@ -162,5 +173,6 @@ const chaining = read('content/articles/prompt-chaining-vs-a-single-mega-prompt.
 check(!/much more reliable|control is not possible|mega-prompts also consume more tokens|This optimizes both cost and performance/.test(chaining), 'No categorical chaining superiority');
 check(/Independent steps may run in parallel; dependent steps must wait/.test(chaining), 'Parallelism follows dependencies, not just shorter prompts');
 const llms = read('public/llms.txt');
-for (const term of ['16 November 2026', 'No public UnoOne installer', 'Android alpha', 'manual or automatic', 'form submissions and uploads', 'Translations are partial', 'not the current consumer']) check(llms.includes(term), `llms.txt includes ${term}`);
+for (const term of ['16 November 2026', '/get-started', 'actual approved-package availability', 'release approval are separate', 'manual or automatic', 'form submissions and uploads', 'Translations are partial', 'not the current consumer', 'Ordinary email/WhatsApp routes open drafts', 'explicitly reviewed operations']) check(llms.includes(term), `llms.txt preserves scoped release/privacy evidence: ${term}`);
+check(!llms.includes('Messaging is drafts-never-sends'), 'Ordinary handoffs and native reviewed provider operations are not conflated');
 console.log(`PASS content accuracy: ${checks} pure assertions; no runtime product or deployment qualification implied.`);

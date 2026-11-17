@@ -14,8 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (process.env.VERCEL_ENV !== 'production' || process.env.VERCEL !== '1') {
     return res.status(403).json({ ok: false, status: 'failed', code: 'PRODUCTION_ONLY', requestId });
   }
-  // Existing authorizeCron has a legacy spoofable UA/schedule shortcut. Do NOT
-  // allow that shortcut for writes: retain its existing CRON_SECRET/admin paths.
+  // Defense in depth: discard untrusted scheduling metadata. The shared
+  // authorizeCron also requires CRON_SECRET or verified admin authentication.
   // Vercel cron sends Authorization: Bearer CRON_SECRET when configured.
   const headers = { ...req.headers };
   delete headers['user-agent']; delete headers['x-vercel-cron-schedule'];

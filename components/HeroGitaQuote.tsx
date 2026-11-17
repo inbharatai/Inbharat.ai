@@ -1,12 +1,12 @@
 import React from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
+import { languageOfText } from '../lib/locale-text';
 
 const ease = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 const HeroGitaQuote: React.FC = () => {
   const { t } = useTranslation();
-  const prefersReduced = useReducedMotion();
 
   return (
     <div className="relative z-10 w-full overflow-hidden">
@@ -22,7 +22,7 @@ const HeroGitaQuote: React.FC = () => {
 
       <motion.div
         className="mx-auto max-w-3xl px-5 sm:px-6 pt-6 pb-4 sm:pt-8 sm:pb-5 text-center"
-        initial={prefersReduced ? undefined : { opacity: 0, y: 18 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9, ease }}
       >
@@ -51,12 +51,12 @@ const HeroGitaQuote: React.FC = () => {
         />
 
         {/* Translated motivational line */}
-        <p className="text-[clamp(13px,2.4vw,16px)] leading-relaxed font-medium text-[#b0c0d8]/80 italic">
+        <p lang={languageOfText(t('gitaTranslation'))} className="text-[clamp(13px,2.4vw,16px)] leading-relaxed font-medium text-[#b0c0d8]/80 italic">
           &ldquo;{t('gitaTranslation')}&rdquo;
         </p>
 
         {/* Citation */}
-        <p className="mt-2 sm:mt-3 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-[#96b0c8]">
+        <p lang={languageOfText(t('gitaCitation'))} className="mt-2 sm:mt-3 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-[#96b0c8]">
           {t('gitaCitation')}
         </p>
       </motion.div>

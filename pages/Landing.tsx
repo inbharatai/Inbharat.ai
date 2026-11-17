@@ -4,12 +4,12 @@ import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
 import { useTranslation } from 'react-i18next';
 import { supportedLanguages, selectedUiLanguage, syncDocumentLanguage } from '../lib/i18n';
 import { localized, languageOfText, EnglishOnly } from '../lib/locale-text';
-import { useAuth } from '../lib/auth';
+import { PUBLIC_LOGIN_ENABLED } from '../lib/publicLogin';
+import UnoOneSection from '../components/landing/UnoOneSection';
+import UnoOneCapabilityOrbit from '../components/landing/UnoOneCapabilityOrbit';
 import HeroGitaQuote from '../components/HeroGitaQuote';
 import HeroEdgeDepth from '../components/landing/HeroEdgeDepth';
 import { DeepTechSpotlight } from '../components/DeepTechSpotlight';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   ArrowRight,
   BookOpen,
@@ -38,7 +38,6 @@ import UnoOneDevices from '../components/landing/UnoOneDevices';
 import { SITE } from '../seo.config';
 import { trackEvent } from '../lib/analytics';
 
-gsap.registerPlugin(ScrollTrigger);
 
 /* ═══════════════════════════════════════════════════════
    ANIMATION PRIMITIVES
@@ -73,7 +72,7 @@ const Reveal: React.FC<SectionProps> = ({ id, className = '', children }) => (
     id={id}
     className={className}
     variants={revealSection}
-    initial="hidden"
+    initial={false}
     whileInView="visible"
     viewport={{ once: true, amount: 0.06 }}
   >
@@ -88,7 +87,6 @@ const WordReveal: React.FC<{ text: string; lang?: string; className?: string; de
   className = '',
   delay = 0,
 }) => {
-  const prefersReduced = useReducedMotion();
   const words = text.split(' ');
   return (
     <span lang={lang} className={`inline ${className}`} aria-label={text}>
@@ -99,7 +97,7 @@ const WordReveal: React.FC<{ text: string; lang?: string; className?: string; de
         >
           <motion.span
             style={{ display: 'inline-block' }}
-            initial={prefersReduced ? undefined : { y: '110%', opacity: 0 }}
+            initial={false}
             animate={{ y: '0%', opacity: 1 }}
             transition={{ duration: 0.8, delay: delay + i * 0.055, ease }}
           >
@@ -374,49 +372,6 @@ const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
 };
 
 /* ═══════════════════════════════════════════════════════
-   COUNT-UP ANIMATION
-   ═══════════════════════════════════════════════════════ */
-
-const CountUp: React.FC<{ target: string; reduceMotion: boolean }> = ({ target, reduceMotion }) => {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [inView, setInView] = useState(false);
-  const [display, setDisplay] = useState(target);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect(); } },
-      { threshold: 0.4 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!inView || reduceMotion) return;
-    const numericMatch = target.match(/^([\d,.]+)/);
-    if (!numericMatch) return;
-    const end = parseFloat(numericMatch[1].replace(/,/g, ''));
-    const suffix = target.slice(numericMatch[1].length);
-    const hasDecimal = numericMatch[1].includes('.');
-    const duration = 1400;
-    const start = performance.now();
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 4);
-      const val = eased * end;
-      setDisplay((hasDecimal ? val.toFixed(1) : Math.round(val).toLocaleString()) + suffix);
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    setDisplay((hasDecimal ? '0.0' : '0') + target.slice(numericMatch[1].length));
-    requestAnimationFrame(step);
-  }, [inView, reduceMotion, target]);
-
-  return <span ref={ref}>{display}</span>;
-};
-
-/* ═══════════════════════════════════════════════════════
    JAK SWARM FLOW GRAPH — Animated closed-loop agent pipeline
    Renders the JAK Swarm data-flow: Sources → Evidence Graph →
    Agent Work → Drift Detection → JAK Shield (risk gate) →
@@ -492,7 +447,7 @@ const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }
         const a = G_NODES[e.from], b = G_NODES[e.to];
         const [r, g, bb] = b.color;
         ctx.beginPath();
-        for (let s = 0; s <= 50; s++) { const t = s / 50; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        for (let s = 0; s <= 50; s++) { const t = s / 50; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
         ctx.strokeStyle = `rgba(${r},${g},${bb},0.18)`; ctx.lineWidth = 1.2; ctx.stroke();
       }
       for (const n of G_NODES) {
@@ -529,9 +484,9 @@ const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }
         if (ei <= 0) continue;
         const steps = 50, draw = Math.floor(steps * ei);
         ctx.beginPath();
-        for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); }
+        for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
         ctx.strokeStyle = `rgba(${r},${g},${bb},${0.18 * ei})`; ctx.lineWidth = 1.2; ctx.stroke();
-        if (ei > 0.5) { ctx.beginPath(); for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); s === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); } ctx.strokeStyle = `rgba(${r},${g},${bb},${0.04 * ei})`; ctx.lineWidth = 4; ctx.stroke(); }
+        if (ei > 0.5) { ctx.beginPath(); for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); } ctx.strokeStyle = `rgba(${r},${g},${bb},${0.04 * ei})`; ctx.lineWidth = 4; ctx.stroke(); }
       }
 
       // Nodes
@@ -636,246 +591,6 @@ const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }
 };
 
 /* ═══════════════════════════════════════════════════════
-   ECOSYSTEM ORBITAL — Premium 3-ring system map
-
-  Layout logic:
-  - Ring 1 (r=28%): 3 flagship products, speed 0.06 rad/s
-  - Ring 2 (r=38%): 5 ecosystem tools, speed -0.04 rad/s
-  - Ring 3 (r=46%): 4 supporting tools, speed 0.025 rad/s
-   - All positions computed from polar coordinates
-   - Pills stay upright (no rotation), only translate
-   - Differential ring speeds create depth parallax
-   ═══════════════════════════════════════════════════════ */
-
-type OrbitalModule = {
-  label: string;
-  color: string;
-  ring: 1 | 2 | 3;
-  baseAngle: number; // degrees, evenly distributed per ring
-  flagship?: boolean;
-};
-
-// Ring 1: 3 flagships, evenly spaced at 120 degrees
-// Ring 2: 5 ecosystem modules, evenly spaced at 72 degrees
-// Ring 3: 4 supporting, evenly spaced at 90 degrees
-const ORBITAL_MODULES: OrbitalModule[] = [
-  // Ring 1 — flagships
-  { label: 'InBharat AI',    color: '#f59f4f', ring: 1, baseAngle: 270, flagship: true },
-  { label: 'KathaKitaab', color: '#f97316', ring: 1, baseAngle: 30,  flagship: true },
-  { label: 'Sahayaak AI',    color: '#ff9933', ring: 1, baseAngle: 150, flagship: true },
-  // Ring 2 — ecosystem
-  { label: 'UniBot',       color: '#25D366', ring: 2, baseAngle: 0 },
-  { label: 'UniAssist',    color: '#3b82f6', ring: 2, baseAngle: 72 },
-  { label: 'TestsPrep',    color: '#f43f5e', ring: 2, baseAngle: 144 },
-  { label: 'Phoring',      color: '#10b981', ring: 2, baseAngle: 216 },
-  { label: 'JAK Swarm',    color: '#ef4444', ring: 2, baseAngle: 288 },
-  // Ring 3 — supporting
-  { label: 'Agent Arcade',  color: '#4C8BF5', ring: 3, baseAngle: 45 },
-  { label: 'SocialFlow',    color: '#7C3AED', ring: 3, baseAngle: 135 },
-  { label: 'OpenClawFix',   color: '#14b8a6', ring: 3, baseAngle: 225 },
-  { label: 'Sahayaak Seva',  color: '#059669', ring: 3, baseAngle: 315 },
-];
-
-const RING_CONFIG = {
-  1: { radius: 28, speed: 0.06, opacity: 0.10, dash: '3 6' },
-  2: { radius: 38, speed: -0.04, opacity: 0.07, dash: '2 8' },
-  3: { radius: 46, speed: 0.025, opacity: 0.05, dash: '1.5 10' },
-} as const;
-
-const EcosystemOrbital: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [positions, setPositions] = useState<{ x: number; y: number }[]>(
-    () => ORBITAL_MODULES.map((m) => {
-      const cfg = RING_CONFIG[m.ring];
-      const rad = (m.baseAngle * Math.PI) / 180;
-      return { x: 50 + cfg.radius * Math.cos(rad), y: 50 + cfg.radius * Math.sin(rad) };
-    })
-  );
-
-  // Animate orbital positions via rAF for smooth 60fps
-  useEffect(() => {
-    if (reduceMotion) return;
-    let raf: number;
-    let t = 0;
-
-    // Pause the orbital animation when offscreen (CWV + battery guard; this
-    // loop drives ~60 React re-renders/sec via setPositions, so pausing matters).
-    let paused = false;
-    const tick = () => {
-      if (paused) return;
-      t += 0.016; // ~60fps
-      const next = ORBITAL_MODULES.map((m) => {
-        const cfg = RING_CONFIG[m.ring];
-        const angle = ((m.baseAngle * Math.PI) / 180) + cfg.speed * t;
-        return {
-          x: 50 + cfg.radius * Math.cos(angle),
-          y: 50 + cfg.radius * Math.sin(angle),
-        };
-      });
-      setPositions(next);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    let io: IntersectionObserver | undefined;
-    if (typeof IntersectionObserver !== 'undefined' && containerRef.current) {
-      io = new IntersectionObserver(
-        ([entry]) => {
-          const wasPaused = paused;
-          paused = !entry.isIntersecting;
-          if (wasPaused && !paused) raf = requestAnimationFrame(tick);
-        },
-        { threshold: 0 },
-      );
-      io.observe(containerRef.current);
-    }
-    return () => { io?.disconnect(); cancelAnimationFrame(raf); };
-  }, [reduceMotion]);
-
-  return (
-    <div
-      ref={containerRef}
-      className="relative mx-auto aspect-square w-full max-w-[340px] sm:max-w-[440px] lg:max-w-[500px]"
-    >
-      {/* SVG layer: orbit rings, connector lines, signal pulses */}
-      <svg
-        viewBox="0 0 100 100"
-        className="absolute inset-0 h-full w-full"
-        aria-hidden="true"
-      >
-        <defs>
-          <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#f59f4f" stopOpacity="0.15" />
-            <stop offset="40%" stopColor="#6366f1" stopOpacity="0.06" />
-            <stop offset="100%" stopColor="#000" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        {/* Center glow */}
-        <circle cx="50" cy="50" r="18" fill="url(#core-glow)" />
-
-        {/* Orbit ring lines */}
-        {([1, 2, 3] as const).map((ring) => {
-          const cfg = RING_CONFIG[ring];
-          return (
-            <circle
-              key={`ring-${ring}`}
-              cx="50" cy="50" r={cfg.radius}
-              fill="none"
-              stroke="#f59f4f"
-              strokeWidth="0.3"
-              strokeOpacity={cfg.opacity}
-              strokeDasharray={cfg.dash}
-            />
-          );
-        })}
-
-        {/* Connector lines from modules to center */}
-        {ORBITAL_MODULES.map((m, i) => (
-          <line
-            key={`conn-${i}`}
-            x1="50" y1="50"
-            x2={positions[i].x} y2={positions[i].y}
-            stroke={m.color}
-            strokeWidth={hoveredIdx === i ? '0.4' : '0.15'}
-            strokeOpacity={hoveredIdx === i ? 0.5 : 0.15}
-            strokeDasharray="1.5 3"
-            style={{ transition: 'stroke-opacity 0.3s, stroke-width 0.3s' }}
-          />
-        ))}
-
-        {/* Signal pulses — only for flagship products */}
-        {!reduceMotion && ORBITAL_MODULES.map((m, i) => {
-          if (!m.flagship) return null;
-          return (
-            <circle
-              key={`pulse-${i}`}
-              cx={positions[i].x} cy={positions[i].y}
-              r="1"
-              fill={m.color}
-              opacity="0.6"
-            >
-              <animate
-                attributeName="r" values="0.5;2.5;0.5"
-                dur="3s" begin={`${i * 1}s`} repeatCount="indefinite"
-              />
-              <animate
-                attributeName="opacity" values="0.6;0;0.6"
-                dur="3s" begin={`${i * 1}s`} repeatCount="indefinite"
-              />
-            </circle>
-          );
-        })}
-      </svg>
-
-      {/* Center core (DOM for crispness) */}
-      <div className="absolute left-1/2 top-1/2 z-20 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#080d16] shadow-[0_0_60px_rgba(245,159,79,0.18),0_0_120px_rgba(99,102,241,0.08)] sm:h-20 sm:w-20">
-        <motion.img
-          src="/inbharat-logo.svg"
-          alt="InBharat.ai logo"
-          className="h-8 w-8 object-contain sm:h-10 sm:w-10"
-          animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      {/* Pulsing energy ring around core */}
-      {!reduceMotion && (
-        <motion.div
-          className="absolute left-1/2 top-1/2 z-10 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f59f4f]/20 sm:h-20 sm:w-20"
-          animate={{ scale: [1, 2, 1], opacity: [0.4, 0, 0.4] }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      )}
-
-      {/* Module pills (DOM elements, always upright) */}
-      {ORBITAL_MODULES.map((m, i) => {
-        const isHovered = hoveredIdx === i;
-        return (
-          <div
-            key={m.label}
-            className="absolute z-10"
-            style={{
-              left: `${positions[i].x}%`,
-              top: `${positions[i].y}%`,
-              transform: 'translate(-50%, -50%)',
-              // No will-change to avoid layer explosion on mobile
-            }}
-            onMouseEnter={() => setHoveredIdx(i)}
-            onMouseLeave={() => setHoveredIdx(null)}
-          >
-            <div
-              className="whitespace-nowrap rounded-lg px-2 py-1 text-[8px] font-bold tracking-wide text-white/90 backdrop-blur-sm sm:rounded-xl sm:px-3 sm:py-1.5 sm:text-[10px]"
-              style={{
-                backgroundColor: isHovered ? `${m.color}20` : 'rgba(12, 20, 34, 0.92)',
-                border: `1px solid ${isHovered ? m.color + '50' : 'rgba(255,255,255,0.1)'}`,
-                boxShadow: isHovered
-                  ? `0 0 20px ${m.color}25, 0 4px 12px rgba(0,0,0,0.3)`
-                  : '0 2px 8px rgba(0,0,0,0.2)',
-                transform: isHovered ? 'scale(1.08)' : 'scale(1)',
-                transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-              }}
-            >
-              <span
-                className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2"
-                style={{
-                  backgroundColor: m.color,
-                  boxShadow: isHovered ? `0 0 6px ${m.color}` : 'none',
-                }}
-              />
-              {m.label}
-              {m.flagship && (
-                <span className="ml-1 text-[7px] opacity-50 sm:text-[8px]">*</span>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════
    PRODUCT DEFINITIONS
    ═══════════════════════════════════════════════════════ */
 
@@ -961,12 +676,13 @@ const Landing: React.FC = () => {
     syncDocumentLanguage();
     return () => { document.documentElement.lang = 'en'; };
   }, [i18n.resolvedLanguage]);
-  const { isSignedIn, user, signOut } = useAuth();
+  const [landingReady, setLandingReady] = useState(false);
+  useEffect(() => { setLandingReady(true); }, []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('#ecosystem');
   const prefersReducedMotion = useReducedMotion();
   const reduceMotion = Boolean(prefersReducedMotion);
-  const shellRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
   // Parallax scroll for hero
@@ -984,28 +700,6 @@ const Landing: React.FC = () => {
     };
     window.addEventListener('mousemove', handleMove, { passive: true });
     return () => window.removeEventListener('mousemove', handleMove);
-  }, [reduceMotion]);
-
-  /* GSAP scroll-triggered animations */
-  useEffect(() => {
-    if (reduceMotion) return;
-    const ctx = gsap.context(() => {
-      // Animate section headers on scroll
-      gsap.utils.toArray<HTMLElement>('.gsap-header').forEach((el) => {
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 30 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.9,
-            ease: 'power3.out',
-            scrollTrigger: { trigger: el, start: 'top 85%', once: true },
-          }
-        );
-      });
-    }, shellRef);
-    return () => ctx.revert();
   }, [reduceMotion]);
 
   // Product browser: one vertical at a time. Default = InBharat Core AI.
@@ -1056,16 +750,18 @@ const Landing: React.FC = () => {
 
   /* Smooth scroll handler */
   useEffect(() => {
-    const clickHandler = (event: Event) => {
-      const target = event.target as HTMLElement;
+    const clickHandler = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (!(event.target instanceof Element)) return;
+      const target = event.target;
       const anchor = target.closest('a[href^="#"]') as HTMLAnchorElement | null;
       if (!anchor) return;
       const id = anchor.getAttribute('href');
-      if (!id) return;
-      const section = document.querySelector(id);
+      if (!id || id === '#') return;
+      const section = document.getElementById(id.slice(1));
       if (!section) return;
       event.preventDefault();
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      section.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
       setMobileOpen(false);
     };
     document.addEventListener('click', clickHandler);
@@ -1078,7 +774,7 @@ const Landing: React.FC = () => {
       .filter((item) => item.href.startsWith('#'))
       .map((item) => document.querySelector(item.href))
       .filter((node): node is Element => Boolean(node));
-    if (sections.length === 0) return;
+    if (sections.length === 0 || typeof IntersectionObserver === 'undefined') return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -1096,7 +792,7 @@ const Landing: React.FC = () => {
   }, [navItems]);
 
   return (
-    <div lang="en" ref={shellRef} className="landing-shell min-h-screen overflow-x-hidden bg-[#030508] text-[#e8eef8]">
+    <main lang="en" ref={shellRef} data-landing-ready={landingReady} className="landing-shell min-h-screen overflow-x-hidden bg-[#030508] text-[#e8eef8]">
       {/* Atmospheric layers */}
       <div className="landing-atmosphere" aria-hidden="true" />
       <div className="landing-grid" aria-hidden="true" />
@@ -1204,26 +900,13 @@ const Landing: React.FC = () => {
               Build with Reeturaj
             </Link>
 
-            {isSignedIn ? (
-              <>
-                <div className="hidden rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[11px] text-[#7a8da8] md:block">
-                  {user?.email ?? localized(t('guest'))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void signOut()}
-                  className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-[11px] font-semibold text-[#c0cfe0] transition-all hover:border-white/20 hover:text-white"
-                >
-                  {localized(t('signOut'))}
-                </button>
-              </>
-            ) : (
-              <Link
-                to="/app"
+            {PUBLIC_LOGIN_ENABLED && (
+              <a
+                href="/app"
                 className="rounded-full bg-gradient-to-r from-[#f59f4f] to-[#f5b76f] px-5 py-1.5 text-[11px] font-bold text-[#0a0c10] shadow-[0_0_20px_rgba(245,159,79,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_30px_rgba(245,159,79,0.4)]"
               >
                 {localized(t('signIn'))}
-              </Link>
+              </a>
             )}
 
             <button
@@ -1241,7 +924,7 @@ const Landing: React.FC = () => {
         {/* Mobile menu */}
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
             className="border-t border-white/[0.06] bg-[#050810]/98 px-5 py-4 backdrop-blur-2xl lg:hidden"
@@ -1327,7 +1010,7 @@ const Landing: React.FC = () => {
           <div className="flex flex-col items-center pt-8 pb-12 text-center sm:pt-12 sm:pb-16 md:pt-16 md:pb-20 lg:pt-20 lg:pb-24">
             {/* Badge */}
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease }}
             >
@@ -1350,7 +1033,7 @@ const Landing: React.FC = () => {
 
             {/* Headline */}
             <h1 className="hero-headline mt-8 max-w-5xl text-white sm:mt-10">
-              <WordReveal lang={languageOfText(t('landHeroTitle1'))} text={t('landHeroTitle1')} delay={0.1} />
+              <WordReveal lang={languageOfText(t('landHeroTitle1'))} text={t('landHeroTitle1')} delay={0.1} />{' '}
               <span className="block mt-1 bg-gradient-to-r from-[#f59f4f] via-[#fde8d0] to-[#6fd3a3] bg-clip-text text-transparent">
                 <WordReveal lang={languageOfText(t('landHeroTitle2'))} text={t('landHeroTitle2')} delay={0.3} />
               </span>
@@ -1359,7 +1042,7 @@ const Landing: React.FC = () => {
             {/* Subheadline */}
             <motion.p
               className="mt-6 max-w-2xl text-[15px] leading-relaxed text-[#9aafc6] sm:text-[16px] sm:leading-[1.7]"
-              initial={{ opacity: 0, y: 14 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.55, ease }}
             >
@@ -1369,7 +1052,7 @@ const Landing: React.FC = () => {
             {/* CTAs */}
             <motion.div
               className="mt-10 flex flex-wrap items-center justify-center gap-3"
-              initial={{ opacity: 0, y: 14 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.7, ease }}
             >
@@ -1394,7 +1077,7 @@ const Landing: React.FC = () => {
             {/* Metrics */}
             <motion.div
               className="mt-14 grid w-full max-w-xl gap-4 sm:grid-cols-3"
-              initial={{ opacity: 0, y: 14 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.85, ease }}
             >
@@ -1408,7 +1091,7 @@ const Landing: React.FC = () => {
                   className="rounded-2xl border border-white/[0.06] bg-white/[0.025] p-4 backdrop-blur-sm"
                 >
                   <p className="metric-num bg-gradient-to-br from-white to-[#c8d8ea] bg-clip-text text-transparent">
-                    <CountUp target={metric.value} reduceMotion={reduceMotion} />
+                    <span>{metric.value}</span>
                   </p>
                   <p className="mt-1.5 text-[11px] leading-relaxed text-[#96b0c8]">{localized(metric.label)}</p>
                 </div>
@@ -1425,48 +1108,7 @@ const Landing: React.FC = () => {
 
       {/* ═══════════════ MEET PAI ═══════════════ */}
       <Reveal id="pai" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="text-center mb-14">
-            <p className="eyebrow-line justify-center text-[#96b0c8] gsap-header">{localized(t('landPaiEyebrow'))}</p>
-            <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-bold leading-[1.1] text-white sm:text-4xl gsap-header">
-              {localized(t('landPaiHeading'))}
-            </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-[1.75] text-[#9aafc6] sm:text-[15px]">
-              {localized(t('landPaiBody'))}
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-3">
-            {[
-              { title: t('landPaiLayer1Title'), text: t('landPaiLayer1Desc'), icon: ShieldCheck, color: '#f59f4f' },
-              { title: t('landPaiLayer2Title'), text: t('landPaiLayer2Desc'), icon: Sparkles, color: '#10b981' },
-              { title: t('landPaiLayer3Title'), text: t('landPaiLayer3Desc'), icon: Globe, color: '#4c8bf5' },
-            ].map((item, i) => (
-              <motion.article
-                key={item.title}
-                custom={i}
-                variants={itemReveal}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.2 }}
-                className="group glow-card rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 transition-all duration-400"
-              >
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/[0.08]"
-                  style={{ backgroundColor: `${item.color}08` }}
-                >
-                  <item.icon size={22} style={{ color: item.color }} />
-                </div>
-                <h3 className="mt-6 text-lg font-semibold text-white">{localized(item.title)}</h3>
-                <p className="mt-3 text-sm leading-[1.7] text-[#9aafc6]">{localized(item.text)}</p>
-              </motion.article>
-            ))}
-          </div>
-
-          <p className="mt-10 text-center text-sm font-semibold tracking-[0.18em] text-[#96b0c8]">
-            {localized(t('landPaiLayersHeading'))}
-          </p>
-        </div>
+        <UnoOneSection />
       </Reveal>
 
       <div className="landing-seam" aria-hidden="true" />
@@ -1500,7 +1142,7 @@ const Landing: React.FC = () => {
                 key={item.title}
                 custom={i}
                 variants={itemReveal}
-                initial="hidden"
+                initial={false}
                 whileInView="visible"
                 viewport={{ once: true, amount: 0.2 }}
                 className="group glow-card rounded-[20px] border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-7 transition-all duration-400"
@@ -1582,7 +1224,7 @@ const Landing: React.FC = () => {
                         key={stat.label}
                         custom={i}
                         variants={itemReveal}
-                        initial="hidden"
+                        initial={false}
                         whileInView="visible"
                         viewport={{ once: true }}
                         className="rounded-xl border border-[#ef4444]/15 bg-[#ef4444]/[0.05] p-3.5 text-center"
@@ -1631,7 +1273,7 @@ const Landing: React.FC = () => {
 
                 {/* Right: JAK Swarm Flow Graph — illustrative pipeline, not telemetry */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }}
+                  initial={false}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.9, delay: 0.1, ease }}
@@ -1654,22 +1296,22 @@ const Landing: React.FC = () => {
           <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
             {/* Left: Content */}
             <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">{localized(t('landEcoLabel'))}</p>
+              <p className="eyebrow-line text-[#96b0c8] gsap-header">UNOONE · ONE PRODUCT, DISTINCT CAPABILITIES</p>
               <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
-                {localized(t('landEcoTitle'))}
+                Your workspace. Your permissions.
               </h2>
 
               <div className="mt-10 space-y-4">
                 {[
-                  { title: t('landEcoLayer1Title'), desc: t('landEcoLayer1Desc'), icon: Brain, color: '#f59f4f' },
-                  { title: t('landEcoLayer2Title'), desc: t('landEcoLayer2Desc'), icon: MessageCircle, color: '#6366f1' },
-                  { title: t('landEcoLayer3Title'), desc: t('landEcoLayer3Desc'), icon: Target, color: '#10b981' },
+                  { title: 'Intelligence on your device', desc: 'Compatible local models and private memory form the foundation. Each device keeps its own local state.', icon: Brain, color: '#f59f4f' },
+                  { title: 'Tools for useful work', desc: 'Power brings supported documents, granted files, coding and online research into a permission-controlled workspace.', icon: MessageCircle, color: '#3b82f6' },
+                  { title: 'Practical assistance on Android', desc: 'Mobile has its own native tools, speech requirements and Blind Aid scope. Capabilities are not identical across platforms.', icon: Target, color: '#10b981' },
                 ].map((item, i) => (
                   <motion.div
                     key={item.title}
                     custom={i}
                     variants={itemReveal}
-                    initial="hidden"
+                    initial={false}
                     whileInView="visible"
                     viewport={{ once: true, amount: 0.3 }}
                     className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
@@ -1690,13 +1332,13 @@ const Landing: React.FC = () => {
                 ))}
               </div>
 
-              {/* Platform pulse */}
+              {/* Product boundaries — not telemetry */}
               <div className="mt-8 grid grid-cols-2 gap-2.5">
                 {[
-                  t('landEcoPulse1'),
-                  t('landEcoPulse2'),
-                  t('landEcoPulse3'),
-                  t('landEcoPulse4'),
+                  'Local-first, not always offline',
+                  'Windows and Android have distinct scopes',
+                  'Continuity is still in development',
+                  'Explore the company directory below',
                 ].map((line) => (
                   <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
                     {localized(line)}
@@ -1707,13 +1349,13 @@ const Landing: React.FC = () => {
 
             {/* Right: Orbital visualization */}
             <motion.div
-              className="flex items-center justify-center"
-              initial={{ opacity: 0, scale: 0.95 }}
+              className="min-w-0 flex items-center justify-center"
+              initial={false}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 1, ease }}
             >
-              <EcosystemOrbital reduceMotion={reduceMotion} />
+              <UnoOneCapabilityOrbit reduceMotion={reduceMotion} />
             </motion.div>
           </div>
         </div>
@@ -1784,7 +1426,7 @@ const Landing: React.FC = () => {
             return (
               <motion.div
                 key={activeBucket}
-                initial={{ opacity: 0, y: 12 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease }}
                 className="relative overflow-hidden rounded-[24px] border border-white/[0.08] bg-gradient-to-br from-[#0b0f17] via-[#090c12] to-[#030508] p-5 sm:p-7 lg:p-8"
@@ -1941,6 +1583,15 @@ const Landing: React.FC = () => {
               </motion.div>
             );
           })()}
+          {/* Equivalent no-JS/failed-bundle access; the enhanced original selector
+              remains the sole visible company directory once it is ready. */}
+          <details data-product-directory hidden={landingReady} className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <summary className="min-h-11 cursor-pointer text-sm font-semibold text-[#c0cfe0]">Complete company directory · 15 products</summary>
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{ALL_PRODUCTS.map(product => <article key={product.name} className="rounded-xl border border-white/[0.08] p-5">
+              <h3 className="text-base font-bold text-white">{product.name}</h3><p className="mt-3 text-sm leading-relaxed text-[#9aafc6]">{localized(product.desc)}</p>
+              <a className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-[#f5b76f]" href={product.href} {...(product.href.startsWith('https:') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>Explore {product.name}<ArrowRight size={14} aria-hidden="true" /></a>
+            </article>)}</div>
+          </details>
         </div>
       </Reveal>
 
@@ -2034,7 +1685,7 @@ const Landing: React.FC = () => {
                 ].map((point, i) => (
                   <motion.div
                     key={point}
-                    initial={{ opacity: 0, x: 14 }}
+                    initial={false}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true, amount: 0.3 }}
                     transition={{ duration: 0.5, delay: i * 0.08 }}
@@ -2210,7 +1861,7 @@ const Landing: React.FC = () => {
           </div>
         </div>
       </footer>
-    </div>
+    </main>
   );
 };
 

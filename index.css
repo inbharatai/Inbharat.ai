@@ -1,9 +1,13 @@
 @import "tailwindcss";
+@import "./styles/unoone-shared.css";
+@import "./styles/unoone-pages.css";
+@import "./styles/unoone-scoped.css";
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Serif+Devanagari:wght@400;500;600&display=swap&family=Sora:wght@500;600;700;800&display=swap");
 
 /* Tailwind v4 content sources */
 @source "./index.html";
 @source "./**/*.{ts,tsx}";
+@source not "./assets-source";
 
 /* ══════════════════════════════════════════
    PREMIUM DESIGN SYSTEM — InBharat.ai

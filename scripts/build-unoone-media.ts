@@ -9,7 +9,7 @@ const source = resolve(root, 'assets-source', 'unoone');
 const output = resolve(root, 'public', 'unoone');
 
 // Whitelisted media that may be released on the site. Everything else fails closed.
-const WHITELIST = new Set(['power-ui.png', 'mobile-ui.png']);
+const WHITELIST = new Set(['power-ui.png', 'mobile-ui.png', 'unoone-logo.png', 'unoone-logo-dark.png', 'unoone-demo.mp4', 'unoone-demo-poster.jpg', 'unoone-demo-en.vtt']);
 const MAX_BYTES = 1_500_000;
 
 const manifest = JSON.parse(readFileSync(resolve(source, 'manifest.json'), 'utf8')) as {
@@ -25,7 +25,8 @@ for (const asset of manifest.assets) {
   if (!WHITELIST.has(asset.filename)) {
     throw new Error(`Asset ${asset.filename} is not on the release whitelist`);
   }
-  if (asset.bytes > MAX_BYTES) {
+  const budget = asset.filename === 'unoone-demo.mp4' ? 10_000_000 : MAX_BYTES;
+  if (asset.bytes > budget) {
     throw new Error(`Asset ${asset.filename} exceeds size budget (${asset.bytes} bytes)`);
   }
   const encoded = readFileSync(resolve(source, `${asset.filename}.b64`), 'utf8').replace(/\s+/g, '');

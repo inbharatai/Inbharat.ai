@@ -1,3 +1,4 @@
+import { PUBLIC_LOGIN_ENABLED } from '../lib/publicLogin';
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import ReactMarkdown, { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -494,7 +495,7 @@ const ChatView: React.FC<ChatViewProps> = ({
                       >
                         <RotateCcw size={14} />
                         {msg.errorCode === "UNAUTHORIZED"
-                          ? t('signIn')
+                          ? (PUBLIC_LOGIN_ENABLED ? t('signIn') : 'Account access paused')
                           : retryDisabled
                             ? t('retryIn', { seconds: Math.ceil(retryCooldownMs / 1000) })
                             : t('retry')}

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 /**
  * InBharat Growth Agent — server-side admin enforcement.
  *
@@ -27,7 +28,7 @@ function adminIds(): string[] {
 }
 
 function isLocalDev(): boolean {
-  return process.env.NODE_ENV !== "production" && !!process.env.LOCAL_API_PORT;
+  return process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1" && process.env.VERCEL_ENV !== "production" && !!process.env.LOCAL_API_PORT;
 }
 
 export type AdminOk = { ok: true; userId: string; requestId: string };
@@ -86,16 +87,14 @@ export function methodNotAllowed(res: VercelResponse, requestId: string, allowed
 
 // ─── Cron auth ────────────────────────────────────────────────────────────
 //
-// Vercel's scheduled cron invokes the endpoint with an HTTP GET and identifies
-// itself via `user-agent: vercel-cron/1.0` + an `x-vercel-cron-schedule` header
-// (it can NOT send a shared secret header). So a cron invocation is authorized
-// by that Vercel signature. Two more paths: an external scheduler carrying a
-// CRON_SECRET, and an authenticated admin (the dashboard "Run now" button).
+// Scheduling metadata is not authentication. Vercel scheduled requests use
+// Authorization: Bearer CRON_SECRET when that server-only setting is configured.
+// External schedulers may also use x-cron-secret; dashboard actions need admin auth.
 
 export type CronAuthOk = {
   ok: true;
   requestId: string;
-  source: "vercel-cron" | "cron-secret" | "admin" | "local-dev";
+  source: "cron-secret" | "admin" | "local-dev";
   userId?: string;
 };
 export type CronAuthResult = CronAuthOk | AdminErr;
@@ -104,33 +103,21 @@ export function isCronAuthErr(a: CronAuthResult): a is AdminErr {
   return a.ok === false;
 }
 
-/** Authenticate a daily-cron invocation. Order: Vercel signature → CRON_SECRET → admin. */
+/** Authenticate scheduled/admin work; never trust caller-supplied UA/schedule headers. */
 export async function authorizeCron(req: VercelRequest): Promise<CronAuthResult> {
   const requestId = getRequestId(req);
 
-  // 1. Vercel's scheduled cron (GET). Vercel sends BOTH the `vercel-cron` user-
-  // agent AND the `x-vercel-cron-schedule` header on every cron invocation. We
-  // require BOTH (not either alone) so a single spoofed client header isn't
-  // enough — an attacker must know to set both. This path is inherently UA-based
-  // (Vercel cron cannot send a custom secret), so for true security set
-  // CRON_SECRET and drive these endpoints from an external scheduler (path 2).
-  // In production, log a warning so the spoofable path is visible in logs.
-  const ua = (req.headers?.["user-agent"] as string | undefined) || "";
-  const hasSchedule = !!req.headers?.["x-vercel-cron-schedule"];
-  if (/vercel-cron/i.test(ua) && hasSchedule) {
-    if (!isLocalDev() && process.env.NODE_ENV === "production") {
-      console.warn("[cron] endpoint authed via vercel-cron UA (spoofable); set CRON_SECRET + external scheduler for true security");
-    }
-    return { ok: true, requestId, source: "vercel-cron" };
-  }
-
-  // 2. External scheduler with a shared secret (x-cron-secret or Bearer).
   const secret = process.env.CRON_SECRET;
-  const provided =
-    (req.headers?.["x-cron-secret"] as string | undefined) ||
-    (req.headers?.["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
-  if (secret && provided && provided === secret) {
-    return { ok: true, requestId, source: "cron-secret" };
+  const rawHeader = req.headers?.["x-cron-secret"];
+  const authorization = req.headers?.authorization;
+  const provided = typeof rawHeader === 'string' ? rawHeader
+    : typeof authorization === 'string' ? /^Bearer\s+(.+)$/i.exec(authorization)?.[1] : undefined;
+  if (secret && provided) {
+    const expected = Buffer.from(secret);
+    const actual = Buffer.from(provided);
+    if (expected.length === actual.length && timingSafeEqual(expected, actual)) {
+      return { ok: true, requestId, source: "cron-secret" };
+    }
   }
 
   // 3. Authenticated admin (dashboard "Run now"). Returns the admin's userId.

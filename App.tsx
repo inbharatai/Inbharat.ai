@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './lib/auth';
+import { PUBLIC_LOGIN_ENABLED } from './lib/publicLogin';
 import { useTranslation } from 'react-i18next';
 import { Message, AgentMode, ChatSession, ViewMode, Source } from './types';
 import { NexusAgent, OpenAISanitizedError } from './services/openaiService';
@@ -133,7 +134,7 @@ const App: React.FC = () => {
       const effectiveCount = Math.max(storedGuestCount, sessionCount);
       if (effectiveCount >= GUEST_LIMIT) {
         setShowSignInPrompt(true);
-        setShowAuthModal(true);
+        if (PUBLIC_LOGIN_ENABLED) setShowAuthModal(true);
         return;
       }
     }
@@ -394,11 +395,11 @@ const App: React.FC = () => {
       const sanitized = error instanceof OpenAISanitizedError ? error : null;
       let content: string;
       if (sanitized?.code === "UNAUTHORIZED") {
-        content = t('errUnauthorized');
+        content = PUBLIC_LOGIN_ENABLED ? t('errUnauthorized') : 'This action needs an account. Account access is temporarily paused.';
       } else if (sanitized?.code === "GUEST_LIMIT") {
         setShowSignInPrompt(true);
-        setShowAuthModal(true);
-        content = t('signInRequired');
+        if (PUBLIC_LOGIN_ENABLED) setShowAuthModal(true);
+        content = PUBLIC_LOGIN_ENABLED ? t('signInRequired') : 'Guest preview limit reached. Account access is temporarily paused.';
       } else if (sanitized?.code === "UPSTREAM_OVERLOADED") {
         content = t('errUpstreamBusy');
       } else if (sanitized?.code === "RATE_LIMIT") {
@@ -520,7 +521,7 @@ const App: React.FC = () => {
       {/* Main UI */}
       <main id="main-content" className="flex-1 flex flex-col relative h-full">
         {/* Sign-in banner (non-blocking) */}
-        {!authLoading && !isSignedIn && (
+        {PUBLIC_LOGIN_ENABLED && !authLoading && !isSignedIn && (
           <div className="shrink-0 bg-[#161b22] border-b border-[#30363d]/50 px-4 py-2 flex items-center justify-center gap-3 text-sm">
             <span className="text-gray-400">{t('signInBanner')}</span>
             <button
@@ -581,7 +582,7 @@ const App: React.FC = () => {
                    {t('signOut')}
                  </button>
                </div>
-             ) : (
+             ) : PUBLIC_LOGIN_ENABLED ? (
                <button
                  type="button"
                  onClick={() => setShowAuthModal(true)}
@@ -589,7 +590,7 @@ const App: React.FC = () => {
                >
                  {t('signIn')}
                </button>
-             )}
+             ) : null}
           </div>
         </header>
 
@@ -750,7 +751,7 @@ const App: React.FC = () => {
       <SettingsPanel isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
       {/* Auth modal — login without leaving the main UI */}
-      {showAuthModal && (
+      {PUBLIC_LOGIN_ENABLED && showAuthModal && (
         <div
           className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
           onClick={() => setShowAuthModal(false)}
@@ -777,8 +778,8 @@ const App: React.FC = () => {
       {/* Sign-in prompt after 3 guest messages — hard gate, no dismiss */}
       {showSignInPrompt && !isSignedIn && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-100 max-w-md w-full mx-4 px-4 py-3 rounded-2xl bg-[#161b22] border border-[#FF9933]/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-sm text-gray-300">{t('signInRequired')}</p>
-          <div className="flex gap-2 shrink-0">
+          <p className="text-sm text-gray-300" lang={PUBLIC_LOGIN_ENABLED ? undefined : 'en'}>{PUBLIC_LOGIN_ENABLED ? t('signInRequired') : 'Guest preview limit reached. Account access is temporarily paused.'}</p>
+          {PUBLIC_LOGIN_ENABLED && <div className="flex gap-2 shrink-0">
             <button
               type="button"
               onClick={() => { setShowSignInPrompt(false); setShowAuthModal(true); }}
@@ -786,7 +787,7 @@ const App: React.FC = () => {
             >
               {t('signIn')}
             </button>
-          </div>
+          </div>}
         </div>
       )}
     </div>

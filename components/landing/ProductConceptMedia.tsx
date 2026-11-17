@@ -8,7 +8,7 @@ export function ProductConceptMedia({ id, label }: { id: 'silt' | 'pai'; label: 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [policy, setPolicy] = useState({ ready: false, reduced: true, automatic: false, saveData: false });
   const [visible, setVisible] = useState(false);
-  const [hidden, setHidden] = useState(() => document.hidden);
+  const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const [intent, setIntent] = useState<boolean | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);

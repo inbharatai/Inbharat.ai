@@ -32,13 +32,16 @@ import { ARTICLES, articlePath, articleVisualPath } from '../content/articles.me
 import { computeRouteLastmod } from '../lib/growth/sitemap-lastmod';
 import { formatArticleDate, compareArticleRecency } from '../lib/article-display';
 import { articleLastmod } from '../content/article-lifecycle';
-import { execSync, execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
+import { verifySourceProvenance } from '../lib/growth/source-provenance';
 import { createCanonicalSnapshot, CANONICAL_MANIFEST_PATH } from '../lib/growth/canonical-article-sync';
 import { UNOONE_PAGES } from '../content/privateAI';
 import { DEEP_TECH_PROJECTS } from '../content/deepTech';
 import { prepareArticleMarkdown, normalizeArticleHeadings } from '../lib/article-rendering';
 import { SEO_JSONLD_ATTRIBUTE, serializeInlineJson, replaceManagedRoot, renderStaticFaqs, NOT_FOUND_RENDERING_SEO } from '../lib/rendering-contract';
 import { renderPrivateAiStaticContent } from '../lib/private-ai-static-rendering';
+import { renderStaticLanding } from '../components/landing/renderStaticLanding';
+import { renderStaticUnoOne } from '../pages/unoone/renderStaticUnoOne';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -402,9 +405,9 @@ async function rewriteShell(
   // Static content lives exclusively INSIDE the root owned by React. createRoot
   // replaces it on commit; no duplicate or stale body survives SPA navigation.
   const bodyHtml = route.articleSlug ? await renderArticleBody(route.articleSlug) : '';
-  const fallback = route.path === '/learn-ai-with-reeturaj'
-    ? buildHubCardGrid()
-    : buildBodyInjection(route, bodyHtml);
+  const fallback = route.path === '/' ? await renderStaticLanding()
+    : route.path === '/learn-ai-with-reeturaj' ? buildHubCardGrid()
+      : renderStaticUnoOne(route.path) ?? buildBodyInjection(route, bodyHtml);
   html = replaceManagedRoot(html, fallback);
 
   return html;
@@ -513,8 +516,8 @@ async function buildOgImage() {
         .accent{ fill: #f59f4f; }
       </style>
       <text x="600" y="320" text-anchor="middle" class="brand" font-size="78">InBharat AI</text>
-      <text x="600" y="380" text-anchor="middle" class="tag" font-size="30">Affordable AI tools built for Bharat</text>
-      <text x="600" y="450" text-anchor="middle" class="tag" font-size="20" opacity="0.7">11 Indian languages · voice-first · open</text>
+      <text x="600" y="380" text-anchor="middle" class="tag" font-size="30">Private AI and practical tools for Bharat</text>
+      <text x="600" y="450" text-anchor="middle" class="tag" font-size="20" opacity="0.7">UnoOne · research · learning</text>
       <circle cx="240" cy="520" r="3" class="accent"/>
       <text x="260" y="528" class="tag" font-size="18" opacity="0.85">inbharat.ai</text>
     </svg>
@@ -539,6 +542,27 @@ async function buildOgImage() {
     .composite(composite)
     .png({ quality: 90, compressionLevel: 9 })
     .toFile(path.join(DIST, 'og-image.png'));
+}
+
+/** Product social preview uses the owner-requested transparent dark derivative.
+ * Original letter/eye geometry and violet accent are retained; no white plate. */
+async function buildUnoOneOgImage() {
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+    <defs><linearGradient id="unoone-bg" x2="1" y2="1"><stop stop-color="#080c16"/><stop offset="1" stop-color="#1c1736"/></linearGradient></defs>
+    <rect width="1200" height="630" fill="url(#unoone-bg)"/>
+    <rect x="32" y="32" width="1136" height="566" rx="24" fill="none" stroke="#37324f"/>
+    <style>text{font-family:Arial,Helvetica,sans-serif}</style>
+    <text x="318" y="118" fill="#b6bed0" font-size="23">by InBharat.ai</text>
+    <text x="72" y="296" fill="#ffffff" font-size="70" font-weight="700">Models change.</text>
+    <text x="72" y="390" fill="#c6abff" font-size="70" font-weight="700">Your work stays yours.</text>
+    <text x="76" y="470" fill="#c1c8d8" font-size="25">Local models · Encrypted memory · Permission-controlled tools</text>
+    <text x="76" y="556" fill="#a8b1c6" font-size="21">UnoOne Power · UnoOne Mobile · Explore requirements &amp; availability</text>
+  </svg>`);
+  const logo = await sharp(path.join(ROOT, 'public', 'unoone', 'unoone-logo-dark.png'))
+    .resize(216, 120, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  await fs.mkdir(path.join(DIST, 'unoone'), { recursive: true });
+  await sharp(svg).composite([{ input: logo, left: 72, top: 60 }]).png({ compressionLevel: 9 })
+    .toFile(path.join(DIST, 'unoone', 'og-image.png'));
 }
 
 /* ------------------------------------------------------------------ */
@@ -572,6 +596,9 @@ async function buildSceneWebPs() {
 /* ------------------------------------------------------------------ */
 
 async function main() {
+  // Local .env defaults may configure rendering, never manufacture hosted-build identity.
+  const provenanceEnv = { VERCEL: process.env.VERCEL, VERCEL_ENV: process.env.VERCEL_ENV,
+    VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA };
   // Make VITE_GA_MEASUREMENT_ID / GSC_SITE_VERIFICATION available at build time
   // locally (from .env); on Vercel they are already in process.env.
   loadEnvDefaults();
@@ -616,17 +643,15 @@ async function main() {
   await fs.writeFile(path.join(DIST, 'sitemap.xml'), sitemap, 'utf8');
 
   await buildOgImage();
+  await buildUnoOneOgImage();
   await buildSceneWebPs();
 
   // Hash exact final on-disk HTML, after all shell rendering. Public content only.
   // A local, dirty, uncommitted, preview or unidentified build cannot authorize sync.
-  const sourceCommitSha = process.env.VERCEL_GIT_COMMIT_SHA;
-  let cleanSource = false;
-  try {
-    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    cleanSource = head === sourceCommitSha && status === '';
-  } catch { /* No Git evidence means ineligible, never guess a source revision. */ }
+  const sourceCommitSha = provenanceEnv.VERCEL_GIT_COMMIT_SHA;
+  const sourceProvenance = await verifySourceProvenance({ root: ROOT, env: provenanceEnv });
+  // Fixed reason codes and counts only; never log paths, environment values or errors.
+  console.log(`[build-seo] publication source eligibility ${JSON.stringify(sourceProvenance)}`);
   const bodies: Record<string, string> = {};
   const finalHtml: Record<string, string> = {};
   for (const article of ARTICLES) {
@@ -634,8 +659,8 @@ async function main() {
     finalHtml[article.slug] = await fs.readFile(path.join(DIST, articlePath(article.slug), 'index.html'), 'utf8');
   }
   const snapshot = createCanonicalSnapshot({ articles: ARTICLES, bodies, html: finalHtml,
-    builtAt: new Date().toISOString(), sourceCommitSha, cleanSource,
-    productionBuild: process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'production' });
+    builtAt: new Date().toISOString(), sourceCommitSha, cleanSource: sourceProvenance.eligible, sourceProvenance,
+    productionBuild: provenanceEnv.VERCEL === '1' && provenanceEnv.VERCEL_ENV === 'production' });
   const serialized = JSON.stringify(snapshot);
   await fs.mkdir(path.join(DIST, 'article-publication'), { recursive: true });
   // Immutable content-addressed artifact plus current canonical pointer (same bytes).

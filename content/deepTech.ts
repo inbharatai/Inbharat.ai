@@ -4,7 +4,7 @@ export type DeepTechProject = {
   id: 'silt' | 'pai';
   name: string;
   shortName: string;
-  category: 'Foundational Deep Tech';
+  category: 'Foundational Deep Tech' | 'Historical Research';
   tagline: string;
   description: string;
   patentStatus: PatentPendingStatus;
@@ -55,27 +55,26 @@ export const DEEP_TECH_PROJECTS: readonly DeepTechProject[] = [
   },
   {
     id: 'pai',
-    name: 'PAI',
-    shortName: 'PAI',
-    category: 'Foundational Deep Tech',
-    tagline: 'One Personal Private AI Agent',
+    name: 'Pocket AI research',
+    shortName: 'Historical PAI',
+    category: 'Historical Research',
+    tagline: 'The earlier portable-intelligence architecture',
     description:
-      'PAI (pronounced "Pi") is one personal private AI agent: a persistent, permission-controlled assistant implemented through the UnoOne ecosystem — UnoOne Power for desktop and UnoOne Mobile for Android — with local models, permission-controlled tool execution and encrypted personal memory that survives model changes. Its architecture began as a portable host-adaptive design whose removable drive held the canonical state (the host computes, the drive remains the authoritative store) — preserved as historical prior research, not a marketed product. The historical filing does not establish patent coverage of every current UnoOne feature.',
+      'The earlier Pocket AI research explored host-adaptive execution with a removable drive holding canonical encrypted state. It is preserved as historical research and a recorded Indian patent-pending filing—not a current removable-drive consumer offer. UnoOne is the current product brand. The historical filing does not establish patent coverage of every current UnoOne feature.',
     patentStatus: 'Patent Pending',
     jurisdiction: 'India',
     applicationNo: '202631102427',
     patentTitle:
       'Portable Host-Adaptive Private Artificial Intelligence System with Device-Resident Canonical State',
     repository: 'https://github.com/inbharatai/PAI.V2',
-    publicUrl: 'https://www.inbharat.ai/private-ai',
-    route: '/private-ai',
+    publicUrl: '/technology',
+    route: '/technology',
     pillars: [
-      'Private memory independent of the model',
-      'Permission-controlled tool execution',
-      'Local model execution with memory budgets',
-      'Drafts-never-sends on the phone',
-      'Action verification with receipts',
-      'Offline-first design',
+      'Historical portable architecture',
+      'Host-adaptive execution',
+      'Encrypted canonical state',
+      'Recorded filing, not certification',
+      'Separate from current product readiness',
     ],
     limitations: [
       'Development-stage software — internal scoped tests, not release-qualified',

@@ -9,7 +9,11 @@ import type { SeoRoute } from "../../seo.config.js";
  * indexable non-article route is listed here (so missing source coverage is explicit).
  */
 export const ROUTE_LASTMOD_SOURCE: Record<string, string[]> = {
-  "/": ["pages/Landing.tsx", "seo.config.ts"],
+  "/": ["pages/Landing.tsx", "content/unooneLanding.ts", "content/productRegistry.ts", "components/landing/ProductOrbit.tsx", "components/HeroGitaQuote.tsx", "content/credentials.ts", "locales/en.json", "seo.config.ts"],
+  "/get-started": ["content/unooneRelease.ts", "pages/unoone/LaunchPages.tsx", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/status": ["content/unooneRelease.ts", "pages/unoone/LaunchPages.tsx", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/ecosystem": ["content/productRegistry.ts", "content/unooneRelease.ts", "components/landing/ProductOrbit.tsx", "pages/unoone/LaunchPages.tsx", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
+  "/unoone/demo": ["content/unooneLanding.ts", "content/unooneRelease.ts", "components/landing/UnoOneDemo.tsx", "components/landing/unooneDemoTranscript.json", "assets-source/unoone/manifest.json", "pages/unoone/LaunchPages.tsx", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],
   // No pages/App.tsx — the console UI lives in components/, but the crawlable
   // shell content (seoBody) is authored in seo.config.ts, so that is the
   // truthful lastmod source for /app.
@@ -32,7 +36,7 @@ export const ROUTE_LASTMOD_SOURCE: Record<string, string[]> = {
   "/unoone": [
     "content/privateAI.ts",
     "pages/unoone/UnoOnePages.tsx",
-    "components/landing/UnoOneDevices.tsx",
+    "content/unooneRelease.ts",
     "seo.config.ts",
   ],
   "/unoone/power": ["content/privateAI.ts", "pages/unoone/UnoOnePages.tsx", "seo.config.ts"],

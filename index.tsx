@@ -1,11 +1,14 @@
 import React, { Suspense, lazy, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import App from './App.tsx';
+const App = lazy(() => import('./App.tsx'));
 import Landing from './pages/Landing.tsx';
 import './index.css';
 import './lib/i18n';
-import { AuthProvider } from './lib/auth.tsx';
+// Keep account SDKs off the public marketing path. The same provider and
+// server guards still protect every console/admin route; this changes loading,
+// not authorization or the owner's paused Supabase operating scope.
+const AuthBoundary = lazy(() => import('./lib/auth.tsx').then(m => ({ default: m.AuthProvider })));
 import { trackPageView } from './lib/analytics';
 import { useDocumentHead } from './lib/useDocumentHead';
 
@@ -17,14 +20,10 @@ const LearnAIWithReeturaj = lazy(() => import('./pages/LearnAIWithReeturaj.tsx')
 const ArticlePage = lazy(() => import('./pages/ArticlePage.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
-// Private-AI / UnoOne pages (static marketing content, lazily chunk-split).
-const PrivateAiOverview = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.PrivateAiPageNew })));
-const UnoOnePage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.UnoOnePage })));
-const PowerPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.PowerPage })));
-const MobilePage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.MobilePage })));
-const SyncPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.SyncPage })));
-const EnterpriseAiPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.EnterpriseAiPage })));
-const TechnologyPage = lazy(() => import('./pages/unoone/UnoOnePages.tsx').then((m) => ({ default: m.TechnologyPage })));
+// Small marketing route trees are present at the first client commit, matching
+// their styled prerender. Only the separate console/admin stay lazy-loaded.
+import { PrivateAiPageNew as PrivateAiOverview, UnoOnePage, PowerPage, MobilePage, SyncPage, EnterpriseAiPage, TechnologyPage } from './pages/unoone/UnoOnePages';
+import { GetStartedPage, StatusPage, EcosystemPage, DemoPage } from './pages/unoone/LaunchPages';
 
 // InBharat Growth Agent admin (audit-only). Client-gated by RequireAdmin;
 // real enforcement is server-side in api/lib/requireAdmin.ts. Excluded from
@@ -108,19 +107,21 @@ if (!rootElement) {
   throw new Error('Could not find root element to mount to');
 }
 
-// This is replacement rendering, not hydration. The visible static fallback
-// lives inside #root and is retired atomically by React's first commit. Never
-// pre-clear it: if the bundle fails before mounting, it remains readable.
+// Replacement, not hydration: the homepage is prerendered from Landing itself.
+// Its visible first client frame matches the build (no opacity-zero entrance).
+// Keep the existing root until React commits; a failed/delayed bundle leaves the
+// real styled, accessible landing intact. Product and launch routes likewise use
+// their real React trees, available without a lazy loading interstitial.
+// Do not hydrate blindly: a visitor may have selected any of eleven UI locales.
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
       <BrowserRouter>
         <RouteEffects />
         <Suspense fallback={<StaticLoader />}>
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/app" element={<App />} />
+            <Route path="/app" element={<AuthBoundary><App /></AuthBoundary>} />
             <Route path="/about" element={<About />} />
             <Route path="/private-ai" element={<PrivateAiOverview />} />
             <Route path="/unoone" element={<UnoOnePage />} />
@@ -129,12 +130,16 @@ root.render(
             <Route path="/unoone/sync" element={<SyncPage />} />
             <Route path="/enterprise-ai" element={<EnterpriseAiPage />} />
             <Route path="/technology" element={<TechnologyPage />} />
+            <Route path="/get-started" element={<GetStartedPage />} />
+            <Route path="/status" element={<StatusPage />} />
+            <Route path="/ecosystem" element={<EcosystemPage />} />
+            <Route path="/unoone/demo" element={<DemoPage />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/learn-ai-with-reeturaj" element={<LearnAIWithReeturaj />} />
             <Route path="/learn-ai-with-reeturaj/:slug" element={<ArticlePage />} />
-            <Route path="/admin/growth" element={<AdminGrowthLayout />}>
+            <Route path="/admin/growth" element={<AuthBoundary><AdminGrowthLayout /></AuthBoundary>}>
               {ADMIN_GROWTH_CHILDREN.map((c) =>
                 c.segment === '' ? (
                   <Route key="__index__" index element={<AdminChild segment="" />} />
@@ -147,6 +152,5 @@ root.render(
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </AuthProvider>
   </React.StrictMode>,
 );

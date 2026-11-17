@@ -1,0 +1,12 @@
+# UnoOne release-media provenance
+
+- `unoone-logo.png.b64` is the exact owner-supplied PNG, unchanged and uncropped. Its checksum remains recorded in `manifest.json`; accessible brand text is **UnoOne**.
+- `unoone-logo-dark.png.b64` is the owner-requested dark-website adaptation (17 November 2026). The white matte and pale eye fill are transparent; neutral ink is soft white `#edf0fa`; original violet pupil `#8c5df7` and catchlight are retained. It is derived from the original pixels without font substitution, redraw, distortion or resampling. Only empty outer margins are trimmed, with 2px padding (source crop 46,51–273,133; output 227×82). The component uses this variant without a CSS background, inversion or blend-mode trick. The original remains available for light surfaces.
+- `unoone-demo.mp4.b64` is a web H.264/AAC transcode of the owner-supplied 2m22s product walkthrough. Resolution and sequence are retained; no scenes were cut or rearranged. File size is approximately 8.3 MiB, not the original upload size.
+- The poster is a still at 00:25. English WebVTT was converted from the supplied film's embedded caption track. The React transcript is derived from those captions; it is not an independent verification of the narration.
+- The recording labels its Windows/Android captures October 2026. Measurements and future plans in it are scoped to that recording; later Windows evidence is a founder-authored preprint dated 14 November 2026. Do not promote the 27B example into a universal hardware recommendation or the roadmap into shipped functionality.
+- `power-ui.png` and `mobile-ui.png` are earlier **illustrative UI images**, not real product captures. Components using them retain their illustration labels. The scoped UnoOne section within the InBharat.ai homepage features the supplied recorded walkthrough.
+
+`scripts/build-unoone-media.ts` checks filename, size, byte count and SHA-256 before materializing `public/unoone/`. New output assets are gitignored; the two pre-existing tracked UI PNGs are retained unchanged for compatibility. Edit approved source media/manifest, never generated output files directly. Tailwind explicitly excludes these base64 encodings from class scanning.
+
+The owner supplied the logo and demo for this website. Do not infer trademark or third-party footage reuse permissions from the repository's software license. The separate full technical publication and Stanford-named pitch film are not bundled here; the film title is not a Stanford endorsement.

@@ -1,20 +1,7 @@
-/**
- * PAI / UnoOne positioning content for the private-AI pages.
- *
- * RULES FOR THIS FILE (non-negotiable):
- * 1. Only claims surfaced here may be used on /unoone* pages.
- * 2. Engineering reports below describe bounded internal checks on the local
- *    UnoOne desktop (Windows) and Android (Kotlin) development builds,
- *    including 2026-10 gates: desktop cargo suites green, Android
- *    219 suites / 1,531 unit tests green, historical Xiaomi 14 device runs
- *    (July 2026) verified on an earlier tree.
- * 3. "Status" strings are shown verbatim on the site — honest labels
- *    (working / in development / planned), never invented certifications.
- * 4. No removable-drive product marketing: Pocket AI is described as a
- *    historical patent-pending filing where patent history is legally
- *    relevant, not as a consumer product hero.
+/** Shared UnoOne platform and technology copy. Source-implemented capabilities
+ * are not final-artifact release approval or independent device qualification.
+ * The November Mobile review supersedes historical blanket automation claims.
  */
-
 export type Readiness = 'working' | 'in-development' | 'planned' | 'research' | 'historical';
 export type Capability = {
   name: string;
@@ -36,16 +23,16 @@ export type PrivateAiPage = {
   faqs: { q: string; a: string }[];
 };
 
-export const PAI_STATUS_POWER = 'Working development builds, verified on the lead engineer’s Windows test system. Broad release validation is ahead.';
+export const PAI_STATUS_POWER = 'Windows development build. Founder-reported internal engineering evidence through 14 November 2026; broader release qualification remains ahead.';
 export const PAI_STATUS_MOBILE =
-  'Android alpha: local development verified in CI; physical-device validation is ongoing on supported test hardware.';
+  'Android source reviewed 16 November 2026. Limited owner/developer phone observations exist; full current-build device and workflow qualification remains incomplete.';
 export const PAI_STATUS_SYNC =
   'In development: manual, consent-based pairing is designed and unit-tested; no physical phone–desktop round trip is yet qualified, manual or automatic.';
 export const PAI_STATUS_PLATFORM =
-  'PAI is our current flagship concept: one personal private AI agent. Early access is offered to pilot partners while release builds are qualified.';
+  'UnoOne is the current product brand. Discuss pilot access with the team; a general public release is not established by the supplied engineering evidence.';
 
 export const PRIVATE_AI_REVIEWED_ON = '2026-11-16';
-export const PRIVATE_AI_EVIDENCE_SCOPE = 'Content reviewed 16 November 2026. Evidence below is scoped internal engineering reporting, not independent certification or release qualification. Unit tests, implemented surfaces and earlier device runs do not establish current end-to-end readiness. Public build/date/hardware records and a language-by-modality matrix remain pending.';
+export const PRIVATE_AI_EVIDENCE_SCOPE = 'Content reviewed 16 November 2026. Evidence below is scoped internal engineering reporting, including the founder-authored UnoOne Power preprint dated 14 November 2026, not independent certification or release qualification. Unit tests, implemented surfaces and earlier device runs do not establish current end-to-end readiness. The Mobile review includes 14–16 November development notes and source restrictions. Final signed artifacts, a supported-device matrix and qualified speech-pack coverage remain pending.';
 export const READINESS_LABELS: Record<Readiness, string> = {
   working: 'Implemented',
   'in-development': 'In development',
@@ -57,47 +44,47 @@ export const READINESS_LABELS: Record<Readiness, string> = {
 export const UNOONE_PAGES: readonly PrivateAiPage[] = [
   {
     path: '/private-ai',
-    eyebrow: 'PAI — Personal Private AI Agent',
-    h1: 'PAI: One Personal Private AI Agent, Pronounced “Pi”',
+    eyebrow: 'UnoOne — Personal Private AI',
+    h1: 'Your workspace. Your permissions.',
     description:
-      'PAI (pronounced “Pi”) is InBharat.ai’s flagship concept: a persistent, permission-controlled personal AI agent that lives on your own devices. This page defines what PAI is, the loop it runs on every task, and the boundaries it enforces — from understanding and planning to authorisation, action and verified outcomes.',
-    status: 'Design concept implemented through the UnoOne ecosystem: working development builds verified locally; release validation ahead.',
+      'UnoOne is InBharat.ai’s local-first personal AI software family. UnoOne Power combines compatible local models, encrypted memory and permission-controlled tools on Windows; UnoOne Mobile brings local intelligence and practical native tools to Android. This page explains the private-agent approach and its limits.',
+    status: 'Local-first is a data-flow design, not a promise that connected actions stay offline. Availability and current evidence are listed on Status.',
     audience:
-      'Read this page to understand the definition and engineering principles behind PAI; visit the UnoOne pages for the concrete products, their readiness and what each device does today.',
+      'Read this page for the principles behind UnoOne; visit Power and Mobile for platform-specific capabilities, evidence and readiness.',
     capabilities: [
-      { name: 'Agent, not chatbot', what: 'PAI is a persistent experience — it holds task state, carries context between sessions, and acts through tools rather than only answering in a chat window.', readiness: 'working', evidence: 'Task surfaces, memory and tool lanes implemented in the UnoOne builds.' },
-      { name: 'Personal', what: 'One logical personal identity per owner; the assistant’s memory, permissions and history belong to that identity, not to an app session.', readiness: 'working', evidence: 'Vault identity layers bind state to an encrypted personal identity in both builds.' },
-      { name: 'Permission-controlled', what: 'Capabilities are opt-in per tool and per resource, displayed as approval cards, revocable at any time — with sensitive classes blocked outright on-device.', readiness: 'working', evidence: 'Desktop approval cards + granted-folder fences; Android SafetyPipeline tiers with payment/OTP/password blocks.' },
-      { name: 'Verifies its own work', what: 'Actions are checked against their intended outcome — receipts of what actually changed — before the agent reports success.', readiness: 'working', evidence: 'Per-tool receipts and outcome checks across file, document, browser and connector lanes.' },
+      { name: 'Agent, not chatbot', what: 'UnoOne is a persistent experience — it holds task state, carries context between sessions, and acts through tools rather than only answering in a chat window.', readiness: 'working', evidence: 'Task surfaces, memory and tool lanes implemented in the UnoOne builds.' },
+      { name: 'Personal', what: 'Device-local memory, permissions and history persist beyond an individual model session. Continuity across devices is a separate, unfinished capability.', readiness: 'working', evidence: 'Vault identity layers bind state to an encrypted personal identity in both builds.' },
+      { name: 'Permission-controlled', what: 'Tools use platform-specific permission and review gates. Grant only needed resources; finance stays read-only by product policy, with no payment, transfer or trade automation.', readiness: 'working', evidence: 'Desktop granted-folder fences and approval cards; Android source-level risk tiers and restricted release configuration. This is not independent proof of universal enforcement.' },
+      { name: 'Evidence for supported outcomes', what: 'Objective checks can distinguish supported verified outcomes from a model’s claim. Some tasks remain unverified; generated answers are not guaranteed true.', readiness: 'working', evidence: 'Per-tool receipts and outcome checks across file, document, browser and connector lanes.' },
       { name: 'Model-independent memory', what: 'Memory is held outside the model in an encrypted agent-layer store, so context survives model switching, reloading and restarts on the same device.', readiness: 'working', evidence: 'Restores across restarts and model switches; memory explorer visible in the desktop build.' },
-      { name: 'Local by default', what: 'Planning and personal state stay on your hardware; connectivity is optional and permissioned, never assumed by the architecture.', readiness: 'working', evidence: 'Desktop runs local inference in a pinned session context; Android planning runs on-device (LiteRT-LM).' },
-      { name: 'Cross-device continuity', what: 'The same agent experience spans desktop and Android through explicit, consent-based continuity lanes.', readiness: 'in-development', evidence: 'Pairing and ledger design unit-tested; the physical round trip is not yet qualified.' },
+      { name: 'Local by default', what: 'Supported core inference and memory run locally. Online research, provider connections, exports and configured mirroring have separate data flows.', readiness: 'working', evidence: 'Desktop runs local inference in a pinned session context; Android planning runs on-device (LiteRT-LM).' },
+      { name: 'Cross-device continuity', what: 'Phone–computer continuity is being developed around explicit consent; each device retains its own local store.', readiness: 'in-development', evidence: 'Pairing and ledger design unit-tested; the physical round trip is not yet qualified.' },
     ],
     sections: [
       {
-        title: 'The loop PAI runs on every task',
-        body: 'Understand → Plan → Authorise → Act → Verify. The agent forms an interpretation of the request, produces a bounded plan, asks for authorisation wherever a permission applies, executes through permitted tools on the device that owns the task, and verifies the result with real evidence before reporting it.',
+        title: 'A permissioned task loop',
+        body: 'Understand → Plan → Authorise → Act → Verify. The agent forms an interpretation of the request, produces a bounded plan, asks for authorisation wherever a permission applies, executes through permitted tools on the device that owns the task, and checks supported outcomes against recorded evidence, distinguishing verified from unverified results.',
       },
       {
         title: 'Boundaries as product features',
-        body: 'Drafts-never-sends for messaging apps, never-types-credentials for website connections, fail-closed memory admission on constrained hardware: each boundary is enforced by deterministic code, not by asking a model to behave.',
+        body: 'Ordinary email/WhatsApp handoffs open drafts for review; separate native provider paths can commit specifically reviewed operations. Credentials and final external actions have platform-specific controls. Model admission checks and permission code bound supported paths; they are not an independent all-path security guarantee.',
       },
       {
-        title: 'Where PAI is implemented today',
-        body: 'The UnoOne desktop builds implement the full loop for files, documents, browser, connectors and coding workflows; the Android builds implement the planning, safety and speech layers, with staged activation being device-validated. See /unoone/power and /unoone/mobile for per-device readiness.',
+        title: 'Where UnoOne is implemented today',
+        body: 'Power has internal implementation evidence for files, documents, browser, connectors and coding. Mobile has native tools, local model paths and reviewed workflows with different device and distribution limits. See the platform guides and Status for current qualification.',
       },
     ],
     faqs: [
       {
-        q: 'What does PAI stand for?',
-        a: 'PAI, pronounced “Pi”, is the name of our personal private AI agent. The name grew from Pocket AI research; “Private Agentic AI” describes our current approach, not a second product. The historical portable-architecture filing is recorded as Indian application 202631102427. Today PAI is implemented through UnoOne Power (Windows) and UnoOne Mobile (Android); the removable-drive formulation is historical research, not a consumer offer or a claim that every current feature is covered by that filing.',
+        q: 'How does PAI relate to UnoOne?',
+        a: 'UnoOne is the current product name. PAI remains part of the private-agent explanation and earlier Pocket AI research history, not a competing consumer product. The historical portable-architecture filing is recorded as Indian application 202631102427. The software family comprises UnoOne Power (Windows) and UnoOne Mobile (Android); the removable-drive formulation is historical research, not a consumer offer or a claim that every current feature is covered by that filing.',
       },
       {
-        q: 'Is PAI a product I can install today?',
+        q: 'Is UnoOne available as a public download?',
         a: 'Not as a public download. It is implemented in the UnoOne development builds that are being verified for release; pilot access is discussed with the team. The InBharat AI web console is a separate browser product, not an installer or hosted version of UnoOne.',
       },
       {
-        q: 'How is PAI private if it connects to websites and mail?',
+        q: 'How is UnoOne private if it connects to websites and mail?',
         a: 'Personal memory is stored encrypted on each device and core inference is local. Optional web searches, mail connectors, website navigation and confirmed form submissions or uploads can transmit queries, requests, form fields or selected files to external services. Website sessions use their normal authentication traffic; the agent does not type passwords. Permissions bound these actions, but local storage is not a promise that all network traffic stays on-device.',
       },
     ],
@@ -105,16 +92,16 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
   {
     path: '/unoone',
     eyebrow: 'UnoOne',
-    h1: 'One Personal Private AI Agent for Your Devices',
+    h1: 'Choose the way you work.',
     description:
-      'UnoOne is the software ecosystem that implements PAI — one personal private AI agent — as two coordinated products: UnoOne Power for Windows desktop and laptop, and UnoOne Mobile for Android. The model can change; the personal experience stays yours.',
-    status: 'In active development with local verification on both devices. Not yet broadly released.',
+      'UnoOne is InBharat.ai’s personal private AI software family: UnoOne Power for Windows desktop and laptop, and UnoOne Mobile for Android. The model can change; the personal experience stays yours.',
+    status: 'Power and Mobile have separate capabilities, local stores and release qualification. Approved public packages are not yet listed.',
     audience:
       'UnoOne is for people who want a capable AI assistant without handing every task, file and conversation to a cloud account — and for teams who want the same discipline in an organisation. Read each product page for what is working today versus what is being built, and contact us about early-access pilots.',
     capabilities: [
       { name: 'One agent identity', what: 'The same personal agent concept lives on desktop and Android; a logical personal identity is kept per device.', readiness: 'working', evidence: 'Local builds carry per-device vault identity; pairing layers unit-tested in CI.' },
       { name: 'Local model execution', what: 'Inference runs on your hardware. Model selection adapts to the machine’s available memory instead of assuming a data-centre budget.', readiness: 'working', evidence: 'RAM-aware admission test suites pass; measured load/unload diagnostics on the desktop build.' },
-      { name: 'Permission-controlled tools', what: 'Every tool — files, browser, commands, connected sites — runs behind explicit, revocable permissions with approval cards.', readiness: 'working', evidence: 'Granted-folder fence + approval cards verified in live UI sessions on the desktop build.' },
+      { name: 'Permission-controlled tools', what: 'Supported file, browser, command and connected-service tools use platform-specific permission gates and review steps. Capabilities differ between Power and the restricted Mobile release configuration.', readiness: 'working', evidence: 'Granted-folder fence + approval cards verified in live UI sessions on the desktop build.' },
       { name: 'Persistent personal memory', what: 'Conversation turns and task context are stored by the agent layer, encrypted, and restored across restarts — independent of which model is active.', readiness: 'working', evidence: 'Chat memory restores the last 30 turns across restarts; memory explorer shows the store.' },
       { name: 'Action verification', what: 'Bounded actions are checked against their intended outcome, with receipts, instead of trusting the model’s self-report.', readiness: 'working', evidence: 'Executed with honest outcomes in live desktop sessions for file, doc, browser and connector tools.' },
       { name: 'Cross-device continuity (phone ↔ desktop)', what: 'Context and task transfer is being developed around a manual, consent-based pairing protocol with unit tests; no physical two-device workflow is qualified yet.', readiness: 'in-development', evidence: 'UNIFIED_SYNC_V2 ledger and pairing lanes have unit tests; no physical round trip yet.' },
@@ -122,7 +109,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
     sections: [
       {
         title: 'Two products, one experience',
-        body: 'UnoOne Power is the autonomous personal AI environment for desktop and laptop. UnoOne Mobile is the same idea inside the Android environment — not a chat window, but an assistant that can interpret an instruction, check permissions, take a bounded action in an approved app and report what actually happened.',
+        body: 'Choose Power for research, granted files, documents and coding on Windows. Choose Mobile for compatible on-device AI, practical native tools, local organization and reviewed connected workflows on Android. The variants do not have feature parity or an automatically shared vault.',
       },
       {
         title: 'Model-independent memory',
@@ -152,45 +139,48 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
       },
       {
         q: 'How can I try it?',
-        a: 'UnoOne is being validated for release, so access is via early-access and pilot conversations — contact us through the contact page. The InBharat AI console on this site is immediately available to try in the browser.',
+        a: 'UnoOne is being validated for release, so access is via early-access and pilot conversations — contact us through the contact page. The separate AI console has its own configuration and account availability; it is not a hosted UnoOne session.',
       },
     ],
   },
   {
     path: '/unoone/power',
     eyebrow: 'UnoOne Power',
-    h1: 'Your Desktop Personal AI Agent',
+    h1: 'Bring useful AI work to Windows.',
     description:
-      'UnoOne Power is the autonomous personal AI environment for Windows desktop and laptop: local models chosen to fit your machine, coding and file workflows, browser operations, research, vision and OCR — executed with permissions and verified outcomes.',
+      'UnoOne Power is a local-first AI workspace and permission-controlled agent runtime for Windows. It combines compatible local models, encrypted memory, documents, coding, research and reusable specialists, with evidence checks for supported outcomes.',
     status: PAI_STATUS_POWER,
     audience:
       'UnoOne Power is designed for people who work with real files, real browsers and real deadlines — developers, researchers, founders and busy professionals — and want an assistant that operates on their own computer instead of uploading their working life.',
     capabilities: [
       { name: 'Hardware-aware execution', what: 'The assistant checks available system RAM and GPU/VRAM, then admits a local model configuration that fits — refusing to load when the budget is not met (fail closed).', readiness: 'working', evidence: 'Admission policy with budget math is unit-tested; measured load/unload results on the test system.' },
-      { name: 'Model routing and switching', what: 'Small fast paths for simple requests, heavier agent lanes for hard work, and manual model management (stop/load, verified artifacts) — including a 27B-class model running within a constrained memory budget on the test machine.', readiness: 'working', evidence: 'Router lanes and model manager exercised live; switch loads hash-verify artifacts before boot.' },
-      { name: 'Personal memory', what: 'Every chat turn is written as an encrypted record and restored across restarts; memory is managed by the agent layer, so the experience does not depend on which model is loaded.', readiness: 'working', evidence: 'Restores last 30 turns with an honest banner; memory search works across restarts.' },
+      { name: 'Model routing and switching', what: 'Choose compatible models and context budgets, then load, stop or switch verified artifacts. Large-model experiments are hardware-dependent; the latest reported 27B test encountered critical pressure and unloaded before a user turn.', readiness: 'working', evidence: 'Founder preprint, pp.8–10: internal model-admission and lifecycle checks. Earlier 27B hybrid results are not a stable daily-performance or minimum-hardware guarantee.' },
+      { name: 'Personal memory', what: 'Conversation records and approved knowledge are held in encrypted local storage, separate from model weights. Restored and retrieved context is bounded, not unlimited recall.', readiness: 'working', evidence: 'Restores last 30 turns with an honest banner; memory search works across restarts.' },
       { name: 'Coding workflows', what: 'A fenced workspace with diff/patch preview, task worktrees, budgets and cancellation so code changes stay reviewable.', readiness: 'working', evidence: 'Coding lanes implemented and exercised in verification runs; confirmation gate remains on for safety.' },
       { name: 'Files and documents', what: 'Reading, writing, copying and searching files, plus creating real PDF, DOCX, MD and TXT documents — inside folders the user has granted.', readiness: 'working', evidence: 'Byte-exact fs operations and document writers verified in gates and live runs.' },
       { name: 'Browser operations', what: 'Typed browser actions (navigate, click, type, extract, screenshot) with scheme allowlists — no arbitrary script injection — and login state that persists across restarts in the shared browser engine.', readiness: 'working', evidence: 'Browser policy tests green; popup sign-in flows live-verified.' },
       { name: 'Website connections', what: 'The agent recognises login state on site profiles it has been granted (strong/weak/none → honest states) and asks before acting — it never types your credentials.', readiness: 'working', evidence: 'Login-evidence engine with receipts, vault-bound registry, never-types-credentials rule.' },
-      { name: 'Web research', what: 'Research modes gather sources, and e-mail sweeps can surface unread items through a connector you configure.', readiness: 'working', evidence: 'Research lanes run live; provider tools are read-only. (Provenance/citation layer: remaining work.)' },
-      { name: 'Vision and OCR', what: 'Image understanding and screen OCR for describing scenes and reading text (chat image attachments and describe/OCR lanes).', readiness: 'in-development', evidence: 'Implemented with honest confidence reporting; no public accuracy corpus yet.' },
+      { name: 'Web research', what: 'Research modes gather sources, and e-mail sweeps can surface unread items through a connector you configure.', readiness: 'working', evidence: 'Founder preprint, pp.12,17–18: source/date checks and read-only awareness are described. This does not establish universal citation completeness or website compatibility.' },
+      { name: 'Local OCR and document text', what: 'Read supported PDF text layers and use Windows OCR for supported scans and images. Unsupported encodings and formats can be refused or incomplete.', readiness: 'working', evidence: 'Founder preprint, p.18: bounded parser and Windows OCR paths. No universal document accuracy claim.' },
+      { name: 'General vision compatibility', what: 'Image attachment and projector handling is implemented, but general acceptance of live vision-capable model artifacts remains under validation.', readiness: 'in-development', evidence: 'Founder preprint, pp.18,29: text-model results do not qualify general visual understanding.' },
       { name: 'Form workflows', what: 'Assisted form completion inside the browser engine with confirmation for submit/upload/download actions.', readiness: 'working', evidence: 'Confirmation-gated actions per browser policy; verified in browser acceptance runs.' },
-      { name: 'Offline voice interaction', what: 'Local speech recognition and synthesis on your device for the supported language set — no always-on cloud microphone.', readiness: 'working', evidence: 'Internal engineering report: 19/19 checks in a desktop speech matrix. A public language-by-modality list, build/date and hardware record are still needed; this is not a claim of universal language or device coverage.' },
-      { name: 'Personal background assistant', what: 'Task, commitment and notification surfaces for planning what matters — the outcome ledger and assistant surfaces exist and are being verified.', readiness: 'in-development', evidence: 'Build deployed; end-to-end background follow-through is the open item.' },
+      { name: 'Offline voice interaction', what: 'Local speech recognition and synthesis for supported assets and hardware. An installed language pack and a qualified speech path are different from a language shown in a selector.', readiness: 'working', evidence: 'Internal engineering report: 19/19 checks in a desktop speech matrix. A public language-by-modality list, build/date and hardware record are still needed; this is not a claim of universal language or device coverage.' },
+      { name: 'Read-only background awareness', what: 'Configured watchers, daily reviews, approval cards and a draft-to-clipboard workflow help organize permitted sources without autonomous background sending.', readiness: 'working', evidence: 'Founder preprint, p.17: implemented Windows development surfaces; long-term reliability and broad field usability are not established.' },
+      { name: 'Reusable specialist agents', what: 'Save instructions and allowed tools in a vault-bound registry, then run specialists with bounded context, budgets and outcome checks.', readiness: 'working', evidence: 'Founder preprint, pp.14–16: internal child-run evidence; shared OS/model runtime, serialized inference, not a separate VM or qualified swarm scheduler.' },
+      { name: 'Approved knowledge and experimental training', what: 'Saved knowledge and corrections remain separate from model weights. Optional offline adaptation requires separate consent and a quality decision gate.', readiness: 'research', evidence: 'Founder preprint, pp.19–21: training cycles executed, but both reported candidate adapters were rejected. No quality-improving production adapter is claimed.' },
     ],
     sections: [
       {
         title: 'Understand → Plan → Authorise → Act → Verify',
-        body: 'Every substantive request goes through the same loop: the agent understands the task, plans bounded steps, asks for authorisation where permissions are needed, acts through permitted tools, and verifies the result with real evidence (files written, pages loaded, receipts in the log) rather than asserting success.',
+        body: 'The harness plans bounded work, requests permission where required and records tool outcomes. Objective verifiers can check supported file, document or browser tasks; the system distinguishes verified results from completion claims rather than promising every generated answer is correct.',
       },
       {
         title: 'Memory budgets measured, not guessed',
-        body: 'Local models are admitted by a memory budget that counts weights, projector, context cache and headroom against the machine’s capacity — and stays out of the way when the budget is not met. On our test system this has been the difference between stable sessions and host-wide stalls.',
+        body: 'Local models are admitted by a memory budget that counts weights, projector, context cache and headroom against the machine’s capacity — and can refuse a configuration that does not fit. Broader stability remains under validation: the latest reported boot soak included a first-boot stall, and large-model experiments encountered host pressure.',
       },
       {
         title: 'Status, honestly',
-        body: 'Power is development-stage software with verification runs on a single test environment. System requirements depend on your machine’s RAM and GPU. Some features remain actively being finished — background task follow-through, a recording summarizer, and macOS packaging are not shipped. We will not advertise downloads until the release audience is properly qualified.',
+        body: 'Power is development-stage software with verification runs on a single test environment. System requirements depend on your machine’s RAM and GPU. Some features remain actively being finished — long-term background reliability, a long-recording summarizer, and macOS packaging remain unqualified. We will not advertise downloads until the release audience is properly qualified.',
       },
     ],
     faqs: [
@@ -200,7 +190,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
       },
       {
         q: 'Which models can it run?',
-        a: 'It runs local open-weight models from your configured model folder, with admission gating by available memory. Model artefacts are hash-verified before load. The experience is built so switching models does not switch away from your personal context.',
+        a: 'It runs compatible GGUF models from your configured model folder, subject to architecture, modality, tool-use and available-memory validation. Model artefacts are hash-verified before load. The experience is built so switching models does not switch away from your personal context.',
       },
       {
         q: 'Does the agent control my PC?',
@@ -214,52 +204,35 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
   },
   {
     path: '/unoone/mobile',
-    eyebrow: 'UnoOne Mobile',
-    h1: 'Your Android Personal AI Agent',
-    description:
-      'UnoOne Mobile is the autonomous personal AI environment for Android: an on-device planner, offline speech, screen understanding, reviewable drafts for app actions, and a permission pipeline that keeps the phone yours.',
+    eyebrow: 'UnoOne Mobile · Android',
+    h1: 'Local intelligence. Practical phone tools.',
+    description: 'UnoOne Mobile brings compatible on-device AI, useful native actions, local organization and reviewed connected workflows to Android. Use supported phone tools without making a language model responsible for every action.',
     status: PAI_STATUS_MOBILE,
-    audience:
-      'UnoOne Mobile is for people whose day lives on their phone — messages, notifications, calls, errands — and who want an assistant that plans and acts inside Android’s rules rather than a chat app that pretends otherwise. Early access is offered to pilot partners while device validation continues.',
+    audience: 'Choose Mobile for notes, reviewable draft handoffs, assistive camera cues and supported local AI on your phone. Device, model, speech assets and release configuration determine the available experience.',
+    capabilitiesHeading: 'Useful capabilities, deliberately scoped',
     capabilities: [
-      { name: 'On-device model execution', what: 'A local LiteRT-LM planner is implemented for on-device planning, with cancellable inference and bounded context; current staged activation awaits device confirmation.', readiness: 'in-development', evidence: 'Planner modules and harnesses in the builds; the newest staged-activation path awaits device confirmation.' },
-      { name: 'Device-aware model admission', what: 'Model tiers gate on the device’s RAM — if the device cannot afford a tier, it stays unloaded (fail closed).', readiness: 'working', evidence: 'Admission gates with golden vectors unit-tested' },
-      { name: 'Offline speech interaction', what: 'Streaming on-device speech recognition and synthesis for supported languages, with wake-word sessions and cooldowns.', readiness: 'working', evidence: 'Historical internal device report: Xiaomi 14, July 2026, earlier tree (55 tests, 20 with networks off). Not current-tree speech qualification.' },
-      { name: 'Screen understanding (OCR + vision)', what: 'Screen capture preprocessing, OCR reading and object labelling power screen reading modes for accessibility.', readiness: 'working', evidence: 'Historical earlier-tree device report: "Read Screen" exercised. Current-device corpus qualification remains open.' },
-      { name: 'Approved app interactions', what: 'The agent can prepare actions for apps like calendar, e-mail, WhatsApp or the dialer as reviewable drafts — and never presses the external app’s Send itself.', readiness: 'working', evidence: 'Historical earlier-tree device runs exercised draft-uri actions; the safety contract blocks auto-send. Current-build device qualification remains separate.' },
-      { name: 'Risk-tiered permissions', what: 'Every tool call lands in a safety pipeline: some run directly, some need a tap-to-confirm, sensitive ones require strong confirmation — and payment/OTP/password/auto-send are blocked outright.', readiness: 'working', evidence: 'SafetyPipeline contract with 47 entries unit-tested; device LLM judge can only escalate, never relax.' },
-      { name: 'Notifications (read-only intake)', what: 'A notification listener captures package/title/text into an encrypted local store — it cannot reply, dismiss or act on them.', readiness: 'in-development', evidence: 'Service + encrypted store implemented; device integration evidence for intake is pending.' },
-      { name: 'Task intelligence', what: 'Task board, notes and scheduling surfaces are implemented; end-to-end task follow-through still needs validation.', readiness: 'in-development', evidence: 'Screens and flows implemented in the Android build.' },
-      { name: 'Audit and privacy controls', what: 'Audit viewer, privacy settings and a master Disable that blocks microphone, speech, inference, screen reading and accessibility actions until re-enabled.', readiness: 'working', evidence: 'Historical earlier-tree device runs report Disable surviving process restarts; current-build validation remains separate.' },
-      { name: 'Personal memory on the phone', what: 'Encrypted local storage (Room + SQLCipher with a Rust-compatible crypto core) is implemented for agent state; device migrations remain under validation.', readiness: 'in-development', evidence: 'Cross-platform crypto contract tested in CI; schema migration on devices still being verified.' },
+      { name: 'On-device model execution', what: 'Compatible local models support bounded conversational and planning paths. Profiles have different capabilities; model installation and sufficient memory are required.', readiness: 'in-development', evidence: 'Concrete model runtimes exist in the reviewed source; limited earlier activation notes do not establish full current-build task qualification.' },
+      { name: 'Native tools without a loaded LLM', what: 'Supported note creation/search, app launches, dialer and draft handoffs use native routes. A dialer handoff is not an automatically placed call; an opened draft is not a sent message.', readiness: 'working', evidence: 'Rules and native executors are source-implemented. Final-build functions and permissions still need acceptance on the supported device matrix.' },
+      { name: 'Blind Aid', what: 'Independent local camera analysis provides object cues through speech, tones and haptics without a loaded conversational model. Assistive only—not certified navigation, guaranteed obstacle avoidance or a replacement for a mobility aid.', readiness: 'working', evidence: 'Source-implemented detector and native feedback; limited owner/developer observations exist on an earlier build. General multimodal scene description is disabled in the inspected source.' },
+      { name: 'On-device speech options', what: 'Use available supported speech packs or device-local recognition. The Android on-device fallback requires Android 12+ and device support; some catalog languages are display-only, not downloadable packs.', readiness: 'in-development', evidence: 'Speech paths and fallback policy are source-reviewed. The app Android floor is not a speech-coverage guarantee; current voice workflow qualification remains incomplete.' },
+      { name: 'Task intelligence', what: 'Keep notes, reminders and useful preferences close at hand. Saved reminders are distinct from delivered notifications, and reminder delivery is approximate and opt-in.', readiness: 'in-development', evidence: 'Organizer and reviewed-note paths are implemented; current-build background, reboot and notification-delivery acceptance remain separate.' },
+      { name: 'Reviewed connected work', what: 'Ordinary email and WhatsApp routes open drafts. Separate native Google-provider code supports specifically reviewed operations; supported calendar changes and browser field edits have their own gates.', readiness: 'in-development', evidence: 'Source-backed exact-review and provider paths. Account scopes, network access and live provider qualification apply; configuration alone does not prove successful delivery.' },
+      { name: 'Restricted release boundaries', what: 'Cross-app Accessibility automation and Owl planning are disabled in the inspected release configuration. Sensitive payment, OTP and credential action classes are blocked outright by the relevant source policies; no universal app control is offered.', readiness: 'working', evidence: 'Release distribution flags and manifest were inspected. Source policy is not independent proof of every runtime path or a Play approval.' },
+      { name: 'Finance stays with you', what: 'Finance is read-only by product policy. UnoOne does not offer payment, transfer or trade automation, now or as a permission upgrade.', readiness: 'working', evidence: 'Source-level browser and device restrictions support the policy. Heuristic app classification is not a proven universal execution-time guarantee or financial-account aggregation coverage.' },
+      { name: 'Personal memory on the phone', what: 'Encrypted app data holds useful records and preferences with bounded retrieval. Exports, migration recovery and configured mirroring are separate data paths—not proof that every file or action stays encrypted and offline.', readiness: 'in-development', evidence: 'Encrypted database and key handling are source-implemented. Current-device migration, preservation and full workflow validation remain open.' },
+      { name: 'Supported Android documents', what: 'Read supported files and fill supported PDF forms or DOCX templates into a new copy. Scanned/flat PDFs are read-only, password-protected PDFs are unsupported and signature fields are skipped; input and OCR page limits apply.', readiness: 'in-development', evidence: 'Android-specific loader and save-as-copy code reviewed. Test definitions are not executed device results, and Windows document evidence is not transferred to Mobile.' },
     ],
     sections: [
-      {
-        title: 'A real agent loop on Android',
-        body: 'Instruction → planning on-device → tool identification → permission check → bounded action → outcome check → verified report. When the action involves another app, the result is a draft you review — the assistant respects the app’s own Send/Save button and Android’s permission system, including biometric guards. Nothing here is designed to bypass phone security.',
-      },
-      {
-        title: 'Status, honestly',
-        body: 'The software is under active development with automated test gates green (219 suites / 1,531 tests locally + Rust crates green). The hardware validation history on this tree is in progress — an earlier tree earned a 55-test device run in July 2026. Evidence labels distinguish implementation and internal tests from historical device runs; "unlimited Android control" is not and will not be a claim.',
-      },
+      { title: 'Choose a task, not unlimited phone control', body: 'Start with a supported native note, app launch or draft handoff. Model-backed assistance, provider operations and assistive camera tools are different paths. Each needs the relevant permissions and its own observed outcome.' },
+      { title: 'What the November review establishes', body: 'The source review and 14–16 November notes describe real implementation and some bounded phone observations. Historical automated reports concern earlier source states. No reviewed record binds a complete current physical acceptance run to a full current artifact hash and immutable source identity.' },
+      { title: 'What to check before access', body: 'The reviewed Android 9+/arm64 source floor is not an all-phone qualification. Confirm the final distribution, phone/model matrix, available speech assets and setup guide. The development APKs are not public downloads and no Play-approved release is claimed.' },
     ],
     faqs: [
-      {
-        q: 'Does UnoOne Mobile need the cloud?',
-        a: 'Core planning, speech and screen-understanding paths are designed for local models. Mobile remains an alpha: current planner activation and device compatibility are under validation. Online research and external app services require connectivity; offline coverage must be checked per feature and build.',
-      },
-      {
-        q: 'Can it send WhatsApp messages for me?',
-        a: 'It can prepare a message draft in the app for you to review and send. It does not press Send on external apps, and messaging actions require strong confirmation.',
-      },
-      {
-        q: 'Will it work on my phone?',
-        a: 'Device compatibility depends on RAM and Android version because the assistant runs local models and needs accessibility permissions you control. We publish the tested device list as validation proceeds.',
-      },
-      {
-        q: 'What is on the sync and integration roadmap?',
-        a: 'The phone–desktop continuity story (unit-tested pairing design, end-to-end device round trip not yet qualified), richer notification intelligence, device corpus validation, and staged model tiers. We mark each as it becomes qualified.',
-      },
+      { q: 'What works without a language model?', a: 'Supported native functions such as notes, app launching, dialer and reviewable draft handoffs can use deterministic routes. Blind Aid has its own local detector. This does not make every workflow model-free or available on every phone.' },
+      { q: 'Can Mobile send messages or change my calendar?', a: 'Ordinary email/WhatsApp routes open drafts for you to review and send. Separate native provider and calendar paths implement specifically reviewed operations. Their availability depends on the shipping build, permissions, account scopes and live-provider qualification—not universal automatic sending.' },
+      { q: 'Will it work on my phone and in my language?', a: 'Check the supported phone, model and speech-pack matrix when an approved release is available. Android version and RAM alone are not enough. The on-device speech fallback needs Android 12+ and device support; a language shown in the catalog may not have a downloadable pack.' },
+      { q: 'Does Mobile need the internet?', a: 'Supported local AI, memory and native tools can work on-device after the required assets are installed. Research, provider connections and external app services use the network. Exports and configured mirroring have their own data flows.' },
+      { q: 'Can it control any app or automate payments?', a: 'No. The inspected release disables cross-app Accessibility automation and Owl planning. Financial transactions are outside the product policy: no payment, transfer or trade automation. Sensitive flows remain with the user.' },
     ],
   },
   {
@@ -267,7 +240,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
     eyebrow: 'One Agent · Two Devices',
     h1: 'Continuity Between Your Phone and Your Computer',
     description:
-      'PAI is one agent experience spanning UnoOne Power (desktop) and UnoOne Mobile (Android). Each device stores its own encrypted local state; continuity is being developed as an explicit, consent-based protocol. No physical phone–desktop round trip is yet qualified.',
+      'UnoOne is a software family spanning UnoOne Power (desktop) and UnoOne Mobile (Android). Each device stores its own encrypted local state; continuity is being developed as an explicit, consent-based protocol. No physical phone–desktop round trip is yet qualified.',
     status: PAI_STATUS_SYNC,
     audience:
       'If you start something on one device and finish it on another, this page explains how that continuity is meant to work — what is implemented, what is being tested, and what remains on the roadmap.',
@@ -311,7 +284,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
       'Enterprises and institutions that need agentic AI without abandoning governance: approval workflows, auditability, bounded execution and self-hosting where supported. Read the sections below for what is released today and what is in controlled testing.',
     capabilities: [
       { name: 'JAK Swarm', what: 'A self-hostable agentic workflow system built on evidence: agents work from an evidence graph, plans are executed against specs, drift is detected, and only approved effects leave the loop.', readiness: 'working', evidence: 'Open-source repository with evidence-graph, drift detection and audit-trail architecture.' },
-      { name: 'JAK Shield', what: 'A security gateway for agent tool use: sensitive-data detection, sandboxed execution, and tamper-evident audit logs so agent actions can be reviewed.', readiness: 'working', evidence: 'Open-source repository; the risk-gate layer is also the on-device safety contract in UnoOne Mobile.' },
+      { name: 'JAK Shield', what: 'A security gateway for agent tool use: sensitive-data detection, sandboxed execution, and tamper-evident audit logs so agent actions can be reviewed.', readiness: 'working', evidence: 'Open-source repository; specific shared design concepts do not make this independent service a UnoOne module.' },
       { name: 'Tool-use governance', what: 'Explicit permission boundaries with approval requests instead of background autonomy — humans stay in the loop by design.', readiness: 'working', evidence: 'Approve/confirm/block tier design shared with the on-device safety contract.' },
       { name: 'Auditability', what: 'Tamper-evident trails of what agents did, so a team can review actions after the fact.', readiness: 'working', evidence: 'Audit trail outputs; portable HMAC evidence is internal today — portable third-party attestation is not.' },
       { name: 'Self-hosted AI where supported', what: 'Institutions can run the components on their own infrastructure; the personal products keep memory local; optional connected actions have separate data flows.', readiness: 'working', evidence: 'Open-source, self-hostable lanes; specific operating-system/hardware support stated per repository.' },
@@ -345,7 +318,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
   {
     path: '/technology',
     eyebrow: 'Technology',
-    h1: 'The Engineering Under PAI and UnoOne',
+    h1: 'The Engineering Behind UnoOne',
     description:
       'How UnoOne is engineered: local inference with hardware-aware scheduling, memory budgets that fail closed instead of thrashing, memory held outside the model, typed tool contracts, on-device safety tiers, and SILT, our trust-gated skill-transfer research.',
     status: 'Underlying technology in active development; each capability is stated with its current verification level.',
@@ -353,11 +326,11 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
       'This page is for engineers, researchers and technical decision-makers who want the mechanics behind the product story — what runs where, how the gates work, and what has been measured.',
     capabilities: [
       { name: 'Local inference', what: 'A local inference server runs within a pinned session context with an optimised KV cache, on CPU or GPU depending on the host.', readiness: 'working', evidence: 'Streaming runs measured; memory behaviour measured for CPU and GPU slots.' },
-      { name: 'Hardware-aware scheduling', what: 'Models are admitted according to measured RAM/VRAM budgets with fail-closed behaviour, so the host stays responsive.', readiness: 'working', evidence: 'Admission-gate test suites; a previously retracted summary (memory saving) was corrected with re-measured results.' },
-      { name: 'Memory optimisation', what: 'Context cache precision and slot handling are tuned to trade latency against RAM use, per session, without affecting quality gates.', readiness: 'working', evidence: 'Config comparisons measured and documented before shipping a default.' },
+      { name: 'Hardware-aware scheduling', what: 'Models are checked against measured RAM/VRAM budgets, and configurations can be refused when the budget is not met. This reduces admission risk; it is not a guarantee against host stalls or resource pressure.', readiness: 'working', evidence: 'Admission-gate test suites; a previously retracted summary (memory saving) was corrected with re-measured results.' },
+      { name: 'Memory optimisation', what: 'Context cache precision and slot handling trade latency and memory use per session. Configuration changes still need quality and stability evaluation.', readiness: 'working', evidence: 'Config comparisons measured and documented before shipping a default.' },
       { name: 'Model-independent memory', what: 'Personal records are written by the agent layer and survive model switches — an explicit architectural boundary.', readiness: 'working', evidence: 'Memory restore across restarts and switches.' },
-      { name: 'Typed tool contracts', what: 'The tools the agent can call are defined as typed contracts that desktop and Android share, so the safety design is uniform.', readiness: 'working', evidence: 'Contract sync across a 42-tool registry, verified by CI.' },
-      { name: 'On-device safety tiers', what: 'Tool calls pass through risk tiers (direct / confirm / strong-confirm / block) with payment, OTP and password classes blocked outright; the on-device judge can only escalate risk.', readiness: 'working', evidence: 'Safety contract unit tests with the tier matrix on the phone build.' },
+      { name: 'Typed tool contracts', what: 'Typed contracts describe supported tools, permissions and outcomes. Windows and Android implementations and shipping configurations differ; a shared design does not establish feature parity.', readiness: 'working', evidence: 'Internal contract/test evidence; final platform coverage must be verified on each release.' },
+      { name: 'On-device safety tiers', what: 'Supported calls use direct, confirm, strong-confirm or block tiers. Payment, OTP and credential classes have source-level restrictions; financial transactions are excluded by product policy. Enforcement still needs current-build validation across execution paths.', readiness: 'working', evidence: 'Safety contract unit tests with the tier matrix on the phone build.' },
       { name: 'Agent lifecycle controls', what: 'Boundaries, budgets, cancellation and shutdown keep long tasks under control on desktop and Android.', readiness: 'working', evidence: 'Stop/resume, staging and honest reap verified during live diagnostics.' },
       { name: 'SILT', what: 'A trust-gated AI learning layer for representing, admitting and rolling back narrow AI capabilities — an evidence-first alternative to copying model weights.', readiness: 'research', evidence: 'Published research programme, not runtime validation; recorded as patent-pending in India (application 202631101454).' },
       { name: 'Historical portable architecture (Pocket AI)', what: 'The portable host-adaptive private AI architecture that started the PAI work; its removable-drive formulation is prior research, retired as a marketed product.', readiness: 'historical', evidence: 'Recorded filing: Indian patent application 202631102427. Historical scope only; current legal status requires owner records.' },
@@ -365,7 +338,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
     sections: [
       {
         title: 'Why memory budgets matter',
-        body: 'Running a personal agent on ordinary hardware turns on resource discipline: knowing what the session cache and model weights really cost, refusing loads that would stall the host, and designing gates that fail closed. That is what makes bigger models usable when RAM is the constraint rather than raw model quality.',
+        body: 'Running a personal agent on ordinary hardware turns on resource discipline: knowing what the session cache and model weights really cost, refusing configurations that exceed the estimated budget, and designing gates that fail closed. The latest 27B experiment still reached critical host pressure and unloaded before a user turn; admission policy is not a universal stability guarantee.',
       },
       {
         title: 'Verification as a product principle',
@@ -375,7 +348,7 @@ export const UNOONE_PAGES: readonly PrivateAiPage[] = [
     faqs: [
       {
         q: 'How does UnoOne pick a model for my machine?',
-        a: 'A measured memory budget counts the model’s weights, projector and session cache against your device’s RAM and GPU, and refuses to load a configuration that would not fit — fail closed, so the host stays responsive.',
+        a: 'A measured memory budget counts weights, projector and session cache against available RAM and GPU memory, and can refuse configurations that do not fit. Real resource pressure and startup stalls remain part of qualification; admission checks do not guarantee responsiveness in every case.',
       },
       {
         q: 'Is my memory safe if I switch models or devices?',
