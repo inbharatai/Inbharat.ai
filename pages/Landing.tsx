@@ -6,7 +6,6 @@ import { supportedLanguages, selectedUiLanguage, syncDocumentLanguage } from '..
 import { localized, languageOfText, EnglishOnly } from '../lib/locale-text';
 import { PUBLIC_LOGIN_ENABLED } from '../lib/publicLogin';
 import UnoOneSection from '../components/landing/UnoOneSection';
-import UnoOneCapabilityOrbit from '../components/landing/UnoOneCapabilityOrbit';
 import HeroGitaQuote from '../components/HeroGitaQuote';
 import HeroEdgeDepth from '../components/landing/HeroEdgeDepth';
 import { DeepTechSpotlight } from '../components/DeepTechSpotlight';
@@ -372,225 +371,6 @@ const Marquee: React.FC<{ reverse?: boolean }> = ({ reverse = false }) => {
 };
 
 /* ═══════════════════════════════════════════════════════
-   JAK SWARM FLOW GRAPH — Animated closed-loop agent pipeline
-   Renders the JAK Swarm data-flow: Sources → Evidence Graph →
-   Agent Work → Drift Detection → JAK Shield (risk gate) →
-   Tamper-Evident Audit Trail → Approved Artifact
-   ═══════════════════════════════════════════════════════ */
-
-const GRAPH_BLUE: [number, number, number] = [239, 68, 68];     // jak red #ef4444
-const GRAPH_CYAN: [number, number, number] = [56, 189, 248];
-const GRAPH_AMBER: [number, number, number] = [245, 159, 79];
-const GRAPH_GREEN: [number, number, number] = [52, 211, 153];
-const GRAPH_PURPLE: [number, number, number] = [147, 51, 234];
-const GRAPH_ROSE: [number, number, number] = [244, 63, 94];
-
-interface GNode { x: number; y: number; r: number; color: [number, number, number]; label: string; tech?: string; baseAlpha: number }
-interface GEdge { from: number; to: number }
-interface GSignal { edgeIdx: number; progress: number; speed: number; size: number }
-
-const G_NODES: GNode[] = [
-  { x: 0.50, y: 0.92, r: 9, color: GRAPH_BLUE, label: 'SOURCES', tech: 'Context · Docs · Code', baseAlpha: 1.0 },
-  { x: 0.30, y: 0.76, r: 6, color: GRAPH_CYAN, label: 'INGEST', tech: 'Parse + Embed', baseAlpha: 0.85 },
-  { x: 0.70, y: 0.76, r: 7, color: GRAPH_BLUE, label: 'EVIDENCE GRAPH', tech: 'Graph DB', baseAlpha: 0.9 },
-  { x: 0.12, y: 0.55, r: 4.5, color: GRAPH_GREEN, label: 'ENTITIES', tech: 'Nodes + Edges', baseAlpha: 0.7 },
-  { x: 0.37, y: 0.52, r: 5, color: GRAPH_PURPLE, label: 'PLANS', tech: 'Specs + Tasks', baseAlpha: 0.75 },
-  { x: 0.63, y: 0.52, r: 5, color: GRAPH_AMBER, label: 'TOOLS', tech: 'Sandboxed Run', baseAlpha: 0.75 },
-  { x: 0.88, y: 0.55, r: 4.5, color: GRAPH_CYAN, label: 'POLICY', tech: 'Risk Config', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.36, r: 8, color: GRAPH_AMBER, label: 'AGENT WORK', tech: 'Executes Specs', baseAlpha: 0.9 },
-  { x: 0.32, y: 0.20, r: 5.5, color: GRAPH_GREEN, label: 'DRIFT DETECT', tech: 'Diff vs Spec', baseAlpha: 0.8 },
-  { x: 0.68, y: 0.20, r: 4.5, color: GRAPH_BLUE, label: 'JAK SHIELD', tech: 'Risk Gate', baseAlpha: 0.7 },
-  { x: 0.50, y: 0.08, r: 6, color: GRAPH_ROSE, label: 'AUDIT TRAIL', tech: 'Approved Artifact', baseAlpha: 0.85 },
-];
-
-const G_EDGES: GEdge[] = [
-  { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 2 },
-  { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 5 }, { from: 2, to: 6 },
-  { from: 3, to: 4 },
-  { from: 3, to: 7 }, { from: 4, to: 7 }, { from: 5, to: 7 }, { from: 6, to: 7 },
-  { from: 7, to: 8 }, { from: 7, to: 9 }, { from: 9, to: 8 }, { from: 8, to: 10 },
-];
-
-function gBezier(ax: number, ay: number, bx: number, by: number, t: number) {
-  const mx = (ax + bx) / 2, my = ay - (ay - by) * 0.6;
-  const u = 1 - t;
-  return { x: u * u * ax + 2 * u * t * mx + t * t * bx, y: u * u * ay + 2 * u * t * my + t * t * by };
-}
-
-const JakSwarmFlowGraph: React.FC<{ reduceMotion: boolean }> = ({ reduceMotion }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
-
-    let w = 0, h = 0, raf = 0;
-    const phases = G_NODES.map(() => Math.random() * Math.PI * 2);
-    const signals: GSignal[] = [];
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      w = rect.width; h = rect.height;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    if (reduceMotion) {
-      // Static render: draw edges + nodes once
-      const nx = (v: number) => v * w, ny = (v: number) => v * h;
-      for (const e of G_EDGES) {
-        const a = G_NODES[e.from], b = G_NODES[e.to];
-        const [r, g, bb] = b.color;
-        ctx.beginPath();
-        for (let s = 0; s <= 50; s++) { const t = s / 50; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
-        ctx.strokeStyle = `rgba(${r},${g},${bb},0.18)`; ctx.lineWidth = 1.2; ctx.stroke();
-      }
-      for (const n of G_NODES) {
-        const [r, g, b] = n.color; const px = nx(n.x), py = ny(n.y);
-        const cg = ctx.createRadialGradient(px, py, 0, px, py, n.r);
-        cg.addColorStop(0, `rgba(${r},${g},${b},${n.baseAlpha * 0.9})`);
-        cg.addColorStop(1, `rgba(${r},${g},${b},${n.baseAlpha * 0.2})`);
-        ctx.beginPath(); ctx.arc(px, py, n.r, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
-        ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
-        ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},0.85)`;
-        ctx.fillText(n.label, px, py - n.r - 10);
-        if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},0.55)`; ctx.fillText(n.tech, px, py - n.r - 1); }
-      }
-      return () => window.removeEventListener('resize', resize);
-    }
-
-    const startTime = performance.now();
-    // Pause when offscreen; resume on re-entry (CWV + battery guard).
-    let paused = false;
-
-    const animate = (time: number) => {
-      const elapsed = time - startTime;
-      ctx.clearRect(0, 0, w, h);
-      const intro = Math.min(elapsed / 4000, 1);
-      const eased = 1 - Math.pow(1 - intro, 3);
-      const nx = (v: number) => v * w, ny = (v: number) => v * h;
-
-      // Edges
-      for (const e of G_EDGES) {
-        const a = G_NODES[e.from], b = G_NODES[e.to];
-        const [r, g, bb] = b.color;
-        const df = 1 - b.y, ed = df * 0.5;
-        const ei = Math.max(0, Math.min((eased - ed) / (1 - ed), 1));
-        if (ei <= 0) continue;
-        const steps = 50, draw = Math.floor(steps * ei);
-        ctx.beginPath();
-        for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }
-        ctx.strokeStyle = `rgba(${r},${g},${bb},${0.18 * ei})`; ctx.lineWidth = 1.2; ctx.stroke();
-        if (ei > 0.5) { ctx.beginPath(); for (let s = 0; s <= draw; s++) { const t = s / steps; const p = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), t); if (s === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); } ctx.strokeStyle = `rgba(${r},${g},${bb},${0.04 * ei})`; ctx.lineWidth = 4; ctx.stroke(); }
-      }
-
-      // Nodes
-      for (let i = 0; i < G_NODES.length; i++) {
-        const n = G_NODES[i];
-        phases[i] += 0.015 + (i % 3) * 0.003;
-        const df = 1 - n.y, nd = df * 0.5;
-        const ni = Math.max(0, Math.min((eased - nd) / (1 - nd), 1));
-        if (ni <= 0) continue;
-        const pulse = Math.sin(phases[i]) * 0.3 + 0.7;
-        const alpha = n.baseAlpha * ni * pulse;
-        const [r, g, b] = n.color;
-        const px = nx(n.x), py = ny(n.y), rr = n.r * ni;
-
-        // Atmospheric glow
-        const og = ctx.createRadialGradient(px, py, 0, px, py, rr * 6);
-        og.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.12})`);
-        og.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.03})`);
-        og.addColorStop(1, `rgba(${r},${g},${b},0)`);
-        ctx.beginPath(); ctx.arc(px, py, rr * 6, 0, Math.PI * 2); ctx.fillStyle = og; ctx.fill();
-
-        // Mid glow ring
-        ctx.beginPath(); ctx.arc(px, py, rr * 2.5, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(${r},${g},${b},${alpha * 0.12})`; ctx.lineWidth = 0.8; ctx.stroke();
-
-        // Core
-        const cg = ctx.createRadialGradient(px, py, 0, px, py, rr);
-        cg.addColorStop(0, `rgba(${r},${g},${b},${alpha * 0.9})`);
-        cg.addColorStop(0.7, `rgba(${r},${g},${b},${alpha * 0.6})`);
-        cg.addColorStop(1, `rgba(${r},${g},${b},${alpha * 0.2})`);
-        ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2); ctx.fillStyle = cg; ctx.fill();
-        ctx.beginPath(); ctx.arc(px, py, rr * 0.35, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`; ctx.fill();
-
-        // Pulse rings for key nodes
-        if ((i === 0 || i === 7 || i === 10) && ni > 0.5) {
-          const ra = Math.sin(time * 0.002 + i) * 0.3 + 0.5;
-          ctx.beginPath(); ctx.arc(px, py, rr * 3 * ni, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(${r},${g},${b},${ra * 0.15 * ni})`; ctx.lineWidth = 0.7; ctx.stroke();
-        }
-
-        // Labels
-        if (ni > 0.6) {
-          const la = (ni - 0.6) / 0.4;
-          ctx.font = `600 ${Math.max(7, Math.min(9.5, w * 0.012))}px "Sora","Manrope",sans-serif`;
-          ctx.textAlign = 'center'; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.92})`;
-          ctx.fillText(n.label, px, py - rr - 10);
-          if (n.tech) { ctx.font = `400 ${Math.max(6, Math.min(7.5, w * 0.009))}px "Sora","Manrope",sans-serif`; ctx.fillStyle = `rgba(${r},${g},${b},${la * 0.60})`; ctx.fillText(n.tech, px, py - rr - 1); }
-        }
-      }
-
-      // Data signals
-      if (eased > 0.5 && signals.length < 18 && Math.random() < 0.04) {
-        signals.push({ edgeIdx: Math.floor(Math.random() * G_EDGES.length), progress: 0, speed: 0.003 + Math.random() * 0.005, size: 1.5 + Math.random() * 2 });
-      }
-      for (let i = signals.length - 1; i >= 0; i--) {
-        const s = signals[i]; s.progress += s.speed;
-        if (s.progress > 1) { signals.splice(i, 1); continue; }
-        const e = G_EDGES[s.edgeIdx]; const a = G_NODES[e.from], b = G_NODES[e.to];
-        const pos = gBezier(nx(a.x), ny(a.y), nx(b.x), ny(b.y), s.progress);
-        const [r, g, bb] = b.color; const fa = Math.sin(s.progress * Math.PI);
-        const tg = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, s.size * 6);
-        tg.addColorStop(0, `rgba(${r},${g},${bb},${fa * 0.25})`); tg.addColorStop(1, `rgba(${r},${g},${bb},0)`);
-        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size * 6, 0, Math.PI * 2); ctx.fillStyle = tg; ctx.fill();
-        ctx.beginPath(); ctx.arc(pos.x, pos.y, s.size, 0, Math.PI * 2); ctx.fillStyle = `rgba(${r},${g},${bb},${fa * 0.85})`; ctx.fill();
-      }
-
-      // Stage labels on left
-      if (eased > 0.85) {
-        const ra = (eased - 0.85) / 0.15;
-        ctx.font = `500 ${Math.max(6.5, Math.min(8, w * 0.009))}px "Sora","Manrope",sans-serif`;
-        ctx.textAlign = 'left';
-        for (const st of [
-          { y: 0.92, label: 'INPUT', color: GRAPH_BLUE },
-          { y: 0.76, label: 'STAGE 1 · EVIDENCE GRAPH', color: GRAPH_CYAN },
-          { y: 0.53, label: 'STAGE 2 · PLANNING', color: GRAPH_PURPLE },
-          { y: 0.36, label: 'STAGE 3 · AGENT WORK', color: GRAPH_AMBER },
-          { y: 0.20, label: 'STAGE 4 · DRIFT & SHIELD', color: GRAPH_GREEN },
-          { y: 0.08, label: 'OUTPUT · AUDIT TRAIL', color: GRAPH_ROSE },
-        ]) { const [r, g, b] = st.color; ctx.fillStyle = `rgba(${r},${g},${b},${ra * 0.55})`; ctx.fillText(st.label, 6, ny(st.y) + 3); }
-      }
-
-      if (!paused) raf = requestAnimationFrame(animate);
-    };
-
-    raf = requestAnimationFrame(animate);
-    if (typeof IntersectionObserver !== 'undefined') {
-      const io = new IntersectionObserver(
-        ([entry]) => {
-          const wasPaused = paused;
-          paused = !entry.isIntersecting;
-          if (wasPaused && !paused) raf = requestAnimationFrame(animate);
-        },
-        { threshold: 0 },
-      );
-      io.observe(canvas);
-      return () => { io.disconnect(); cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-    }
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
-  }, [reduceMotion]);
-
-  return <canvas ref={canvasRef} className="w-full h-full" aria-hidden="true" />;
-};
-
-/* ═══════════════════════════════════════════════════════
    PRODUCT DEFINITIONS
    ═══════════════════════════════════════════════════════ */
 
@@ -761,11 +541,28 @@ const Landing: React.FC = () => {
       const section = document.getElementById(id.slice(1));
       if (!section) return;
       event.preventDefault();
+      if (id === '#jakswarm') {
+        setActiveBucket('agentOps');
+        setActiveProductIndex(0);
+      }
       section.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
       setMobileOpen(false);
     };
     document.addEventListener('click', clickHandler);
     return () => document.removeEventListener('click', clickHandler);
+  }, []);
+
+  // Legacy Systems links now lead to JAK Swarm in the company directory.
+  // Keep the original navigation markup and support direct/bookmarked hashes.
+  useEffect(() => {
+    const selectLegacySystems = () => {
+      if (window.location.hash !== '#jakswarm') return;
+      setActiveBucket('agentOps');
+      setActiveProductIndex(0);
+    };
+    selectLegacySystems();
+    window.addEventListener('hashchange', selectLegacySystems);
+    return () => window.removeEventListener('hashchange', selectLegacySystems);
   }, []);
 
   /* Active section tracking */
@@ -1108,7 +905,7 @@ const Landing: React.FC = () => {
 
       {/* ═══════════════ MEET PAI ═══════════════ */}
       <Reveal id="pai" className="relative z-10 py-24 sm:py-32">
-        <UnoOneSection />
+        <UnoOneSection reduceMotion={reduceMotion} />
       </Reveal>
 
       <div className="landing-seam" aria-hidden="true" />
@@ -1169,203 +966,9 @@ const Landing: React.FC = () => {
 
       <div className="landing-seam" aria-hidden="true" />
 
-      {/* ═══════════════ JAK SWARM SPOTLIGHT ═══════════════ */}
-      <Reveal id="jakswarm" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="relative overflow-hidden rounded-[28px] border border-[#ef4444]/20 bg-gradient-to-br from-[#1a0606] via-[#0b0708] to-[#04060a]">
-            {/* Ambient glows */}
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{ background: 'radial-gradient(ellipse 800px 450px at 10% -15%,rgba(239,68,68,0.16),transparent 50%),radial-gradient(ellipse 600px 350px at 95% 110%,rgba(245,159,79,0.10),transparent 50%)' }}
-            />
-            <div
-              className="pointer-events-none absolute inset-0 opacity-[0.04]"
-              style={{ backgroundImage: 'linear-gradient(to right,rgba(239,68,68,0.7) 1px,transparent 1px),linear-gradient(to bottom,rgba(239,68,68,0.7) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
-            />
-
-            <div className="relative p-6 sm:p-8 md:p-12 lg:p-14">
-              <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14 lg:items-stretch">
-                {/* Left */}
-                <div>
-                  <div className="mb-6 flex flex-wrap items-center gap-2.5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/10">
-                      <ShieldCheck size={22} className="text-[#ef4444]" />
-                    </div>
-                    <span className="rounded-full border border-[#ef4444]/30 bg-[#ef4444]/8 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#f87171]">
-                      {localized(t('landJakBadge'))}
-                    </span>
-                    <span className="rounded-full border border-amber-500/30 bg-amber-500/8 px-3 py-1 text-[10px] font-bold text-amber-400">
-                      Evidence Engine
-                    </span>
-                  </div>
-
-                  <h2 className="text-2xl font-bold leading-[1.06] tracking-tight text-white sm:text-3xl lg:text-[48px] lg:leading-[1.02]">
-                    {localized(t('landJakTitle'))}
-                    <br />
-                    <span className="bg-gradient-to-r from-[#f87171] via-[#fca5a5] to-[#fecaca] bg-clip-text text-transparent">
-                      {localized(t('landJakTitle2'))}
-                    </span>
-                  </h2>
-
-                  <p className="mt-5 max-w-xl text-sm leading-[1.7] text-[#9aafc6]">
-                    {localized(t('landJakDesc'))}
-                    <span className="mt-3 block text-sm">{localized(t('landSafetyNotice'))}</span>
-                  </p>
-
-                  {/* Stats */}
-                  <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {([
-                      { val: t('landJakControl1'), label: t('landJakStat1') },
-                      { val: t('landJakControl2'), label: t('landJakStat2') },
-                      { val: t('landJakControl3'), label: t('landJakStat3') },
-                      { val: t('landJakControl4'), label: t('landJakStat4') },
-                    ] as const).map((stat, i) => (
-                      <motion.div
-                        key={stat.label}
-                        custom={i}
-                        variants={itemReveal}
-                        initial={false}
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        className="rounded-xl border border-[#ef4444]/15 bg-[#ef4444]/[0.05] p-3.5 text-center"
-                      >
-                        <p className="break-words text-lg font-bold leading-snug text-white sm:text-2xl">{localized(stat.val)}</p>
-                        <p className="mt-1.5 text-[10px] leading-tight text-[#9aafc6]">{localized(stat.label)}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Feature chips */}
-                  <div className="mt-6 flex flex-wrap gap-1.5">
-                    {[
-                      t('landJakFeat1'), t('landJakFeat2'), t('landJakFeat3'),
-                      t('landJakFeat4'), t('landJakFeat5'), t('landJakFeat6'),
-                      t('landJakFeat7'), t('landJakFeat8'), t('landJakFeat9'),
-                    ].map((feat) => (
-                      <span
-                        key={feat}
-                        className="rounded-full border border-[#ef4444]/20 bg-[#ef4444]/[0.06] px-2.5 py-0.5 text-[10px] font-semibold text-[#fca5a5]"
-                      >
-                        {localized(feat)}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Use cases callout */}
-                  <div className="mt-6 inline-flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-2.5 text-sm text-amber-300">
-                    <Target size={14} className="flex-shrink-0 text-amber-500" />
-                    {localized(t('landJakUseCases'))}
-                  </div>
-
-                  {/* CTAs */}
-                  <div className="mt-8 flex flex-wrap gap-3">
-                    <a
-                      href="https://github.com/inbharatai/jak-swarm"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full bg-[#ef4444] px-6 py-3 text-sm font-bold text-[#1a0606] shadow-[0_0_30px_rgba(239,68,68,0.25)] transition-all hover:-translate-y-0.5 hover:bg-[#f87171] hover:shadow-[0_0_40px_rgba(239,68,68,0.4)]"
-                    >
-                      {localized(t('landJakCta2'))}
-                      <Github size={14} />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Right: JAK Swarm Flow Graph — illustrative pipeline, not telemetry */}
-                <motion.div
-                  initial={false}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.9, delay: 0.1, ease }}
-                  className="relative overflow-hidden rounded-2xl border border-[#ef4444]/15 bg-[#030608] min-h-[400px] lg:min-h-0 lg:self-stretch"
-                >
-                  <JakSwarmFlowGraph reduceMotion={reduceMotion} />
-                  <p className="absolute bottom-3 inset-x-3 text-center text-[10px] text-[#9aafc6]">{localized(t('landJakIllustration'))}</p>
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Reveal>
-
-      <div className="landing-seam" aria-hidden="true" />
-
-      {/* ═══════════════ ECOSYSTEM ═══════════════ */}
-      <Reveal id="ecosystem" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
-          <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-16 items-center">
-            {/* Left: Content */}
-            <div>
-              <p className="eyebrow-line text-[#96b0c8] gsap-header">UNOONE · ONE PRODUCT, DISTINCT CAPABILITIES</p>
-              <h2 className="mt-4 text-3xl font-bold leading-[1.1] text-white sm:text-4xl lg:text-[44px] gsap-header">
-                Your workspace. Your permissions.
-              </h2>
-
-              <div className="mt-10 space-y-4">
-                {[
-                  { title: 'Intelligence on your device', desc: 'Compatible local models and private memory form the foundation. Each device keeps its own local state.', icon: Brain, color: '#f59f4f' },
-                  { title: 'Tools for useful work', desc: 'Power brings supported documents, granted files, coding and online research into a permission-controlled workspace.', icon: MessageCircle, color: '#3b82f6' },
-                  { title: 'Practical assistance on Android', desc: 'Mobile has its own native tools, speech requirements and Blind Aid scope. Capabilities are not identical across platforms.', icon: Target, color: '#10b981' },
-                ].map((item, i) => (
-                  <motion.div
-                    key={item.title}
-                    custom={i}
-                    variants={itemReveal}
-                    initial={false}
-                    whileInView="visible"
-                    viewport={{ once: true, amount: 0.3 }}
-                    className="group rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[0.08]"
-                        style={{ backgroundColor: `${item.color}10` }}
-                      >
-                        <item.icon size={18} style={{ color: item.color }} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-white">{localized(item.title)}</h3>
-                        <p className="mt-1.5 text-sm leading-relaxed text-[#9aafc6]">{localized(item.desc)}</p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Product boundaries — not telemetry */}
-              <div className="mt-8 grid grid-cols-2 gap-2.5">
-                {[
-                  'Local-first, not always offline',
-                  'Windows and Android have distinct scopes',
-                  'Continuity is still in development',
-                  'Explore the company directory below',
-                ].map((line) => (
-                  <div key={line} className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-[12px] leading-relaxed text-[#a8bfd4]">
-                    {localized(line)}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Orbital visualization */}
-            <motion.div
-              className="min-w-0 flex items-center justify-center"
-              initial={false}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, ease }}
-            >
-              <UnoOneCapabilityOrbit reduceMotion={reduceMotion} />
-            </motion.div>
-          </div>
-        </div>
-      </Reveal>
-
-      <div className="landing-seam" aria-hidden="true" />
-
       {/* ═══════════════ PRODUCTS ═══════════════ */}
       <Reveal id="products" className="relative z-10 py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
+        <div id="jakswarm" className="mx-auto max-w-7xl px-5 sm:px-6 lg:px-10">
           <div className="mb-12 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="eyebrow-line text-[#96b0c8] gsap-header">{localized(t('landProdLabel'))}</p>
@@ -1448,6 +1051,9 @@ const Landing: React.FC = () => {
                       </div>
                     </div>
                     <p className="max-w-xl text-[14px] leading-relaxed text-[#b4c8de]">{localized(p.desc)}</p>
+                    {(p.name === 'JAK Swarm' || p.name === 'JAK Shield') && (
+                      <aside className="mt-3 max-w-xl text-sm leading-relaxed text-[#9aafc6]">{localized(t('landSafetyNotice'))}</aside>
+                    )}
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {p.tech.slice(0, 4).map((tech) => (
                         <span key={tech} className="rounded-md bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-[#b4c8de]">{tech}</span>

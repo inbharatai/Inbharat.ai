@@ -2,10 +2,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Brain, ShieldCheck, FolderOpen } from 'lucide-react';
 import UnoOneLogo from '../UnoOneLogo';
 import UnoOneDemo from './UnoOneDemo';
+import UnoOneCapabilityOrbit from './UnoOneCapabilityOrbit';
 import { UNOONE_LANDING } from '../../content/unooneLanding';
 
 /** Product-only presentation. The company header and hero stay in Landing. */
-export default function UnoOneSection() {
+export default function UnoOneSection({ reduceMotion }: { reduceMotion: boolean }) {
   return <div className="unoone-product-section" lang="en">
     <div className="unoone-product-grid">
       <div className="unoone-product-copy">
@@ -21,6 +22,11 @@ export default function UnoOneSection() {
           <Link to="/unoone/mobile">Mobile · Android <ArrowRight size={14} aria-hidden="true" /></Link>
         </div>
       </div>
+      <div id="ecosystem" className="unoone-product-orbit">
+        <UnoOneCapabilityOrbit reduceMotion={reduceMotion} />
+      </div>
+    </div>
+    <div className="unoone-product-demo">
       <UnoOneDemo />
     </div>
     <div className="unoone-product-features">

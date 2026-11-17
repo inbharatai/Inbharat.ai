@@ -15,7 +15,12 @@ test('all eleven protected upper locale resources and original company mark stay
   const protectedValues: Record<string, Record<string, string>> = {};
   for (const code of ['en','hi','bn','te','mr','ta','gu','kn','ml','or','as']) {
     const messages = JSON.parse(readFileSync(new URL(`../locales/${code}.json`, import.meta.url), 'utf8'));
+    expect(messages.landHeroCta2).toBe('Meet UnoOne');
+    expect(messages.landHeroDesc).toContain('Meet UnoOne');
+    // Owner explicitly authorized this name correction on 17 November. Normalize
+    // only that phrase back to the frozen baseline; all other upper values stay exact.
     protectedValues[code] = Object.fromEntries(Object.entries(messages).filter(([key]) => /^(landHero|landNav|landBrand|landMetric|gita)/.test(key))) as Record<string, string>;
+    for (const key of ['landHeroCta2', 'landHeroDesc']) protectedValues[code][key] = protectedValues[code][key].replace('Meet UnoOne', 'Meet PAI');
   }
   expect(hash(JSON.stringify(protectedValues))).toBe(protectedUpperHash);
   expect(hash(readFileSync(new URL('../public/inbharat-logo.svg', import.meta.url)))).toBe(companyLogoHash);
@@ -42,7 +47,7 @@ for (const width of [320, 390, 768, 1440]) {
       await expect(page.locator('header h1')).toHaveText('Your AI. Your devices. Your control.', { useInnerText: true });
       await expect(page.locator('header .metric-num')).toHaveText(['2', '11', '2']);
       await expect(page.locator('header a[href="/app"]')).toHaveText('Launch InBharat AI');
-      await expect(page.locator('header a[href="/unoone"]')).toHaveText('Meet PAI');
+      await expect(page.locator('header a[href="/unoone"]')).toHaveText('Meet UnoOne');
       const map = page.locator('.unoone-capability-map');
       await expect(map.locator('svg circle')).toHaveCount(3);
       const controls = map.locator('button[aria-controls="unoone-capability-detail"]').filter({ visible: true });

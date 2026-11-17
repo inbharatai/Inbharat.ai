@@ -58,7 +58,7 @@ Keep the main narrative useful and confident. Put detailed implementation/eviden
 - Visible, styled content on the first frame, including with delayed/failed/disabled JavaScript.
 - No automatic film playback or initial MP4 request.
 - Keyboard/touch product selection, an explicit exploration link and a complete native directory fallback.
-- Motion pause controls, finite introductory motion, hidden/offscreen suspension and a genuinely static reduced-motion mode.
+- Automatic orbital label motion while visible, with manual/hover/focus pauses, hidden/offscreen suspension, upright collision-aware labels and a genuinely static reduced-motion mode. The orbit sits beside the UnoOne introduction on desktop and below it on mobile; the demo follows. Insufficient layout space exposes the complete native text list rather than accepting overlapping geometry.
 - No fake telemetry, animated success receipts or graphical data-transfer claims between independent portfolio products.
 - At least 44px interactive targets, visible focus and usable narrow/large-text layouts.
 - English product content remains labelled English when a different interface language is selected. No fabricated translations or hreflang editions.

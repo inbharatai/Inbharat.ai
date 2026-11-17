@@ -1,6 +1,9 @@
 /* Only the two owner-authorized product regions. No company/header/theme overrides. */
 #pai .unoone-product-section { max-width:1280px; margin:auto; padding-inline:20px; }
 #pai .unoone-product-grid { display:grid; gap:38px; align-items:center; }
+#pai .unoone-product-grid > * { min-width:0; }
+#pai .unoone-product-demo { max-width:960px; margin:42px auto 0; }
+#pai .unoone-product-orbit { min-width:0; width:100%; max-width:520px; margin-inline:auto; }
 #pai .unoone-product-copy > .unoone-logo { width:128px; height:auto; object-fit:contain; margin:22px 0 14px; }
 #pai .unoone-product-copy h2 { margin:0; color:#f59f4f; font-size:12px; font-weight:700; letter-spacing:.2em; }
 #pai .unoone-product-headline { margin:15px 0 22px; color:#fff; font-size:clamp(30px,3.2vw,44px); font-weight:700; line-height:1.15; letter-spacing:-.035em; }
@@ -30,11 +33,13 @@
 #ecosystem .unoone-orbit-scroll { width:100%; border-radius:20px; overflow:visible; }
 #ecosystem .unoone-orbit-stage { position:relative; width:100%; min-width:0; aspect-ratio:1; isolation:isolate; }
 #ecosystem .unoone-orbit-rings { position:absolute; inset:50px; width:calc(100% - 100px); height:calc(100% - 100px); }
-#ecosystem .unoone-orbit-rings[data-replay="true"] { animation:unoone-scoped-ring-highlight 3s ease-in-out 3; }
+#ecosystem .unoone-orbit-rings circle { animation:unoone-ring-drift 28s linear infinite; animation-play-state:var(--orbit-play-state,paused); }
+#ecosystem .unoone-orbit-rings circle:nth-child(2) { animation-direction:reverse; animation-duration:36s; }
+#ecosystem .unoone-orbit-rings circle:nth-child(3) { animation-duration:44s; }
 #ecosystem .unoone-orbit-core { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; justify-content:center; align-items:center; width:80px; height:80px; border-radius:50%; border:1px solid #ffffff26; background:#080d16; box-shadow:0 0 60px #f59f4f2e,0 0 120px #3b82f614; }
-#ecosystem .unoone-orbit-core .inbharat-orbit-mark { width:32px; height:32px; object-fit:contain; }
+#ecosystem .unoone-orbit-core .inbharat-orbit-mark { width:32px; height:32px; object-fit:contain; animation:unoone-star-breathe 4s ease-in-out infinite; animation-play-state:var(--orbit-play-state,paused); }
 @media(min-width:640px) { #ecosystem .unoone-orbit-core .inbharat-orbit-mark { width:40px; height:40px; } }
-#ecosystem .unoone-orbit-pill { position:absolute; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; gap:5px; width:94px; min-height:44px; padding:5px 3px; border:1px solid #ffffff1a; border-radius:12px; background:rgba(12,20,34,.95); color:#e8eef8; font-size:9px; font-weight:700; white-space:nowrap; box-shadow:0 2px 8px #0003; cursor:pointer; }
+#ecosystem .unoone-orbit-pill { position:absolute; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; gap:5px; width:94px; min-height:44px; padding:5px 3px; border:1px solid #ffffff1a; border-radius:12px; background:rgba(12,20,34,.95); color:#e8eef8; font-size:9px; font-weight:700; white-space:normal; line-height:1.25; overflow-wrap:anywhere; box-shadow:0 2px 8px #0003; cursor:pointer; }
 #ecosystem .unoone-orbit-pill > span { flex:none; width:6px; height:6px; border-radius:50%; }
 #ecosystem .unoone-orbit-pill:hover, #ecosystem .unoone-orbit-pill[aria-pressed="true"] { background:#142134; box-shadow:0 0 20px #f59f4f12; }
 #ecosystem .unoone-orbit-replay { display:inline-flex; align-items:center; gap:7px; color:#96b0c8; min-height:44px; font-size:11px; padding:8px 0; cursor:pointer; }
@@ -51,7 +56,10 @@
 #ecosystem .unoone-map-source { margin-top:16px; font-size:10px; line-height:1.7; color:#96b0c8; }
 #ecosystem .unoone-map-source a { color:#f8c791; text-decoration:underline; text-underline-offset:3px; }
 #ecosystem .unoone-capability-map :is(button,a,summary,[tabindex]):focus-visible { outline:2px solid #f59f4f; outline-offset:3px; }
-@keyframes unoone-scoped-ring-highlight { 0%,100% { opacity:1; } 50% { opacity:.42; } }
+@keyframes unoone-ring-drift { from { stroke-dashoffset:0; } to { stroke-dashoffset:100; } }
+@keyframes unoone-star-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.04); } }
+#ecosystem .unoone-orbit-toolbar { min-height:44px; }
+#ecosystem .unoone-orbit-motion-note { display:inline-flex;align-items:center;min-height:44px;font-size:11px;color:#96b0c8; }
 @media(min-width:640px) { #pai .unoone-product-section { padding-inline:24px; } #pai .unoone-product-features { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(min-width:1024px) { #pai .unoone-product-section { padding-inline:40px; } #pai .unoone-product-grid { grid-template-columns:1fr 1.15fr; gap:48px; } }
 @media(prefers-reduced-motion:reduce) { #pai .unoone-product-section *, #ecosystem .unoone-capability-map * { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
@@ -78,3 +86,5 @@
   min-width:0;
   overflow-wrap:anywhere;
 }
+#ecosystem .unoone-capability-map[data-orbit-fit="fallback"] .unoone-orbit-pill,
+#ecosystem .unoone-capability-map[data-orbit-fit="fallback"] [data-orbit-connector] { visibility:hidden; }

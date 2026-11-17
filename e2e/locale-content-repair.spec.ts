@@ -45,7 +45,7 @@ for (const language of languages) {
       // Canonical portfolio descriptions may be English; the historical local
       // safety/privacy/medical caveats must remain visible as local UI content.
       // Assert the user-facing text, not obsolete category-card implementations.
-      for (const [key, name] of [['landSafetyNotice', ''], ['landProdSocialFlowDesc', 'SocialFlow'], ['landProdSwasthyaDesc', 'SwasthyaScore AI'], ['landProdSahaayakSevaDesc', 'Sahayaak Seva']]) {
+      for (const [key, name] of [['landSafetyNotice', 'JAK Swarm'], ['landProdSocialFlowDesc', 'SocialFlow'], ['landProdSwasthyaDesc', 'SwasthyaScore AI'], ['landProdSahaayakSevaDesc', 'Sahayaak Seva']]) {
         if (name) {
           await page.locator('#products button').filter({ hasText: messages.landBucketCore }).filter({ visible: true }).first().click();
           await page.locator('#products button').filter({ hasText: name }).filter({ visible: true }).first().click();

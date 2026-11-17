@@ -45,7 +45,7 @@
     "test:rendering-contract": "tsx scripts/test-rendering-contract.ts",
     "test:article-lifecycle": "tsx scripts/test-article-lifecycle.ts",
     "test:seo-audit-contracts": "tsx scripts/test-seo-audit-contracts.ts",
-    "test:seo-hardening": "npm run test:search-submission && npm run test:rendering-contract && npm run test:article-lifecycle && npm run test:seo-audit-contracts && npm run test:article-display && npm run test:content-accuracy && npm run test:canonical-article-sync && npm run test:article-render-safety && npm run test:publication-read-models && npm run test:publication-sql && npm run test:locale-boundaries && npm run test:publication-cron-auth && npm run test:source-provenance && npm run test:landing-ssr && npm run test:toolchain-compat && npm run test:unoone-release && npm run test:unoone-logo",
+    "test:seo-hardening": "npm run test:search-submission && npm run test:rendering-contract && npm run test:article-lifecycle && npm run test:seo-audit-contracts && npm run test:article-display && npm run test:content-accuracy && npm run test:canonical-article-sync && npm run test:article-render-safety && npm run test:publication-read-models && npm run test:publication-sql && npm run test:locale-boundaries && npm run test:publication-cron-auth && npm run test:source-provenance && npm run test:landing-ssr && npm run test:toolchain-compat && npm run test:unoone-release && npm run test:unoone-logo && npm run test:orbit-motion",
     "audit:deployment": "tsx scripts/audit-production-seo.ts",
     "test:article-display": "tsx scripts/test-article-display.ts",
     "test:content-accuracy": "tsx scripts/test-content-accuracy.mjs",
@@ -59,7 +59,8 @@
     "test:landing-ssr": "tsx --test e2e/landing-ssr.contract.ts",
     "test:toolchain-compat": "node scripts/test-toolchain-compat.mjs",
     "test:unoone-release": "tsx scripts/test-unoone-release.ts",
-    "test:unoone-logo": "tsx scripts/test-unoone-logo.ts"
+    "test:unoone-logo": "tsx scripts/test-unoone-logo.ts",
+    "test:orbit-motion": "tsx scripts/test-orbit-motion.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.97.0",

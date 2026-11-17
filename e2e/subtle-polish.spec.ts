@@ -104,7 +104,8 @@ test('reduced motion is static, including SVG and hover effects', async ({ page 
   await page.goto('/');
   await ready(page);
   await page.locator('.unoone-orbit-stage').scrollIntoViewIfNeeded();
-  await page.getByRole('button', { name: 'Replay ring highlight', exact: true }).click();
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.unoone-orbit-stage')).toHaveAttribute('data-orbit-state', 'running');
   // A live preference change must stop active motion too. Hiding/disablement
   // of replay under reduced motion is valid; don't try to activate a hidden UI.
   await page.emulateMedia({ reducedMotion: 'reduce' });

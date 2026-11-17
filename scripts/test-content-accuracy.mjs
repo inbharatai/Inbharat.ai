@@ -124,7 +124,7 @@ for (const product of PRODUCT_REGISTRY) {
 }
 check(!/val: '100%'|val: '0'/.test(landing), 'No fabricated security percentages/counts');
 check(!landing.includes('status-pulse"'), 'Static product status is not animated live-health telemetry');
-check(landing.includes("t('landJakIllustration')") && landing.includes("t('landSafetyNotice')"), 'Original JAK illustration retains visible illustration and safety boundaries');
+check(!landing.includes('JakSwarmFlowGraph') && landing.includes("t('landSafetyNotice')") && landing.includes('id="jakswarm"'), 'Removed JAK showcase retains its directory anchor and contextual safety boundary');
 check(landing.includes('<HeroGitaQuote />'), 'Gita signature preserved');
 check(landing.includes('CredentialRail'), 'Credential rail preserved');
 check(!read('components/landing/UnoOneDevices.tsx').includes('ONE VAULT'), 'No one-physical-vault implication');
